@@ -1,7 +1,18 @@
+using Config_API.Repository.Implementations;
+using Config_API.Repository.Interfaces;
+using Config_API.Services.Implementations;
+using Config_API.Services.Interfaces;
+using System.Data;
+using System.Data.SqlClient;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+string connectionString = builder.Configuration.GetConnectionString("DefaultConnection")!;
 
+builder.Services.AddTransient<IDbConnection>(c => new SqlConnection(connectionString));
+builder.Services.AddTransient<IBoardServices, BoardServices>();
+builder.Services.AddTransient<IBoardRepository, BoardRepository>();
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
