@@ -1,7 +1,18 @@
+using Course_API.Repository.Implementations;
+using Course_API.Repository.Interfaces;
+using Course_API.Services.Implementations;
+using Course_API.Services.Interfaces;
+using System.Data;
+using System.Data.SqlClient;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+string connectionString = builder.Configuration.GetConnectionString("DefaultConnection")!;
 
+builder.Services.AddTransient<IDbConnection>(c => new SqlConnection(connectionString));
+builder.Services.AddTransient<IBookServices, BookServices>();
+builder.Services.AddTransient<IBookRepository, BookRepository>();
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
