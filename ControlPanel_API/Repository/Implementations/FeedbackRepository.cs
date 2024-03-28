@@ -86,8 +86,8 @@ namespace ControlPanel_API.Repository.Implementations
             try
             {
                 // Construct the SQL insert query
-                string sql = @"INSERT INTO tblSyllabus (CreatedOn, BoardID, ClassId, CourseId, CreatedBy, Description, ModifiedBy, ModifiedOn, SyllabusId, Status, SyllabusName, YearID) 
-                       VALUES (@CreatedOn, @BoardID, @ClassId, @CourseId, @CreatedBy, @Description, @ModifiedBy, @ModifiedOn, @SyllabusId, @Status, @SyllabusName, @YearID)";
+                string sql = @"INSERT INTO tblSyllabus (CreatedOn, BoardID, ClassId, CourseId, CreatedBy, Description, ModifiedBy, ModifiedOn, Status, SyllabusName, YearID) 
+                       VALUES (@CreatedOn, @BoardID, @ClassId, @CourseId, @CreatedBy, @Description, @ModifiedBy, @ModifiedOn, @Status, @SyllabusName, @YearID)";
 
 
                 int rowsAffected = await _connection.ExecuteAsync(sql, new
@@ -100,7 +100,7 @@ namespace ControlPanel_API.Repository.Implementations
                     request.Description,
                     request.ModifiedBy,
                     request.ModifiedOn,
-                    request.SyllabusId,
+                    //request.SyllabusId,
                     request.Status,
                     request.SyllabusName,
                     request.YearID
@@ -127,14 +127,16 @@ namespace ControlPanel_API.Repository.Implementations
             {
                 var list = new List<GetAllFeedbackResponse>();
 
-                string sql = @"SELECT * FROM tblSyllabus WHERE ClassName = @ClassName OR CourseName = @CourseName OR Boardname = @BoardName";
+                string sql = @"SELECT * FROM tblSyllabus WHERE (BoardID = @BoardID OR @BoardID = 0)
+                            AND (CourseId = @CourseId OR @CourseId = 0)
+                            AND (ClassId = @ClassId OR @ClassId = 0)";
 
                 // Execute the SQL query and retrieve syllabi asynchronously using Dapper
                 IEnumerable<Syllabus> syllabi = await _connection.QueryAsync<Syllabus>(sql, new
                 {
-                    request.ClassName,
-                    request.CourseName,
-                    request.Boardname
+                    request.BoardID,
+                    request.ClassId,
+                    request.CourseId
                 });
 
                 foreach (var syllabus in syllabi)

@@ -53,7 +53,7 @@ namespace ControlPanel_API.Services.Implementations
         {
             try
             {
-                return await _rolesRepository.AddRole(role);
+                return await _rolesRepository.UpdateRole(role);
             }
             catch (Exception ex)
             {

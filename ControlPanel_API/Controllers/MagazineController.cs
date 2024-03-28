@@ -23,8 +23,8 @@ namespace ControlPanel_API.Controllers
         {
             try
             {
-                await _magazineService.AddNewMagazine(magazineDTO);
-                return Ok();
+                var data = await _magazineService.AddNewMagazine(magazineDTO);
+                return Ok(data);
             }
             catch (Exception ex)
             {
@@ -37,8 +37,8 @@ namespace ControlPanel_API.Controllers
         {
             try
             {
-                await _magazineService.UpdateMagazine(magazineDTO);
-                return Ok();
+                var data = await _magazineService.UpdateMagazine(magazineDTO);
+                return Ok(data);
             }
             catch (Exception ex)
             {
@@ -79,8 +79,8 @@ namespace ControlPanel_API.Controllers
         {
             try
             {
-                await _magazineService.DeleteMagazine(id);
-                return Ok();
+                var data = await _magazineService.DeleteMagazine(id);
+                return Ok(data);
             }
             catch (Exception ex)
             {
@@ -98,8 +98,8 @@ namespace ControlPanel_API.Controllers
 
             try
             {
-                await _magazineService.UpdateMagazineFile(magazineDTO);
-                return Ok();
+                var data = await _magazineService.UpdateMagazineFile(magazineDTO);
+                return Ok(data);
             }
             catch (Exception ex)
             {
@@ -112,7 +112,7 @@ namespace ControlPanel_API.Controllers
             try
             {
                 var file = await _magazineService.GetMagazineFileById(id);
-                return File(file.Data, "application/pdf");
+                return File(file.Data, "image/*");
             }
             catch (Exception ex)
             {

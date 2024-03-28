@@ -7,26 +7,27 @@ namespace ControlPanel_API.Models
     public class StoryOfTheDay
     {
         [Key]
-        public int QuestionId { get; set; }
+        public int? StoryId {  get; set; }
+        public int Questionid { get; set; }
 
         [StringLength(150)]
-        public string Question { get; set; }
-
+        public string QuestionName { get; set; } = string.Empty;
+        public string BoardID { get; set; } = string.Empty;
+        public string ClassID { get; set; } = string.Empty;
         [StringLength(15)]
-        public string BoardName { get; set; }
+        public string BoardName { get; set; } = string.Empty;
 
         [StringLength(5)]
-        public string ClassName { get; set; }
-
+        public string ClassName { get; set; } = string.Empty;
         public DateTime? PostTime { get; set; }
 
         public DateTime? DateAndTime { get; set; }
 
         [StringLength(50)]
-        public string UploadImage { get; set; }
+        public string UploadImage { get; set; } = string.Empty;
 
         [StringLength(5)]
-        public string Answer { get; set; }
+        public string Answer { get; set; } = string.Empty;
 
         public TimeSpan? AnswerRevealTime { get; set; }
 

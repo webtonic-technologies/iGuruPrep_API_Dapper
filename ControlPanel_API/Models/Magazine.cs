@@ -8,12 +8,14 @@ namespace ControlPanel_API.Models
     {
         public int MagazineId { get; set; }
         [MaxLength(255)]
-        public string MagazineName { get; set; }
+        public string MagazineName { get; set; } = string.Empty;
         [MaxLength(50)]
-        public string ClassName { get; set; }
+        public string ClassName { get; set; } = string.Empty;
         [MaxLength(50)]
-        public string CourseName { get; set; }
-        public DateTime DateAndTime { get; set; }
-        public string PathURL { get; set; }
+        public string CourseName { get; set; } = string.Empty;
+        public DateTime? DateAndTime { get; set; }
+        public string PathURL { get; set; } = string.Empty;
+        public string MagazineTitle { get; set; } = string.Empty;
+        public bool? Status {  get; set; }
     }
 }

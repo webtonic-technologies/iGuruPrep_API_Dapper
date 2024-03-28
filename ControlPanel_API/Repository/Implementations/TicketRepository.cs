@@ -20,9 +20,9 @@ namespace ControlPanel_API.Repository.Implementations
             try
             {
                 int rowsAffected = await _connection.ExecuteAsync(
-                    @"INSERT INTO tblTicket (TicketID, Boardname, ClassName, CourseName, DateAndTime, MobileNumber, QueryInfo, QueryType, Status, SubjectName, TicketNo) 
-              VALUES (@TicketID, @Boardname, @ClassName, @CourseName, @DateAndTime, @MobileNumber, @QueryInfo, @QueryType, @Status, @SubjectName, @TicketNo)",
-                    request);
+                            @"INSERT INTO tblTicket (TicketID, boardid, ClassId, Boardname, ClassName, CourseName, DateAndTime, MobileNumber, QueryInfo, QueryType, Status, SubjectName, TicketNo) 
+              VALUES (@TicketID, @boardid, @ClassId, @Boardname, @ClassName, @CourseName, @DateAndTime, @MobileNumber, @QueryInfo, @QueryType, @Status, @SubjectName, @TicketNo)",
+                            request);
 
                 if (rowsAffected > 0)
                 {
@@ -43,14 +43,10 @@ namespace ControlPanel_API.Repository.Implementations
         {
             try
             {
-                var query = @"SELECT TicketID, Boardname, ClassName, CourseName, DateAndTime, MobileNumber, QueryInfo, QueryType, Status, SubjectName, TicketNo
-                      FROM tblTicket
-                      WHERE (Boardname = @Boardname OR @Boardname IS NULL)
-                            AND (CourseName = @CourseName OR @CourseName IS NULL)
-                            AND (ClassName = @ClassName OR @ClassName IS NULL)
-                            AND (DateAndTime = @Today OR @Today IS NULL)
-                            AND (DateAndTime >= @StartDate AND DateAndTime <= @EndDate)
-                      ORDER BY DateAndTime DESC";
+                var query = @"SELECT * FROM tblTicket
+                    WHERE (boardid = @boardid OR @boardid = 0)
+                            AND (ClassId = @ClassId OR @ClassId = 0)
+                            AND (TicketNo = @TicketNo OR @TicketNo = 0)";
 
                 var tickets = await _connection.QueryAsync<Ticket>(query, request);
                 if (tickets != null)

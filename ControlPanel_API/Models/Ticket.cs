@@ -12,10 +12,12 @@ namespace ControlPanel_API.Models
         public string MobileNumber { get; set; } = string.Empty;
         public string Boardname { get; set; } = string.Empty;
         public string ClassName { get; set; } = string.Empty;
-        public string CourseName { get; set; } = string.Empty;
+        public int? CourseName { get; set; }
         public string SubjectName { get; set; } = string.Empty;
         public string QueryInfo { get; set; } = string.Empty;
         public DateTime? DateAndTime { get; set; }
         public int? Status { get; set; }
+        public int? boardid {  get; set; }
+        public int? ClassId { get; set; }
     }
 }

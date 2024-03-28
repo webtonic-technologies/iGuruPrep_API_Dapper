@@ -24,8 +24,8 @@ namespace ControlPanel_API.Controllers
         {
             try
             {
-                await _storyOfTheDayService.AddNewStoryOfTheDay(storyOfTheDayDTO);
-                return Ok();
+                var data = await _storyOfTheDayService.AddNewStoryOfTheDay(storyOfTheDayDTO);
+                return Ok(data);
             }
             catch (Exception ex)
             {
@@ -38,8 +38,8 @@ namespace ControlPanel_API.Controllers
         {
             try
             {
-                await _storyOfTheDayService.UpdateStoryOfTheDay(storyOfTheDayDTO);
-                return Ok();
+                var data = await _storyOfTheDayService.UpdateStoryOfTheDay(storyOfTheDayDTO);
+                return Ok(data);
             }
             catch (Exception ex)
             {
@@ -80,8 +80,8 @@ namespace ControlPanel_API.Controllers
         {
             try
             {
-                await _storyOfTheDayService.DeleteStoryOfTheDay(id);
-                return Ok();
+                var data = await _storyOfTheDayService.DeleteStoryOfTheDay(id);
+                return Ok(data);
             }
             catch (Exception ex)
             {
@@ -99,8 +99,8 @@ namespace ControlPanel_API.Controllers
 
             try
             {
-                await _storyOfTheDayService.UpdateStoryOfTheDayFile(storyOfTheDayDTO);
-                return Ok();
+                var data = await _storyOfTheDayService.UpdateStoryOfTheDayFile(storyOfTheDayDTO);
+                return Ok(data);
             }
             catch (Exception ex)
             {

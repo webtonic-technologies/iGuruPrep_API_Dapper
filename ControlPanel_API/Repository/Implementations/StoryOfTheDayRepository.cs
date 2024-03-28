@@ -3,6 +3,7 @@ using ControlPanel_API.DTOs.ServiceResponse;
 using ControlPanel_API.Models;
 using ControlPanel_API.Repository.Interfaces;
 using Dapper;
+using System.ComponentModel.DataAnnotations;
 using System.Data;
 
 namespace ControlPanel_API.Repository.Implementations
@@ -23,7 +24,10 @@ namespace ControlPanel_API.Repository.Implementations
             {
                 var storyOfTheDay = new StoryOfTheDay
                 {
-                    Question = storyOfTheDayDTO.Question,
+                    Questionid = storyOfTheDayDTO.Questionid,
+                    QuestionName = storyOfTheDayDTO.QuestionName,
+                    BoardID = storyOfTheDayDTO.BoardID,
+                    ClassID = storyOfTheDayDTO.ClassID,
                     BoardName = storyOfTheDayDTO.BoardName,
                     ClassName = storyOfTheDayDTO.ClassName,
                     PostTime = storyOfTheDayDTO.PostTime,
@@ -50,10 +54,10 @@ namespace ControlPanel_API.Repository.Implementations
                     storyOfTheDay.UploadImage = fileName;
                 }
 
-                   int rowsAffected = await _connection.ExecuteAsync(
-                        @"INSERT INTO tblSOTD (Question, BoardName, ClassName, PostTime, DateAndTime, Answer, AnswerRevealTime, Status, UploadImage) 
-                VALUES (@Question, @BoardName, @ClassName, @PostTime, @DateAndTime, @Answer, @AnswerRevealTime, @Status, @UploadImage)",
-                        storyOfTheDay);
+                int rowsAffected = await _connection.ExecuteAsync(
+                     @"INSERT INTO tblSOTD (Questionid, QuestionName, BoardID, ClassID, BoardName, ClassName, PostTime, DateAndTime, Answer, AnswerRevealTime, Status, UploadImage) 
+                VALUES (@Questionid, @QuestionName, @BoardID, @ClassID, @BoardName, @ClassName, @PostTime, @DateAndTime, @Answer, @AnswerRevealTime, @Status, @UploadImage)",
+                     storyOfTheDay);
 
                 if (rowsAffected > 0)
                 {
@@ -113,8 +117,7 @@ namespace ControlPanel_API.Repository.Implementations
             try
             {
                 var storyOfTheDays = await _connection.QueryAsync<StoryOfTheDayDTO>(
-                    @"SELECT * FROM tblSOTD");
-
+                    @"SELECT StoryId, Questionid, QuestionName, BoardID, ClassID, BoardName, ClassName, PostTime, DateAndTime, Answer, AnswerRevealTime, Status FROM tblSOTD");
                 if (storyOfTheDays != null)
                 {
                     return new ServiceResponse<IEnumerable<StoryOfTheDayDTO>>(true, "Records Found", storyOfTheDays.AsList(), 200);
@@ -126,7 +129,7 @@ namespace ControlPanel_API.Repository.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<IEnumerable<StoryOfTheDayDTO>> (false, ex.Message, new List<StoryOfTheDayDTO>(), 500);
+                return new ServiceResponse<IEnumerable<StoryOfTheDayDTO>>(false, ex.Message, new List<StoryOfTheDayDTO>(), 500);
             }
         }
 
@@ -135,8 +138,8 @@ namespace ControlPanel_API.Repository.Implementations
             try
             {
                 var storyOfTheDay = await _connection.QueryFirstOrDefaultAsync<StoryOfTheDayDTO>(
-                    @"SELECT * FROM tblSOTD WHERE QuestionId = @QuestionId",
-                    new { QuestionId = id });
+                    @"SELECT StoryId, Questionid, QuestionName, BoardID, ClassID, BoardName, ClassName, PostTime, DateAndTime, Answer, AnswerRevealTime, Status FROM tblSOTD WHERE StoryId = @StoryId",
+                    new { StoryId = id });
 
                 if (storyOfTheDay != null)
                 {
@@ -158,8 +161,8 @@ namespace ControlPanel_API.Repository.Implementations
             try
             {
                 var storyOfTheDay = await _connection.QueryFirstOrDefaultAsync<StoryOfTheDay>(
-                    "SELECT UploadImage FROM tblSOTD WHERE QuestionId = @QuestionId",
-                    new { QuestionId = id });
+                    "SELECT UploadImage FROM tblSOTD WHERE StoryId = @StoryId",
+                    new { StoryId = id });
 
                 if (storyOfTheDay == null)
                 {
@@ -187,13 +190,16 @@ namespace ControlPanel_API.Repository.Implementations
             try
             {
                 var storyOfTheDay = await _connection.QueryFirstOrDefaultAsync<StoryOfTheDay>(
-                    @"SELECT * FROM tblSOTD WHERE QuestionId = @QuestionId",
-                    new { storyOfTheDayDTO.QuestionId });
+                    @"SELECT * FROM tblSOTD WHERE StoryId = @StoryId",
+                    new { storyOfTheDayDTO.StoryId });
 
                 if (storyOfTheDay == null)
                     throw new Exception("Story of the day not found");
 
-                storyOfTheDay.Question = storyOfTheDayDTO.Question;
+                storyOfTheDay.Questionid = storyOfTheDayDTO.Questionid;
+                storyOfTheDay.QuestionName = storyOfTheDayDTO.QuestionName;
+                storyOfTheDay.BoardID = storyOfTheDayDTO.BoardID;
+                storyOfTheDay.ClassID = storyOfTheDayDTO.ClassID;
                 storyOfTheDay.BoardName = storyOfTheDayDTO.BoardName;
                 storyOfTheDay.ClassName = storyOfTheDayDTO.ClassName;
                 storyOfTheDay.PostTime = storyOfTheDayDTO.PostTime;
@@ -202,12 +208,12 @@ namespace ControlPanel_API.Repository.Implementations
                 storyOfTheDay.AnswerRevealTime = new TimeSpan(0, storyOfTheDayDTO.AnswerRevealTime.Value.Hours, storyOfTheDayDTO.AnswerRevealTime.Value.Minutes, storyOfTheDayDTO.AnswerRevealTime.Value.Seconds, storyOfTheDayDTO.AnswerRevealTime.Value.Microseconds);
                 storyOfTheDay.Status = storyOfTheDayDTO.Status;
 
-               int rowsAffected = await _connection.ExecuteAsync(
-                    @"UPDATE tblSOTD 
-            SET Question = @Question, BoardName = @BoardName, ClassName = @ClassName, PostTime = @PostTime, DateAndTime = @DateAndTime, 
-            Answer = @Answer, AnswerRevealTime = @AnswerRevealTime, Status = @Status 
-            WHERE QuestionId = @QuestionId",
-                    storyOfTheDay);
+                int rowsAffected = await _connection.ExecuteAsync(
+                     @"UPDATE tblSOTD 
+            SET BoardName = @BoardName, ClassName = @ClassName, PostTime = @PostTime, DateAndTime = @DateAndTime, 
+            Answer = @Answer, AnswerRevealTime = @AnswerRevealTime, Status = @Status, Questionid = @Questionid, QuestionName = @QuestionName, BoardID = @BoardID, ClassID = @ClassID 
+            WHERE StoryId = @StoryId",
+                     storyOfTheDay);
 
                 if (rowsAffected > 0)
                 {
@@ -230,8 +236,8 @@ namespace ControlPanel_API.Repository.Implementations
             try
             {
                 var storyOfTheDay = await _connection.QueryFirstOrDefaultAsync<StoryOfTheDay>(
-                    "SELECT UploadImage FROM tblSOTD WHERE QuestionId = @QuestionId",
-                    new { storyOfTheDayDTO.QuestionId });
+                    "SELECT UploadImage FROM tblSOTD WHERE StoryId = @StoryId",
+                    new { storyOfTheDayDTO.StoryId });
 
                 if (storyOfTheDay == null)
                 {
@@ -261,8 +267,8 @@ namespace ControlPanel_API.Repository.Implementations
                 }
 
                 int rowsAffected = await _connection.ExecuteAsync(
-                    "UPDATE tblSOTD SET UploadImage = @UploadImage WHERE QuestionId = @QuestionId",
-                    new { storyOfTheDay.UploadImage, storyOfTheDayDTO.QuestionId });
+                    "UPDATE tblSOTD SET UploadImage = @UploadImage WHERE StoryId = @StoryId",
+                    new { storyOfTheDay.UploadImage, storyOfTheDayDTO.StoryId });
                 if (rowsAffected > 0)
                 {
                     return new ServiceResponse<string>(true, "Operation Successful", "SOTD Updated Successfully", 200);
@@ -277,5 +283,6 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
+
     }
 }

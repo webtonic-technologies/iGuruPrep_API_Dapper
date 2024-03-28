@@ -26,7 +26,9 @@ namespace ControlPanel_API.Repository.Implementations
                     MagazineName = magazineDTO.MagazineName,
                     ClassName = magazineDTO.ClassName,
                     CourseName = magazineDTO.CourseName,
-                    DateAndTime = DateTime.Now
+                    DateAndTime = DateTime.Now,
+                    MagazineTitle = magazineDTO.MagazineTitle,
+                    Status = magazineDTO.Status
                 };
 
                 if (magazineDTO.File != null)
@@ -45,8 +47,8 @@ namespace ControlPanel_API.Repository.Implementations
                     magazine.PathURL = fileName;
                 }
 
-                string sql = @"INSERT INTO tblMagazine (MagazineName, ClassName, CourseName, DateAndTime, PathURL) 
-                       VALUES (@MagazineName, @ClassName, @CourseName, @DateAndTime, @PathURL)";
+                string sql = @"INSERT INTO tblMagazine (MagazineName, ClassName, CourseName, DateAndTime, PathURL, MagazineTitle, Status) 
+                       VALUES (@MagazineName, @ClassName, @CourseName, @DateAndTime, @PathURL, @MagazineTitle, @Status)";
                 int rowsAffected = await _connection.ExecuteAsync(sql, magazine);
 
                 if (rowsAffected > 0)
@@ -104,8 +106,7 @@ namespace ControlPanel_API.Repository.Implementations
             try
             {
                 var query = @"
-                SELECT MagazineId, MagazineName, ClassName, CourseName
-                FROM tblMagazine";
+                SELECT * FROM tblMagazine";
 
                 var magazines = await _connection.QueryAsync<MagazineDTO>(query);
 
@@ -129,7 +130,7 @@ namespace ControlPanel_API.Repository.Implementations
             try
             {
                 var query = @"
-                SELECT MagazineId, MagazineName, ClassName, CourseName
+                SELECT *
                 FROM tblMagazine
                 WHERE MagazineId = @MagazineId";
 
@@ -181,7 +182,7 @@ namespace ControlPanel_API.Repository.Implementations
             {
                 var query = @"
                 UPDATE tblMagazine
-                SET MagazineName = @MagazineName, ClassName = @ClassName, CourseName = @CourseName
+                SET MagazineName = @MagazineName, ClassName = @ClassName, CourseName = @CourseName, MagazineTitle = @MagazineTitle, Status = @Status
                 WHERE MagazineId = @MagazineId";
 
                 int rowsAffected = await _connection.ExecuteAsync(query, new
@@ -189,7 +190,9 @@ namespace ControlPanel_API.Repository.Implementations
                     magazineDTO.MagazineName,
                     magazineDTO.ClassName,
                     magazineDTO.CourseName,
-                    magazineDTO.MagazineId
+                    magazineDTO.MagazineId,
+                    magazineDTO.Status,
+                    magazineDTO.MagazineTitle
                 });
                 if (rowsAffected > 0)
                 {
@@ -212,14 +215,16 @@ namespace ControlPanel_API.Repository.Implementations
             {
                 await _connection.ExecuteAsync(
                     @"UPDATE tblMagazine 
-                  SET MagazineName = @MagazineName, ClassName = @ClassName, CourseName = @CourseName
+                  SET MagazineName = @MagazineName, ClassName = @ClassName, CourseName = @CourseName, MagazineTitle = @MagazineTitle, Status = @Status
                   WHERE MagazineId = @MagazineId",
                     new
                     {
                         magazineDTO.MagazineName,
                         magazineDTO.ClassName,
                         magazineDTO.CourseName,
-                        magazineDTO.MagazineId
+                        magazineDTO.MagazineId,
+                        magazineDTO.MagazineTitle,
+                        magazineDTO.Status
                     });
 
                 if (magazineDTO.File != null)
