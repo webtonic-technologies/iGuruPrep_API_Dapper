@@ -52,13 +52,18 @@ namespace Schools_API.Repository.Implementations
                     ClassId = projectDTO.ClassId,
                     CourseId = projectDTO.CourseId,
                     SubjectId = projectDTO.SubjectId,
-                    CreatedBy = projectDTO.CreatedBy
+                    CreatedBy = projectDTO.CreatedBy,
+                    modifiedby = projectDTO.modifiedby,
+                    modifiedon = projectDTO.modifiedon,
+                    ReferenceLink = projectDTO.ReferenceLink,
+                    status = projectDTO.status,
+                    UserID = projectDTO.UserID
                 };
+                var query = @"
+            INSERT INTO tblProject (ProjectName, ProjectDescription, PathURL, CourseId, ClassId, BoardId, SubjectId, CreatedBy, ReferenceLink, UserID, status, modifiedby, modifiedon)
+            VALUES (@ProjectName, @ProjectDescription, @PathURL, @CourseId, @ClassId, @BoardId, @SubjectId, @CreatedBy, @ReferenceLink, @UserID, @status, @modifiedby, @modifiedon);";
 
-                int rowsAffected = await _connection.ExecuteAsync(
-                    @"INSERT INTO tblproject (ProjectName, ProjectDescription, PathURL, BoardId, ClassId, CourseId, SubjectId, CreatedBy)
-              VALUES (@ProjectName, @ProjectDescription, @PathURL, @BoardId, @ClassId, @CourseId, @SubjectId, @CreatedBy)",
-                    project);
+                int rowsAffected = await _connection.ExecuteAsync(query, project);
 
                 if (rowsAffected > 0)
                 {
@@ -138,9 +143,7 @@ namespace Schools_API.Repository.Implementations
             try
             {
                     var project = await _connection.QueryFirstOrDefaultAsync<ProjectDetailsDTO>(
-                        @"SELECT p.ProjectId, p.ProjectName, p.ProjectDescription, p.PathURL AS ImageName,
-                         c.CourseName AS CourseName, cl.ClassName AS ClassName, b.BoardName AS BoardName,
-                         s.SubjectName AS SubjectName, p.CreatedBy
+                        @"SELECT *
                   FROM tblproject p
                   INNER JOIN tblCourse c ON p.CourseId = c.CourseId
                   INNER JOIN tblClass cl ON p.ClassId = cl.ClassId
