@@ -32,10 +32,10 @@ namespace Course_API.Repository.Implementations
             try
             {
                 int rowsAffected = await _connection.ExecuteAsync(
-                    @"INSERT INTO Books (BookName, AuthorName, AuthorDetails, AuthorAffliation, BoardName, ClassName, CourseName, SubjectName, Status)
-                  VALUES (@BookName, @AuthorName, @AuthorDetails, @AuthorAffiliation, @BoardName, @ClassName, @CourseName, @SubjectName, @Status)",
+                    @"INSERT INTO tblBook (BookName, AuthorName, AuthorDetails, AuthorAffliation, BoardName, ClassName, CourseName, SubjectName, Status)
+                  VALUES (@BookName, @AuthorName, @AuthorDetails, @AuthorAffliation, @BoardName, @ClassName, @CourseName, @SubjectName, @Status)",
                     book);
-
+                
                 if (rowsAffected > 0)
                 {
                     return new ServiceResponse<string>(true, "Operation Successful", "Book Added Successfully", 200);
@@ -58,7 +58,7 @@ namespace Course_API.Repository.Implementations
             {
                 
                 int rowsAffected = await _connection.ExecuteAsync(
-                    "DELETE FROM Books WHERE BookId = @BookId", new { BookId = id });
+                    "DELETE FROM tblBook WHERE BookId = @BookId", new { BookId = id });
 
                 if (rowsAffected > 0)
                 {
@@ -80,7 +80,7 @@ namespace Course_API.Repository.Implementations
             try
             {
                 var book = await _connection.QueryFirstOrDefaultAsync<Book>(
-                    "SELECT * FROM Books WHERE BookId = @BookId", new { BookId = id });
+                    "SELECT * FROM tblBook WHERE BookId = @BookId", new { BookId = id });
 
                 if (book != null)
                 {
@@ -103,7 +103,7 @@ namespace Course_API.Repository.Implementations
             try
             {
                 var books = await _connection.QueryAsync<Book>(
-                    "SELECT * FROM Books");
+                    "SELECT * FROM tblBook");
 
                 if (books != null)
                 {
@@ -139,11 +139,11 @@ namespace Course_API.Repository.Implementations
             try
             {
                 int rowsAffected = await _connection.ExecuteAsync(
-                    @"UPDATE Books 
+                    @"UPDATE tblBook 
                   SET BookName = @BookName, 
                       AuthorName = @AuthorName, 
                       AuthorDetails = @AuthorDetails, 
-                      AuthorAffliation = @AuthorAffiliation, 
+                      AuthorAffliation = @AuthorAffliation, 
                       BoardName = @BoardName, 
                       ClassName = @ClassName, 
                       CourseName = @CourseName, 
