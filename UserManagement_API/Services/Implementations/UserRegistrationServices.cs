@@ -1,5 +1,5 @@
-﻿using Config_API.DTOs.ServiceResponse;
-using UserManagement_API.DTOs.Registration;
+﻿using UserManagement_API.DTOs.Registration;
+using UserManagement_API.DTOs.ServiceResponse;
 using UserManagement_API.Repository.Interfaces;
 
 namespace UserManagement_API.Services.Implementations
