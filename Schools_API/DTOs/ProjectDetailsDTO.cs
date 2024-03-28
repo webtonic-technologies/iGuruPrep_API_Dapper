@@ -12,5 +12,10 @@
         public string SubjectName { get; set; }
         public string CreatedBy { get; set; }
         public string ImageName { get; set; }
+        public string ReferenceLink { get; set; } = string.Empty;
+        public int? UserID { get; set; }
+        public bool? status { get; set; }
+        public string modifiedby { get; set; } = string.Empty;
+        public DateTime? modifiedon { get; set; }
     }
 }
