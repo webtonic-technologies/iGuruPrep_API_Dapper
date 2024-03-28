@@ -1,4 +1,4 @@
-﻿namespace UserManagement_API.DTOs.ServiceResponse
+﻿namespace ControlPanel_API.DTOs.ServiceResponse
 {
     public class ServiceResponse<T>
     {

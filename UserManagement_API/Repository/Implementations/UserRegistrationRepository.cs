@@ -1,9 +1,9 @@
-﻿using Config_API.DTOs.ServiceResponse;
+﻿using Dapper;
 using System.Data;
-using Dapper;
 using UserManagement_API.DTOs.Registration;
-using UserManagement_API.Repository.Interfaces;
+using UserManagement_API.DTOs.ServiceResponse;
 using UserManagement_API.Models;
+using UserManagement_API.Repository.Interfaces;
 
 namespace UserManagement_API.Repository.Implementations
 {
