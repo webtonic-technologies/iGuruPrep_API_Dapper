@@ -9,6 +9,7 @@ namespace ControlPanel_API.Services.Implementations
     {
         private readonly IDesignationRepository _designationRepository;
 
+
         public DesignationServices(IDesignationRepository designationRepository)
         {
             _designationRepository = designationRepository;
