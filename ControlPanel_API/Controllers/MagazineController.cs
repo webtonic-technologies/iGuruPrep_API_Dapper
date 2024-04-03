@@ -1,9 +1,6 @@
 using ControlPanel_API.DTOs;
-using ControlPanel_API.Models;
-using ControlPanel_API.Services.Implementations;
 using ControlPanel_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using System.Net;
 
 namespace ControlPanel_API.Controllers
 {
@@ -112,7 +109,7 @@ namespace ControlPanel_API.Controllers
             try
             {
                 var file = await _magazineService.GetMagazineFileById(id);
-                return File(file.Data, "image/*");
+                return File(file.Data, "application/pdf");
             }
             catch (Exception ex)
             {
