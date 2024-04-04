@@ -109,5 +109,28 @@ namespace Course_API.Controllers
                 return BadRequest(ex.Message);
             }
         }
+        [HttpGet("SubjectContent")]
+        public async Task<IActionResult> GetListOfSubjectContent(SubjectContentIndexRequestDTO request)
+        {
+            try
+            {
+                var data = await _contentMasterServices.GetListOfSubjectContent(request);
+                if (data != null)
+                {
+                    return Ok(data);
+
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+
+        }
     }
 }

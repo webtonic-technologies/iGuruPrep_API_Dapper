@@ -11,5 +11,6 @@ namespace Course_API.Services.Interfaces
         Task<ServiceResponse<byte[]>> GetContentFilePathUrlById(int ContentId);
         Task<ServiceResponse<ContentMaster>> GetContentById(int ContentId);
         Task<ServiceResponse<List<ContentMaster>>> GetContentList();
+        Task<ServiceResponse<List<SubjectContentIndexDTO>>> GetListOfSubjectContent(SubjectContentIndexRequestDTO request);
     }
 }

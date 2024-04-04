@@ -73,5 +73,17 @@ namespace Course_API.Services.Implementations
                 return new ServiceResponse<List<ContentMaster>>(false, ex.Message, new List<ContentMaster>(), 500);
             }
         }
+
+        public async Task<ServiceResponse<List<SubjectContentIndexDTO>>> GetListOfSubjectContent(SubjectContentIndexRequestDTO request)
+        {
+            try
+            {
+                return await _contentMasterRepository.GetListOfSubjectContent(request);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<SubjectContentIndexDTO>>(false, ex.Message, new List<SubjectContentIndexDTO>(), 500);
+            }
+        }
     }
 }
