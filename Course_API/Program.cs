@@ -13,6 +13,8 @@ string connectionString = builder.Configuration.GetConnectionString("DefaultConn
 builder.Services.AddTransient<IDbConnection>(c => new SqlConnection(connectionString));
 builder.Services.AddTransient<IBookServices, BookServices>();
 builder.Services.AddTransient<IBookRepository, BookRepository>();
+builder.Services.AddTransient<IContentMasterRepository, ContentMasterRepository>();
+builder.Services.AddTransient<IContentMasterServices, ContentMasterServices>();
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
