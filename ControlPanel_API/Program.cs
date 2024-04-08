@@ -23,6 +23,8 @@ builder.Services.AddTransient<IStoryOfTheDayServices, StoryOfTheDayServices>();
 builder.Services.AddTransient<IStoryOfTheDayRepository, StoryOfTheDayRepository>();
 builder.Services.AddTransient<ITicketServices, TicketServices>();
 builder.Services.AddTransient<ITicketRepository, TicketRepository>();
+builder.Services.AddTransient<INotificationRepository, NotificationRepository>();
+builder.Services.AddTransient<INotificationServices, NotificationServices>();
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
