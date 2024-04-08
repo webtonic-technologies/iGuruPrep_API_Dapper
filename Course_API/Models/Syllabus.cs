@@ -8,6 +8,7 @@
         public int ClassId { get; set; }
         public string Description { get; set; } = string.Empty;
         public int? YearID { get; set; }
+        public string SyllabusName { get; set; } = string.Empty;
         public bool? Status { get; set; }
         public int? CreatedBy { get; set; }
         public DateTime? CreatedOn { get; set; }
