@@ -47,9 +47,12 @@ namespace UserManagement_API.Repository.Implementations
                         string insertQuery = @"
                 INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, Validity)
                 VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @Validity)";
-                        foreach (var item in request.LicenseDetails)
+                        if (request.LicenseDetails != null)
                         {
-                            item.GenerateLicenseID = generatedId;
+                            foreach (var item in request.LicenseDetails)
+                            {
+                                item.GenerateLicenseID = generatedId;
+                            }
                         }
                         int rowsAffected = await _connection.ExecuteAsync(insertQuery, request.LicenseDetails);
 
@@ -117,10 +120,11 @@ namespace UserManagement_API.Repository.Implementations
                                 string insertQuery = @"
                 INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, Validity)
                 VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @Validity)";
-                                foreach (var item in request.LicenseDetails)
-                                {
-                                    item.GenerateLicenseID = request.GenerateLicenseID;
-                                }
+                                if (request.LicenseDetails != null)
+                                    foreach (var item in request.LicenseDetails)
+                                    {
+                                        item.GenerateLicenseID = request.GenerateLicenseID;
+                                    }
                                 int addedRecords = await _connection.ExecuteAsync(insertQuery, request.LicenseDetails);
 
                                 if (addedRecords > 0)
@@ -131,7 +135,6 @@ namespace UserManagement_API.Repository.Implementations
                                 {
                                     return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
                                 }
-
                             }
                             else
                             {
@@ -143,10 +146,11 @@ namespace UserManagement_API.Repository.Implementations
                             string insertQuery = @"
                 INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, Validity)
                 VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @Validity)";
-                            foreach (var item in request.LicenseDetails)
-                            {
-                                item.GenerateLicenseID = request.GenerateLicenseID;
-                            }
+                            if (request.LicenseDetails != null)
+                                foreach (var item in request.LicenseDetails)
+                                {
+                                    item.GenerateLicenseID = request.GenerateLicenseID;
+                                }
                             int addedRecords = await _connection.ExecuteAsync(insertQuery, request.LicenseDetails);
 
                             if (addedRecords > 0)

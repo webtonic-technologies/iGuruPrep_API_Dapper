@@ -15,7 +15,7 @@ namespace Schools_API.Controllers
             _questionServices = questionServices;
         }
         [HttpPost("AddQuestion")]
-        public async Task<IActionResult> AddQuestion([FromForm] QuestionDTO request)
+        public async Task<IActionResult> AddQuestion([FromBody] QuestionDTO request)
         {
             try
             {

@@ -22,6 +22,9 @@
         public int? ModifiedBy { get; set; }
         public DateTime? ModifiedOn { get; set; }
         public int? Verified { get; set; } = 1;
+        public int? courseid { get; set; }
+        public int? boardid { get; set; }
+        public int? classid { get; set; }
 
     }
 }

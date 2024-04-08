@@ -47,6 +47,7 @@ namespace UserManagement_API.Repository.Implementations
                         string insertBankQuery = @"
         INSERT INTO tblRefererBankDetails (InstitutionName, referenceLinkID, BankName, ACNo, IFSC, ReferenceID)
         VALUES (@InstitutionName, @referenceLinkID, @BankName, @ACNo, @IFSC, @ReferenceID);";
+                        if(request.GenRefBankdetail != null)
                         request.GenRefBankdetail.referenceLinkID = insertedId;
                         var rowsAffected = await _connection.ExecuteAsync(insertBankQuery, request.GenRefBankdetail);
                         if (rowsAffected > 0)
@@ -113,11 +114,11 @@ namespace UserManagement_API.Repository.Implementations
                             var bankDetail = new GenRefBankDetail
                             {
                                 referenceLinkID = request.referenceLinkID,
-                                ACNo = request.GenRefBankdetail.ACNo,
-                                BankName = request.GenRefBankdetail.BankName,
-                                IFSC = request.GenRefBankdetail.IFSC,
-                                InstitutionName = request.GenRefBankdetail.InstitutionName,
-                                ReferenceID = request.GenRefBankdetail.ReferenceID,
+                                ACNo = request.GenRefBankdetail != null ? request.GenRefBankdetail.ACNo : string.Empty,
+                                BankName = request.GenRefBankdetail != null ? request.GenRefBankdetail.BankName : string.Empty,
+                                IFSC = request.GenRefBankdetail != null ? request.GenRefBankdetail.IFSC : string.Empty,
+                                InstitutionName = request.GenRefBankdetail != null ? request.GenRefBankdetail.InstitutionName : string.Empty,
+                                ReferenceID = request.GenRefBankdetail != null ? request.GenRefBankdetail.ReferenceID : 0,
                                 refBankID = data.refBankID
                             };
                             int rowsAffected2 = await _connection.ExecuteAsync(updateBankQuery, bankDetail);
@@ -135,7 +136,13 @@ namespace UserManagement_API.Repository.Implementations
                             string insertBankQuery = @"
         INSERT INTO tblRefererBankDetails (InstitutionName, referenceLinkID, BankName, ACNo, IFSC, ReferenceID)
         VALUES (@InstitutionName, @referenceLinkID, @BankName, @ACNo, @IFSC, @ReferenceID);";
-                            request.GenRefBankdetail.referenceLinkID = request.referenceLinkID;
+                            if (request.GenRefBankdetail != null)
+                            {
+                                request.GenRefBankdetail.referenceLinkID = request.referenceLinkID;
+                            }
+                            else
+                            {                            ;
+                            }
                             var rowsAffected1 = await _connection.ExecuteAsync(insertBankQuery, request.GenRefBankdetail);
                             if (rowsAffected1 > 0)
                             {
