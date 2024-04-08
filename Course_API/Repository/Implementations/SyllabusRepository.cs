@@ -22,9 +22,9 @@ namespace Course_API.Repository.Implementations
                 if (request.SyllabusId == 0)
                 {
                     string insertQuery = @"
-        INSERT INTO tblSyllabus (BoardID, CourseId, ClassId, Description, YearID, Status, CreatedBy, CreatedOn, ModifiedBy, ModifiedOn, SubjectId)
+        INSERT INTO tblSyllabus (BoardID, CourseId, ClassId, Description, SyllabusName,YearID, Status, CreatedBy, CreatedOn, ModifiedBy, ModifiedOn, SubjectId)
         OUTPUT Inserted.SyllabusId
-        VALUES (@BoardID, @CourseId, @ClassId, @Description, @YearID, @Status, @CreatedBy, @CreatedOn, @ModifiedBy, @ModifiedOn, @SubjectId)";
+        VALUES (@BoardID, @CourseId, @ClassId, @Description, @SyllabusName,@YearID, @Status, @CreatedBy, @CreatedOn, @ModifiedBy, @ModifiedOn, @SubjectId)";
 
                     var syllabusId = await _connection.ExecuteScalarAsync<int>(insertQuery, request);
                     if (syllabusId != 0)
@@ -68,6 +68,7 @@ namespace Course_API.Repository.Implementations
             Description = @Description,
             YearID = @YearID,
             Status = @Status,
+            SyllabusName = @SyllabusName,
             CreatedBy = @CreatedBy,
             CreatedOn = @CreatedOn,
             ModifiedBy = @ModifiedBy,
@@ -82,9 +83,12 @@ namespace Course_API.Repository.Implementations
 
                         if (data != null)
                         {
-
-                            string updateSySub = @"
-        UPDATE SyllabusSubject 
+                            string selectQuery1 = "SELECT * FROM tblSyllabusSubjects WHERE SyllabusId = @SyllabusId";
+                            var data1 = await _connection.QuerySingleOrDefaultAsync<SyllabusSubject>(selectQuery1, new { request.SyllabusId });
+                            if (data1 != null)
+                            {
+                                string updateSySub = @"
+        UPDATE tblSyllabusSubjects 
         SET SyllabusID = @SyllabusID,
             SubjectID = @SubjectID,
             Status = @Status,
@@ -94,25 +98,54 @@ namespace Course_API.Repository.Implementations
             ModifiedDate = @ModifiedDate
         WHERE SyllabusSubjectID = @SyllabusSubjectID";
 
-                            var syllabusSubject = new SyllabusSubject
-                            {
-                                CreatedBy = data.CreatedBy,
-                                CreatedDate = data.CreatedOn,
-                                ModifiedBy = data.ModifiedBy,
-                                ModifiedDate = data.ModifiedOn,
-                                Status = true,
-                                SubjectID = data.SubjectId,
-                                SyllabusID = data.SyllabusId,
-                            };
-                            int rowsAffected1 = await _connection.ExecuteAsync(updateSySub, syllabusSubject);
-                            if (rowsAffected1 > 0)
-                            {
-                                return new ServiceResponse<string>(true, "Operation Successful", "Syllabus Updated Successfully", 200);
+                                var syllabusSubject = new SyllabusSubject
+                                {
+                                    SyllabusSubjectID = data1.SyllabusSubjectID,
+                                    CreatedBy = data.CreatedBy,
+                                    CreatedDate = data.CreatedOn,
+                                    ModifiedBy = data.ModifiedBy,
+                                    ModifiedDate = data.ModifiedOn,
+                                    Status = true,
+                                    SubjectID = data.SubjectId,
+                                    SyllabusID = data.SyllabusId,
+                                };
+                                int rowsAffected1 = await _connection.ExecuteAsync(updateSySub, syllabusSubject);
+                                if (rowsAffected1 > 0)
+                                {
+                                    return new ServiceResponse<string>(true, "Operation Successful", "Syllabus Updated Successfully", 200);
+                                }
+                                else
+                                {
+                                    return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
+                                }
                             }
                             else
                             {
-                                return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
+                                string insertSubSyQuery = @"
+            INSERT INTO tblSyllabusSubjects (SyllabusID, SubjectID, Status, CreatedBy, CreatedDate, ModifiedBy, ModifiedDate)
+            VALUES (@SyllabusID, @SubjectID, @Status, @CreatedBy, @CreatedDate, @ModifiedBy, @ModifiedDate)";
+
+                                var syllabusSubject = new SyllabusSubject
+                                {
+                                    CreatedBy = request.CreatedBy,
+                                    CreatedDate = request.CreatedOn,
+                                    ModifiedBy = request.ModifiedBy,
+                                    ModifiedDate = request.ModifiedOn,
+                                    Status = true,
+                                    SubjectID = request.SubjectId,
+                                    SyllabusID = request.SyllabusId,
+                                };
+                                int rowsAffected1 = await _connection.ExecuteAsync(insertSubSyQuery, syllabusSubject);
+                                if (rowsAffected1 > 0)
+                                {
+                                    return new ServiceResponse<string>(true, "Operation Successful", "Syllabus Added Successfully", 200);
+                                }
+                                else
+                                {
+                                    return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
+                                }
                             }
+                         
                         }
                         else
                         {
@@ -142,12 +175,16 @@ namespace Course_API.Repository.Implementations
         DELETE FROM tblSyllabusDetails
         WHERE SyllabusID = @SyllabusID";
 
-                int count = await _connection.ExecuteScalarAsync<int>("SELECT COUNT() FROM tblSyllabusDetails WHERE SyllabusID = @SyllabusID", new { SyllabusID = request.SyllabusId });
+                int count = await _connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM tblSyllabusDetails WHERE SyllabusID = @SyllabusID", new { SyllabusID = request.SyllabusId });
                 if (count > 0)
                 {
                     int rowsAffected = await _connection.ExecuteAsync(deleteQuery, new { SyllabusID = request.SyllabusId });
                     if (rowsAffected > 0)
                     {
+                        foreach(var data in request.SyllabusDetails)
+                        {
+                            data.SyllabusID = request.SyllabusId;
+                        }
                         int addedRecords = await _connection.ExecuteAsync(insertQuery, request.SyllabusDetails);
 
                         if (addedRecords > 0)
@@ -167,6 +204,10 @@ namespace Course_API.Repository.Implementations
                 }
                 else
                 {
+                    foreach (var data in request.SyllabusDetails)
+                    {
+                        data.SyllabusID = request.SyllabusId;
+                    }
                     int addedRecords = await _connection.ExecuteAsync(insertQuery, request.SyllabusDetails);
 
                     if (addedRecords > 0)
