@@ -74,6 +74,18 @@ namespace ControlPanel_API.Services.Implementations
             }
         }
 
+        public async Task<ServiceResponse<bool>> StatusActiveInactive(int id)
+        {
+            try
+            {
+                return await _magazineRepository.StatusActiveInactive(id);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<bool>(false, ex.Message, false, 500);
+            }
+        }
+
         public async Task<ServiceResponse<string>> UpdateMagazine(UpdateMagazineDTO request)
         {
             try

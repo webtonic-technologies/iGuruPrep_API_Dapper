@@ -1,4 +1,5 @@
 using ControlPanel_API.Models;
+using ControlPanel_API.Services.Implementations;
 using ControlPanel_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
@@ -79,6 +80,29 @@ namespace ControlPanel_API.Controllers
                     StatusCode = (int)HttpStatusCode.NotAcceptable
                 };
             }
+        }
+        [HttpPut("Status/{RoleId}")]
+        public async Task<IActionResult> StatusActiveInactive(int RoleId)
+        {
+            try
+            {
+                var data = await _rolesService.StatusActiveInactive(RoleId);
+                if (data != null)
+                {
+                    return Ok(data);
+
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+
         }
     }
 }

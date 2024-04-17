@@ -9,5 +9,6 @@ namespace ControlPanel_API.Services.Interfaces
         Task<ServiceResponse<Role>> GetRoleByID(int roleId);
         Task<ServiceResponse<string>> AddRole(Role role);
         Task<ServiceResponse<string>> UpdateRole(Role role);
+        Task<ServiceResponse<bool>> StatusActiveInactive(int id);
     }
 }

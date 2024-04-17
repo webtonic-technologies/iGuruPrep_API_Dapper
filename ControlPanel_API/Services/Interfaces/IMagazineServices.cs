@@ -12,5 +12,6 @@ namespace ControlPanel_API.Services.Interfaces
         Task<ServiceResponse<bool>> DeleteMagazine(int id);
         Task<ServiceResponse<string>> UpdateMagazineFile(MagazineDTO magazineDTO);
         Task<ServiceResponse<byte[]>> GetMagazineFileById(int id);
+        Task<ServiceResponse<bool>> StatusActiveInactive(int id);
     }
 }

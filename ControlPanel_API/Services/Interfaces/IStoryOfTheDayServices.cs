@@ -12,5 +12,6 @@ namespace ControlPanel_API.Services.Interfaces
         Task<ServiceResponse<bool>> DeleteStoryOfTheDay(int id);
         Task<ServiceResponse<string>> UpdateStoryOfTheDayFile(StoryOfTheDayIdAndFileDTO storyOfTheDayDTO);
         Task<ServiceResponse<byte[]>> GetStoryOfTheDayFileById(int id);
+        Task<ServiceResponse<bool>> StatusActiveInactive(int id);
     }
 }
