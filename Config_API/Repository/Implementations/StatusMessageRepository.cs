@@ -76,5 +76,27 @@ namespace Config_API.Repository.Implementations
                 return new ServiceResponse<StatusMessages>(false, ex.Message, new StatusMessages(), 500);
             }
         }
+        public async Task<ServiceResponse<List<StatusMessages>>> GetStatusMessageList()
+        {
+            try
+            {
+                string sql = "SELECT * FROM tblStatusMessage";
+
+                var data = await _connection.QueryAsync<StatusMessages>(sql);
+
+                if (data != null)
+                {
+                    return new ServiceResponse<List<StatusMessages>>(true, "Record Found", data.AsList(), 200);
+                }
+                else
+                {
+                    return new ServiceResponse<List<StatusMessages>>(false, "Record not Found", [], 500);
+                }
+            }
+            catch(Exception ex)
+            {
+                return new ServiceResponse<List<StatusMessages>>(false, ex.Message, [], 500);
+            }
+        }
     }
 }

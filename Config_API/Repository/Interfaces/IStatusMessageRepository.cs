@@ -7,5 +7,6 @@ namespace Config_API.Repository.Interfaces
     {
         Task<ServiceResponse<StatusMessages>> GetStatusMessageById(int id);
         Task<ServiceResponse<string>> AddUpdateStatusMessage(StatusMessages request);
+        Task<ServiceResponse<List<StatusMessages>>> GetStatusMessageList();
     }
 }

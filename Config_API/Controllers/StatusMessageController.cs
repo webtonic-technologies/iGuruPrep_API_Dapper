@@ -61,5 +61,26 @@ namespace Config_API.Controllers
             }
 
         }
+        [HttpGet]
+        public async Task<IActionResult> GetStatusMessageList()
+        {
+            try
+            {
+                var data = await _statusMessageService.GetStatusMessageList();
+                if (data != null)
+                {
+                    return Ok(data);
+
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
     }
 }
