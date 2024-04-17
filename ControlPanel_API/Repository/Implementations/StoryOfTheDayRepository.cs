@@ -33,7 +33,7 @@ namespace ControlPanel_API.Repository.Implementations
                     PostTime = storyOfTheDayDTO.PostTime,
                     DateAndTime = storyOfTheDayDTO.PostTime,
                     Answer = storyOfTheDayDTO.Answer,
-                    AnswerRevealTime = new TimeSpan(0, storyOfTheDayDTO.AnswerRevealTime.Value.Hours, storyOfTheDayDTO.AnswerRevealTime.Value.Minutes, storyOfTheDayDTO.AnswerRevealTime.Value.Seconds, storyOfTheDayDTO.AnswerRevealTime.Value.Microseconds),
+                    AnswerRevealTime = storyOfTheDayDTO.AnswerRevealTime != null ? new TimeSpan(0, storyOfTheDayDTO.AnswerRevealTime.Value.Hours, storyOfTheDayDTO.AnswerRevealTime.Value.Minutes, storyOfTheDayDTO.AnswerRevealTime.Value.Seconds, storyOfTheDayDTO.AnswerRevealTime.Value.Microseconds) : null,
                     Status = storyOfTheDayDTO.Status,
                     UploadImage = string.Empty // Default to empty string if no image is uploaded
                 };
@@ -205,7 +205,7 @@ namespace ControlPanel_API.Repository.Implementations
                 storyOfTheDay.PostTime = storyOfTheDayDTO.PostTime;
                 storyOfTheDay.DateAndTime = storyOfTheDayDTO.PostTime;
                 storyOfTheDay.Answer = storyOfTheDayDTO.Answer;
-                storyOfTheDay.AnswerRevealTime = new TimeSpan(0, storyOfTheDayDTO.AnswerRevealTime.Value.Hours, storyOfTheDayDTO.AnswerRevealTime.Value.Minutes, storyOfTheDayDTO.AnswerRevealTime.Value.Seconds, storyOfTheDayDTO.AnswerRevealTime.Value.Microseconds);
+                storyOfTheDay.AnswerRevealTime = storyOfTheDayDTO.AnswerRevealTime != null ? new TimeSpan(0, storyOfTheDayDTO.AnswerRevealTime.Value.Hours, storyOfTheDayDTO.AnswerRevealTime.Value.Minutes, storyOfTheDayDTO.AnswerRevealTime.Value.Seconds, storyOfTheDayDTO.AnswerRevealTime.Value.Microseconds) : null;
                 storyOfTheDay.Status = storyOfTheDayDTO.Status;
 
                 int rowsAffected = await _connection.ExecuteAsync(
@@ -223,7 +223,6 @@ namespace ControlPanel_API.Repository.Implementations
                 {
                     return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
                 }
-
             }
             catch (Exception ex)
             {

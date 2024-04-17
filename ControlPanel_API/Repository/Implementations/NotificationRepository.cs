@@ -325,23 +325,30 @@ namespace ControlPanel_API.Repository.Implementations
             SET NBNotificationID = @NBNotificationID,
                 NotificationDetails = @NotificationDetails
             WHERE ND_id = @ND_id";
-            foreach (var data in request)
+            if(request != null)
             {
-                var newNDetails = new NotificationDetail
+                foreach (var data in request)
                 {
-                    NBNotificationID = notificationId,
-                    NotificationDetails = data.NotificationDetails
-                };
-                if (data.ND_id == 0)
-                {
-                    rowsAffected = await _connection.ExecuteAsync(insertQuery, newNDetails);
+                    var newNDetails = new NotificationDetail
+                    {
+                        NBNotificationID = notificationId,
+                        NotificationDetails = data.NotificationDetails
+                    };
+                    if (data.ND_id == 0)
+                    {
+                        rowsAffected = await _connection.ExecuteAsync(insertQuery, newNDetails);
+                    }
+                    else
+                    {
+                        rowsAffected = await _connection.ExecuteAsync(updateQuery, newNDetails);
+                    }
                 }
-                else
-                {
-                    rowsAffected = await _connection.ExecuteAsync(updateQuery, newNDetails);
-                }
+                return rowsAffected;
             }
-            return rowsAffected;
+            else
+            {
+                return 0;
+            }
         }
         private async Task<int> AddUpdateNotificationLinkMaster (List<NotificationLinkMaster>? request, int notificationId)
         {
@@ -357,25 +364,31 @@ namespace ControlPanel_API.Repository.Implementations
                 NotificationTitle = @NotificationTitle,
                 NotificationLink = @NotificationLink
             WHERE NL_id = @NL_id";
-
-            foreach (var data in request)
+            if(request != null)
             {
-                var newNLink = new NotificationLinkMaster
+                foreach (var data in request)
                 {
-                  NBNotificationID= notificationId,
-                  NotificationLink = data.NotificationLink,
-                  NotificationTitle = data.NotificationTitle,
-                };
-                if (data.NL_id == 0)
-                {
-                    rowsAffected = await _connection.ExecuteAsync(insertQuery, newNLink);
+                    var newNLink = new NotificationLinkMaster
+                    {
+                        NBNotificationID = notificationId,
+                        NotificationLink = data.NotificationLink,
+                        NotificationTitle = data.NotificationTitle,
+                    };
+                    if (data.NL_id == 0)
+                    {
+                        rowsAffected = await _connection.ExecuteAsync(insertQuery, newNLink);
+                    }
+                    else
+                    {
+                        rowsAffected = await _connection.ExecuteAsync(updateQuery, newNLink);
+                    }
                 }
-                else
-                {
-                    rowsAffected = await _connection.ExecuteAsync(updateQuery, newNLink);
-                }
+                return rowsAffected;
             }
-            return rowsAffected;
+            else
+            {
+                return 0;
+            }
         }
 
         private string GetBoardNameById(int? boardId)
