@@ -181,9 +181,12 @@ namespace Course_API.Repository.Implementations
                     int rowsAffected = await _connection.ExecuteAsync(deleteQuery, new { SyllabusID = request.SyllabusId });
                     if (rowsAffected > 0)
                     {
-                        foreach(var data in request.SyllabusDetails)
+                        if(request.SyllabusDetails != null)
                         {
-                            data.SyllabusID = request.SyllabusId;
+                            foreach (var data in request.SyllabusDetails)
+                            {
+                                data.SyllabusID = request.SyllabusId;
+                            }
                         }
                         int addedRecords = await _connection.ExecuteAsync(insertQuery, request.SyllabusDetails);
 
@@ -204,6 +207,7 @@ namespace Course_API.Repository.Implementations
                 }
                 else
                 {
+                    if(request.SyllabusDetails != null)
                     foreach (var data in request.SyllabusDetails)
                     {
                         data.SyllabusID = request.SyllabusId;

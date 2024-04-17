@@ -3,15 +3,15 @@
     public class ProjectDetailsDTO
     {
         public int ProjectId { get; set; }
-        public string ProjectName { get; set; }
-        public string ProjectDescription { get; set; }
-        public string PathURL { get; set; }
-        public string CourseName { get; set; }
-        public string ClassName { get; set; }
-        public string BoardName { get; set; }
-        public string SubjectName { get; set; }
-        public string CreatedBy { get; set; }
-        public string ImageName { get; set; }
+        public string ProjectName { get; set; } = string.Empty;
+        public string ProjectDescription { get; set; } = string.Empty;
+        public string PathURL { get; set; } = string.Empty;
+        public string CourseName { get; set; } = string.Empty;
+        public string ClassName { get; set; } = string.Empty;
+        public string BoardName { get; set; } = string.Empty;
+        public string SubjectName { get; set; } = string.Empty;
+        public string CreatedBy { get; set; } = string.Empty;
+        public string ImageName { get; set; } = string.Empty;
         public string ReferenceLink { get; set; } = string.Empty;
         public int? UserID { get; set; }
         public bool? status { get; set; }

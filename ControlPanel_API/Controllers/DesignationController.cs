@@ -22,7 +22,7 @@ namespace ControlPanel_API.Controllers
         {
             try
             {
-                return new OkObjectResult(new { data = await _designationService.GetDesignationList() });
+                return new OkObjectResult(await _designationService.GetDesignationList() );
             }
             catch (Exception ex)
             {
@@ -38,7 +38,7 @@ namespace ControlPanel_API.Controllers
         {
             try
             {
-                return new OkObjectResult(new { data = await _designationService.GetDesignationByID(DesgnID) });
+                return new OkObjectResult(await _designationService.GetDesignationByID(DesgnID));
             }
             catch (Exception ex)
             {
@@ -55,7 +55,7 @@ namespace ControlPanel_API.Controllers
         {
             try
             {
-                return new OkObjectResult(new { data = await _designationService.AddDesignation(designation) });
+                return new OkObjectResult(await _designationService.AddDesignation(designation));
             }
             catch (Exception ex)
             {
@@ -73,7 +73,7 @@ namespace ControlPanel_API.Controllers
             {
                 if (designation.DesgnID != 0)
                 {
-                    return new OkObjectResult(new { data = await _designationService.UpdateDesignation(designation) });
+                    return new OkObjectResult(await _designationService.UpdateDesignation(designation));
 
                 }
                 return NotFound();
@@ -84,6 +84,29 @@ namespace ControlPanel_API.Controllers
                 {
                     StatusCode = (int)HttpStatusCode.NotAcceptable
                 };
+            }
+
+        }
+        [HttpPut("Status/{DesignationId}")]
+        public async Task<IActionResult> StatusActiveInactive(int DesignationId)
+        {
+            try
+            {
+                var data = await _designationService.StatusActiveInactive(DesignationId);
+                if (data != null)
+                {
+                    return Ok(data);
+
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
             }
 
         }

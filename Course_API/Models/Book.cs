@@ -11,31 +11,31 @@ namespace Course_API.Models
 
         [Required]
         [StringLength(150)]
-        public string BookName { get; set; }
+        public string BookName { get; set; } = string.Empty;
 
         [StringLength(15)]
-        public string AuthorName { get; set; }
+        public string AuthorName { get; set; } = string.Empty;
 
         [StringLength(15)]
-        public string AuthorDetails { get; set; }
+        public string AuthorDetails { get; set; } = string.Empty;
 
         [StringLength(15)]
-        public string AuthorAffliation { get; set; }
+        public string AuthorAffliation { get; set; } = string.Empty;
 
         [Required]
         [StringLength(5)]
-        public string Boardname { get; set; }
+        public string Boardname { get; set; } = string.Empty;
 
         [Required]
         [StringLength(15)]
-        public string ClassName { get; set; }
+        public string ClassName { get; set; } = string.Empty;
 
         [Required]
         [StringLength(15)]
-        public string CourseName { get; set; }
+        public string CourseName { get; set; } = string.Empty;
 
         [StringLength(15)]
-        public string SubjectName { get; set; }
+        public string SubjectName { get; set; } = string.Empty;
 
         [Required]
         public int Status { get; set; }

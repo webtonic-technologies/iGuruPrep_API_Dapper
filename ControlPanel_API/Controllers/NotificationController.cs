@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace ControlPanel_API.Controllers
 {
+    //Notification template
     [Route("iGuru/[controller]")]
     [ApiController]
     public class NotificationController : ControllerBase
