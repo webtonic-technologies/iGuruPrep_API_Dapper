@@ -25,6 +25,8 @@ builder.Services.AddTransient<IStatusMessageServices, StatusMessageServices>();
 builder.Services.AddTransient<IStatusMessageRepository, StatusMessageRepository>();
 builder.Services.AddTransient<ISubjectServices, SubjectServices>();
 builder.Services.AddTransient<ISubjectRepository, SubjectRepository>();
+builder.Services.AddTransient<INotificationModRepository, NotificationModRepository>();
+builder.Services.AddTransient<INotificationModServices, NotificationModServices>();
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
