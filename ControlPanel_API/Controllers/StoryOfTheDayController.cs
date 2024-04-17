@@ -120,6 +120,29 @@ namespace ControlPanel_API.Controllers
                 return BadRequest(ex.Message);
             }
         }
+        [HttpPut("Status/{id}")]
+        public async Task<IActionResult> StatusActiveInactive(int id)
+        {
+            try
+            {
+                var data = await _storyOfTheDayService.StatusActiveInactive(id);
+                if (data != null)
+                {
+                    return Ok(data);
+
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+
+        }
 
     }
 }

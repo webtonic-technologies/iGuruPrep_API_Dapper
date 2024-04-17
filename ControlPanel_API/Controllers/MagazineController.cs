@@ -1,4 +1,5 @@
 using ControlPanel_API.DTOs;
+using ControlPanel_API.Services.Implementations;
 using ControlPanel_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -115,6 +116,29 @@ namespace ControlPanel_API.Controllers
             {
                 return BadRequest(ex.Message);
             }
+        }
+        [HttpPut("Status/{id}")]
+        public async Task<IActionResult> StatusActiveInactive(int id)
+        {
+            try
+            {
+                var data = await _magazineService.StatusActiveInactive(id);
+                if (data != null)
+                {
+                    return Ok(data);
+
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+
         }
     }
 }

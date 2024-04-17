@@ -2,6 +2,7 @@
 using ControlPanel_API.Models;
 using ControlPanel_API.Repository.Interfaces;
 using ControlPanel_API.Services.Interfaces;
+using System.Data;
 
 namespace ControlPanel_API.Services.Implementations
 {
@@ -46,6 +47,18 @@ namespace ControlPanel_API.Services.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<List<Role>>(false, ex.Message, new List<Role>(), 500);
+            }
+        }
+
+        public async Task<ServiceResponse<bool>> StatusActiveInactive(int id)
+        {
+            try
+            {
+                return await _rolesRepository.StatusActiveInactive(id);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<bool>(false, ex.Message, false, 500);
             }
         }
 
