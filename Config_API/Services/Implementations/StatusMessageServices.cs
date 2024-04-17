@@ -35,5 +35,17 @@ namespace Config_API.Services.Implementations
                 return new ServiceResponse<StatusMessages>(false, ex.Message, new StatusMessages(), 500);
             }
         }
+
+        public async Task<ServiceResponse<List<StatusMessages>>> GetStatusMessageList()
+        {
+            try
+            {
+                return await _statusMessageRepository.GetStatusMessageList();
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<StatusMessages>>(false, ex.Message, [], 500);
+            }
+        }
     }
 }
