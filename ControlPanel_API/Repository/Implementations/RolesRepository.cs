@@ -109,5 +109,37 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
+        public async Task<ServiceResponse<bool>> StatusActiveInactive(int id)
+        {
+            try
+            {
+                var role = await GetRoleByID(id);
+
+                if (role.Data != null)
+                {
+                    role.Data.Status = role.Data.Status == 1 ? role.Data.Status = 0 : role.Data.Status = 1;
+
+                    string sql = "UPDATE [tblRole] SET Status = @Status WHERE [RoleID] = @RoleID";
+
+                    int rowsAffected = await _connection.ExecuteAsync(sql, new { role.Data.Status, RoleID = id });
+                    if (rowsAffected > 0)
+                    {
+                        return new ServiceResponse<bool>(true, "Operation Successful", true, 200);
+                    }
+                    else
+                    {
+                        return new ServiceResponse<bool>(false, "Opertion Failed", false, 500);
+                    }
+                }
+                else
+                {
+                    return new ServiceResponse<bool>(false, "Record not Found", false, 204);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<bool>(false, ex.Message, false, 500);
+            }
+        }
     }
 }
