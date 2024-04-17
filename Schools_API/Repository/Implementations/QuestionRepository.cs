@@ -3,6 +3,7 @@ using Schools_API.DTOs.ServiceResponse;
 using Schools_API.Models;
 using Schools_API.Repository.Interfaces;
 using System.Data;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Schools_API.Repository.Implementations
 {
@@ -175,7 +176,38 @@ namespace Schools_API.Repository.Implementations
                     if (rowsAffected > 0)
                     {
                         int count = await _connection.ExecuteScalarAsync<int>("SELECT COUNT(*) " +
-                            "FROM tblQIDCourse WHERE QuestionId = @QuestionId", new { QuestionId = request.QuestionId });
+                            "FROM tblQIDCourse WHERE QuestionId = @QuestionId", new { request.QuestionId });
+                        if (count > 0)
+                        {
+                            string deleteQuery = @"
+        DELETE FROM tblQIDCourse
+        WHERE QuestionId = @QuestionId";
+                            int rowsAffected1 = await _connection.ExecuteAsync(deleteQuery, new { request.QuestionId });
+                            if (rowsAffected1 > 0)
+                            {
+                                //courses and difficulty mapping
+                                var data = await AddUpdateQIDCourses(request.QIDCourses, request.QuestionId);
+                            }
+                        }
+                        else
+                        {
+                            //courses and difficulty mapping
+                            var data = await AddUpdateQIDCourses(request.QIDCourses, request.QuestionId);
+                        }
+                        // reference mapping
+                        var rowsAffected2 = await AddUpdateReference(request.References, request.QuestionId);
+
+                        //subject details
+                        var quesSub = await AddUpdateQuestionSubjectMap(request.QuestionSubjectMapping, request.QuestionId);
+
+                        if (rowsAffected2 > 0 && quesSub > 0)
+                        {
+                            return new ServiceResponse<string>(true, "Operation Successful", "Question Added Successfully", 200);
+                        }
+                        else
+                        {
+                            return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
+                        }
                     }
                     else
                     {
@@ -186,6 +218,76 @@ namespace Schools_API.Repository.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+            }
+        }
+        public async Task<ServiceResponse<List<Question>>> GetAllQuestionsList()
+        {
+            try
+            {
+                string sql = @"
+                SELECT QuestionId, QuestionDescription, QuestionFormula,
+                       DifficultyLevelId, QuestionTypeId, SubjectIndexId,
+                       Duration, Occurrence, ComprehensiveId, ApprovedStatus,
+                       ApprovedBy, ReasonNote, ActualOption, Status,
+                       CreatedBy, CreatedOn, ModifiedBy, ModifiedOn, Verified,
+                       courseid, boardid, classid
+                FROM tblQuestion";
+
+                
+                var data = await _connection.QueryAsync<Question>(sql);
+                if(data != null)
+                {
+                    return new ServiceResponse<List<Question>>(true, "Operation Successful", data.AsList(), 200);
+                }
+                else
+                {
+                    return new ServiceResponse<List<Question>>(false, "no records found", [], 500);
+                }
+            }
+            catch(Exception ex)
+            {
+                return new ServiceResponse<List<Question>>(false, ex.Message, [], 500);
+            }
+        }
+        public async Task<ServiceResponse<QuestionDTO>> GetQuestionById(int questionId)
+        {
+            try
+            {
+                var response = new QuestionDTO();
+                string sql = @"
+                SELECT QuestionId, QuestionDescription, QuestionFormula,
+                       DifficultyLevelId, QuestionTypeId, SubjectIndexId,
+                       Duration, Occurrence, ComprehensiveId, ApprovedStatus,
+                       ApprovedBy, ReasonNote, ActualOption, Status,
+                       CreatedBy, CreatedOn, ModifiedBy, ModifiedOn, Verified,
+                       courseid, boardid, classid
+                FROM tblQuestion
+                WHERE QuestionId = @QuestionId";
+
+                var data = await _connection.QueryFirstOrDefaultAsync<Question>(sql, new { QuestionId = questionId });
+                if (data != null)
+                {
+                    var refData = await _connection.QueryFirstOrDefaultAsync<Reference>("SELECT * from tblReference where QuestionId = @QuestionId", new { QuestionId = questionId });
+                    if (refData != null)
+                    {
+                        response.References = refData;
+                    }
+                    var diffCour = await _connection.QueryAsync<QIDCourseDTO>("SELECT * from tblQIDCourse where QuestionId = @QuestionId", new { QuestionId = questionId });
+                    if (diffCour != null)
+                    {
+                        response.QIDCourses = diffCour.AsList();
+                    }
+                    return new ServiceResponse<QuestionDTO>(true, "Operation Successful", data, 200);
+                }
+                else
+                {
+
+                    return new ServiceResponse<QuestionDTO>(false, "no records found", new QuestionDTO(), 500);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<QuestionDTO>(false, ex.Message, new QuestionDTO(), 500);
             }
         }
         public async Task<ServiceResponse<string>> UpdateQuestionImageFile(QuestionImageDTO request)

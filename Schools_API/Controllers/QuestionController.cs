@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using Schools_API.DTOs;
 using Schools_API.Models;
+using Schools_API.Services.Implementations;
 using Schools_API.Services.Interfaces;
 
 namespace Schools_API.Controllers
@@ -55,6 +57,30 @@ namespace Schools_API.Controllers
             {
                 return BadRequest(ex.Message);
             }
+        }
+        [HttpGet("GetAllQuestions")]
+        public async Task<IActionResult> GetAllQuestionsList()
+        {
+            var projects = await _questionServices.GetAllQuestionsList();
+
+            if (projects == null)
+            {
+                return NotFound("No projects found.");
+            }
+
+            return Ok(projects);
+        }
+        [HttpGet("GetQuestionById/{id}")]
+        public async Task<IActionResult> GetQuestionById(int id)
+        {
+            var projects = await _questionServices.GetQuestionById(id);
+
+            if (projects == null)
+            {
+                return NotFound("No projects found.");
+            }
+
+            return Ok(projects);
         }
     }
 }

@@ -27,6 +27,30 @@ namespace Schools_API.Services.Implementations
             }
         }
 
+        public async Task<ServiceResponse<List<Question>>> GetAllQuestionsList()
+        {
+            try
+            {
+                return await _questionRepository.GetAllQuestionsList();
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<Question>>(false, ex.Message, [], 500);
+            }
+        }
+
+        public async Task<ServiceResponse<QuestionDTO>> GetQuestionById(int questionId)
+        {
+            try
+            {
+                return await _questionRepository.GetQuestionById(questionId);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<QuestionDTO>(false, ex.Message, new QuestionDTO(), 500);
+            }
+        }
+
         public async Task<ServiceResponse<string>> UpdateQuestionImageFile(QuestionImageDTO request)
         {
             try
