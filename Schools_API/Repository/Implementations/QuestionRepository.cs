@@ -264,7 +264,7 @@ namespace Schools_API.Repository.Implementations
                 FROM tblQuestion
                 WHERE QuestionId = @QuestionId";
 
-                var data = await _connection.QueryFirstOrDefaultAsync<Question>(sql, new { QuestionId = questionId });
+                var data = await _connection.QueryFirstOrDefaultAsync<QuestionDTO>(sql, new { QuestionId = questionId });
                 if (data != null)
                 {
                     var refData = await _connection.QueryFirstOrDefaultAsync<Reference>("SELECT * from tblReference where QuestionId = @QuestionId", new { QuestionId = questionId });
