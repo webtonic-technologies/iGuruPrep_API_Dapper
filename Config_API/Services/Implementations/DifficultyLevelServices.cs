@@ -5,15 +5,15 @@ using Config_API.Services.Interfaces;
 
 namespace Config_API.Services.Implementations
 {
-    public class QuestionLevelServices : IQuestionLevelServices
+    public class DifficultyLevelServices : IDifficultyLevelServices
     {
-        private readonly IQuestionLevelRepository  _questionLevelRepository;
+        private readonly IDifficultyLevelRepository  _questionLevelRepository;
 
-        public QuestionLevelServices(IQuestionLevelRepository questionLevelRepository)
+        public DifficultyLevelServices(IDifficultyLevelRepository questionLevelRepository)
         {
             _questionLevelRepository = questionLevelRepository;
         }
-        public async Task<ServiceResponse<string>> AddUpdateQuestionLevel(QuestionLevel request)
+        public async Task<ServiceResponse<string>> AddUpdateQuestionLevel(DifficultyLevel request)
         {
             try
             {
@@ -25,7 +25,7 @@ namespace Config_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<QuestionLevel>>> GetAllQuestionLevel()
+        public async Task<ServiceResponse<List<DifficultyLevel>>> GetAllQuestionLevel()
         {
             try
             {
@@ -33,11 +33,11 @@ namespace Config_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<QuestionLevel>>(false, ex.Message, new List<QuestionLevel>(), 500);
+                return new ServiceResponse<List<DifficultyLevel>>(false, ex.Message, new List<DifficultyLevel>(), 500);
             }
         }
 
-        public async Task<ServiceResponse<QuestionLevel>> GetQuestionLevelById(int id)
+        public async Task<ServiceResponse<DifficultyLevel>> GetQuestionLevelById(int id)
         {
             try
             {
@@ -45,7 +45,7 @@ namespace Config_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<QuestionLevel>(false, ex.Message, new QuestionLevel(), 500);
+                return new ServiceResponse<DifficultyLevel>(false, ex.Message, new DifficultyLevel(), 500);
             }
         }
 

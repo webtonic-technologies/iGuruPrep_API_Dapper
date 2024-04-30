@@ -25,65 +25,63 @@ namespace Config_API.Repository.Implementations
                     {
                         CourseCode = request.CourseCode,
                         CourseName = request.CourseName,
-                        CreatedBy = request.CreatedBy,
-                        CreatedOn = DateTime.Now,
-                        DisplayOrder = request.DisplayOrder,
-                        ModifiedBy = request.ModifiedBy,
-                        ModifiedOn = DateTime.Now,
-                        Status = request.Status
+                        createdby = request.createdby,
+                        createdon = DateTime.Now,
+                        displayorder = request.displayorder,
+                        EmployeeID = request.EmployeeID,
+                        Status = true
                     };
 
-                    string insertQuery = @"INSERT INTO tblCourse (CourseCode, CourseName, CreatedBy, CreatedOn, DisplayOrder, ModifiedBy, ModifiedOn, Status)
-                               VALUES (@CourseCode, @CourseName, @CreatedBy, @CreatedOn, @DisplayOrder, @ModifiedBy, @ModifiedOn, @Status)";
+                    string insertQuery = @"INSERT INTO [iGuruPrep].[dbo].[tblCourse] 
+                           ([CourseName], [CourseCode], [Status], [createdby], [createdon], [displayorder], [EmployeeID])
+                           VALUES (@CourseName, @CourseCode, @Status, @CreatedBy, GETDATE(), @DisplayOrder, @EmployeeID)";
+                    
                     int rowsAffected = await _connection.ExecuteAsync(insertQuery, newCourse);
-
 
                     if (rowsAffected > 0)
                     {
-                        return new ServiceResponse<string>(true, "Operation Successful", "Course Added Successfully", 200);
+                        return new ServiceResponse<string>(true, "Operation Successful", "Course Added Successfully", StatusCodes.Status201Created);
                     }
                     else
                     {
-                        return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
+                        return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, StatusCodes.Status400BadRequest);
                     }
                 }
                 else
                 {
-                    var data = await _connection.QueryFirstOrDefaultAsync<Course>("SELECT * FROM tblCourse WHERE CourseId = @CourseId", new { CourseId = request.CourseId });
-                    if (data != null)
+                    string updateQuery = @"UPDATE [iGuruPrep].[dbo].[tblCourse] SET 
+                           [CourseName] = @CourseName, 
+                           [CourseCode] = @CourseCode, 
+                           [Status] = @Status, 
+                           [displayorder] = @DisplayOrder, 
+                           [modifiedby] = @ModifiedBy, 
+                           [modifiedon] = GETDATE(), 
+                           [EmployeeID] = @EmployeeID
+                           WHERE [CourseId] = @CourseId";
+                    int rowsAffected = await _connection.ExecuteAsync(updateQuery, new
                     {
-                        data.CourseCode = request.CourseCode;
-                        data.CourseName = request.CourseName;
-                        data.CreatedBy = request.CreatedBy;
-                        data.CreatedOn = request.CreatedOn;
-                        data.DisplayOrder = request.DisplayOrder;
-                        data.ModifiedBy = request.ModifiedBy;
-                        data.ModifiedOn = DateTime.Now;
-                        data.Status = request.Status;
-
-                        string updateQuery = @"UPDATE tblCourse
-                                   SET CourseCode = @CourseCode, CourseName = @CourseName, CreatedBy = @CreatedBy, CreatedOn = @CreatedOn,
-                                       DisplayOrder = @DisplayOrder, ModifiedBy = @ModifiedBy, ModifiedOn = @ModifiedOn, Status = @Status
-                                   WHERE CourseId = @CourseId";
-                        int rowsAffected = await _connection.ExecuteAsync(updateQuery, data);
-                        if (rowsAffected > 0)
-                        {
-                            return new ServiceResponse<string>(true, "Operation Successful", "Course Updated Successfully", 200);
-                        }
-                        else
-                        {
-                            return new ServiceResponse<string>(false, "Opertion Failed", "No Record Found", 204);
-                        }
+                        request.CourseName,
+                        request.CourseCode,
+                        request.Status,
+                        request.displayorder,
+                        request.modifiedby,
+                        modifiedon = DateTime.Now,
+                        request.EmployeeID,
+                        request.CourseId
+                    });
+                    if (rowsAffected > 0)
+                    {
+                        return new ServiceResponse<string>(true, "Operation Successful", "Course Updated Successfully", StatusCodes.Status200OK);
                     }
                     else
                     {
-                        return new ServiceResponse<string>(false, "Opertion Failed", "No Record Found", 204);
+                        return new ServiceResponse<string>(false, "Opertion Failed", "No Record Found", StatusCodes.Status404NotFound);
                     }
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, StatusCodes.Status500InternalServerError);
             }
 
         }
@@ -92,21 +90,22 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
-                string query = "SELECT * FROM tblCourse";
+                string query = @"SELECT [CourseId], [CourseName], [CourseCode], [Status], [createdby], [createdon], [displayorder], [modifiedby], [modifiedon], [EmployeeID]
+                           FROM [iGuruPrep].[dbo].[tblCourse]";
                 var data = await _connection.QueryAsync<Course>(query);
 
                 if (data != null)
                 {
-                    return new ServiceResponse<List<Course>>(true, "Records Found", data.AsList(), 200);
+                    return new ServiceResponse<List<Course>>(true, "Records Found", data.AsList(), StatusCodes.Status302Found);
                 }
                 else
                 {
-                    return new ServiceResponse<List<Course>>(false, "Records Not Found", new List<Course>(), 204);
+                    return new ServiceResponse<List<Course>>(false, "Records Not Found", [], StatusCodes.Status204NoContent);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<Course>>(false, ex.Message, new List<Course>(), 200);
+                return new ServiceResponse<List<Course>>(false, ex.Message, [], StatusCodes.Status500InternalServerError);
             }
 
         }
@@ -115,20 +114,23 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
-                var data = await _connection.QueryFirstOrDefaultAsync<Course>("SELECT * FROM tblCourse WHERE CourseId = @Id", new { Id = id });
+                string getQuery = @"SELECT [CourseId], [CourseName], [CourseCode], [Status], [createdby], [createdon], [displayorder], [modifiedby], [modifiedon], [EmployeeID]
+                           FROM [iGuruPrep].[dbo].[tblCourse]
+                           WHERE [CourseId] = @CourseId";
+                var data = await _connection.QueryFirstOrDefaultAsync<Course>(getQuery, new { CourseId = id });
 
                 if (data != null)
                 {
-                    return new ServiceResponse<Course>(true, "Record Found", data, 200);
+                    return new ServiceResponse<Course>(true, "Record Found", data, StatusCodes.Status302Found);
                 }
                 else
                 {
-                    return new ServiceResponse<Course>(false, "Record not Found", new Course(), 500);
+                    return new ServiceResponse<Course>(false, "Record not Found", new Course(), StatusCodes.Status404NotFound);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<Course>(false, ex.Message, new Course(), 500);
+                return new ServiceResponse<Course>(false, ex.Message, new Course(), StatusCodes.Status500InternalServerError);
             }
 
         }
@@ -137,32 +139,32 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
-                var data = await _connection.QueryFirstOrDefaultAsync<Course>("SELECT * FROM tblCourse WHERE CourseId = @Id", new { Id = id });
+                var data = await GetCourseById(id);
 
-                if (data != null)
+                if (data.Data != null)
                 {
-                    data.Status = !data.Status; // Toggle the status
+                    data.Data.Status = !data.Data.Status; // Toggle the status
 
                     string updateQuery = @"UPDATE tblCourse SET Status = @Status WHERE CourseId = @Id";
-                    int rowsAffected = await _connection.ExecuteAsync(updateQuery, new { Status = data.Status, Id = id });
+                    int rowsAffected = await _connection.ExecuteAsync(updateQuery, new { data.Data.Status, Id = id });
 
                     if (rowsAffected > 0)
                     {
-                        return new ServiceResponse<bool>(true, "Operation Successful", true, 200);
+                        return new ServiceResponse<bool>(true, "Operation Successful", true, StatusCodes.Status200OK);
                     }
                     else
                     {
-                        return new ServiceResponse<bool>(false, "Opertion Failed", false, 500);
+                        return new ServiceResponse<bool>(false, "Opertion Failed", false, StatusCodes.Status304NotModified);
                     }
                 }
                 else
                 {
-                    return new ServiceResponse<bool>(false, "Record not Found", false, 204);
+                    return new ServiceResponse<bool>(false, "Record not Found", false, StatusCodes.Status404NotFound);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<bool>(false, ex.Message, false, 500);
+                return new ServiceResponse<bool>(false, ex.Message, false, StatusCodes.Status500InternalServerError);
             }
 
         }

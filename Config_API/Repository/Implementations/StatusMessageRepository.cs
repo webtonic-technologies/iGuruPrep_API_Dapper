@@ -2,6 +2,7 @@
 using Config_API.Models;
 using Config_API.Repository.Interfaces;
 using Dapper;
+using Microsoft.AspNetCore.Http.HttpResults;
 using System.Data;
 
 namespace Config_API.Repository.Implementations
@@ -22,8 +23,17 @@ namespace Config_API.Repository.Implementations
                 if (request.StatusId == 0)
                 {
                     // Insert new status message
-                    var sql = "INSERT INTO tblStatusMessage (StatusCode, StatusMessage) VALUES (@StatusCode, @StatusMessage)";
-                    int rowsAffected = await _connection.ExecuteAsync(sql, new { request.StatusCode, request.StatusMessage });
+                    string query = @"INSERT INTO [tblStatusMessage] (StatusCode, StatusMessage, createdon, createdby, EmployeeID)
+                             VALUES (@StatusCode, @StatusMessage, GETDATE(), @CreatedBy, @EmployeeID)";
+
+                    int rowsAffected = await _connection.ExecuteAsync(query, new
+                    {
+                        request.StatusCode,
+                        request.StatusMessage,
+                        createdon = DateTime.Now,
+                        request.createdby,
+                        request.EmployeeID
+                    });
                     if (rowsAffected > 0)
                     {
                         return new ServiceResponse<string>(true, "Operation Successful", "Status Message Added Successfully", 200);
@@ -36,8 +46,20 @@ namespace Config_API.Repository.Implementations
                 else
                 {
                     // Update existing status message
-                    var sql = "UPDATE tblStatusMessage SET StatusCode = @StatusCode, StatusMessage = @StatusMessage WHERE StatusId = @StatusId";
-                    int rowsAffected = await _connection.ExecuteAsync(sql, new { request.StatusCode, request.StatusMessage, request.StatusId });
+                    string query = @"UPDATE [tblStatusMessage]
+                             SET StatusCode = @StatusCode, 
+                                 StatusMessage = @StatusMessage,
+                                 modifiedon = GETDATE(),
+                                 modifiedby = @ModifiedBy
+                             WHERE StatusId = @StatusId";
+                    int rowsAffected = await _connection.ExecuteAsync(query, new
+                    {
+                        request.StatusCode,
+                        request.StatusMessage,
+                        request.StatusId,
+                        request.modifiedby,
+                        modifiedon = DateTime.Now
+                    });
                     if (rowsAffected > 0)
                     {
                         return new ServiceResponse<string>(true, "Operation Successful", "Status Message Updated Successfully", 200);
@@ -53,14 +75,15 @@ namespace Config_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-
         public async Task<ServiceResponse<StatusMessages>> GetStatusMessageById(int id)
         {
             try
             {
-                string sql = "SELECT * FROM tblStatusMessage WHERE StatusId = @StatusId";
+                string query = @"SELECT StatusId, StatusCode, StatusMessage, modifiedon, modifiedby, createdon, createdby, EmployeeID 
+                             FROM [tblStatusMessage]
+                             WHERE StatusId = @StatusId";
 
-                var data = await _connection.QueryFirstOrDefaultAsync<StatusMessages>(sql, new { StatusId = id });
+                var data = await _connection.QueryFirstOrDefaultAsync<StatusMessages>(query, new { StatusId = id });
 
                 if (data != null)
                 {
@@ -80,9 +103,10 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
-                string sql = "SELECT * FROM tblStatusMessage";
+                string query = @"SELECT StatusId, StatusCode, StatusMessage, modifiedon, modifiedby, createdon, createdby, EmployeeID 
+                             FROM [tblStatusMessage]";
 
-                var data = await _connection.QueryAsync<StatusMessages>(sql);
+                var data = await _connection.QueryAsync<StatusMessages>(query);
 
                 if (data != null)
                 {

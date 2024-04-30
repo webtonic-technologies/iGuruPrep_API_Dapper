@@ -61,7 +61,7 @@ namespace Config_API.Controllers
             }
 
         }
-        [HttpGet]
+        [HttpGet("GetAllStatusMessages")]
         public async Task<IActionResult> GetStatusMessageList()
         {
             try

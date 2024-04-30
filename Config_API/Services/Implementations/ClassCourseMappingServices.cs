@@ -1,5 +1,5 @@
-﻿using Config_API.DTOs.ServiceResponse;
-using Config_API.Models;
+﻿using Config_API.DTOs;
+using Config_API.DTOs.ServiceResponse;
 using Config_API.Repository.Interfaces;
 using Config_API.Services.Interfaces;
 
@@ -14,7 +14,7 @@ namespace Config_API.Services.Implementations
         {
             _classCourseMappingRepository = classCourseMappingRepository;
         }
-        public async Task<ServiceResponse<string>> AddUpdateClassCourseMapping(ClassCourseMapping request)
+        public async Task<ServiceResponse<string>> AddUpdateClassCourseMapping(ClassCourseMappingDTO request)
         {
             try
             {
@@ -26,7 +26,7 @@ namespace Config_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<ClassCourseMapping>>> GetAllClassCoursesMappings()
+        public async Task<ServiceResponse<List<ClassCourseMappingDTO>>> GetAllClassCoursesMappings()
         {
             try
             {
@@ -34,11 +34,11 @@ namespace Config_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<ClassCourseMapping>>(false, ex.Message, new List<ClassCourseMapping>(), 500);
+                return new ServiceResponse<List<ClassCourseMappingDTO>>(false, ex.Message, [], 500);
             }
         }
 
-        public async Task<ServiceResponse<ClassCourseMapping>> GetClassCourseMappingById(int id)
+        public async Task<ServiceResponse<ClassCourseMappingDTO>> GetClassCourseMappingById(int id)
         {
             try
             {
@@ -46,7 +46,7 @@ namespace Config_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<ClassCourseMapping>(false, ex.Message, new ClassCourseMapping(), 500);
+                return new ServiceResponse<ClassCourseMappingDTO>(false, ex.Message, new ClassCourseMappingDTO(), 500);
             }
         }
 

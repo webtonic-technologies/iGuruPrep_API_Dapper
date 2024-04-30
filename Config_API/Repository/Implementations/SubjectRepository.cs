@@ -21,43 +21,68 @@ namespace Config_API.Repository.Implementations
             {
                 if (request.SubjectId == 0)
                 {
-                    string insertSql = @"INSERT INTO tblSubject (ColorCode, SubjectName, SubjectCode, CreatedBy, CreatedOn, DisplayOrder, GroupName, Icon, ModifiedBy, ModifiedOn, Status, SubjectType)
-                                 VALUES (@ColorCode, @SubjectName, @SubjectCode, @CreatedBy, @CreatedOn, @DisplayOrder, @GroupName, @Icon, @ModifiedBy, @ModifiedOn, @Status, @SubjectType)";
-
-                    int rowsAffected = await _connection.ExecuteAsync(insertSql, request);
+                    string insertSql = @"INSERT INTO [iGuruPrep].[dbo].[tblSubject] ([SubjectName], [SubjectCode], [Status], [createdby], [createdon], [displayorder], [groupname], [icon], [colorcode], [subjecttype], [EmployeeID])
+                           VALUES (@SubjectName, @SubjectCode, @Status, @CreatedBy, GETDATE(), @DisplayOrder, @GroupName, @Icon, @ColorCode, @SubjectType, @EmployeeID)";
+                    
+                    int rowsAffected = await _connection.ExecuteAsync(insertSql, new
+                    {
+                        request.SubjectName,
+                        request.SubjectCode,
+                        Status = true,
+                        request.createdby,
+                        createdon = DateTime.Now,
+                        request.displayorder,
+                        request.groupname,
+                        request.icon,
+                        request.colorcode,
+                        request.subjecttype,
+                        request.EmployeeID
+                    });
 
                     if (rowsAffected > 0)
                     {
-                        return new ServiceResponse<string>(true, "Operation Successful", "Subject Added Successfully", 200);
+                        return new ServiceResponse<string>(true, "Operation Successful", "Subject Added Successfully", StatusCodes.Status201Created);
                     }
                     else
                     {
-                        return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
+                        return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, StatusCodes.Status400BadRequest);
                     }
                 }
                 else
                 {
-                    string updateSql = @"UPDATE tblSubject
-                                 SET ColorCode = @ColorCode, SubjectName = @SubjectName, SubjectCode = @SubjectCode, CreatedBy = @CreatedBy, CreatedOn = @CreatedOn, 
-                                     DisplayOrder = @DisplayOrder, GroupName = @GroupName, Icon = @Icon, ModifiedBy = @ModifiedBy, ModifiedOn = @ModifiedOn,
-                                     Status = @Status, SubjectType = @SubjectType
-                                 WHERE SubjectId = @SubjectId";
+                    string updateSql = @"UPDATE [iGuruPrep].[dbo].[tblSubject]
+                           SET [SubjectName] = @SubjectName, [SubjectCode] = @SubjectCode, [Status] = @Status, [modifiedby] = @ModifiedBy, [modifiedon] = GETDATE(), [groupname] = @GroupName, [icon] = @Icon, [colorcode] = @ColorCode, [subjecttype] = @SubjectType
+                           WHERE [SubjectId] = @SubjectId";
 
-                    int rowsAffected = await _connection.ExecuteAsync(updateSql, request);
+                    int rowsAffected = await _connection.ExecuteAsync(updateSql, new
+                    {
+                        request.SubjectId,
+                        request.SubjectName,
+                        request.SubjectCode,
+                        request.Status,
+                        request.modifiedby,
+                        modifiedon = DateTime.Now,
+                        request.displayorder,
+                        request.groupname,
+                        request.icon,
+                        request.colorcode,
+                        request.subjecttype,
+                        request.EmployeeID
+                    });
 
                     if (rowsAffected > 0)
                     {
-                        return new ServiceResponse<string>(true, "Operation Successful", "Subject Updated Successfully", 200);
+                        return new ServiceResponse<string>(true, "Operation Successful", "Subject Updated Successfully", StatusCodes.Status200OK);
                     }
                     else
                     {
-                        return new ServiceResponse<string>(false, "Opertion Failed", "Subject does not exist", 500);
+                        return new ServiceResponse<string>(false, "Opertion Failed", "Subject does not exist", StatusCodes.Status404NotFound);
                     }
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, StatusCodes.Status500InternalServerError);
             }
         }
 
@@ -66,23 +91,23 @@ namespace Config_API.Repository.Implementations
             try
             {
                 // Construct the SQL query to select all subjects
-                string sql = "SELECT * FROM tblSubject";
+                string query = "SELECT [SubjectId], [SubjectName], [SubjectCode], [Status], [createdby], [createdon], [displayorder], [modifiedby], [modifiedon], [groupname], [icon], [colorcode], [subjecttype], [EmployeeID] FROM [iGuruPrep].[dbo].[tblSubject]";
 
                 // Execute the select query asynchronously
-                var data = await _connection.QueryAsync<Subject>(sql);
+                var data = await _connection.QueryAsync<Subject>(query);
 
                 if (data != null)
                 {
-                    return new ServiceResponse<List<Subject>>(true, "Records Found", data.AsList(), 200);
+                    return new ServiceResponse<List<Subject>>(true, "Records Found", data.AsList(), StatusCodes.Status302Found);
                 }
                 else
                 {
-                    return new ServiceResponse<List<Subject>>(false, "Records Not Found", new List<Subject>(), 204);
+                    return new ServiceResponse<List<Subject>>(false, "Records Not Found", [], StatusCodes.Status204NoContent);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<Subject>>(false, ex.Message, new List<Subject>(), 200);
+                return new ServiceResponse<List<Subject>>(false, ex.Message, [], StatusCodes.Status500InternalServerError);
             }
         }
 
@@ -91,22 +116,22 @@ namespace Config_API.Repository.Implementations
 
             try
             {
-                string sql = "SELECT * FROM tblSubject WHERE SubjectId = @SubjectId";
+                string query = "SELECT [SubjectId], [SubjectName], [SubjectCode], [Status], [createdby], [createdon], [displayorder], [modifiedby], [modifiedon], [groupname], [icon], [colorcode], [subjecttype], [EmployeeID] FROM [iGuruPrep].[dbo].[tblSubject] WHERE [SubjectId] = @SubjectId";
 
-                var data = await _connection.QueryFirstOrDefaultAsync<Subject>(sql, new { SubjectId = id });
+                var data = await _connection.QueryFirstOrDefaultAsync<Subject>(query, new { SubjectId = id });
 
                 if (data != null)
                 {
-                    return new ServiceResponse<Subject>(true, "Record Found", data, 200);
+                    return new ServiceResponse<Subject>(true, "Record Found", data, StatusCodes.Status302Found);
                 }
                 else
                 {
-                    return new ServiceResponse<Subject>(false, "Record not Found", new Subject(), 500);
+                    return new ServiceResponse<Subject>(false, "Record not Found", new Subject(), StatusCodes.Status404NotFound);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<Subject>(false, ex.Message, new Subject(), 500);
+                return new ServiceResponse<Subject>(false, ex.Message, new Subject(), StatusCodes.Status500InternalServerError);
             }
         }
 
@@ -114,36 +139,33 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
-                string sql = "SELECT * FROM tblSubject WHERE SubjectId = @SubjectId";
-               var data =  await _connection.QueryFirstOrDefaultAsync<Subject>(sql, new { SubjectId = id });
-
-
-                if (data != null)
+                var data = await GetSubjectById(id);
+                if (data.Data != null)
                 {
                     // Toggle the status
-                    data.Status = !data.Status;
+                    data.Data.Status = !data.Data.Status;
 
                     string sql1 = "UPDATE tblSubject SET Status = @Status WHERE SubjectId = @SubjectId";
 
-                    int rowsAffected = await _connection.ExecuteAsync(sql1, new { data.Status, SubjectId = id });
+                    int rowsAffected = await _connection.ExecuteAsync(sql1, new { data.Data.Status, SubjectId = id });
 
                     if (rowsAffected > 0)
                     {
-                        return new ServiceResponse<bool>(true, "Operation Successful", true, 200);
+                        return new ServiceResponse<bool>(true, "Operation Successful", true, StatusCodes.Status200OK);
                     }
                     else
                     {
-                        return new ServiceResponse<bool>(false, "Opertion Failed", false, 500);
+                        return new ServiceResponse<bool>(false, "Opertion Failed", false, StatusCodes.Status304NotModified);
                     }
                 }
                 else
                 {
-                    return new ServiceResponse<bool>(false, "Record not Found", false, 204);
+                    return new ServiceResponse<bool>(false, "Record not Found", false, StatusCodes.Status404NotFound);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<bool>(false, ex.Message, false, 500);
+                return new ServiceResponse<bool>(false, ex.Message, false, StatusCodes.Status500InternalServerError);
             }
         }
     }
