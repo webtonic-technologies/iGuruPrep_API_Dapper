@@ -7,14 +7,16 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Dapper" Version="2.1.35" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
-    <PackageReference Include="System.Data.SqlClient" Version="4.8.6" />
+    <Compile Remove="DTOs\Board\**" />
+    <Content Remove="DTOs\Board\**" />
+    <EmbeddedResource Remove="DTOs\Board\**" />
+    <None Remove="DTOs\Board\**" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="DTOs\Board\Responses\" />
-    <Folder Include="DTOs\Board\Requests\" />
+    <PackageReference Include="Dapper" Version="2.1.35" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
+    <PackageReference Include="System.Data.SqlClient" Version="4.8.6" />
   </ItemGroup>
 
 </Project>

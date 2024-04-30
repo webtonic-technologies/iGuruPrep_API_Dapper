@@ -5,15 +5,17 @@
         public int SubjectId { get; set; }
         public string SubjectName { get; set; } = string.Empty;
         public string SubjectCode { get; set; } = string.Empty;
-        public string Icon { get; set; } = string.Empty;
-        public string ColorCode { get; set; } = string.Empty;
+        public string icon { get; set; } = string.Empty;
+        public string colorcode { get; set; } = string.Empty;
         public bool? Status { get; set; }
-        public int? DisplayOrder { get; set; }
-        public int? CreatedBy { get; set; }
-        public DateTime? CreatedOn { get; set; }
-        public int? ModifiedBy { get; set; }
-        public DateTime? ModifiedOn { get; set; }
-        public string GroupName { get; set; } = string.Empty;
-        public int? SubjectType { get; set; }
+        public int? displayorder { get; set; }
+        public string createdby { get; set; } = string.Empty;
+        public DateTime? createdon { get; set; }
+        public string modifiedby { get; set; } = string.Empty;
+        public DateTime? modifiedon { get; set; }
+        public string groupname { get; set; } = string.Empty;
+        public int? subjecttype { get; set; }
+        public int? EmployeeID {  get; set; }
+       // EmpFirstName
     }
 }

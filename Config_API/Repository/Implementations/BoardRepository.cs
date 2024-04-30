@@ -17,53 +17,68 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
-                string sql;
                 if (request.BoardId == 0)
                 {
                     // Insert new board
-                    sql = @"INSERT INTO tblBoard (BoardCode, BoardName, ShowCourse, Status, CreatedOn, CreatedBy) 
-                        VALUES (@BoardCode, @BoardName, @ShowCourse, @Status, @CreatedOn, @CreatedBy)";
+                    string query = @"INSERT INTO [tblBoard] (BoardName, BoardCode, Status, showcourse, createdon, createdby, EmployeeID) 
+                             VALUES (@BoardName, @BoardCode, @Status, @showcourse, @createdon, @createdby, @EmployeeID)";
+                    int insertedValue = await _connection.ExecuteAsync(query, new
+                    {
+                        request.BoardId,
+                        request.BoardCode,
+                        request.BoardName,
+                        request.showcourse,
+                        Status = true,
+                        createdon = DateTime.Now,
+                        request.createdby,
+                        request.EmployeeID
+                    });
+                    if (insertedValue > 0)
+                    {
+                        return new ServiceResponse<string>(true, "Operation Successful", "Board Added Successfully", StatusCodes.Status201Created);
+                    }
+                    else
+                    {
+                        return new ServiceResponse<string>(false, "Operation Failed", string.Empty, StatusCodes.Status400BadRequest);
+                    }
                 }
                 else
                 {
                     // Update existing board
-                    sql = @"UPDATE tblBoard 
-                        SET BoardName = @BoardName, 
-                            BoardCode = @BoardCode, 
-                            ShowCourse = @ShowCourse, 
-                            Status = @Status, 
-                            ModifiedOn = @ModifiedOn,
-                            ModifiedBy = @ModifiedBy
+                    string query = @"UPDATE tblBoard 
+                         SET BoardName = @BoardName, 
+                             BoardCode = @BoardCode, 
+                             Status = @Status, 
+                             showcourse = @showcourse, 
+                             modifiedon = @modifiedon, 
+                             modifiedby = @modifiedby, 
+                             EmployeeID = @EmployeeID
+                         WHERE BoardId = @BoardId";
+                    int rowsAffected = await _connection.ExecuteAsync(query, new
+                    {
+                        request.BoardId,
+                        request.BoardCode,
+                        request.BoardName,
+                        request.showcourse,
+                        request.Status,
+                        ModifiedOn = DateTime.Now,
+                        request.modifiedby,
+                        request.EmployeeID
+                    });
+                    if (rowsAffected > 0)
+                    {
+                        return new ServiceResponse<string>(true, "Operation Successful", "Board Updated Successfully", StatusCodes.Status200OK);
+                    }
+                    else
+                    {
+                        return new ServiceResponse<string>(false, "Operation Failed", string.Empty, StatusCodes.Status404NotFound);
+                    }
 
-                        WHERE BoardId = @BoardId";
-                }
-
-                int rowsAffected = await _connection.ExecuteAsync(sql, new
-                {
-                    request.BoardId,
-                    request.BoardCode,
-                    request.BoardName,
-                    request.ShowCourse,
-                    request.Status,
-                    CreatedOn = DateTime.Now,
-                    CreatedBy = 1,
-                    ModifiedOn = DateTime.Now,
-                    ModifiedBy = 1
-                });
-                if (rowsAffected > 0)
-                {
-                    string response = request.BoardId == 0 ? "Board Created successfully." : "Board Updated successfully.";
-
-                    return new ServiceResponse<string>(true, "Operation Successful", response, 200);
-                }
-                else
-                {
-                    return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, StatusCodes.Status500InternalServerError);
             }
         }
 
@@ -71,22 +86,32 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
-                string sql = "SELECT * FROM tblBoard";
+                string sql = @"SELECT [BoardId]
+                                  ,[BoardName]
+                                  ,[BoardCode]
+                                  ,[Status]
+                                  ,[showcourse]
+                                  ,[createdon]
+                                  ,[createdby]
+                                  ,[modifiedon]
+                                  ,[modifiedby]
+                                  ,[EmployeeID]
+                            FROM [iGuruPrep].[dbo].[tblBoard]";
 
                 var boards = await _connection.QueryAsync<Board>(sql);
 
                 if (boards != null)
                 {
-                    return new ServiceResponse<List<Board>>(true, "Records Found", boards.AsList(), 200);
+                    return new ServiceResponse<List<Board>>(true, "Records Found", boards.AsList(), StatusCodes.Status302Found);
                 }
                 else
                 {
-                    return new ServiceResponse<List<Board>>(false, "Records Not Found", new List<Board>(), 204);
+                    return new ServiceResponse<List<Board>>(false, "Records Not Found", [], StatusCodes.Status204NoContent);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<Board>>(false, ex.Message, new List<Board>(), 200);
+                return new ServiceResponse<List<Board>>(false, ex.Message, [], StatusCodes.Status500InternalServerError);
             }
         }
 
@@ -94,22 +119,31 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
-                string sql = "SELECT * FROM tblBoard WHERE BoardId = @BoardId";
+                string sql = @"SELECT [BoardId]
+                                  ,[BoardName]
+                                  ,[BoardCode]
+                                  ,[Status]
+                                  ,[showcourse]
+                                  ,[createdon]
+                                  ,[createdby]
+                                  ,[modifiedon]
+                                  ,[modifiedby]
+                                  ,[EmployeeID] FROM tblBoard WHERE BoardId = @BoardId";
 
                 var board = await _connection.QueryFirstOrDefaultAsync<Board>(sql, new { BoardId = id });
 
                 if (board != null)
                 {
-                    return new ServiceResponse<Board>(true, "Record Found", board, 200);
+                    return new ServiceResponse<Board>(true, "Records Found", board, StatusCodes.Status302Found);
                 }
                 else
                 {
-                    return new ServiceResponse<Board>(false, "Record not Found", new Board(), 500);
+                    return new ServiceResponse<Board>(false, "Records Not Found", new Board(), StatusCodes.Status204NoContent);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<Board>(false, ex.Message, new Board(), 500);
+                return new ServiceResponse<Board>(false, ex.Message, new Board(), StatusCodes.Status500InternalServerError);
             }
         }
 
@@ -128,21 +162,21 @@ namespace Config_API.Repository.Implementations
                     int rowsAffected = await _connection.ExecuteAsync(sql, new { board.Data.Status, BoardId = id });
                     if (rowsAffected > 0)
                     {
-                        return new ServiceResponse<bool>(true, "Operation Successful", true, 200);
+                        return new ServiceResponse<bool>(true, "Operation Successful", true, StatusCodes.Status200OK);
                     }
                     else
                     {
-                        return new ServiceResponse<bool>(false, "Opertion Failed", false, 500);
+                        return new ServiceResponse<bool>(false, "Opertion Failed", false, StatusCodes.Status304NotModified);
                     }
                 }
                 else
                 {
-                    return new ServiceResponse<bool>(false, "Record not Found", false, 204);
+                    return new ServiceResponse<bool>(false, "Record not Found", false, StatusCodes.Status404NotFound);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<bool>(false, ex.Message, false, 500);
+                return new ServiceResponse<bool>(false, ex.Message, false, StatusCodes.Status500InternalServerError);
             }
         }
     }

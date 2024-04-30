@@ -6,7 +6,7 @@ namespace Config_API.Services.Interfaces
 {
     public interface INotificationModServices
     {
-        Task<ServiceResponse<List<ModuleNew>>> GetAllModuleList();
+        Task<ServiceResponse<List<Module>>> GetAllModuleList();
         Task<ServiceResponse<List<Platform>>> GetAllPlatformList();
         Task<ServiceResponse<string>> AddUpdateNotification(NotificationTemplate request);
         Task<ServiceResponse<bool>> StatusActiveInactive(int id);

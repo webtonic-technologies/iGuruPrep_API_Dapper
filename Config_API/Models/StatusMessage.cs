@@ -9,5 +9,11 @@ namespace Config_API.Models
         public int StatusId { get; set; }
         public int? StatusCode { get; set; }
         public string StatusMessage { get; set; } = string.Empty;
+        public DateTime? modifiedon { get; set; }
+        public string modifiedby { get; set; } = string.Empty;
+        public DateTime? createdon { get; set; }
+        public string createdby { get; set; } = string.Empty;
+        public int? EmployeeID { get; set; }
+        // EmpFirstName
     }
 }
