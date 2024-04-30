@@ -27,7 +27,7 @@ namespace Config_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<ModuleNew>>> GetAllModuleList()
+        public async Task<ServiceResponse<List<Module>>> GetAllModuleList()
         {
             try
             {
@@ -35,7 +35,7 @@ namespace Config_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<ModuleNew>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<Module>>(false, ex.Message, [], 500);
             }
         }
 

@@ -10,7 +10,6 @@ namespace Config_API.Repository.Implementations
     public class NotificationModRepository : INotificationModRepository
     {
         private readonly IDbConnection _connection;
-
         public NotificationModRepository(IDbConnection connection)
         {
             _connection = connection;
@@ -59,28 +58,26 @@ namespace Config_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-
-        public async Task<ServiceResponse<List<ModuleNew>>> GetAllModuleList()
+        public async Task<ServiceResponse<List<Module>>> GetAllModuleList()
         {
             try
             {
                 string sql = "SELECT * FROM tblModule_new";
-                var modules = await _connection.QueryAsync<ModuleNew>(sql);
+                var modules = await _connection.QueryAsync<Module>(sql);
                 if (modules != null)
                 {
-                    return new ServiceResponse<List<ModuleNew>>(true, "Records Found", modules.AsList(), 200);
+                    return new ServiceResponse<List<Module>>(true, "Records Found", modules.AsList(), 200);
                 }
                 else
                 {
-                    return new ServiceResponse<List<ModuleNew>>(false, "Records Not Found", new List<ModuleNew>(), 204);
+                    return new ServiceResponse<List<Module>>(false, "Records Not Found", new List<Module>(), 204);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<ModuleNew>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<Module>>(false, ex.Message, [], 500);
             }
         }
-
         public async Task<ServiceResponse<List<Platform>>> GetAllPlatformList()
         {
             try
@@ -101,30 +98,38 @@ namespace Config_API.Repository.Implementations
                 return new ServiceResponse<List<Platform>>(false, ex.Message, [], 500);
             }
         }
-
         public async Task<ServiceResponse<NotificationModuleDTO>> GetNotificationsByModuleId(int id)
         {
             try
             {
                 var response = new NotificationModuleDTO();
-                var moduleData = await _connection.QuerySingleOrDefaultAsync<ModuleNew>("SELECT * FROM tblModule_new WHERE @ModuleID = ModuleID", new { ModuleID = id });
+                var moduleData = await _connection.QuerySingleOrDefaultAsync<Module>("SELECT * FROM tblModule_new WHERE @ModuleID = ModuleID", new { ModuleID = id });
                 if (moduleData != null)
                 {
                     response.ModuleName = moduleData.ModuleName;
                 }
-                string sql = "SELECT * FROM tblNotificationTemplate WHERE moduleid = @ModuleId";
+                string sql = @"SELECT [NotificationTemplateID],
+                                      [PlatformID],
+                                      [Message],
+                                      [Status],
+                                      [moduleID],
+                                      [modifiedon],
+                                      [modifiedby],
+                                      [createdon],
+                                      [createdby],
+                                      [EmployeeID] FROM tblNotificationTemplate WHERE moduleid = @ModuleId";
                 var templates = await _connection.QueryAsync<NotificationTemplate>(sql, new { ModuleId = id });
                 if (templates != null)
                 {
                     foreach (var data in templates)
                     {
                         string sqlQuery = "SELECT * FROM tblPlatform WHERE platformid = @PlatformId";
-                        var platform = await _connection.QueryFirstOrDefaultAsync<Platform>(sqlQuery, new { PlatformId = data.platformid });
+                        var platform = await _connection.QueryFirstOrDefaultAsync<Platform>(sqlQuery, new { PlatformId = data.PlatformID });
 
                         var item = new NotificationDTO
                         {
                             Platformname = platform != null ? platform.Platformname : string.Empty,
-                            Notification = data.Notification,
+                            Message = data.Message,
                             NotificationTemplateID = data.NotificationTemplateID
                         };
                         var data1 = response.NotificationDTOs = [];
@@ -142,7 +147,6 @@ namespace Config_API.Repository.Implementations
                 return new ServiceResponse<NotificationModuleDTO>(false, ex.Message, new NotificationModuleDTO(), 500);
             }
         }
-
         public async Task<ServiceResponse<bool>> StatusActiveInactive(int id)
         {
             try

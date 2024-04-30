@@ -1,3 +1,4 @@
+using Config_API.DTOs;
 using Config_API.Models;
 using Config_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -15,7 +16,7 @@ namespace Config_API.Controllers
             _classCourseMappingServices = classCourseMappingServices;
         }
         [HttpPost]
-        public async Task<IActionResult> AddUpdateClassCourseMapping(ClassCourseMapping request)
+        public async Task<IActionResult> AddUpdateClassCourseMapping(ClassCourseMappingDTO request)
         {
             try
             {

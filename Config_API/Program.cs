@@ -19,8 +19,8 @@ builder.Services.AddTransient<IClassCourseMappingServices, ClassCourseMappingSer
 builder.Services.AddTransient<IClassCourseMappingRepository, ClassCourseMappingRepository>();
 builder.Services.AddTransient<ICourseServices, CourseServices>();
 builder.Services.AddTransient<ICourseRepository, CourseRepository>();
-builder.Services.AddTransient<IQuestionLevelServices, QuestionLevelServices>();
-builder.Services.AddTransient<IQuestionLevelRepository, QuestionLevelRepository>();
+builder.Services.AddTransient<IDifficultyLevelServices, DifficultyLevelServices>();
+builder.Services.AddTransient<IDifficultyLevelRepository, DifficultyLevelRepository>();
 builder.Services.AddTransient<IStatusMessageServices, StatusMessageServices>();
 builder.Services.AddTransient<IStatusMessageRepository, StatusMessageRepository>();
 builder.Services.AddTransient<ISubjectServices, SubjectServices>();

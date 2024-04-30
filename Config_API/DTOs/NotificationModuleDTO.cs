@@ -9,6 +9,6 @@
     {
         public int NotificationTemplateID { get; set; }
         public string Platformname { get; set; } = string.Empty;
-        public string Notification { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
     }
 }

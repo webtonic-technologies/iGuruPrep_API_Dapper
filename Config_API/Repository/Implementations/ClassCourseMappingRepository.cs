@@ -1,8 +1,10 @@
-﻿using Config_API.DTOs.ServiceResponse;
+﻿using Config_API.DTOs;
+using Config_API.DTOs.ServiceResponse;
 using Config_API.Models;
 using Config_API.Repository.Interfaces;
 using Dapper;
 using iGuruPrep.Models;
+using Microsoft.AspNetCore.Http.HttpResults;
 using System.Data;
 
 namespace Config_API.Repository.Implementations
@@ -15,124 +17,175 @@ namespace Config_API.Repository.Implementations
         {
             _connection = connection;
         }
-        public async Task<ServiceResponse<string>> AddUpdateClassCourseMapping(ClassCourseMapping request)
+        public async Task<ServiceResponse<string>> AddUpdateClassCourseMapping(ClassCourseMappingDTO request)
         {
             try
             {
-                if (request.CourseClassMappingID == 0)
+                var classData = await _connection.QueryAsync<Class>("SELECT * FROM tblClass WHERE ClassId = @ClassId", new { ClassId = request.ClassID });
+                //var courseData = await _connection.QueryAsync<Course>("SELECT * FROM tblCourse WHERE CourseId = @CourseId", new { CourseId = request.CourseID });
+                if (classData != null)
                 {
-                    var classData = await _connection.QueryFirstOrDefaultAsync<Class>("SELECT * FROM tblClass WHERE ClassId = @ClassId", new { ClassId = request.ClassID });
-                    var courseData = await _connection.QueryFirstOrDefaultAsync<Course>("SELECT * FROM tblCourse WHERE CourseId = @CourseId", new { CourseId = request.CourseID });
-
-                    if (classData != null && courseData != null)
+                    if (request.CourseClassMappingID == 0)
                     {
-                        var newClassCourseMapping = new ClassCourseMapping
-                        {
-                            ClassID = request.ClassID,
-                            CourseID = request.CourseID,
-                            CreatedOn = DateTime.Now,
-                            Status = request.Status
-                        };
 
-                        string insertQuery = @"INSERT INTO tblClassCourses (ClassID, CourseID, CreatedOn, Status)
-                                   VALUES (@ClassID, @CourseID, @CreatedOn, @Status)";
-                        int rowsAffected = await _connection.ExecuteAsync(insertQuery, newClassCourseMapping);
+                        foreach (var courseId in request.CourseID ??= ([]))
+                        {
+                            string query = @"INSERT INTO tblClassCourses (CourseID, ClassID, Status, createdon, EmployeeID) 
+                                 VALUES (@CourseID, @ClassID, @Status, @createdon, @EmployeeID)";
 
-                        if (rowsAffected > 0)
-                        {
-                            return new ServiceResponse<string>(true, "Operation Successful", "Class Course Mapping Added Successfully", 200);
+                            int rowsAffected = await _connection.ExecuteAsync(query, new
+                            {
+                                CourseID = courseId,
+                                request.ClassID,
+                                Status = true,
+                                createdon = DateTime.Now,
+                                request.EmployeeID
+                            });
+                            if (rowsAffected == 0)
+                            {
+                                return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, StatusCodes.Status400BadRequest);
+                            }
                         }
-                        else
-                        {
-                            return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
-                        }
+                        return new ServiceResponse<string>(true, "Operation Successful", "Record added successfully", StatusCodes.Status200OK);
                     }
                     else
                     {
-                        return new ServiceResponse<string>(false, "Opertion Failed", "No record found for class or course", 204);
+                        string delete = "DELETE FROM tblClassCourses WHERE ClassID = @ClassID";
+                        int deletedRows = await _connection.ExecuteAsync(delete, new { request.ClassID });
+
+                        foreach (var courseId in request.CourseID ??= ([]))
+                        {
+                            //string query = @"UPDATE tblClassCourses 
+                            //     SET ClassID = @ClassID, 
+                            //         Status = @Status,
+                            //         modifiedon = @modifiedon,
+                            //         modifiedby = @modifiedby
+                            //     WHERE CourseClassMappingID = @CourseClassMappingID";
+                            string query = @"INSERT INTO tblClassCourses (CourseID, ClassID, Status, createdon, EmployeeID, modifiedon, modifiedby) 
+                                 VALUES (@CourseID, @ClassID, @Status, @createdon, @EmployeeID, @modifiedon, @modifiedby)";
+                            int rowsAffected = await _connection.ExecuteAsync(query, new
+                            {
+                                request.ClassID,
+                                request.Status,
+                                createdon = DateTime.Now,
+                                modifiedon = DateTime.UtcNow,
+                                request.modifiedby,
+                                CourseID = courseId,
+                                request.CourseClassMappingID,
+                                request.EmployeeID
+                            });
+                            if (rowsAffected == 0)
+                            {
+                                return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, StatusCodes.Status400BadRequest);
+                            }
+                        }
+                        return new ServiceResponse<string>(true, "Operation Successful", "Record Updated successfully", StatusCodes.Status200OK);
                     }
                 }
                 else
                 {
-                    var data = await _connection.QueryFirstOrDefaultAsync<ClassCourseMapping>("SELECT * FROM tblClassCourses WHERE CourseClassMappingID = @CourseClassMappingID", new { CourseClassMappingID = request.CourseClassMappingID });
-                    if (data != null)
-                    {
-                        data.CreatedOn = request.CreatedOn;
-                        data.Status = request.Status;
-                        data.ClassID = request.ClassID;
-                        data.CourseID = request.CourseID;
-
-                        string updateQuery = @"UPDATE tblClassCourses
-                                   SET ClassID = @ClassID, CourseID = @CourseID, CreatedOn = @CreatedOn, Status = @Status
-                                   WHERE CourseClassMappingID = @CourseClassMappingID";
-                        int rowsAffected = await _connection.ExecuteAsync(updateQuery, data);
-
-
-                        if (rowsAffected > 0)
-                        {
-                            return new ServiceResponse<string>(true, "Operation Successful", "Class Course Mapping Updated Successfully", 200);
-                        }
-                        else
-                        {
-                            return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
-                        }
-                    }
-                    else
-                    {
-                        return new ServiceResponse<string>(false, "Opertion Failed", "No record found", 204);
-                    }
+                    return new ServiceResponse<string>(false, "Opertion Failed", "No record found for class or course", 204);
                 }
             }
             catch (Exception ex)
             {
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
-
         }
-
-        public async Task<ServiceResponse<List<ClassCourseMapping>>> GetAllClassCoursesMappings()
+        public async Task<ServiceResponse<List<ClassCourseMappingDTO>>> GetAllClassCoursesMappings()
         {
             try
             {
-                string query = "SELECT * FROM tblClassCourses";
+                string query = "SELECT CourseClassMappingID, ClassID, CourseID, Status, createdon, EmployeeID, modifiedon, modifiedby FROM [tblClassCourses]";
+                var classCourseMappings = await _connection.QueryAsync<ClassCourseMapping>(query);
 
-                var data = await _connection.QueryAsync<ClassCourseMapping>(query);
-
-                if (data != null)
+                var groupedMappings = classCourseMappings
+                .GroupBy(m => m.ClassID)
+                .Select(g => new ClassCourseMappingDTO
                 {
-                    return new ServiceResponse<List<ClassCourseMapping>>(true, "Records Found", data.AsList(), 200);
+                    ClassID = g.Key,
+                    CourseID = g.Select(m => m.CourseID).ToList(),
+                    Status = g.First().Status,
+                    createdon = g.First().createdon,
+                    EmployeeID = g.First().EmployeeID,
+                    modifiedon = g.First().modifiedon,
+                    modifiedby = g.First().modifiedby,
+                    CourseClassMappingID = g.First().CourseClassMappingID
+                }).ToList();
+                if (groupedMappings != null)
+                {
+                    return new ServiceResponse<List<ClassCourseMappingDTO>>(true, "Records Found", groupedMappings, 200);
                 }
                 else
                 {
-                    return new ServiceResponse<List<ClassCourseMapping>>(false, "Records Not Found", new List<ClassCourseMapping>(), 204);
+                    return new ServiceResponse<List<ClassCourseMappingDTO>>(false, "Records Not Found", [], 204);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<ClassCourseMapping>>(false, ex.Message, new List<ClassCourseMapping>(), 200);
+                return new ServiceResponse<List<ClassCourseMappingDTO>>(false, ex.Message, [], 200);
             }
 
         }
 
-        public async Task<ServiceResponse<ClassCourseMapping>> GetClassCourseMappingById(int id)
+        public async Task<ServiceResponse<ClassCourseMappingDTO>> GetClassCourseMappingById(int id)
         {
             try
             {
-                string query = "SELECT * FROM tblClassCourses WHERE CourseClassMappingID = @Id";
-                var data = await _connection.QueryFirstOrDefaultAsync<ClassCourseMapping>(query, new { Id = id });
+                var response = new ClassCourseMappingDTO();
+                string getClassIdQuery = @"
+                SELECT CourseClassMappingID, ClassID, Status, createdon, EmployeeID, modifiedon, modifiedby
+                FROM [tblClassCourses]
+                WHERE CourseClassMappingID = @CourseClassMappingID";
 
-                if (data != null)
+                var classId = await _connection.QueryFirstOrDefaultAsync<ClassCourseMapping?>(getClassIdQuery, new { CourseClassMappingID = id });
+                if (classId == null)
                 {
-                    return new ServiceResponse<ClassCourseMapping>(true, "Record Found", data, 200);
+                    // Handle the case where no class ID is found for the given courseClassMappingId
+                     return new ServiceResponse<ClassCourseMappingDTO>(false, "Record not Found", new ClassCourseMappingDTO(), 500);
+                }
+                string query = @"
+                SELECT 
+                    CourseClassMappingID, 
+                    CourseID, 
+                    ClassID, 
+                    Status, 
+                    createdon, 
+                    EmployeeID, 
+                    modifiedon, 
+                    modifiedby 
+                FROM 
+                    [tblClassCourses]
+                WHERE 
+                    ClassID = @ClassID";
+                var data = await _connection.QueryAsync<ClassCourseMapping>(query, new { classId.ClassID });
+                List<int> courses = [];
+
+                foreach(var item in data)
+                {
+                    courses.Add((int)item.CourseID);
+                }
+                response.CourseID = courses;
+                response.CourseClassMappingID = classId.CourseClassMappingID;
+                response.ClassID = classId.ClassID;
+                response.Status = classId.Status;
+                response.createdon = classId.createdon;
+                response.EmployeeID = classId.EmployeeID;
+                response.modifiedby = classId.modifiedby;
+                response.modifiedon = classId.modifiedon;
+
+                if (response != null)
+                {
+                    return new ServiceResponse<ClassCourseMappingDTO>(true, "Record Found", response, 200);
                 }
                 else
                 {
-                    return new ServiceResponse<ClassCourseMapping>(false, "Record not Found", new ClassCourseMapping(), 500);
+                    return new ServiceResponse<ClassCourseMappingDTO>(false, "Record not Found", new ClassCourseMappingDTO(), 500);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<ClassCourseMapping>(false, ex.Message, new ClassCourseMapping(), 500);
+                return new ServiceResponse<ClassCourseMappingDTO>(false, ex.Message, new ClassCourseMappingDTO(), 500);
             }
 
         }
@@ -153,21 +206,21 @@ namespace Config_API.Repository.Implementations
 
                     if (rowsAffected > 0)
                     {
-                        return new ServiceResponse<bool>(true, "Operation Successful", true, 200);
+                        return new ServiceResponse<bool>(true, "Operation Successful", true, StatusCodes.Status200OK);
                     }
                     else
                     {
-                        return new ServiceResponse<bool>(false, "Opertion Failed", false, 500);
+                        return new ServiceResponse<bool>(false, "Opertion Failed", false, StatusCodes.Status304NotModified);
                     }
                 }
                 else
                 {
-                    return new ServiceResponse<bool>(false, "Record not Found", false, 204);
+                    return new ServiceResponse<bool>(false, "Record not Found", false, StatusCodes.Status404NotFound);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<bool>(false, ex.Message, false, 500);
+                return new ServiceResponse<bool>(false, ex.Message, false, StatusCodes.Status500InternalServerError);
             }
 
         }

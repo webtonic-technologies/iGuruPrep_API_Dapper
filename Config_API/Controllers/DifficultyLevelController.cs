@@ -6,16 +6,16 @@ namespace Config_API.Controllers
 {
     [Route("iGuru/[controller]")]
     [ApiController]
-    public class QuestionLevelController : ControllerBase
+    public class DifficultyLevelController : ControllerBase
     {
-        private readonly IQuestionLevelServices _questionLevelService;
+        private readonly IDifficultyLevelServices _questionLevelService;
 
-        public QuestionLevelController(IQuestionLevelServices questionLevelServices)
+        public DifficultyLevelController(IDifficultyLevelServices questionLevelServices)
         {
             _questionLevelService = questionLevelServices;
         }
         [HttpPost]
-        public async Task<IActionResult> AddUpdateQuestionLevel(QuestionLevel request)
+        public async Task<IActionResult> AddUpdateDifficultyLevel(DifficultyLevel request)
         {
             try
             {
@@ -37,8 +37,8 @@ namespace Config_API.Controllers
             }
 
         }
-        [HttpGet("GetAllQuestionLevels")]
-        public async Task<IActionResult> GetAllQuestionLevelsList()
+        [HttpGet("GetAllDifficultyLevels")]
+        public async Task<IActionResult> GetAllDifficultyLevelsList()
         {
             try
             {
@@ -60,12 +60,12 @@ namespace Config_API.Controllers
             }
 
         }
-        [HttpGet("GetQuestionLevel/{QuestionLevelId}")]
-        public async Task<IActionResult> GetQuestionLevelById(int QuestionLevelId)
+        [HttpGet("GetDifficultyLevel/{DifficultyLevelId}")]
+        public async Task<IActionResult> GetDifficultyLevelById(int DifficultyLevelId)
         {
             try
             {
-                var data = await _questionLevelService.GetQuestionLevelById(QuestionLevelId);
+                var data = await _questionLevelService.GetQuestionLevelById(DifficultyLevelId);
                 if (data != null)
                 {
                     return Ok(data);
@@ -83,12 +83,12 @@ namespace Config_API.Controllers
             }
 
         }
-        [HttpPut("Status/{QuestionLevelId}")]
-        public async Task<IActionResult> StatusActiveInactive(int QuestionLevelId)
+        [HttpPut("Status/{DifficultyLevelId}")]
+        public async Task<IActionResult> StatusActiveInactive(int DifficultyLevelId)
         {
             try
             {
-                var data = await _questionLevelService.StatusActiveInactive(QuestionLevelId);
+                var data = await _questionLevelService.StatusActiveInactive(DifficultyLevelId);
                 if (data != null)
                 {
                     return Ok(data);
