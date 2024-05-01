@@ -27,6 +27,8 @@ builder.Services.AddTransient<ISubjectServices, SubjectServices>();
 builder.Services.AddTransient<ISubjectRepository, SubjectRepository>();
 builder.Services.AddTransient<INotificationModRepository, NotificationModRepository>();
 builder.Services.AddTransient<INotificationModServices, NotificationModServices>();
+builder.Services.AddTransient<IQuestionTypeRepository, QuestionTypeRepository>();
+builder.Services.AddTransient<IQuestionTypeService, QuestionTypeService>();
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
