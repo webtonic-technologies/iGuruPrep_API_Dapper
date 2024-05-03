@@ -1,9 +1,6 @@
 using ControlPanel_API.DTOs;
-using ControlPanel_API.Models;
-using ControlPanel_API.Services.Implementations;
 using ControlPanel_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using System.Net;
 
 namespace ControlPanel_API.Controllers
 {
@@ -19,8 +16,8 @@ namespace ControlPanel_API.Controllers
             _storyOfTheDayService = storyOfTheDayServices;
         }
 
-        [HttpPost]
-        public async Task<IActionResult> AddNewStoryOfTheDay([FromForm] StoryOfTheDayDTO storyOfTheDayDTO)
+        [HttpPost("AddStoryofTheDay")]
+        public async Task<IActionResult> AddNewStoryOfTheDay([FromBody] StoryOfTheDayDTO storyOfTheDayDTO)
         {
             try
             {
@@ -33,8 +30,8 @@ namespace ControlPanel_API.Controllers
             }
         }
 
-        [HttpPut]
-        public async Task<IActionResult> UpdateStoryOfTheDay([FromForm] UpdateStoryOfTheDayDTO storyOfTheDayDTO)
+        [HttpPut("UpdateStoryofTheDay")]
+        public async Task<IActionResult> UpdateStoryOfTheDay([FromBody] StoryOfTheDayDTO storyOfTheDayDTO)
         {
             try
             {
@@ -47,12 +44,12 @@ namespace ControlPanel_API.Controllers
             }
         }
 
-        [HttpGet]
-        public async Task<IActionResult> GetAllStoryOfTheDay()
+        [HttpPost("GetListofStoryofTheDay")]
+        public async Task<IActionResult> GetAllStoryOfTheDay(SOTDListDTO request)
         {
             try
             {
-                var storyOfTheDays = await _storyOfTheDayService.GetAllStoryOfTheDay();
+                var storyOfTheDays = await _storyOfTheDayService.GetAllStoryOfTheDay(request);
                 return Ok(storyOfTheDays);
             }
             catch (Exception ex)
@@ -61,7 +58,7 @@ namespace ControlPanel_API.Controllers
             }
         }
 
-        [HttpGet("{id}")]
+        [HttpGet("GetofStoryofTheDayById/{id}")]
         public async Task<IActionResult> GetStoryOfTheDayById(int id)
         {
             try
@@ -75,45 +72,13 @@ namespace ControlPanel_API.Controllers
             }
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("DeleteStoryOftheDay/{id}")]
         public async Task<IActionResult> DeleteStoryOfTheDay(int id)
         {
             try
             {
                 var data = await _storyOfTheDayService.DeleteStoryOfTheDay(id);
                 return Ok(data);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
-
-        [HttpPatch("UpdateFile")]
-        public async Task<IActionResult> UpdateStoryOfTheDayFile([FromForm] StoryOfTheDayIdAndFileDTO storyOfTheDayDTO)
-        {
-            if (storyOfTheDayDTO.UploadImage == null)
-            {
-                return BadRequest("The File field is required");
-            }
-
-            try
-            {
-                var data = await _storyOfTheDayService.UpdateStoryOfTheDayFile(storyOfTheDayDTO);
-                return Ok(data);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
-        [HttpGet("GetFile/{id}")]
-        public async Task<IActionResult> GetStoryOfTheDayFileById(int id)
-        {
-            try
-            {
-                var file = await _storyOfTheDayService.GetStoryOfTheDayFileById(id);
-                return File(file.Data, "image/*");
             }
             catch (Exception ex)
             {
@@ -143,6 +108,18 @@ namespace ControlPanel_API.Controllers
             }
 
         }
-
+        [HttpGet("GetAllEventTypes")]
+        public async Task<IActionResult> GetEventTypesList()
+        {
+            try
+            {
+                var storyOfTheDay = await _storyOfTheDayService.GetEventtypeList();
+                return Ok(storyOfTheDay);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
     }
 }

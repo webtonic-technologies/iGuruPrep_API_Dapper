@@ -37,16 +37,16 @@ namespace ControlPanel_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<IEnumerable<MagazineDTO>>> GetAllMagazines()
+        public async Task<ServiceResponse<List<MagazineDTO>>> GetAllMagazines(MagazineListDTO request)
         {
 
             try
             {
-                return await _magazineRepository.GetAllMagazines();
+                return await _magazineRepository.GetAllMagazines(request);
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<IEnumerable<MagazineDTO>>(false, ex.Message, new List<MagazineDTO>(), 500);
+                return new ServiceResponse<List<MagazineDTO>>(false, ex.Message, [], 500);
             }
         }
 
@@ -61,19 +61,6 @@ namespace ControlPanel_API.Services.Implementations
                 return new ServiceResponse<MagazineDTO>(false, ex.Message, new MagazineDTO(), 500);
             }
         }
-
-        public async Task<ServiceResponse<byte[]>> GetMagazineFileById(int id)
-        {
-            try
-            {
-                return await _magazineRepository.GetMagazineFileById(id);
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<byte[]>(false, ex.Message, Array.Empty<byte>(), 500);
-            }
-        }
-
         public async Task<ServiceResponse<bool>> StatusActiveInactive(int id)
         {
             try
@@ -86,23 +73,11 @@ namespace ControlPanel_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<string>> UpdateMagazine(UpdateMagazineDTO request)
+        public async Task<ServiceResponse<string>> UpdateMagazine(MagazineDTO request)
         {
             try
             {
                 return await _magazineRepository.UpdateMagazine(request);
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
-            }
-        }
-
-        public async Task<ServiceResponse<string>> UpdateMagazineFile(MagazineDTO request)
-        {
-            try
-            {
-                return await _magazineRepository.UpdateMagazineFile(request);
             }
             catch (Exception ex)
             {
