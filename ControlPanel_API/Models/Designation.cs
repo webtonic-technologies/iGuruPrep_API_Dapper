@@ -9,8 +9,6 @@ namespace ControlPanel_API.Models
         [Required]      
         public int DesgnID { get; set; }
         [Required]
-        public int? DesignationNumber { get; set; }
-        [Required]
         public string DesignationName { get; set; } = string.Empty;
         [Required]
         public string DesgnCode { get; set; } = string.Empty;

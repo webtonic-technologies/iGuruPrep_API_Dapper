@@ -20,8 +20,8 @@ namespace ControlPanel_API.Repository.Implementations
             try
             {
                 // Construct the SQL insert query
-                string sql = @"INSERT INTO tblDesignation (DesignationName, DesgnCode, DesignationNumber, Status) 
-                       VALUES (@DesignationName, @DesgnCode, @DesignationNumber, @Status);";
+                string sql = @"INSERT INTO tblDesignation (DesignationName, DesgnCode, Status) 
+                       VALUES (@DesignationName, @DesgnCode, @Status);";
 
                 // Execute the insert query asynchronously using Dapper
                 int rowsAffected = await _connection.ExecuteAsync(sql, request);
@@ -92,7 +92,7 @@ namespace ControlPanel_API.Repository.Implementations
             try
             {
                 string sql = @"UPDATE tblDesignation 
-                       SET DesgnCode = @DesgnCode, DesignationNumber = @DesignationNumber, Status = @Status
+                       SET DesgnCode = @DesgnCode, DesignationName = @DesignationName, Status = @Status
                        WHERE DesgnID = @DesgnID";
 
 
