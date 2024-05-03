@@ -31,7 +31,7 @@ namespace ControlPanel_API.Controllers
         }
 
         [HttpPut]
-        public async Task<IActionResult> UpdateMagazine([FromForm] UpdateMagazineDTO magazineDTO)
+        public async Task<IActionResult> UpdateMagazine([FromForm] MagazineDTO magazineDTO)
         {
             try
             {
@@ -44,12 +44,12 @@ namespace ControlPanel_API.Controllers
             }
         }
 
-        [HttpGet]
-        public async Task<IActionResult> GetAllMagazines()
+        [HttpPost]
+        public async Task<IActionResult> GetAllMagazines(MagazineListDTO request)
         {
             try
             {
-                var magazines = await _magazineService.GetAllMagazines();
+                var magazines = await _magazineService.GetAllMagazines(request);
                 return Ok(magazines);
             }
             catch (Exception ex)
@@ -86,37 +86,6 @@ namespace ControlPanel_API.Controllers
             }
         }
 
-        [HttpPatch("UpdateFile")]
-        public async Task<IActionResult> UpdateMagazineFile([FromForm] MagazineDTO magazineDTO)
-        {
-            if (magazineDTO.File == null)
-            {
-                return BadRequest("The File field is required");
-            }
-
-            try
-            {
-                var data = await _magazineService.UpdateMagazineFile(magazineDTO);
-                return Ok(data);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
-        [HttpGet("GetFile/{id}")]
-        public async Task<IActionResult> GetMagazineFileById(int id)
-        {
-            try
-            {
-                var file = await _magazineService.GetMagazineFileById(id);
-                return File(file.Data, "application/pdf");
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
         [HttpPut("Status/{id}")]
         public async Task<IActionResult> StatusActiveInactive(int id)
         {

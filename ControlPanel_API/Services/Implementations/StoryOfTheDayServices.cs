@@ -1,5 +1,6 @@
 ﻿using ControlPanel_API.DTOs;
 using ControlPanel_API.DTOs.ServiceResponse;
+using ControlPanel_API.Models;
 using ControlPanel_API.Repository.Interfaces;
 using ControlPanel_API.Services.Interfaces;
 
@@ -37,15 +38,27 @@ namespace ControlPanel_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<IEnumerable<StoryOfTheDayDTO>>> GetAllStoryOfTheDay()
+        public async Task<ServiceResponse<List<StoryOfTheDayDTO>>> GetAllStoryOfTheDay(SOTDListDTO request)
         {
             try
             {
-                return await _storyOfTheDayRepository.GetAllStoryOfTheDay();
+                return await _storyOfTheDayRepository.GetAllStoryOfTheDay(request);
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<IEnumerable<StoryOfTheDayDTO>>(false, ex.Message, new List<StoryOfTheDayDTO>(), 500);
+                return new ServiceResponse<List<StoryOfTheDayDTO>>(false, ex.Message, [], 500);
+            }
+        }
+
+        public async Task<ServiceResponse<List<EventType>>> GetEventtypeList()
+        {
+            try
+            {
+                return await _storyOfTheDayRepository.GetEventtypeList();
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<EventType>>(false, ex.Message, [], 500);
             }
         }
 
@@ -61,18 +74,6 @@ namespace ControlPanel_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<byte[]>> GetStoryOfTheDayFileById(int id)
-        {
-            try
-            {
-                return await _storyOfTheDayRepository.GetStoryOfTheDayFileById(id);
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<byte[]>(false, ex.Message, Array.Empty<byte>(), 500);
-            }
-        }
-
         public async Task<ServiceResponse<bool>> StatusActiveInactive(int id)
         {
             try
@@ -85,23 +86,11 @@ namespace ControlPanel_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<string>> UpdateStoryOfTheDay(UpdateStoryOfTheDayDTO storyOfTheDayDTO)
+        public async Task<ServiceResponse<string>> UpdateStoryOfTheDay(StoryOfTheDayDTO storyOfTheDayDTO)
         {
             try
             {
                 return await _storyOfTheDayRepository.UpdateStoryOfTheDay(storyOfTheDayDTO);
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
-            }
-        }
-
-        public async Task<ServiceResponse<string>> UpdateStoryOfTheDayFile(StoryOfTheDayIdAndFileDTO storyOfTheDayDTO)
-        {
-            try
-            {
-                return await _storyOfTheDayRepository.UpdateStoryOfTheDayFile(storyOfTheDayDTO);
             }
             catch (Exception ex)
             {

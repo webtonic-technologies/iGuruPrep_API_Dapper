@@ -7,30 +7,29 @@ namespace ControlPanel_API.Models
     public class StoryOfTheDay
     {
         [Key]
-        public int? StoryId {  get; set; }
-        public int Questionid { get; set; }
-
-        [StringLength(150)]
-        public string QuestionName { get; set; } = string.Empty;
+        public int StoryId {  get; set; }
+        public int APID { get; set; }
+        public int EventTypeID { get; set; }
         public string BoardID { get; set; } = string.Empty;
         public string ClassID { get; set; } = string.Empty;
-        [StringLength(15)]
         public string BoardName { get; set; } = string.Empty;
-
-        [StringLength(5)]
         public string ClassName { get; set; } = string.Empty;
-        public DateTime? PostTime { get; set; }
-
-        public DateTime? DateAndTime { get; set; }
-
-        [StringLength(50)]
-        public string UploadImage { get; set; } = string.Empty;
-
-        [StringLength(5)]
-        public string Answer { get; set; } = string.Empty;
-
-        public TimeSpan? AnswerRevealTime { get; set; }
-
-        public int Status { get; set; }
+        public string EventName {  get; set; } = string.Empty;
+        public string Event1Posttime { get; set; } = string.Empty;
+        public DateTime? Event1PostDate { get; set; }
+        public DateTime? Event2PostDate { get; set; }
+        public string Event2Posttime { get; set; } = string.Empty;
+        public string modifiedby { get; set; } = string.Empty;
+        public string createdby { get; set; } = string.Empty;
+        public string eventtypename { get; set; } = string.Empty;
+        public DateTime? modifiedon {  get; set; }
+        public DateTime? createdon {  get; set; }
+        public string APName {  get; set; } = string.Empty;
+        public bool Status { get; set; }
+        public int EmployeeID {  get; set; }
+        public string Filename1 {  get; set; } = string.Empty;
+        public string Filename2 { get; set; } = string.Empty;
+        public string EmpFirstName { get; set; } = string.Empty;
     }
 }
+      //,[board]

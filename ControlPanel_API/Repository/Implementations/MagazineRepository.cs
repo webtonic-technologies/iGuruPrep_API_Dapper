@@ -17,43 +17,43 @@ namespace ControlPanel_API.Repository.Implementations
             _connection = connection;
             _hostingEnvironment = hostingEnvironment;
         }
-        public async Task<ServiceResponse<string>> AddNewMagazine(MagazineDTO magazineDTO)
+        public async Task<ServiceResponse<string>> AddNewMagazine(MagazineDTO request)
         {
             try
             {
                 var magazine = new Magazine
                 {
-                    MagazineName = magazineDTO.MagazineName,
-                    ClassName = magazineDTO.ClassName,
-                    CourseName = magazineDTO.CourseName,
-                    DateAndTime = DateTime.Now,
-                    MagazineTitle = magazineDTO.MagazineTitle,
-                    Status = magazineDTO.Status
+                  createdby = request.createdby,
+                  createdon = DateTime.Now,
+                  EmpFirstName = request.EmpFirstName,
+                  Link = PDFUpload(request.Link),
+                  MagazineTitle = request.MagazineTitle,
+                  PathURL = ImageUpload(request.PathURL),
+                  Status = true,
+                  EmployeeID = request.EmployeeID,
+                  Time = request.Time
                 };
+                string sql = @"INSERT INTO [iGuruPrep].[dbo].[tblMagazine] 
+                   ([Date], [Time], [PathURL], [MagazineTitle], [Status], [Link], [EmployeeID], [EmpFirstName], [createdon], [createdby]) 
+                   VALUES 
+                   (GETDATE(), @Time, @PathURL, @MagazineTitle, @Status, @Link, @EmployeeID, @EmpFirstName, GETDATE(), @createdby)";
+                int insertedValue = await _connection.QueryFirstOrDefaultAsync<int>(sql, magazine);
 
-                if (magazineDTO.File != null)
+                if (insertedValue > 0)
                 {
-                    var uploads = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "Magazine");
-                    if (!Directory.Exists(uploads))
+                    int category = MagazineCategoryMapping(request.MagazineCategories ??= ([]), insertedValue);
+                    int classes = MagazineClassMapping(request.MagazineClasses ??= ([]), insertedValue);
+                    int board = MagazineBoardMapping(request.MagazineBoards ??= ([]), insertedValue);
+                    int course = MagazineCourseMapping(request.MagazineCourses ??= ([]), insertedValue);
+                    int exam = MagazineExamTypeMapping(request.MagazineExamTypes ??= ([]), insertedValue);
+                    if (category > 0 && classes > 0 && board > 0 && course > 0 && exam > 0)
                     {
-                        Directory.CreateDirectory(uploads);
+                        return new ServiceResponse<string>(true, "Operation Successful", "SOTD Added Successfully", 200);
                     }
-                    var fileName = Path.GetFileNameWithoutExtension(magazineDTO.File.FileName) + "_" + Guid.NewGuid().ToString() + Path.GetExtension(magazineDTO.File.FileName);
-                    var filePath = Path.Combine(uploads, fileName);
-                    using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
+                    else
                     {
-                        await magazineDTO.File.CopyToAsync(fileStream);
+                        return new ServiceResponse<string>(false, "Operation failed", string.Empty, 500);
                     }
-                    magazine.PathURL = fileName;
-                }
-
-                string sql = @"INSERT INTO tblMagazine (MagazineName, ClassName, CourseName, DateAndTime, PathURL, MagazineTitle, Status) 
-                       VALUES (@MagazineName, @ClassName, @CourseName, @DateAndTime, @PathURL, @MagazineTitle, @Status)";
-                int rowsAffected = await _connection.ExecuteAsync(sql, magazine);
-
-                if (rowsAffected > 0)
-                {
-                    return new ServiceResponse<string>(true, "Operation Successful", "Feedback Added Successfully", 200);
                 }
                 else
                 {
@@ -65,7 +65,53 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-
+        public async Task<ServiceResponse<string>> UpdateMagazine(MagazineDTO request)
+        {
+            try
+            {
+                string query = @"UPDATE [iGuruPrep].[dbo].[tblMagazine] 
+                   SET [MagazineTitle] = @MagazineTitle, [PathURL] = @PathURL, [Link] = @Link, [EmployeeID] = @EmployeeID, [EmpFirstName] = @EmpFirstName, [modifiedon] = GETDATE(), [modifiedby] = @modifiedby
+                   WHERE [MagazineId] = @MagazineId";
+                var magazine = new Magazine
+                {
+                    modifiedby = request.modifiedby,
+                    modifiedon = DateTime.Now,
+                    EmpFirstName = request.EmpFirstName,
+                    Link = PDFUpload(request.Link),
+                    MagazineTitle = request.MagazineTitle,
+                    PathURL = ImageUpload(request.PathURL),
+                    Status = true,
+                    EmployeeID = request.EmployeeID,
+                    Time = request.Time,
+                    MagazineId = request.MagazineId
+                };
+                int rowsAffected = await _connection.ExecuteAsync(query, magazine);
+                if (rowsAffected > 0)
+                {
+                    int category = MagazineCategoryMapping(request.MagazineCategories ??= ([]), request.MagazineId);
+                    int classes = MagazineClassMapping(request.MagazineClasses ??= ([]), request.MagazineId);
+                    int board = MagazineBoardMapping(request.MagazineBoards ??= ([]), request.MagazineId);
+                    int course = MagazineCourseMapping(request.MagazineCourses ??= ([]), request.MagazineId);
+                    int exam = MagazineExamTypeMapping(request.MagazineExamTypes ??= ([]), request.MagazineId);
+                    if (category > 0 && classes > 0 && board > 0 && course > 0 && exam > 0)
+                    {
+                        return new ServiceResponse<string>(true, "Operation Successful", "SOTD updated Successfully", 200);
+                    }
+                    else
+                    {
+                        return new ServiceResponse<string>(false, "Operation failed", string.Empty, 500);
+                    }
+                }
+                else
+                {
+                    return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+            }
+        }
         public async Task<ServiceResponse<bool>> DeleteMagazine(int id)
         {
             try
@@ -78,8 +124,10 @@ namespace ControlPanel_API.Repository.Implementations
                     throw new Exception("Magazine not found");
 
                 var filePath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "Magazine", magazine.PathURL);
-                if (File.Exists(filePath))
+                var filePath1 = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "MagazinePDF", magazine.Link);
+                if (File.Exists(filePath) || File.Exists(filePath1))
                 {
+                    File.Delete(filePath1);
                     File.Delete(filePath);
                 }
 
@@ -100,45 +148,181 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<bool>(false, ex.Message, false, 500);
             }
         }
-
-        public async Task<ServiceResponse<IEnumerable<MagazineDTO>>> GetAllMagazines()
+        public async Task<ServiceResponse<List<MagazineDTO>>> GetAllMagazines(MagazineListDTO request)
         {
             try
             {
-                var query = @"
-                SELECT * FROM tblMagazine";
+                var response = new List<MagazineDTO>();
+                string query = @"SELECT [MagazineId], [Date], [Time], [PathURL], [MagazineTitle], [Status], [Link], [EmployeeID], [EmpFirstName], [createdon], [createdby], [modifiedby], [modifiedon]
+                   FROM [iGuruPrep].[dbo].[tblMagazine]
+                   WHERE 1 = 1";
 
-                var magazines = await _connection.QueryAsync<MagazineDTO>(query);
-
-                if (magazines != null)
+                if (request.APID == 1)
                 {
-                    return new ServiceResponse<IEnumerable<MagazineDTO>>(true, "Records Found", magazines, 200);
+                    if (request.BoardId != 0)
+                        query += " AND BoardId = @BoardId";
+                    if (request.ClassId != 0)
+                        query += " AND ClassId = @ClassId";
+                    if (request.CourseId != 0)
+                        query += " AND CourseId = @CourseId";
+                    if (request.EventTypeId != 0)
+                        query += " AND EventTypeId = @EventTypeId";
+
+                    var Magazines = await _connection.QueryAsync<Magazine>(query, request);
+                    if (Magazines != null)
+                    {
+                        foreach (var data in Magazines)
+                        {
+                            var item = new MagazineDTO
+                            {
+                                Link = GetPDF(data.Link),
+                                PathURL = GetImage(data.PathURL),
+                                MagazineId = data.MagazineId,
+                                Date = data.Date,
+                                Time = data.Time,
+                                MagazineTitle = data.MagazineTitle,
+                                Status = data.Status,
+                                EmpFirstName = data.EmpFirstName,
+                                EmployeeID = data.EmployeeID,
+                                createdby = data.createdby,
+                                createdon = data.createdon,
+                                modifiedon = data.modifiedon,
+                                modifiedby = data.modifiedby,
+                                MagazineCategories = GetListOfMagazineCategory(data.MagazineId),
+                                MagazineBoards = GetListOfMagazineBoards(data.MagazineId),
+                                MagazineClasses = GetListOfMagazineClass(data.MagazineId),
+                                MagazineCourses = GetListOfMagazineCourse(data.MagazineId),
+                                MagazineExamTypes = GetListOfMagazineExamType(data.MagazineId)
+                            };
+                            response.Add(item);
+                        }
+                        return new ServiceResponse<List<MagazineDTO>>(true, "Records Found", response.AsList(), 200);
+                    }
+                    else
+                    {
+                        return new ServiceResponse<List<MagazineDTO>>(false, "Records Not Found", [], 204);
+                    }
+                }
+                else if (request.APID == 2)
+                {
+                    if (request.EventTypeId != 0)
+                        query += " AND EventTypeId = @EventTypeId";
+                    if (request.ExamType != 0)
+                        query += " AND ExamType = @ExamType";
+
+                    var Magazines = await _connection.QueryAsync<Magazine>(query, request);
+                    if (Magazines != null)
+                    {
+                        foreach (var data in Magazines)
+                        {
+                            var item = new MagazineDTO
+                            {
+                                Link = GetPDF(data.Link),
+                                PathURL = GetImage(data.PathURL),
+                                MagazineId = data.MagazineId,
+                                Date = data.Date,
+                                Time = data.Time,
+                                MagazineTitle = data.MagazineTitle,
+                                Status = data.Status,
+                                EmpFirstName = data.EmpFirstName,
+                                EmployeeID = data.EmployeeID,
+                                createdby = data.createdby,
+                                createdon = data.createdon,
+                                modifiedon = data.modifiedon,
+                                modifiedby = data.modifiedby,
+                                MagazineCategories = GetListOfMagazineCategory(data.MagazineId),
+                                MagazineBoards = GetListOfMagazineBoards(data.MagazineId),
+                                MagazineClasses = GetListOfMagazineClass(data.MagazineId),
+                                MagazineCourses = GetListOfMagazineCourse(data.MagazineId),
+                                MagazineExamTypes = GetListOfMagazineExamType(data.MagazineId)
+                            };
+                            response.Add(item);
+                        }
+                        return new ServiceResponse<List<MagazineDTO>>(true, "Records Found", response.AsList(), 200);
+                    }
+                    else
+                    {
+                        return new ServiceResponse<List<MagazineDTO>>(false, "Records Not Found", [], 204);
+                    }
                 }
                 else
                 {
-                    return new ServiceResponse<IEnumerable<MagazineDTO>>(false, "Records Not Found", new List<MagazineDTO>(), 204);
+                    string getquery = @"SELECT [MagazineId], [Date], [Time], [PathURL], [MagazineTitle], [Status], [Link], [EmployeeID], [EmpFirstName], [createdon], [createdby], [modifiedby], [modifiedon]
+                   FROM [iGuruPrep].[dbo].[tblMagazine]";
+                    var Magazines = await _connection.QueryAsync<Magazine>(getquery);
+                    if (Magazines != null)
+                    {
+                        foreach (var data in Magazines)
+                        {
+                            var item = new MagazineDTO
+                            {
+                                Link = GetPDF(data.Link),
+                                PathURL = GetImage(data.PathURL),
+                                MagazineId = data.MagazineId,
+                                Date = data.Date,
+                                Time = data.Time,
+                                MagazineTitle = data.MagazineTitle,
+                                Status = data.Status,
+                                EmpFirstName = data.EmpFirstName,
+                                EmployeeID = data.EmployeeID,
+                                createdby = data.createdby,
+                                createdon = data.createdon,
+                                modifiedon = data.modifiedon,
+                                modifiedby = data.modifiedby,
+                                MagazineCategories = GetListOfMagazineCategory(data.MagazineId),
+                                MagazineBoards = GetListOfMagazineBoards(data.MagazineId),
+                                MagazineClasses = GetListOfMagazineClass(data.MagazineId),
+                                MagazineCourses = GetListOfMagazineCourse(data.MagazineId),
+                                MagazineExamTypes = GetListOfMagazineExamType(data.MagazineId)
+                            };
+                            response.Add(item);
+                        }
+                        return new ServiceResponse<List<MagazineDTO>>(true, "Records Found", response.AsList(), 200);
+                    }
+                    else
+                    {
+                        return new ServiceResponse<List<MagazineDTO>>(false, "Records Not Found", [], 204);
+                    }
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<IEnumerable<MagazineDTO>>(false, ex.Message, new List<MagazineDTO>(), 500);
+                return new ServiceResponse<List<MagazineDTO>>(false, ex.Message, [], 500);
             }
         }
-
         public async Task<ServiceResponse<MagazineDTO>> GetMagazineById(int id)
         {
             try
             {
-                var query = @"
-                SELECT *
-                FROM tblMagazine
-                WHERE MagazineId = @MagazineId";
+                var response = new MagazineDTO();
+                string query = @"SELECT [MagazineId], [Date], [Time], [PathURL], [MagazineTitle], [Status], [Link], [EmployeeID], [EmpFirstName], [createdon], [createdby], [modifiedby], [modifiedon]
+                   FROM [iGuruPrep].[dbo].[tblMagazine]
+                   WHERE [MagazineId] = @MagazineId";
 
-                var magazine = await _connection.QueryFirstOrDefaultAsync<MagazineDTO>(query, new { MagazineId = id });
+                var magazine = await _connection.QueryFirstOrDefaultAsync<Magazine>(query, new { MagazineId = id });
 
                 if (magazine != null)
                 {
-                    return new ServiceResponse<MagazineDTO>(true, "Record Found", magazine, 200);
+                    response.Link = GetPDF(magazine.Link);
+                    response.PathURL = GetImage(magazine.PathURL);
+                    response.MagazineId = magazine.MagazineId;
+                    response.Date = magazine.Date;
+                    response.Time = magazine.Time;
+                    response.MagazineTitle = magazine.MagazineTitle;
+                    response.Status = magazine.Status;
+                    response.EmpFirstName = magazine.EmpFirstName;
+                    response.EmployeeID = magazine.EmployeeID;
+                    response.createdby = magazine.createdby;
+                    response.createdon = magazine.createdon;
+                    response.modifiedon = magazine.modifiedon;
+                    response.modifiedby = magazine.modifiedby;
+                    response.MagazineCategories = GetListOfMagazineCategory(magazine.MagazineId);
+                    response.MagazineBoards = GetListOfMagazineBoards(magazine.MagazineId);
+                    response.MagazineClasses = GetListOfMagazineClass(magazine.MagazineId);
+                    response.MagazineCourses = GetListOfMagazineCourse(magazine.MagazineId);
+                    response.MagazineExamTypes = GetListOfMagazineExamType(magazine.MagazineId);
+
+                    return new ServiceResponse<MagazineDTO>(true, "Record Found", response, 200);
                 }
                 else
                 {
@@ -148,122 +332,6 @@ namespace ControlPanel_API.Repository.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<MagazineDTO>(false, ex.Message, new MagazineDTO(), 500);
-            }
-        }
-
-        public async Task<ServiceResponse<byte[]>> GetMagazineFileById(int id)
-        {
-            try
-            {
-                var magazine = await _connection.QueryFirstOrDefaultAsync<Magazine>(
-                    "SELECT PathURL FROM tblMagazine WHERE MagazineId = @MagazineId",
-                    new { MagazineId = id });
-
-                if (magazine == null)
-                    throw new Exception("Magazine not found");
-
-                var filePath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "Magazine", magazine.PathURL);
-
-                if (!File.Exists(filePath))
-                    throw new Exception("File not found");
-                var fileBytes = await File.ReadAllBytesAsync(filePath);
-
-                return  new ServiceResponse<byte[]>(true, "Record Found", fileBytes, 200);
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<byte[]>(false, ex.Message, Array.Empty<byte>(), 500);
-            }
-        }
-
-        public async Task<ServiceResponse<string>> UpdateMagazine(UpdateMagazineDTO magazineDTO)
-        {
-            try
-            {
-                var query = @"
-                UPDATE tblMagazine
-                SET MagazineName = @MagazineName, ClassName = @ClassName, CourseName = @CourseName, MagazineTitle = @MagazineTitle, Status = @Status
-                WHERE MagazineId = @MagazineId";
-
-                int rowsAffected = await _connection.ExecuteAsync(query, new
-                {
-                    magazineDTO.MagazineName,
-                    magazineDTO.ClassName,
-                    magazineDTO.CourseName,
-                    magazineDTO.MagazineId,
-                    magazineDTO.Status,
-                    magazineDTO.MagazineTitle
-                });
-                if (rowsAffected > 0)
-                {
-                    return new ServiceResponse<string>(true, "Operation Successful", "Magazine Updated Successfully", 200);
-                }
-                else
-                {
-                    return new ServiceResponse<string>(false, "Opertion Failed", "Record not found", 500);
-                }
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
-            }
-        }
-
-        public async Task<ServiceResponse<string>> UpdateMagazineFile(MagazineDTO magazineDTO)
-        {
-            try
-            {
-                await _connection.ExecuteAsync(
-                    @"UPDATE tblMagazine 
-                  SET MagazineName = @MagazineName, ClassName = @ClassName, CourseName = @CourseName, MagazineTitle = @MagazineTitle, Status = @Status
-                  WHERE MagazineId = @MagazineId",
-                    new
-                    {
-                        magazineDTO.MagazineName,
-                        magazineDTO.ClassName,
-                        magazineDTO.CourseName,
-                        magazineDTO.MagazineId,
-                        magazineDTO.MagazineTitle,
-                        magazineDTO.Status
-                    });
-
-                if (magazineDTO.File != null)
-                {
-                    var uploads = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "Magazine");
-                    if (!Directory.Exists(uploads))
-                        Directory.CreateDirectory(uploads);
-
-                    var fileName = Path.GetFileNameWithoutExtension(magazineDTO.File.FileName) + "_" + Guid.NewGuid().ToString() + Path.GetExtension(magazineDTO.File.FileName);
-                    var filePath = Path.Combine(uploads, fileName);
-
-                    using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
-                    {
-                        await magazineDTO.File.CopyToAsync(fileStream);
-                    }
-
-                    int rowsAffected = await _connection.ExecuteAsync(
-                         @"UPDATE tblMagazine 
-                      SET PathURL = @PathURL
-                      WHERE MagazineId = @MagazineId",
-                         new { PathURL = fileName, magazineDTO.MagazineId });
-
-                    if (rowsAffected > 0)
-                    {
-                        return new ServiceResponse<string>(true, "Operation Successful", "Magazine Updated Successfully", 200);
-                    }
-                    else
-                    {
-                        return new ServiceResponse<string>(false, "Opertion Failed", "Record not found", 500);
-                    }
-                }
-                else
-                {
-                    return new ServiceResponse<string>(false, "Opertion Failed", "Please add file", 500);
-                }
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
         public async Task<ServiceResponse<bool>> StatusActiveInactive(int id)
@@ -297,6 +365,263 @@ namespace ControlPanel_API.Repository.Implementations
             {
                 return new ServiceResponse<bool>(false, ex.Message, false, 500);
             }
+        }
+        private string ImageUpload(string image)
+        {
+            byte[] imageData = Convert.FromBase64String(image);
+            string directoryPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "Magazine");
+
+            if (!Directory.Exists(directoryPath))
+            {
+                Directory.CreateDirectory(directoryPath);
+            }
+            string fileName = Guid.NewGuid().ToString() + ".jpg";
+            string filePath = Path.Combine(directoryPath, fileName);
+
+            // Write the byte array to the image file
+            File.WriteAllBytes(filePath, imageData);
+            return filePath;
+        }
+        private string PDFUpload(string pdf)
+        {
+            byte[] imageData = Convert.FromBase64String(pdf);
+            string directoryPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "MagazinePDF");
+
+            if (!Directory.Exists(directoryPath))
+            {
+                Directory.CreateDirectory(directoryPath);
+            }
+            string fileName = Guid.NewGuid().ToString() + ".pdf";
+            string filePath = Path.Combine(directoryPath, fileName);
+
+            // Write the byte array to the image file
+            File.WriteAllBytes(filePath, imageData);
+            return filePath;
+        }
+        private string GetImage(string Filename)
+        {
+            var filePath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "Magazine", Filename);
+
+            if (!File.Exists(filePath))
+            {
+                throw new Exception("File not found");
+            }
+            byte[] fileBytes = File.ReadAllBytes(filePath);
+            string base64String = Convert.ToBase64String(fileBytes);
+            return base64String;
+        }
+        private string GetPDF(string Filename)
+        {
+            var filePath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "MagazinePDF", Filename);
+
+            if (!File.Exists(filePath))
+            {
+                throw new Exception("File not found");
+            }
+            byte[] fileBytes = File.ReadAllBytes(filePath);
+            string base64String = Convert.ToBase64String(fileBytes);
+            return base64String;
+        }
+        private int MagazineCategoryMapping(List<MagazineCategory> request, int MagazineId)
+        {
+            foreach (var data in request)
+            {
+                data.MagazineId = MagazineId;
+            }
+            string query = "SELECT COUNT(*) FROM [dbo].[tblMagazineCategory] WHERE [MagazineId] = @MagazineId";
+            int count = _connection.QueryFirstOrDefault<int>(query, new { MagazineId });
+            if (count > 0)
+            {
+                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tblMagazineCategory]
+                          WHERE [MagazineId] = @MagazineId;";
+                var rowsAffected = _connection.Execute(deleteDuery, new { MagazineId });
+                if (rowsAffected > 0)
+                {
+                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblMagazineCategory] ([APID], [MagazineId], [APIDName])
+                          VALUES (@APID, @MagazineId, @APIDName);";
+                    var valuesInserted = _connection.Execute(insertquery, request);
+                    return valuesInserted;
+                }
+                else
+                {
+                    return 0;
+                }
+            }
+            else
+            {
+                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblMagazineCategory] ([APID], [MagazineId], [APIDName])
+                          VALUES (@APID, @MagazineId, @APIDName);";
+                var valuesInserted = _connection.Execute(insertquery, request);
+                return valuesInserted;
+            }
+        }
+        private int MagazineClassMapping(List<MagazineClass> request, int MagazineID)
+        {
+            foreach (var data in request)
+            {
+                data.MagazineID = MagazineID;
+            }
+            string query = "SELECT COUNT(*) FROM [dbo].[tblMagazineClass] WHERE [MagazineID] = @MagazineID";
+            int count = _connection.QueryFirstOrDefault<int>(query, new { MagazineID });
+            if (count > 0)
+            {
+                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tblMagazineClass]
+                          WHERE [MagazineID] = @MagazineID;";
+                var rowsAffected = _connection.Execute(deleteDuery, new { MagazineID });
+                if (rowsAffected > 0)
+                {
+                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblMagazineClass] ([MagazineID], [ClassID])
+                          VALUES (@MagazineID, @ClassID);";
+                    var valuesInserted = _connection.Execute(insertquery, request);
+                    return valuesInserted;
+                }
+                else
+                {
+                    return 0;
+                }
+            }
+            else
+            {
+                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblMagazineClass] ([MagazineID], [ClassID])
+                          VALUES (@MagazineID, @ClassID);";
+                var valuesInserted = _connection.Execute(insertquery, request);
+                return valuesInserted;
+            }
+        }
+        private int MagazineBoardMapping(List<MagazineBoard> request, int MagazineID)
+        {
+            foreach (var data in request)
+            {
+                data.MagazineID = MagazineID;
+            }
+            string query = "SELECT COUNT(*) FROM [dbo].[tblMagazineBoard] WHERE [MagazineID] = @MagazineID";
+            int count = _connection.QueryFirstOrDefault<int>(query, new { MagazineID });
+            if (count > 0)
+            {
+                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tblMagazineBoard]
+                          WHERE [MagazineID] = @MagazineID;";
+                var rowsAffected = _connection.Execute(deleteDuery, new { MagazineID });
+                if (rowsAffected > 0)
+                {
+                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblMagazineBoard] ([MagazineID], [BoardIDID])
+                          VALUES (@MagazineID, @BoardIDID);";
+                    var valuesInserted = _connection.Execute(insertquery, request);
+                    return valuesInserted;
+                }
+                else
+                {
+                    return 0;
+                }
+            }
+            else
+            {
+                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblMagazineBoard] ([MagazineID], [BoardIDID])
+                          VALUES (@MagazineID, @BoardIDID);";
+                var valuesInserted = _connection.Execute(insertquery, request);
+                return valuesInserted;
+            }
+        }
+        private int MagazineCourseMapping(List<MagazineCourse> request, int MagazineID)
+        {
+            foreach (var data in request)
+            {
+                data.MagazineID = MagazineID;
+            }
+            string query = "SELECT COUNT(*) FROM [dbo].[tblMagazineCourse] WHERE [MagazineID] = @MagazineID";
+            int count = _connection.QueryFirstOrDefault<int>(query, new { MagazineID });
+            if (count > 0)
+            {
+                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tblMagazineCourse]
+                          WHERE [MagazineID] = @MagazineID;";
+                var rowsAffected = _connection.Execute(deleteDuery, new { MagazineID });
+                if (rowsAffected > 0)
+                {
+                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblMagazineCourse] ([MagazineID], [CourseID])
+                          VALUES (@MagazineID, @CourseID);";
+                    var valuesInserted = _connection.Execute(insertquery, request);
+                    return valuesInserted;
+                }
+                else
+                {
+                    return 0;
+                }
+            }
+            else
+            {
+                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblMagazineCourse] ([MagazineID], [CourseID])
+                          VALUES (@MagazineID, @CourseID);";
+                var valuesInserted = _connection.Execute(insertquery, request);
+                return valuesInserted;
+            }
+        }
+        private int MagazineExamTypeMapping(List<MagazineExamType> request, int MagazineID)
+        {
+            foreach (var data in request)
+            {
+                data.MagazineID = MagazineID;
+            }
+            string query = "SELECT COUNT(*) FROM [dbo].[tblMagazineExamType] WHERE [MagazineID] = @MagazineID";
+            int count = _connection.QueryFirstOrDefault<int>(query, new { MagazineID });
+            if (count > 0)
+            {
+                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tblMagazineExamType]
+                          WHERE [MagazineID] = @MagazineID;";
+                var rowsAffected = _connection.Execute(deleteDuery, new { MagazineID });
+                if (rowsAffected > 0)
+                {
+                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblMagazineExamType] ([MagazineID], [ExamTypeID])
+                          VALUES (@MagazineID, @ExamTypeID);";
+                    var valuesInserted = _connection.Execute(insertquery, request);
+                    return valuesInserted;
+                }
+                else
+                {
+                    return 0;
+                }
+            }
+            else
+            {
+                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblMagazineExamType] ([MagazineID], [ExamTypeID])
+                          VALUES (@MagazineID, @ExamTypeID);";
+                var valuesInserted = _connection.Execute(insertquery, request);
+                return valuesInserted;
+            }
+        }
+        private List<MagazineBoard> GetListOfMagazineBoards(int MagazineID)
+        {
+            var boardquery = @"SELECT * FROM [iGuruPrep].[dbo].[tblMagazineBoard] WHERE MagazineID = @MagazineID;";
+
+            // Execute the SQL query with the SOTDID parameter
+            var data = _connection.Query<MagazineBoard>(boardquery, new { MagazineID });
+            return data != null ? data.AsList() : [];
+        }
+        private List<MagazineCategory> GetListOfMagazineCategory(int MagazineId)
+        {
+            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tblMagazineCategory] WHERE  MagazineId = @MagazineId;";
+            // Execute the SQL query with the SOTDID parameter
+            var data = _connection.Query<MagazineCategory>(query, new { MagazineId });
+            return data != null ? data.AsList() : [];
+        }
+        private List<MagazineClass> GetListOfMagazineClass(int MagazineID)
+        {
+            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tblMagazineClass] WHERE  MagazineID = @MagazineID;";
+            // Execute the SQL query with the SOTDID parameter
+            var data = _connection.Query<MagazineClass>(query, new { MagazineID });
+            return data != null ? data.AsList() : [];
+        }
+        private List<MagazineCourse> GetListOfMagazineCourse(int MagazineID)
+        {
+            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tblMagazineCourse] WHERE  MagazineID = @MagazineID;";
+            // Execute the SQL query with the SOTDID parameter
+            var data = _connection.Query<MagazineCourse>(query, new { MagazineID });
+            return data != null ? data.AsList() : [];
+        }
+        private List<MagazineExamType> GetListOfMagazineExamType(int MagazineID)
+        {
+            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tblMagazineExamType] WHERE  MagazineID = @MagazineID;";
+            // Execute the SQL query with the SOTDID parameter
+            var data = _connection.Query<MagazineExamType>(query, new { MagazineID });
+            return data != null ? data.AsList() : [];
         }
     }
 }

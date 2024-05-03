@@ -2,40 +2,68 @@
 {
     public class StoryOfTheDayDTO
     {
-        public int? StoryId { get; set; }
-        public int Questionid { get; set; }
-        public string QuestionName { get; set; } = string.Empty;
-        public string BoardID { get; set; } = string.Empty;
-        public string ClassID { get; set; } = string.Empty;
-        public string BoardName { get; set; } = string.Empty;
-        public string ClassName { get; set; } = string.Empty;
-        public DateTime? PostTime { get; set; }
-        public DateTime? DateAndTime { get; set; }
-        public IFormFile? UploadImage { get; set; }
-        public string Answer { get; set; } = string.Empty;
-        public TimeSpan? AnswerRevealTime { get; set; }
-        public int Status { get; set; }
-    }
 
-    public class UpdateStoryOfTheDayDTO
-    {
-        public int? StoryId { get; set; }
-        public int Questionid { get; set; }
-        public string QuestionName { get; set; } = string.Empty;
-        public string BoardID { get; set; } = string.Empty;
-        public string ClassID { get; set; } = string.Empty;
-        public string BoardName { get; set; } = string.Empty;
-        public string ClassName { get; set; } = string.Empty;
-        public DateTime? PostTime { get; set; }
-        public DateTime? DateAndTime { get; set; }
-        public string Answer { get; set; } = string.Empty;
-        public TimeSpan? AnswerRevealTime { get; set; }
-        public int Status { get; set; }
+        public int StoryId { get; set; }
+        public int EventTypeID { get; set; }
+        public string EventName { get; set; } = string.Empty;
+        public string Event1Posttime { get; set; } = string.Empty;
+        public DateTime? Event1PostDate { get; set; }
+        public DateTime? Event2PostDate { get; set; }
+        public string Event2Posttime { get; set; } = string.Empty;
+        public string modifiedby { get; set; } = string.Empty;
+        public string createdby { get; set; } = string.Empty;
+        public string eventtypename { get; set; } = string.Empty;
+        public DateTime? modifiedon { get; set; }
+        public DateTime? createdon { get; set; }
+        public bool Status { get; set; }
+        public int EmployeeID { get; set; }
+        public string Filename1 { get; set; } = string.Empty;
+        public string Filename2 { get; set; } = string.Empty;
+        public string EmpFirstName { get; set; } = string.Empty;
+        public List<SOTDCategory>? SOTDCategories { get; set; }
+        public List<SOTDBoard>? SOTDBoards { get; set; }
+        public List<SOTDClass>? SOTDClasses { get; set; }
+        public List<SOTDCourse>? SOTDCourses { get; set; }
+        public List<SOTDExamType>? SOTDExamTypes { get; set; }
     }
-
-    public class StoryOfTheDayIdAndFileDTO
+    public class SOTDCategory
     {
-        public int? StoryId { get; set; }
-        public IFormFile? UploadImage { get; set; }
+        public int SOTDCategoryID {  get; set; }
+        public int SOTDID { get; set; }
+        public int APID {  get; set; } //Academic-Professional Id
+        public string APIDName { get; set; } = string.Empty;
+    }
+    public class SOTDBoard
+    {
+        public int tblSOTDBoardID { get; set; }
+        public int SOTDID { get; set; }
+        public int BoardID { get; set; }
+    }
+    public class SOTDClass
+    {
+        public int tblSOTDClassID { get; set; }
+        public int SOTDID { get; set; }
+        public int ClassID { get; set; }
+    }
+    public class SOTDCourse
+    {
+        public int SOTDCourseID { get; set; }
+        public int SOTDID { get; set; }
+        public int CourseID { get; set; }
+    }
+    public class SOTDExamType
+    {
+        public int SOTDExamTypeID { get; set; }
+        public int SOTDID { get; set; }
+        public int ExamTypeID { get; set; }
+    }
+    public class SOTDListDTO
+    {
+        public int APID { get; set; }
+        public int BoardId {  get; set; }
+        public int ClassId {  get; set; }
+        public int CourseId {  get; set; }
+        public int EventTypeId {  get; set; }
+        public int ExamType {  get; set; }
     }
 }
