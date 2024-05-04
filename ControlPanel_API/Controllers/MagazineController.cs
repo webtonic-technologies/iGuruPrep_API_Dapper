@@ -16,8 +16,8 @@ namespace ControlPanel_API.Controllers
         {
             _magazineService = magazineServices;
         }
-        [HttpPost]
-        public async Task<IActionResult> AddNewMagazine([FromForm] MagazineDTO magazineDTO)
+        [HttpPost("AddMagazine")]
+        public async Task<IActionResult> AddNewMagazine([FromBody] MagazineDTO magazineDTO)
         {
             try
             {
@@ -30,8 +30,8 @@ namespace ControlPanel_API.Controllers
             }
         }
 
-        [HttpPut]
-        public async Task<IActionResult> UpdateMagazine([FromForm] MagazineDTO magazineDTO)
+        [HttpPut("UpdateMagazine")]
+        public async Task<IActionResult> UpdateMagazine([FromBody] MagazineDTO magazineDTO)
         {
             try
             {
@@ -44,7 +44,7 @@ namespace ControlPanel_API.Controllers
             }
         }
 
-        [HttpPost]
+        [HttpPost("GetListOfMagazines")]
         public async Task<IActionResult> GetAllMagazines(MagazineListDTO request)
         {
             try
