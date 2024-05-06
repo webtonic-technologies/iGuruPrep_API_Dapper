@@ -5,6 +5,7 @@ using Course_API.Repository.Interfaces;
 using Dapper;
 using System.Collections.Generic;
 using System.Data;
+using System.Text;
 
 namespace Course_API.Repository.Implementations
 {
@@ -17,24 +18,25 @@ namespace Course_API.Repository.Implementations
             _connection = connection;
             _hostingEnvironment = hostingEnvironment;
         }
-        public async Task<ServiceResponse<string>> AddUpdateContent(ContentMasterDTO request)
+        public async Task<ServiceResponse<string>> AddUpdateContent(ContentMaster request)
         {
             try
             {
-                if (request.Content_Id == 0)
+                if (request.contentid == 0)
                 {
-                    string insertQuery = @"
-            INSERT INTO tblContentMaster (SubjectIndexId, Board_Id, Class_Id, Course_Id, Subject_Id, NameOfFile, PathUrl)
-            VALUES (@SubjectIndexId, @Board_Id, @Class_Id, @Course_Id, @Subject_Id, @NameOfFile, @PathUrl);";
+                    var insertQuery = @"INSERT INTO ContentMaster (subjectindexid, boardId, classId, courseId, subjectId, fileName, PathURL, createdon, createdby)
+                VALUES (@subjectindexid, @boardId, @classId, @courseId, @subjectId, @fileName, @PathURL, @createdon, @createdby);";
                     var content = new ContentMaster
                     {
-                        Board_Id = request.Board_Id,
-                        Class_Id = request.Class_Id,
-                        Course_Id = request.Course_Id,
-                        NameOfFile = await GetPath(request.NameOfFile),
-                        PathUrl = await GetPath(request.PathUrl),
-                        SubjectIndexId = request.SubjectIndexId,
-                        Subject_Id = request.Subject_Id
+                        boardId = request.boardId,
+                        classId = request.classId,
+                        courseId = request.courseId,
+                        fileName = PDFUpload(request.fileName),
+                        PathURL = VideoUpload(request.PathURL),
+                        subjectindexid = request.subjectindexid,
+                        subjectId = request.subjectId,
+                        createdby = request.createdby,
+                        createdon = DateTime.Now
                     };
 
                     int rowsAffected = await _connection.ExecuteAsync(insertQuery, content);
@@ -49,26 +51,29 @@ namespace Course_API.Repository.Implementations
                 }
                 else
                 {
-                    string updateQuery = @"
-            UPDATE tblContentMaster 
-            SET SubjectIndexId = @SubjectIndexId, 
-                Board_Id = @Board_Id, 
-                Class_Id = @Class_Id, 
-                Course_Id = @Course_Id, 
-                Subject_Id = @Subject_Id, 
-                NameOfFile = @NameOfFile, 
-                PathUrl = @PathUrl 
-            WHERE Content_Id = @Content_Id";
+                    var updateQuery = @"UPDATE ContentMaster
+                SET subjectindexid = @subjectindexid,
+                    boardId = @boardId,
+                    classId = @classId,
+                    courseId = @courseId,
+                    subjectId = @subjectId,
+                    fileName = @fileName,
+                    PathURL = @PathURL,
+                    modifiedon = @modifiedon,
+                    modifiedby = @modifiedby
+                WHERE contentid = @contentid;";
                     var content = new ContentMaster
                     {
-                        Board_Id = request.Board_Id,
-                        Class_Id = request.Class_Id,
-                        Course_Id = request.Course_Id,
-                        NameOfFile = await GetPath(request.NameOfFile),
-                        PathUrl = await GetPath(request.PathUrl),
-                        SubjectIndexId = request.SubjectIndexId,
-                        Subject_Id = request.Subject_Id,
-                        Content_Id = request.Content_Id
+                        boardId = request.boardId,
+                        classId = request.classId,
+                        courseId = request.courseId,
+                        fileName = PDFUpload(request.fileName),
+                        PathURL = VideoUpload(request.PathURL),
+                        subjectindexid = request.subjectindexid,
+                        subjectId = request.subjectId,
+                        modifiedby = request.modifiedby,
+                        modifiedon = DateTime.Now,
+                        contentid = request.contentid
                     };
                     int rowsAffected = await _connection.ExecuteAsync(updateQuery, content);
                     if (rowsAffected > 0)
@@ -86,62 +91,6 @@ namespace Course_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-        public async Task<ServiceResponse<byte[]>> GetContentFileById(int ContentId)
-        {
-            try
-            {
-                var data = await _connection.QueryFirstOrDefaultAsync<ContentMaster>(
-                    "SELECT * FROM tblContentMaster WHERE Content_Id = @Content_Id",
-                    new { Content_Id = ContentId });
-
-                if (data == null)
-                {
-                    throw new Exception("Data not found");
-                }
-
-                var filePath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "ContentMaster", data.NameOfFile);
-
-                if (!File.Exists(filePath))
-                {
-                    throw new Exception("File not found");
-                }
-                var fileBytes = await File.ReadAllBytesAsync(filePath);
-
-                return new ServiceResponse<byte[]>(true, "Record Found", fileBytes, 200);
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<byte[]>(false, ex.Message, Array.Empty<byte>(), 500);
-            }
-        }
-        public async Task<ServiceResponse<byte[]>> GetContentFilePathUrlById(int ContentId)
-        {
-            try
-            {
-                var data = await _connection.QueryFirstOrDefaultAsync<ContentMaster>(
-                    "SELECT * FROM tblContentMaster WHERE Content_Id = @Content_Id",
-                    new { Content_Id = ContentId });
-
-                if (data == null)
-                {
-                    throw new Exception("Data not found");
-                }
-
-                var filePath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "ContentMaster", data.PathUrl);
-
-                if (!File.Exists(filePath))
-                {
-                    throw new Exception("File not found");
-                }
-                var fileBytes = await File.ReadAllBytesAsync(filePath);
-
-                return new ServiceResponse<byte[]>(true, "Record Found", fileBytes, 200);
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<byte[]>(false, ex.Message, Array.Empty<byte>(), 500);
-            }
-        }
         public async Task<ServiceResponse<ContentMaster>> GetContentById(int ContentId)
         {
             try
@@ -153,6 +102,8 @@ namespace Course_API.Repository.Implementations
                 var data = await _connection.QuerySingleOrDefaultAsync<ContentMaster>(selectQuery, new { ContentId });
                 if (data != null)
                 {
+                    data.PathURL = GetVideo(data.PathURL);
+                    data.fileName = GetPDF(data.fileName);
                     return new ServiceResponse<ContentMaster>(true, "Operation Successful", data, 200);
                 }
                 else
@@ -191,7 +142,7 @@ namespace Course_API.Repository.Implementations
         {
             try
             {
-                List<SubjectContentIndexDTO> resposne = new List<SubjectContentIndexDTO>();
+                List<SubjectContentIndexDTO> resposne = [];
                 string query = @" SELECT * FROM tblQBSubjectContentIndex WHERE SubjectId = @SubjectId 
                                 AND classid = @ClassId AND courseid = @CourseId AND boardid = @BoardId";
                 var data = await _connection.QueryAsync(query, request);
@@ -227,28 +178,77 @@ namespace Course_API.Repository.Implementations
                 return new ServiceResponse<List<SubjectContentIndexDTO>>(false, ex.Message, new List<SubjectContentIndexDTO>(), 500);
             }
         }
-        private async Task<string> GetPath(IFormFile? file)
+        private string PDFUpload(string pdf)
         {
-            if (file != null)
+            byte[] imageData = Convert.FromBase64String(pdf);
+            string directoryPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "ContentMaster");
+
+            if (!Directory.Exists(directoryPath))
             {
-                var uploads = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "ContentMaster");
-                if (!Directory.Exists(uploads))
-                {
-                    Directory.CreateDirectory(uploads);
-                }
-                var fileName = Guid.NewGuid().ToString() + Path.GetExtension(file.FileName);
-                var filePath = Path.Combine(uploads, fileName);
-                using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
-                {
-                    await file.CopyToAsync(fileStream);
-                }
-                string imageUrl = fileName;
-                return imageUrl;
+                Directory.CreateDirectory(directoryPath);
             }
-            else
+            string fileName = Guid.NewGuid().ToString() + ".pdf";
+            string filePath = Path.Combine(directoryPath, fileName);
+
+            // Write the byte array to the image file
+            File.WriteAllBytes(filePath, imageData);
+            return filePath;
+        }
+        private string VideoUpload(string data)
+        {
+            byte[] bytes = Convert.FromBase64String(data);
+            string directoryPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "ContentMasterVideo");
+            if (!Directory.Exists(directoryPath))
             {
-                return string.Empty;
+                Directory.CreateDirectory(directoryPath);
             }
+            string fileExtension = IsMP4(bytes) == true ? ".mp4" : IsMOV(bytes) == true ? ".mov" : IsAVI(bytes) == true ? ".avi" : string.Empty;
+
+            string fileName = Guid.NewGuid().ToString() + fileExtension;
+            string filePath = Path.Combine(directoryPath, fileName);
+
+            // Write the byte array to the image file
+            File.WriteAllBytes(filePath, bytes);
+            return filePath;
+        }
+        private bool IsMP4(byte[] bytes)
+        {
+            // MP4 magic number: "ftyp"
+            return bytes.Length > 3 && bytes[0] == 0x66 && bytes[1] == 0x74 && bytes[2] == 0x79 && bytes[3] == 0x70;
+        }
+        private bool IsMOV(byte[] bytes)
+        {
+            // MOV magic number: "moov"
+            return bytes.Length > 3 && bytes[0] == 0x6D && bytes[1] == 0x6F && bytes[2] == 0x6F && bytes[3] == 0x76;
+        }
+        private bool IsAVI(byte[] bytes)
+        {
+            // AVI magic number: "RIFF"
+            return bytes.Length > 3 && bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46;
+        }
+        private string GetVideo(string Filename)
+        {
+            var filePath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "ContentMasterVideo", Filename);
+
+            if (!File.Exists(filePath))
+            {
+                throw new Exception("File not found");
+            }
+            byte[] fileBytes = File.ReadAllBytes(filePath);
+            string base64String = Convert.ToBase64String(fileBytes);
+            return base64String;
+        }
+        private string GetPDF(string Filename)
+        {
+            var filePath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "ContentMaster", Filename);
+
+            if (!File.Exists(filePath))
+            {
+                throw new Exception("File not found");
+            }
+            byte[] fileBytes = File.ReadAllBytes(filePath);
+            string base64String = Convert.ToBase64String(fileBytes);
+            return base64String;
         }
     }
 }

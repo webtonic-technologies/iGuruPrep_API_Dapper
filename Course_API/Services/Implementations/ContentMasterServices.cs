@@ -14,7 +14,7 @@ namespace Course_API.Services.Implementations
         {
             _contentMasterRepository = contentMasterRepository;
         }
-        public async Task<ServiceResponse<string>> AddUpdateContent(ContentMasterDTO request)
+        public async Task<ServiceResponse<string>> AddUpdateContent(ContentMaster request)
         {
             try
             {
@@ -38,29 +38,6 @@ namespace Course_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<byte[]>> GetContentFileById(int ContentId)
-        {
-            try
-            {
-                return await _contentMasterRepository.GetContentFileById(ContentId);
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<byte[]>(false, ex.Message, Array.Empty<byte>(), 500);
-            }
-        }
-
-        public async Task<ServiceResponse<byte[]>> GetContentFilePathUrlById(int ContentId)
-        {
-            try
-            {
-                return await _contentMasterRepository.GetContentFilePathUrlById(ContentId);
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<byte[]>(false, ex.Message, Array.Empty<byte>(), 500);
-            }
-        }
 
         public async Task<ServiceResponse<List<ContentMaster>>> GetContentList()
         {

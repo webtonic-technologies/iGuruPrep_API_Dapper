@@ -6,9 +6,7 @@ namespace Course_API.Services.Interfaces
 {
     public interface IContentMasterServices
     {
-        Task<ServiceResponse<string>> AddUpdateContent(ContentMasterDTO request);
-        Task<ServiceResponse<byte[]>> GetContentFileById(int ContentId);
-        Task<ServiceResponse<byte[]>> GetContentFilePathUrlById(int ContentId);
+        Task<ServiceResponse<string>> AddUpdateContent(ContentMaster request);
         Task<ServiceResponse<ContentMaster>> GetContentById(int ContentId);
         Task<ServiceResponse<List<ContentMaster>>> GetContentList();
         Task<ServiceResponse<List<SubjectContentIndexDTO>>> GetListOfSubjectContent(SubjectContentIndexRequestDTO request);
