@@ -8,36 +8,28 @@ namespace Course_API.Models
     {
         [Key]
         public int BookId { get; set; }
-
-        [Required]
-        [StringLength(150)]
         public string BookName { get; set; } = string.Empty;
-
-        [StringLength(15)]
-        public string AuthorName { get; set; } = string.Empty;
-
-        [StringLength(15)]
-        public string AuthorDetails { get; set; } = string.Empty;
-
-        [StringLength(15)]
-        public string AuthorAffliation { get; set; } = string.Empty;
-
-        [Required]
-        [StringLength(5)]
-        public string Boardname { get; set; } = string.Empty;
-
-        [Required]
-        [StringLength(15)]
-        public string ClassName { get; set; } = string.Empty;
-
-        [Required]
-        [StringLength(15)]
-        public string CourseName { get; set; } = string.Empty;
-
-        [StringLength(15)]
-        public string SubjectName { get; set; } = string.Empty;
-
-        [Required]
-        public int Status { get; set; }
+        public int BoardID { get; set; }
+        public int ClassID {  get; set; }
+        public int CourseID { get; set; }
+        public int SubjectID { get; set; }
+        public bool Status {  get; set; }
+        public string Authorname {  get; set; } = string.Empty;
+        public string pathURL { get; set; } = string.Empty;
+        public string link { get; set; } = string.Empty;
+        public int examtypeid { get; set; }
+        public int APID { get; set; }
+        public string boardname { get; set; } = string.Empty;
+        public string classname { get; set; } = string.Empty;
+        public string coursename { get; set; } = string.Empty;
+        public string subjectname { get; set; } = string.Empty;
+        public string APname { get; set; } = string.Empty;
+        public DateTime? modifiedon {  get; set; }
+        public string modifiedby { get; set; } = string.Empty;
+        public DateTime? createdon { get; set; }
+        public string createdby { get; set; } = string.Empty;
+        public int EmployeeID {  get; set; }
+        public string EmpFirstName { get; set; } = string.Empty;
+        public int FileTypeId { get; set; }
     }
 }
