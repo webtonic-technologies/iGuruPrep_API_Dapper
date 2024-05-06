@@ -1,4 +1,5 @@
 using Course_API.DTOs;
+using Course_API.Models;
 using Course_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -62,7 +63,7 @@ namespace Course_API.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> AddUpdateContentMaster([FromForm] ContentMasterDTO request)
+        public async Task<IActionResult> AddUpdateContentMaster([FromBody] ContentMaster request)
         {
             try
             {
@@ -82,32 +83,6 @@ namespace Course_API.Controllers
                 return this.BadRequest(e.Message);
             }
 
-        }
-        [HttpGet("GetFile/{id}")]
-        public async Task<IActionResult> GetContentFileById(int id)
-        {
-            try
-            {
-                var file = await _contentMasterServices.GetContentFileById(id);
-                return File(file.Data, "video/mp4");
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
-        [HttpGet("GetFilePathUrl/{id}")]
-        public async Task<IActionResult> GetContentFilePathUrlById(int id)
-        {
-            try
-            {
-                var file = await _contentMasterServices.GetContentFilePathUrlById(id);
-                return File(file.Data, "application/pdf");
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
         }
         [HttpGet("SubjectContent")]
         public async Task<IActionResult> GetListOfSubjectContent(SubjectContentIndexRequestDTO request)
