@@ -22,31 +22,36 @@ namespace UserManagement_API.Repository.Implementations
                 if (request.GenerateLicenseID == 0)
                 {
                     string query = @"
-        INSERT INTO tblGenerateLicense (SchoolID, SchoolName, SchoolCode, BranchName, BranchCode, StateName, DistrictName, ChairmanEmail, ChairmanMobile, PrincipalEmail, PrincipalMobile, stateid, DistrictID)
-        VALUES (@SchoolID, @SchoolName, @SchoolCode, @BranchName, @BranchCode, @StateName, @DistrictName, @ChairmanEmail, @ChairmanMobile, @PrincipalEmail, @PrincipalMobile, @stateid, @DistrictID)
+        INSERT INTO [tblGenerateLicense] (SchoolName, SchoolCode, BranchName, BranchCode, StateName, DistrictName, ChairmanEmail, ChairmanMobile, PrincipalEmail, PrincipalMobile, StateId, DistrictId, ClassName, CourseName, createdon, createdby, EmployeeID, EmpFirstName)
+        VALUES (@SchoolName, @SchoolCode, @BranchName, @BranchCode, @StateName, @DistrictName, @ChairmanEmail, @ChairmanMobile, @PrincipalEmail, @PrincipalMobile, @StateId, @DistrictId, @ClassName, @CourseName, @CreatedOn, @CreatedBy, @EmployeeID, @EmpFirstName);
         SELECT SCOPE_IDENTITY();";
                     var newLicense = new GenerateLicense
                     {
-                        BranchCode = request.BranchCode,
+                        SchoolName = request.SchoolName,
+                        SchoolCode = request.SchoolCode,
                         BranchName = request.BranchName,
+                        BranchCode = request.BranchCode,
+                        StateName = request.StateName,
+                        DistrictName = request.DistrictName,
                         ChairmanEmail = request.ChairmanEmail,
                         ChairmanMobile = request.ChairmanMobile,
-                        DistrictID = request.DistrictID,
-                        DistrictName = request.DistrictName,
                         PrincipalEmail = request.PrincipalEmail,
                         PrincipalMobile = request.PrincipalMobile,
-                        SchoolCode = request.SchoolCode,
-                        SchoolID = request.SchoolID,
-                        SchoolName = request.SchoolName,
                         stateid = request.stateid,
-                        StateName = request.StateName,
+                        DistrictID = request.DistrictID,
+                        ClassName = request.ClassName,
+                        CourseName = request.CourseName,
+                        createdon = DateTime.Now,
+                        createdby = request.createdby,
+                        EmployeeID = request.EmployeeID,
+                        EmpFirstName = request.EmpFirstName
                     };
                     var generatedId = await _connection.QueryFirstOrDefaultAsync<int>(query, newLicense);
                     if (generatedId != 0)
                     {
                         string insertQuery = @"
-                INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, Validity)
-                VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @Validity)";
+        INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID)
+        VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID);";
                         if (request.LicenseDetails != null)
                         {
                             foreach (var item in request.LicenseDetails)
@@ -73,37 +78,47 @@ namespace UserManagement_API.Repository.Implementations
                 else
                 {
                     string updateQuery = @"
-        UPDATE tblGenerateLicense
-        SET SchoolID = @SchoolID,
-            SchoolName = @SchoolName,
-            SchoolCode = @SchoolCode,
-            BranchName = @BranchName,
-            BranchCode = @BranchCode,
-            StateName = @StateName,
-            DistrictName = @DistrictName,
-            ChairmanEmail = @ChairmanEmail,
-            ChairmanMobile = @ChairmanMobile,
-            PrincipalEmail = @PrincipalEmail,
-            PrincipalMobile = @PrincipalMobile,
-            stateid = @stateid,
-            DistrictID = @DistrictID
+        UPDATE [tblGenerateLicense]
+        SET SchoolName = @SchoolName, 
+            SchoolCode = @SchoolCode, 
+            BranchName = @BranchName, 
+            BranchCode = @BranchCode, 
+            StateName = @StateName, 
+            DistrictName = @DistrictName, 
+            ChairmanEmail = @ChairmanEmail, 
+            ChairmanMobile = @ChairmanMobile, 
+            PrincipalEmail = @PrincipalEmail, 
+            PrincipalMobile = @PrincipalMobile, 
+            StateId = @StateId, 
+            DistrictId = @DistrictId, 
+            ClassName = @ClassName, 
+            CourseName = @CourseName, 
+            modifiedon = @ModifiedOn, 
+            modifiedby = @ModifiedBy,  
+            EmployeeID = @EmployeeID, 
+            EmpFirstName = @EmpFirstName
         WHERE GenerateLicenseID = @GenerateLicenseID;";
                     var newLicense = new GenerateLicense
                     {
-                        BranchCode = request.BranchCode,
+                        SchoolName = request.SchoolName,
+                        SchoolCode = request.SchoolCode,
                         BranchName = request.BranchName,
+                        BranchCode = request.BranchCode,
+                        StateName = request.StateName,
+                        DistrictName = request.DistrictName,
                         ChairmanEmail = request.ChairmanEmail,
                         ChairmanMobile = request.ChairmanMobile,
-                        DistrictID = request.DistrictID,
-                        DistrictName = request.DistrictName,
                         PrincipalEmail = request.PrincipalEmail,
                         PrincipalMobile = request.PrincipalMobile,
-                        SchoolCode = request.SchoolCode,
-                        SchoolID = request.SchoolID,
-                        SchoolName = request.SchoolName,
                         stateid = request.stateid,
-                        StateName = request.StateName,
-                        GenerateLicenseID = request.GenerateLicenseID,
+                        DistrictID = request.DistrictID,
+                        ClassName = request.ClassName,
+                        CourseName = request.CourseName,
+                        modifiedon = DateTime.Now,
+                        modifiedby = request.createdby,
+                        EmployeeID = request.EmployeeID,
+                        EmpFirstName = request.EmpFirstName,
+                        GenerateLicenseID = request.GenerateLicenseID
                     };
                     int rowsAffected = await _connection.ExecuteAsync(updateQuery, newLicense);
                     if (rowsAffected > 0)
@@ -118,8 +133,9 @@ namespace UserManagement_API.Repository.Implementations
                             if (rowsAffected1 > 0)
                             {
                                 string insertQuery = @"
-                INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, Validity)
-                VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @Validity)";
+        INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID)
+        VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID);";
+                           
                                 if (request.LicenseDetails != null)
                                     foreach (var item in request.LicenseDetails)
                                     {
@@ -144,8 +160,8 @@ namespace UserManagement_API.Repository.Implementations
                         else
                         {
                             string insertQuery = @"
-                INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, Validity)
-                VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @Validity)";
+        INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID)
+        VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID);";
                             if (request.LicenseDetails != null)
                                 foreach (var item in request.LicenseDetails)
                                 {
@@ -179,7 +195,7 @@ namespace UserManagement_API.Repository.Implementations
         {
             try
             {
-                GenerateLicenseDTO response = new GenerateLicenseDTO();
+                GenerateLicenseDTO response = new();
                 string selectQuery = @"
         SELECT * 
         FROM tblGenerateLicense
@@ -188,7 +204,6 @@ namespace UserManagement_API.Repository.Implementations
                 if (generateLicense != null)
                 {
                     response.GenerateLicenseID = generateLicense.GenerateLicenseID;
-                    response.SchoolID = generateLicense.SchoolID;
                     response.SchoolName = generateLicense.SchoolName;
                     response.SchoolCode = generateLicense.SchoolCode;
                     response.BranchName = generateLicense.BranchName;
@@ -201,11 +216,19 @@ namespace UserManagement_API.Repository.Implementations
                     response.PrincipalMobile = generateLicense.PrincipalMobile;
                     response.stateid = generateLicense.stateid;
                     response.DistrictID = generateLicense.DistrictID;
+                    response.ClassName = generateLicense.ClassName;
+                    response.CourseName = generateLicense.CourseName;
+                    response.modifiedby = generateLicense.modifiedby;
+                    response.modifiedon = generateLicense.modifiedon;
+                    response.createdon = generateLicense.createdon;
+                    response.createdby = generateLicense.createdby;
+                    response.EmployeeID = generateLicense.EmployeeID;
+                    response.EmpFirstName = generateLicense.EmpFirstName;
 
                     string query = @"
-        SELECT * 
-        FROM tblLicenseDetail
-        WHERE GenerateLicenseID = @GenerateLicenseID;";
+                    SELECT * 
+                    FROM tblLicenseDetail
+                    WHERE GenerateLicenseID = @GenerateLicenseID;";
                     var data = await _connection.QueryAsync<LicenseDetail>(query, new { GenerateLicenseID });
                     if (data != null)
                     {

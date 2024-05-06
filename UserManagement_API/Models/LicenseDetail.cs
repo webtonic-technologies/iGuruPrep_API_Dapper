@@ -8,6 +8,7 @@
         public int? ClassID { get; set; }
         public int? CourseID { get; set; }
         public int? NoOfLicense { get; set; }
-        public string Validity { get; set; } = string.Empty;
+        public string ValidityID { get; set; } = string.Empty;
+        public int APID {  get; set; }
     }
 }
