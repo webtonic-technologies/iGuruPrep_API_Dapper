@@ -152,138 +152,86 @@ namespace ControlPanel_API.Repository.Implementations
         {
             try
             {
-                var response = new List<MagazineDTO>();
-                string query = @"SELECT [MagazineId], [Date], [Time], [PathURL], [MagazineTitle], [Status], [Link], [EmployeeID], [EmpFirstName], [createdon], [createdby], [modifiedby], [modifiedon]
-                   FROM [iGuruPrep].[dbo].[tblMagazine]
-                   WHERE 1 = 1";
+                var sql = @"
+            SELECT m.MagazineId,
+                   m.Date,
+                   m.Time,
+                   m.PathURL,
+                   m.MagazineTitle,
+                   m.Status,
+                   m.Link,
+                   m.modifiedon,
+                   m.modifiedby,
+                   m.createdon,
+                   m.createdby,
+                   m.EmployeeID,
+                   m.EmpFirstName,
+                   c.MgCategoryID,
+                   c.APID,
+                   c.APIDName,
+                   b.MagazineBoardId,
+                   b.MagazineID,
+                   b.BoardIDID,
+                   cls.MagazineClassId,
+                   cls.MagazineID,
+                   cls.ClassID,
+                   course.MagazineCourseID,
+                   course.MagazineID,
+                   course.CourseID,
+                   et.MagazineExamTypeID,
+                   et.MagazineID,
+                   et.ExamTypeID
+            FROM tblMagazine m
+            LEFT JOIN tblMagazineCategory c ON m.MagazineId = c.MagazineId
+            LEFT JOIN tblMagazineBoard b ON m.MagazineId = b.MagazineID
+            LEFT JOIN tblMagazineClass cls ON m.MagazineId = cls.MagazineID
+            LEFT JOIN tblMagazineCourse course ON m.MagazineId = course.MagazineID
+            LEFT JOIN tblMagazineExamType et ON m.MagazineId = et.MagazineID";
 
-                if (request.APID == 1)
-                {
-                    if (request.BoardId != 0)
-                        query += " AND BoardId = @BoardId";
-                    if (request.ClassId != 0)
-                        query += " AND ClassId = @ClassId";
-                    if (request.CourseId != 0)
-                        query += " AND CourseId = @CourseId";
-                    if (request.EventTypeId != 0)
-                        query += " AND EventTypeId = @EventTypeId";
+                var result = await _connection.QueryAsync<MagazineDTO, MagazineCategory, MagazineBoard, MagazineClass, MagazineCourse, MagazineExamType, MagazineDTO>(
+                    sql,
+                    (magazine, category, board, classItem, course, examType) =>
+                    {
+                        magazine.MagazineCategories ??= new List<MagazineCategory>();
+                        if (category != null)
+                        {
+                            magazine.MagazineCategories.Add(category);
+                        }
 
-                    var Magazines = await _connection.QueryAsync<Magazine>(query, request);
-                    if (Magazines != null)
-                    {
-                        foreach (var data in Magazines)
+                        magazine.MagazineBoards ??= new List<MagazineBoard>();
+                        if (board != null)
                         {
-                            var item = new MagazineDTO
-                            {
-                                Link = GetPDF(data.Link),
-                                PathURL = GetImage(data.PathURL),
-                                MagazineId = data.MagazineId,
-                                Date = data.Date,
-                                Time = data.Time,
-                                MagazineTitle = data.MagazineTitle,
-                                Status = data.Status,
-                                EmpFirstName = data.EmpFirstName,
-                                EmployeeID = data.EmployeeID,
-                                createdby = data.createdby,
-                                createdon = data.createdon,
-                                modifiedon = data.modifiedon,
-                                modifiedby = data.modifiedby,
-                                MagazineCategories = GetListOfMagazineCategory(data.MagazineId),
-                                MagazineBoards = GetListOfMagazineBoards(data.MagazineId),
-                                MagazineClasses = GetListOfMagazineClass(data.MagazineId),
-                                MagazineCourses = GetListOfMagazineCourse(data.MagazineId),
-                                MagazineExamTypes = GetListOfMagazineExamType(data.MagazineId)
-                            };
-                            response.Add(item);
+                            magazine.MagazineBoards.Add(board);
                         }
-                        return new ServiceResponse<List<MagazineDTO>>(true, "Records Found", response.AsList(), 200);
-                    }
-                    else
-                    {
-                        return new ServiceResponse<List<MagazineDTO>>(false, "Records Not Found", [], 204);
-                    }
-                }
-                else if (request.APID == 2)
-                {
-                    if (request.EventTypeId != 0)
-                        query += " AND EventTypeId = @EventTypeId";
-                    if (request.ExamType != 0)
-                        query += " AND ExamType = @ExamType";
 
-                    var Magazines = await _connection.QueryAsync<Magazine>(query, request);
-                    if (Magazines != null)
-                    {
-                        foreach (var data in Magazines)
+                        magazine.MagazineClasses ??= new List<MagazineClass>();
+                        if (classItem != null)
                         {
-                            var item = new MagazineDTO
-                            {
-                                Link = GetPDF(data.Link),
-                                PathURL = GetImage(data.PathURL),
-                                MagazineId = data.MagazineId,
-                                Date = data.Date,
-                                Time = data.Time,
-                                MagazineTitle = data.MagazineTitle,
-                                Status = data.Status,
-                                EmpFirstName = data.EmpFirstName,
-                                EmployeeID = data.EmployeeID,
-                                createdby = data.createdby,
-                                createdon = data.createdon,
-                                modifiedon = data.modifiedon,
-                                modifiedby = data.modifiedby,
-                                MagazineCategories = GetListOfMagazineCategory(data.MagazineId),
-                                MagazineBoards = GetListOfMagazineBoards(data.MagazineId),
-                                MagazineClasses = GetListOfMagazineClass(data.MagazineId),
-                                MagazineCourses = GetListOfMagazineCourse(data.MagazineId),
-                                MagazineExamTypes = GetListOfMagazineExamType(data.MagazineId)
-                            };
-                            response.Add(item);
+                            magazine.MagazineClasses.Add(classItem);
                         }
-                        return new ServiceResponse<List<MagazineDTO>>(true, "Records Found", response.AsList(), 200);
-                    }
-                    else
-                    {
-                        return new ServiceResponse<List<MagazineDTO>>(false, "Records Not Found", [], 204);
-                    }
-                }
-                else
-                {
-                    string getquery = @"SELECT [MagazineId], [Date], [Time], [PathURL], [MagazineTitle], [Status], [Link], [EmployeeID], [EmpFirstName], [createdon], [createdby], [modifiedby], [modifiedon]
-                   FROM [iGuruPrep].[dbo].[tblMagazine]";
-                    var Magazines = await _connection.QueryAsync<Magazine>(getquery);
-                    if (Magazines != null)
-                    {
-                        foreach (var data in Magazines)
+
+                        magazine.MagazineCourses ??= new List<MagazineCourse>();
+                        if (course != null)
                         {
-                            var item = new MagazineDTO
-                            {
-                                Link = GetPDF(data.Link),
-                                PathURL = GetImage(data.PathURL),
-                                MagazineId = data.MagazineId,
-                                Date = data.Date,
-                                Time = data.Time,
-                                MagazineTitle = data.MagazineTitle,
-                                Status = data.Status,
-                                EmpFirstName = data.EmpFirstName,
-                                EmployeeID = data.EmployeeID,
-                                createdby = data.createdby,
-                                createdon = data.createdon,
-                                modifiedon = data.modifiedon,
-                                modifiedby = data.modifiedby,
-                                MagazineCategories = GetListOfMagazineCategory(data.MagazineId),
-                                MagazineBoards = GetListOfMagazineBoards(data.MagazineId),
-                                MagazineClasses = GetListOfMagazineClass(data.MagazineId),
-                                MagazineCourses = GetListOfMagazineCourse(data.MagazineId),
-                                MagazineExamTypes = GetListOfMagazineExamType(data.MagazineId)
-                            };
-                            response.Add(item);
+                            magazine.MagazineCourses.Add(course);
                         }
-                        return new ServiceResponse<List<MagazineDTO>>(true, "Records Found", response.AsList(), 200);
-                    }
-                    else
-                    {
-                        return new ServiceResponse<List<MagazineDTO>>(false, "Records Not Found", [], 204);
-                    }
-                }
+
+                        magazine.MagazineExamTypes ??= new List<MagazineExamType>();
+                        if (examType != null)
+                        {
+                            magazine.MagazineExamTypes.Add(examType);
+                        }
+
+                        return magazine;
+                    },
+                    splitOn: "MgCategoryID, MagazineBoardId, MagazineClassId, MagazineCourseID, MagazineExamTypeID",
+                    param: request,
+                    commandType: CommandType.Text,
+                    buffered: true);
+
+                var distinctResult = result.Distinct().ToList(); // Use custom equality comparer
+
+                return new ServiceResponse<List<MagazineDTO>>(true, "Records found", distinctResult, 200);
             }
             catch (Exception ex)
             {
