@@ -39,7 +39,7 @@ namespace Course_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<Book>> Get(int id)
+        public async Task<ServiceResponse<BookDTO>> Get(int id)
         {
             try
             {
@@ -47,19 +47,19 @@ namespace Course_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<Book>(false, ex.Message, new Book(), 500);
+                return new ServiceResponse<BookDTO>(false, ex.Message, new BookDTO(), 500);
             }
         }
 
-        public async Task<ServiceResponse<IEnumerable<Book>>> GetAll()
+        public async Task<ServiceResponse<List<BookDTO>>> GetAll(BookListDTO request)
         {
             try
             {
-                return await _bookRepository.GetAll();
+                return await _bookRepository.GetAllBooks(request);
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<IEnumerable<Book>>(false, ex.Message, new List<Book>(), 500);
+                return new ServiceResponse<List<BookDTO>>(false, ex.Message, new List<BookDTO>(), 500);
             }
         }
 

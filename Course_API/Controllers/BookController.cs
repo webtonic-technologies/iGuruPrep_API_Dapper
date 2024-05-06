@@ -15,11 +15,11 @@ namespace Course_API.Controllers
             _bookServices = bookServices;
         }
         [HttpGet]
-        public async Task<IActionResult> Get()
+        public async Task<IActionResult> Get(BookListDTO request)
         {
             try
             {
-                var data = await _bookServices.GetAll();
+                var data = await _bookServices.GetAll(request);
                 if (data != null)
                 {
                     return Ok(data);

@@ -4,41 +4,62 @@ using Course_API.Models;
 using Course_API.Repository.Interfaces;
 using Dapper;
 using System.Data;
+using System.Text;
 
 namespace Course_API.Repository.Implementations
 {
     public class BookRepository : IBookRepository
     {
         private readonly IDbConnection _connection;
+        private readonly IWebHostEnvironment _hostingEnvironment;
 
-        public BookRepository(IDbConnection connection)
+        public BookRepository(IDbConnection connection, IWebHostEnvironment hostingEnvironment)
         {
             _connection = connection;
+            _hostingEnvironment = hostingEnvironment;
         }
-        public async Task<ServiceResponse<string>> Add(BookDTO bookDTO)
+        public async Task<ServiceResponse<string>> Add(BookDTO request)
         {
-            var book = new Book
-            {
-                BookName = bookDTO.BookName,
-                AuthorName = bookDTO.AuthorName,
-                AuthorDetails = bookDTO.AuthorDetails,
-                AuthorAffliation = bookDTO.AuthorAffliation,
-                Boardname = bookDTO.Boardname,
-                ClassName = bookDTO.ClassName,
-                CourseName = bookDTO.CourseName,
-                SubjectName = bookDTO.SubjectName,
-                Status = bookDTO.Status
-            };
+
             try
             {
-                int rowsAffected = await _connection.ExecuteAsync(
-                    @"INSERT INTO tblBook (BookName, AuthorName, AuthorDetails, AuthorAffliation, BoardName, ClassName, CourseName, SubjectName, Status)
-                  VALUES (@BookName, @AuthorName, @AuthorDetails, @AuthorAffliation, @BoardName, @ClassName, @CourseName, @SubjectName, @Status)",
-                    book);
-                
-                if (rowsAffected > 0)
+                var book = new Book
                 {
-                    return new ServiceResponse<string>(true, "Operation Successful", "Book Added Successfully", 200);
+                    BookName = request.BookName,
+                    Status = true,
+                    pathURL = ImageUpload(request.pathURL),
+                    link = AudioVideoUpload(request.link),
+                    createdon = DateTime.Now,
+                    createdby = request.createdby,
+                    EmployeeID = request.EmployeeID,
+                    EmpFirstName = request.EmpFirstName,
+                    FileTypeId = request.FileTypeId
+                };
+                string insertQuery = @"
+        INSERT INTO [iGuruPrep].[dbo].[tblLibrary] 
+            (BookName, Status, pathURL, link, createdon, createdby, EmployeeID, EmpFirstName, FileTypeId)
+        VALUES 
+            (@BookName, @Status, @pathURL, @link, @createdon, @createdby, @EmployeeID, @EmpFirstName, @FileTypeId);
+        SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                int insertedId = await _connection.QueryFirstOrDefaultAsync<int>(insertQuery, book);
+                if (insertedId > 0)
+                {
+                    int category = BookCategoryMapping(request.BookCategories ??= ([]), insertedId);
+                    int classes = BookClassMapping(request.BookClasses ??= ([]), insertedId);
+                    int board = BookBoardMapping(request.BookBoards ??= ([]), insertedId);
+                    int course = BookCourseMapping(request.BookCourses ??= ([]), insertedId);
+                    int exam = BookExamTypeMapping(request.BookExamTypes ??= ([]), insertedId);
+                    int subject = BookSubjectMapping(request.BookSubjects ??= ([]), insertedId);
+                    int author = BookAuthorMapping(request.BookAuthorDetails ??= ([]), insertedId);
+                    if (category > 0 && classes > 0 && board > 0 && course > 0 && exam > 0 && subject > 0 && author > 0)
+                    {
+                        return new ServiceResponse<string>(true, "Operation Successful", "Book Added Successfully", 200);
+                    }
+                    else
+                    {
+                        return new ServiceResponse<string>(false, "Operation failed", string.Empty, 500);
+                    }
+
                 }
                 else
                 {
@@ -51,12 +72,10 @@ namespace Course_API.Repository.Implementations
             }
 
         }
-
         public async Task<ServiceResponse<bool>> Delete(int id)
         {
             try
             {
-                
                 int rowsAffected = await _connection.ExecuteAsync(
                     "DELETE FROM tblBook WHERE BookId = @BookId", new { BookId = id });
 
@@ -74,87 +93,218 @@ namespace Course_API.Repository.Implementations
                 return new ServiceResponse<bool>(false, ex.Message, false, 500);
             }
         }
-
-        public async Task<ServiceResponse<Book>> Get(int id)
+        public async Task<ServiceResponse<BookDTO>> Get(int id)
         {
             try
             {
-                var book = await _connection.QueryFirstOrDefaultAsync<Book>(
-                    "SELECT * FROM tblBook WHERE BookId = @BookId", new { BookId = id });
-
+                var response = new BookDTO();
+                string selectQuery = @"
+        SELECT 
+            BookId,
+            BookName,
+            Status,
+            pathURL,
+            link,
+            modifiedon,
+            modifiedby,
+            createdon,
+            createdby,
+            EmployeeID,
+            EmpFirstName,
+            FileTypeId
+        FROM 
+            [iGuruPrep].[dbo].[tblLibrary]
+        WHERE 
+            BookId = @BookId";
+                var book = await _connection.QueryFirstOrDefaultAsync<Book>(selectQuery, new { BookId = id });
                 if (book != null)
                 {
-                    return new ServiceResponse<Book>(true, "Record Found", book, 200);
+                    response.BookId = book.BookId;
+                    response.BookName = book.BookName;
+                    response.Status = book.Status;
+                    response.pathURL = GetImage(book.pathURL);
+                    response.link = GetAudioVideo(book.link);
+                    response.modifiedon = book.modifiedon;
+                    response.modifiedby = book.modifiedby;
+                    response.createdon = book.createdon;
+                    response.createdby = book.createdby;
+                    response.EmployeeID = book.EmployeeID;
+                    response.EmpFirstName = book.EmpFirstName;
+                    response.FileTypeId = book.FileTypeId;
+                    response.BookAuthorDetails = GetListOfAuthorDettails(book.BookId);
+                    response.BookSubjects = GetListOfBookSubject(book.BookId);
+                    response.BookBoards = GetListOfBookBoards(book.BookId);
+                    response.BookClasses = GetListOfBookClass(book.BookId);
+                    response.BookCourses = GetListOfBookCourse(book.BookId);
+                    response.BookExamTypes = GetListOfBookExamType(book.BookId);
+                    response.BookCategories = GetListOfBookCategory(book.BookId);
+
+                    return new ServiceResponse<BookDTO>(true, "Record Found", response, 200);
                 }
                 else
                 {
-                    return new ServiceResponse<Book>(false, "Record not Found", new Book(), 500);
+                    return new ServiceResponse<BookDTO>(false, "Record not Found", new BookDTO(), 500);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<Book>(false, ex.Message, new Book(), 500);
+                return new ServiceResponse<BookDTO>(false, ex.Message, new BookDTO(), 500);
             }
         }
 
-        public async Task<ServiceResponse<IEnumerable<Book>>> GetAll()
+        public async Task<ServiceResponse<List<BookDTO>>> GetAllBooks(BookListDTO request)
         {
-
             try
             {
-                var books = await _connection.QueryAsync<Book>(
-                    "SELECT * FROM tblBook");
+                // Construct the base SQL query for tblLibrary
+                var sql = @"
+                SELECT l.BookId,
+                       l.BookName,
+                       l.Status,
+                       l.pathURL,
+                       l.link,
+                       l.modifiedon,
+                       l.modifiedby,
+                       l.createdon,
+                       l.createdby,
+                       l.EmployeeID,
+                       l.EmpFirstName,
+                       l.FileTypeId
+                FROM tblLibrary l";
 
-                if (books != null)
+                // Execute the SQL query for tblLibrary with Dapper
+                var books = await _connection.QueryAsync<Book>(sql);
+
+                // Map Book entities to BookDTO format
+                var bookDTOs = books.Select(book => new BookDTO
                 {
-                    return new ServiceResponse<IEnumerable<Book>>(true, "Records Found", books.AsList(), 200);
-                }
-                else
+                    BookId = book.BookId,
+                    BookName = book.BookName,
+                    Status = book.Status,
+                    pathURL = book.pathURL,
+                    link = book.link,
+                    modifiedon = book.modifiedon,
+                    modifiedby = book.modifiedby,
+                    createdon = book.createdon,
+                    createdby = book.createdby,
+                    EmployeeID = book.EmployeeID,
+                    EmpFirstName = book.EmpFirstName,
+                    FileTypeId = book.FileTypeId
+                }).ToList();
+
+                // Retrieve related entities (AuthorDetails, Category, Board, Class, Course, ExamType, Subject) for each book
+                foreach (var bookDTO in bookDTOs)
                 {
-                    return new ServiceResponse<IEnumerable<Book>>(false, "Records Not Found", new List<Book>(), 204);
+                    // Execute SQL queries for related entities and map them to corresponding DTOs
+                    bookDTO.BookAuthorDetails = await GetBookAuthorDetails(bookDTO.BookId);
+                    bookDTO.BookCategories = await GetBookCategories(bookDTO.BookId);
+                    bookDTO.BookBoards = await GetBookBoards(bookDTO.BookId);
+                    bookDTO.BookClasses = await GetBookClasses(bookDTO.BookId);
+                    bookDTO.BookCourses = await GetBookCourses(bookDTO.BookId);
+                    bookDTO.BookExamTypes = await GetBookExamTypes(bookDTO.BookId);
+                    bookDTO.BookSubjects = await GetBookSubjects(bookDTO.BookId);
                 }
+
+                return new ServiceResponse<List<BookDTO>>(true, "Records found", bookDTOs, 200);
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<IEnumerable<Book>>(false, ex.Message, new List<Book>(), 200);
+                return new ServiceResponse<List<BookDTO>>(false, ex.Message, [], 500);
             }
         }
 
-        public async Task<ServiceResponse<string>> Update(BookDTO bookDTO)
-        {
-            var book = new Book
-            {
-                BookId = bookDTO.BookId,
-                BookName = bookDTO.BookName,
-                AuthorName = bookDTO.AuthorName,
-                AuthorDetails = bookDTO.AuthorDetails,
-                AuthorAffliation = bookDTO.AuthorAffliation,
-                Boardname = bookDTO.Boardname,
-                ClassName = bookDTO.ClassName,
-                CourseName = bookDTO.CourseName,
-                SubjectName = bookDTO.SubjectName,
-                Status = bookDTO.Status
-            };
+        // Helper methods to retrieve related entities
 
+        private async Task<List<BookAuthorDetails>> GetBookAuthorDetails(int bookId)
+        {
+            var sql = "SELECT * FROM tbllibraryAuthorDetails WHERE BookId = @BookId";
+            return (await _connection.QueryAsync<BookAuthorDetails>(sql, new { BookId = bookId })).ToList();
+        }
+
+        private async Task<List<BookCategory>> GetBookCategories(int bookId)
+        {
+            var sql = "SELECT * FROM tbllibraryCategory WHERE BookId = @BookId";
+            return (await _connection.QueryAsync<BookCategory>(sql, new { BookId = bookId })).ToList();
+        }
+
+        private async Task<List<BookBoard>> GetBookBoards(int bookId)
+        {
+            var sql = "SELECT * FROM tbllibraryBoard WHERE bookID = @BookId";
+            return (await _connection.QueryAsync<BookBoard>(sql, new { BookId = bookId })).ToList();
+        }
+
+        private async Task<List<BookClass>> GetBookClasses(int bookId)
+        {
+            var sql = "SELECT * FROM tbllibraryClass WHERE bookID = @BookId";
+            return (await _connection.QueryAsync<BookClass>(sql, new { BookId = bookId })).ToList();
+        }
+
+        private async Task<List<BookCourse>> GetBookCourses(int bookId)
+        {
+            var sql = "SELECT * FROM tbllibraryCourse WHERE bookID = @BookId";
+            return (await _connection.QueryAsync<BookCourse>(sql, new { BookId = bookId })).ToList();
+        }
+
+        private async Task<List<BookExamType>> GetBookExamTypes(int bookId)
+        {
+            var sql = "SELECT * FROM tbllibraryExamType WHERE bookID = @BookId";
+            return (await _connection.QueryAsync<BookExamType>(sql, new { BookId = bookId })).ToList();
+        }
+
+        private async Task<List<BookSubject>> GetBookSubjects(int bookId)
+        {
+            var sql = "SELECT * FROM tbllibrarySubject WHERE bookID = @BookId";
+            return (await _connection.QueryAsync<BookSubject>(sql, new { BookId = bookId })).ToList();
+        }
+        public async Task<ServiceResponse<string>> Update(BookDTO request)
+        {
             try
             {
-                int rowsAffected = await _connection.ExecuteAsync(
-                    @"UPDATE tblBook 
-                  SET BookName = @BookName, 
-                      AuthorName = @AuthorName, 
-                      AuthorDetails = @AuthorDetails, 
-                      AuthorAffliation = @AuthorAffliation, 
-                      BoardName = @BoardName, 
-                      ClassName = @ClassName, 
-                      CourseName = @CourseName, 
-                      SubjectName = @SubjectName, 
-                      Status = @Status
-                  WHERE BookId = @BookId",
-                    book);
-
+                var book = new Book
+                {
+                    BookName = request.BookName,
+                    Status = true,
+                    pathURL = ImageUpload(request.pathURL),
+                    link = AudioVideoUpload(request.link),
+                    modifiedon = DateTime.Now,
+                    modifiedby = request.modifiedby,
+                    EmployeeID = request.EmployeeID,
+                    EmpFirstName = request.EmpFirstName,
+                    FileTypeId = request.FileTypeId,
+                    BookId = request.BookId
+                };
+                string updateQuery = @"
+        UPDATE [iGuruPrep].[dbo].[tblLibrary]
+        SET 
+            BookName = @BookName,
+            Status = @Status,
+            pathURL = @pathURL,
+            link = @link,
+            modifiedon = @modifiedon,
+            modifiedby = @modifiedby,
+            EmployeeID = @EmployeeID,
+            EmpFirstName = @EmpFirstName,
+            FileTypeId = @FileTypeId
+        WHERE
+            BookId = @BookId";
+                int rowsAffected = await _connection.ExecuteAsync(updateQuery, book);
                 if (rowsAffected > 0)
                 {
-                    return new ServiceResponse<string>(true, "Operation Successful", "Book Updated Successfully", 200);
+                    int category = BookCategoryMapping(request.BookCategories ??= ([]), request.BookId);
+                    int classes = BookClassMapping(request.BookClasses ??= ([]), request.BookId);
+                    int board = BookBoardMapping(request.BookBoards ??= ([]), request.BookId);
+                    int course = BookCourseMapping(request.BookCourses ??= ([]), request.BookId);
+                    int exam = BookExamTypeMapping(request.BookExamTypes ??= ([]), request.BookId);
+                    int subject = BookSubjectMapping(request.BookSubjects ??= ([]), request.BookId);
+                    int author = BookAuthorMapping(request.BookAuthorDetails ??= ([]), request.BookId);
+                    if (category > 0 && classes > 0 && board > 0 && course > 0 && exam > 0 && subject > 0 && author > 0)
+                    {
+                        return new ServiceResponse<string>(true, "Operation Successful", "Book Added Successfully", 200);
+                    }
+                    else
+                    {
+                        return new ServiceResponse<string>(false, "Operation failed", string.Empty, 500);
+                    }
                 }
                 else
                 {
@@ -165,6 +315,417 @@ namespace Course_API.Repository.Implementations
             {
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
+        }
+        private int BookCategoryMapping(List<BookCategory> request, int BookId)
+        {
+            foreach (var data in request)
+            {
+                data.BookId = BookId;
+            }
+            string query = "SELECT COUNT(*) FROM [dbo].[tbllibraryCategory] WHERE [BookId] = @BookId";
+            int count = _connection.QueryFirstOrDefault<int>(query, new { BookId });
+            if (count > 0)
+            {
+                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tbllibraryCategory]
+                          WHERE [BookId] = @BookId;";
+                var rowsAffected = _connection.Execute(deleteDuery, new { BookId });
+                if (rowsAffected > 0)
+                {
+                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tbllibraryCategory] ([APId], [BookId], [APName])
+                          VALUES (@APId, @BookId, @APName);";
+                    var valuesInserted = _connection.Execute(insertquery, request);
+                    return valuesInserted;
+                }
+                else
+                {
+                    return 0;
+                }
+            }
+            else
+            {
+                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tbllibraryCategory] ([APId], [BookId], [APName])
+                          VALUES (@APId, @BookId, @APName);";
+                var valuesInserted = _connection.Execute(insertquery, request);
+                return valuesInserted;
+            }
+        }
+        private int BookClassMapping(List<BookClass> request, int BookId)
+        {
+            foreach (var data in request)
+            {
+                data.bookID = BookId;
+            }
+            string query = "SELECT COUNT(*) FROM [dbo].[tbllibraryClass] WHERE [bookID] = @bookID";
+            int count = _connection.QueryFirstOrDefault<int>(query, new { bookID = BookId });
+            if (count > 0)
+            {
+                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tbllibraryClass]
+                          WHERE [bookID] = @bookID;";
+                var rowsAffected = _connection.Execute(deleteDuery, new { bookID = BookId });
+                if (rowsAffected > 0)
+                {
+                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tbllibraryClass] ([bookID], [ClassID])
+                          VALUES (@bookID, @ClassID);";
+                    var valuesInserted = _connection.Execute(insertquery, request);
+                    return valuesInserted;
+                }
+                else
+                {
+                    return 0;
+                }
+            }
+            else
+            {
+                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tbllibraryClass] ([bookID], [ClassID])
+                          VALUES (@bookID, @ClassID);";
+                var valuesInserted = _connection.Execute(insertquery, request);
+                return valuesInserted;
+            }
+        }
+        private int BookBoardMapping(List<BookBoard> request, int BookId)
+        {
+            foreach (var data in request)
+            {
+                data.bookID = BookId;
+            }
+            string query = "SELECT COUNT(*) FROM [dbo].[tbllibraryBoard] WHERE [bookID] = @bookID";
+            int count = _connection.QueryFirstOrDefault<int>(query, new { bookID = BookId });
+            if (count > 0)
+            {
+                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tbllibraryBoard]
+                          WHERE [bookID] = @bookID;";
+                var rowsAffected = _connection.Execute(deleteDuery, new { bookID = BookId });
+                if (rowsAffected > 0)
+                {
+                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tbllibraryBoard] ([bookID], [BoardID])
+                          VALUES (@bookID, @BoardID);";
+                    var valuesInserted = _connection.Execute(insertquery, request);
+                    return valuesInserted;
+                }
+                else
+                {
+                    return 0;
+                }
+            }
+            else
+            {
+                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tbllibraryBoard] ([bookID], [BoardID])
+                          VALUES (@bookID, @BoardID);";
+                var valuesInserted = _connection.Execute(insertquery, request);
+                return valuesInserted;
+            }
+        }
+        private int BookCourseMapping(List<BookCourse> request, int BookId)
+        {
+            foreach (var data in request)
+            {
+                data.bookID = BookId;
+            }
+            string query = "SELECT COUNT(*) FROM [dbo].[tbllibraryCourse] WHERE [bookID] = @bookID";
+            int count = _connection.QueryFirstOrDefault<int>(query, new { bookID = BookId });
+            if (count > 0)
+            {
+                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tbllibraryCourse]
+                          WHERE [bookID] = @bookID;";
+                var rowsAffected = _connection.Execute(deleteDuery, new { bookID = BookId });
+                if (rowsAffected > 0)
+                {
+                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tbllibraryCourse] ([bookID], [CourseID])
+                          VALUES (@bookID, @CourseID);";
+                    var valuesInserted = _connection.Execute(insertquery, request);
+                    return valuesInserted;
+                }
+                else
+                {
+                    return 0;
+                }
+            }
+            else
+            {
+                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tbllibraryCourse] ([bookID], [CourseID])
+                          VALUES (@bookID, @CourseID);";
+                var valuesInserted = _connection.Execute(insertquery, request);
+                return valuesInserted;
+            }
+        }
+        private int BookExamTypeMapping(List<BookExamType> request, int BookId)
+        {
+            foreach (var data in request)
+            {
+                data.bookID = BookId;
+            }
+            string query = "SELECT COUNT(*) FROM [dbo].[tbllibraryExamType] WHERE [bookID] = @bookID";
+            int count = _connection.QueryFirstOrDefault<int>(query, new { bookID = BookId });
+            if (count > 0)
+            {
+                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tbllibraryExamType]
+                          WHERE [bookID] = @bookID;";
+                var rowsAffected = _connection.Execute(deleteDuery, new { bookID = BookId });
+                if (rowsAffected > 0)
+                {
+                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tbllibraryExamType] ([bookID], [ExamTypeID])
+                          VALUES (@bookID, @ExamTypeID);";
+                    var valuesInserted = _connection.Execute(insertquery, request);
+                    return valuesInserted;
+                }
+                else
+                {
+                    return 0;
+                }
+            }
+            else
+            {
+                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tbllibraryExamType] ([bookID], [ExamTypeID])
+                          VALUES (@bookID, @ExamTypeID);";
+                var valuesInserted = _connection.Execute(insertquery, request);
+                return valuesInserted;
+            }
+        }
+        private int BookSubjectMapping(List<BookSubject> request, int BookId)
+        {
+            foreach (var data in request)
+            {
+                data.bookID = BookId;
+            }
+            string query = "SELECT COUNT(*) FROM [dbo].[tbllibrarySubject] WHERE [bookID] = @bookID";
+            int count = _connection.QueryFirstOrDefault<int>(query, new { bookID = BookId });
+            if (count > 0)
+            {
+                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tbllibrarySubject]
+                          WHERE [bookID] = @bookID;";
+                var rowsAffected = _connection.Execute(deleteDuery, new { bookID = BookId });
+                if (rowsAffected > 0)
+                {
+                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tbllibrarySubject] ([bookID], [SubjectID])
+                          VALUES (@bookID, @SubjectID);";
+                    var valuesInserted = _connection.Execute(insertquery, request);
+                    return valuesInserted;
+                }
+                else
+                {
+                    return 0;
+                }
+            }
+            else
+            {
+                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tbllibrarySubject] ([bookID], [SubjectID])
+                          VALUES (@bookID, @SubjectID);";
+                var valuesInserted = _connection.Execute(insertquery, request);
+                return valuesInserted;
+            }
+        }
+        private int BookAuthorMapping(List<BookAuthorDetails> request, int BookId)
+        {
+            foreach (var data in request)
+            {
+                data.BookId = BookId;
+            }
+            string query = "SELECT COUNT(*) FROM [dbo].[tbllibraryAuthorDetails] WHERE [BookId] = @BookId";
+            int count = _connection.QueryFirstOrDefault<int>(query, new { BookId });
+            if (count > 0)
+            {
+                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tbllibraryAuthorDetails]
+                          WHERE [BookId] = @BookId;";
+                var rowsAffected = _connection.Execute(deleteDuery, new { BookId });
+                if (rowsAffected > 0)
+                {
+                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tbllibraryAuthorDetails] ([BookId], [AuthorDetails])
+                          VALUES (@BookId, @AuthorDetails);";
+                    var valuesInserted = _connection.Execute(insertquery, request);
+                    return valuesInserted;
+                }
+                else
+                {
+                    return 0;
+                }
+            }
+            else
+            {
+                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tbllibraryAuthorDetails] ([BookId], [AuthorDetails])
+                          VALUES (@BookId, @AuthorDetails);";
+                var valuesInserted = _connection.Execute(insertquery, request);
+                return valuesInserted;
+            }
+        }
+        private List<BookBoard> GetListOfBookBoards(int BookId)
+        {
+            var boardquery = @"SELECT * FROM [iGuruPrep].[dbo].[tbllibraryBoard] WHERE bookID = @bookID;";
+
+            // Execute the SQL query with the SOTDID parameter
+            var data = _connection.Query<BookBoard>(boardquery, new { bookID = BookId });
+            return data != null ? data.AsList() : [];
+        }
+        private List<BookCategory> GetListOfBookCategory(int BookId)
+        {
+            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tbllibraryCategory] WHERE  BookId = @BookId;";
+            // Execute the SQL query with the SOTDID parameter
+            var data = _connection.Query<BookCategory>(query, new { BookId });
+            return data != null ? data.AsList() : [];
+        }
+        private List<BookClass> GetListOfBookClass(int bookID)
+        {
+            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tblMagazineClass] WHERE  bookID = @bookID;";
+            // Execute the SQL query with the SOTDID parameter
+            var data = _connection.Query<BookClass>(query, new { bookID });
+            return data != null ? data.AsList() : [];
+        }
+        private List<BookCourse> GetListOfBookCourse(int bookID)
+        {
+            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tbllibraryCourse] WHERE  bookID = @bookID;";
+            // Execute the SQL query with the SOTDID parameter
+            var data = _connection.Query<BookCourse>(query, new { bookID });
+            return data != null ? data.AsList() : [];
+        }
+        private List<BookExamType> GetListOfBookExamType(int bookID)
+        {
+            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tbllibraryExamType] WHERE  bookID = @bookID;";
+            // Execute the SQL query with the SOTDID parameter
+            var data = _connection.Query<BookExamType>(query, new { bookID });
+            return data != null ? data.AsList() : [];
+        }
+        private List<BookSubject> GetListOfBookSubject(int bookID)
+        {
+            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tbllibrarySubject] WHERE  bookID = @bookID;";
+            // Execute the SQL query with the SOTDID parameter
+            var data = _connection.Query<BookSubject>(query, new { bookID });
+            return data != null ? data.AsList() : [];
+        }
+        private List<BookAuthorDetails> GetListOfAuthorDettails(int BookId)
+        {
+            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tbllibraryAuthorDetails] WHERE  BookId = @BookId;";
+            // Execute the SQL query with the SOTDID parameter
+            var data = _connection.Query<BookAuthorDetails>(query, new { BookId });
+            return data != null ? data.AsList() : [];
+        }
+        private string ImageUpload(string image)
+        {
+            byte[] imageData = Convert.FromBase64String(image);
+            string directoryPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "Books");
+
+            if (!Directory.Exists(directoryPath))
+            {
+                Directory.CreateDirectory(directoryPath);
+            }
+            string fileExtension = IsJpeg(imageData) == true ? ".jpg" : IsPng(imageData) == true ? ".png" : IsGif(imageData) == true ? ".gif" : string.Empty;
+            string fileName = Guid.NewGuid().ToString() + fileExtension;
+            string filePath = Path.Combine(directoryPath, fileName);
+
+            // Write the byte array to the image file
+            File.WriteAllBytes(filePath, imageData);
+            return filePath;
+        }
+        private bool IsJpeg(byte[] bytes)
+        {
+            // JPEG magic number: 0xFF, 0xD8
+            return bytes.Length > 1 && bytes[0] == 0xFF && bytes[1] == 0xD8;
+        }
+        private bool IsPng(byte[] bytes)
+        {
+            // PNG magic number: 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A
+            return bytes.Length > 7 && bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47
+                && bytes[4] == 0x0D && bytes[5] == 0x0A && bytes[6] == 0x1A && bytes[7] == 0x0A;
+        }
+        private bool IsGif(byte[] bytes)
+        {
+            // GIF magic number: "GIF"
+            return bytes.Length > 2 && bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46;
+        }
+        private string AudioVideoUpload(string data)
+        {
+            byte[] bytes = Convert.FromBase64String(data);
+            string header = Encoding.UTF8.GetString(bytes, 0, 4);
+            string directoryPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "BooksAudioVideo");
+            string fileExtension = string.Empty;
+            if (!Directory.Exists(directoryPath))
+            {
+                Directory.CreateDirectory(directoryPath);
+            }
+            if (header.StartsWith("RIFF") || header.StartsWith("ID3"))
+            {
+                fileExtension = IsMP3(bytes) == true ? ".mp3" : IsWAV(bytes) == true ? ".wav" :
+                    IsAAC(bytes) == true ? ".aac" : IsOGG(bytes) == true ? ".ogg" : IsFLAC(bytes) == true ? ".flac" : IsM4A(bytes) == true ? ".m4a" : string.Empty;
+            }
+            else if (header.StartsWith("ftyp") || header.StartsWith("moov"))
+            {
+                fileExtension = IsMP4(bytes) == true ? ".mp4" : IsMOV(bytes) == true ? ".mov" : IsAVI(bytes) == true ? ".avi" : string.Empty;
+            }
+            string fileName = Guid.NewGuid().ToString() + fileExtension;
+            string filePath = Path.Combine(directoryPath, fileName);
+
+            // Write the byte array to the image file
+            File.WriteAllBytes(filePath, bytes);
+            return filePath;
+        }
+        private bool IsMP4(byte[] bytes)
+        {
+            // MP4 magic number: "ftyp"
+            return bytes.Length > 3 && bytes[0] == 0x66 && bytes[1] == 0x74 && bytes[2] == 0x79 && bytes[3] == 0x70;
+        }
+        private bool IsMOV(byte[] bytes)
+        {
+            // MOV magic number: "moov"
+            return bytes.Length > 3 && bytes[0] == 0x6D && bytes[1] == 0x6F && bytes[2] == 0x6F && bytes[3] == 0x76;
+        }
+        private bool IsAVI(byte[] bytes)
+        {
+            // AVI magic number: "RIFF"
+            return bytes.Length > 3 && bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46;
+        }
+        //extensions for audio
+        private bool IsMP3(byte[] bytes)
+        {
+            // MP3 magic number: 0x49 0x44 0x33
+            return bytes.Length > 2 && bytes[0] == 0x49 && bytes[1] == 0x44 && bytes[2] == 0x33;
+        }
+        private bool IsWAV(byte[] bytes)
+        {
+            // WAV magic number: "RIFF"
+            return bytes.Length > 3 && bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46;
+        }
+        private bool IsAAC(byte[] bytes)
+        {
+            // AAC magic number: "ADIF" or "ADTS"
+            return bytes.Length > 3 && (bytes[0] == 0x41 && bytes[1] == 0x44 && bytes[2] == 0x49 && bytes[3] == 0x46) ||
+                   (bytes[0] == 0xFF && (bytes[1] & 0xF0) == 0xF0 && (bytes[2] & 0xF0) == 0xF0 && (bytes[3] & 0xF0) == 0xF0);
+        }
+        private bool IsOGG(byte[] bytes)
+        {
+            // OGG magic number: "OggS"
+            return bytes.Length > 3 && bytes[0] == 0x4F && bytes[1] == 0x67 && bytes[2] == 0x67 && bytes[3] == 0x53;
+        }
+        private bool IsFLAC(byte[] bytes)
+        {
+            // FLAC magic number: "fLaC"
+            return bytes.Length > 3 && bytes[0] == 0x66 && bytes[1] == 0x4C && bytes[2] == 0x61 && bytes[3] == 0x43;
+        }
+        private bool IsM4A(byte[] bytes)
+        {
+            // M4A magic number: "ftyp"
+            return bytes.Length > 3 && bytes[0] == 0x66 && bytes[1] == 0x74 && bytes[2] == 0x79 && bytes[3] == 0x70;
+        }
+        private string GetImage(string Filename)
+        {
+            var filePath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "Books", Filename);
+
+            if (!File.Exists(filePath))
+            {
+                throw new Exception("File not found");
+            }
+            byte[] fileBytes = File.ReadAllBytes(filePath);
+            string base64String = Convert.ToBase64String(fileBytes);
+            return base64String;
+        }
+        private string GetAudioVideo(string Filename)
+        {
+            var filePath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "BooksAudioVideo", Filename);
+
+            if (!File.Exists(filePath))
+            {
+                throw new Exception("File not found");
+            }
+            byte[] fileBytes = File.ReadAllBytes(filePath);
+            string base64String = Convert.ToBase64String(fileBytes);
+            return base64String;
         }
     }
 }
