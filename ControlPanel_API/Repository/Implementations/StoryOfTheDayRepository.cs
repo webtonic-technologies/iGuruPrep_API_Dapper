@@ -190,169 +190,88 @@ namespace ControlPanel_API.Repository.Implementations
         {
             try
             {
-                var response = new List<StoryOfTheDayDTO>();
-                var query = "SELECT StoryId, EventTypeID,EventName,Event1PostDate,Event1Posttime," +
-                    "Event2PostDate,Event2Posttime,Filename1,Filename2,Status,APName,eventtypename" +
-                    ",modifiedon,modifiedby,createdon,createdby,EmployeeID,EmpFirstName FROM [dbo]." +
-                    "[tblSOTD] WHERE 1 = 1";
-                if (request.APID == 1)
-                {
-                    if (request.BoardId != 0)
-                        query += " AND BoardId = @BoardId";
-                    if (request.ClassId != 0)
-                        query += " AND ClassId = @ClassId";
-                    if (request.CourseId != 0)
-                        query += " AND CourseId = @CourseId";
-                    if (request.EventTypeId != 0)
-                        query += " AND EventTypeId = @EventTypeId";
+                // Construct the base SQL query
+                var sql = @"
+            SELECT s.StoryId,
+                   s.EventTypeID,
+                   s.EventName,
+                   s.Event1Posttime,
+                   s.Event1PostDate,
+                   s.Event2PostDate,
+                   s.Event2Posttime,
+                   s.modifiedby,
+                   s.createdby,
+                   s.eventtypename,
+                   s.modifiedon,
+                   s.createdon,
+                   s.Status,
+                   s.EmployeeID,
+                   s.Filename1,
+                   s.Filename2,
+                   s.EmpFirstName,
+                   c.SOTDCategoryID,
+                   c.APID,
+                   c.APIDName,
+                   b.tblSOTDBoardID,
+                   b.BoardID,
+                   cls.tblSOTDClassID,
+                   cls.ClassID,
+                   course.SOTDCourseID,
+                   course.CourseID,
+                   et.SOTDExamTypeID,
+                   et.ExamTypeID
+            FROM tblSOTD s
+            LEFT JOIN tblSOTDCategory c ON s.StoryId = c.SOTDID
+            LEFT JOIN tblSOTDBoard b ON s.StoryId = b.SOTDID
+            LEFT JOIN tblSOTDClass cls ON s.StoryId = cls.SOTDID
+            LEFT JOIN tblSOTDCourse course ON s.StoryId = course.SOTDID
+            LEFT JOIN tblSOTDExamType et ON s.StoryId = et.SOTDID";
 
-                    var storyOfTheDays = await _connection.QueryAsync<StoryOfTheDay>(query, request);
-                    if (storyOfTheDays != null)
+                // Execute the SQL query with Dapper
+                var result = await _connection.QueryAsync<StoryOfTheDayDTO, SOTDCategory, SOTDBoard, SOTDClass, SOTDCourse, SOTDExamType, StoryOfTheDayDTO>(
+                    sql,
+                    (story, category, board, classItem, course, examType) =>
                     {
-                        foreach (var data in storyOfTheDays)
+                        story.SOTDCategories ??= new List<SOTDCategory>();
+                        if (category != null)
                         {
-                            var item = new StoryOfTheDayDTO
-                            {
-                                Filename1 = data.Filename1 != null ? GetStoryOfTheDayFileById(data.Filename1) : string.Empty,
-                                Filename2 = data.Filename2 != null ? GetStoryOfTheDayFileById(data.Filename2) : string.Empty,
-                                StoryId = data.StoryId,
-                                EventTypeID = data.EventTypeID,
-                                EventName = data.EventName,
-                                Event1Posttime = data.Event1Posttime,
-                                Event2Posttime = data.Event2Posttime,
-                                Event1PostDate = data.Event1PostDate,
-                                Event2PostDate = data.Event2PostDate,
-                                modifiedby = data.modifiedby,
-                                modifiedon = data.modifiedon,
-                                createdon = data.createdon,
-                                createdby = data.createdby,
-                                eventtypename = data.eventtypename,
-                                Status = data.Status,
-                                EmployeeID = data.EmployeeID,
-                                EmpFirstName = data.EmpFirstName,
-                                SOTDBoards = GetListOfSOTDBoards(data.StoryId),
-                                SOTDCategories = GetListOfSOTDCategory(data.StoryId),
-                                SOTDClasses = GetListOfSOTDClass(data.StoryId),
-                                SOTDCourses = GetListOfSOTDCourse(data.StoryId),
-                                SOTDExamTypes = GetListOfSOTDExamType(data.StoryId)
-                            };
-                            response.Add(item);
+                            story.SOTDCategories.Add(category);
                         }
-                        return new ServiceResponse<List<StoryOfTheDayDTO>>(true, "Records Found", response.AsList(), 200);
-                    }
-                    else
-                    {
-                        return new ServiceResponse<List<StoryOfTheDayDTO>>(false, "Records Not Found", [], 204);
-                    }
-                }
-                else if (request.APID == 2)
-                {
-                    if (request.EventTypeId != 0)
-                        query += " AND EventTypeId = @EventTypeId";
-                    if (request.ExamType != 0)
-                        query += " AND ExamType = @ExamType";
 
-                    var storyOfTheDays = await _connection.QueryAsync<StoryOfTheDay>(query, request);
-                    if (storyOfTheDays != null)
-                    {
-                        foreach (var data in storyOfTheDays)
+                        story.SOTDBoards ??= new List<SOTDBoard>();
+                        if (board != null)
                         {
-                            var item = new StoryOfTheDayDTO
-                            {
-                                Filename1 = data.Filename1 != null ? GetStoryOfTheDayFileById(data.Filename1) : string.Empty,
-                                Filename2 = data.Filename2 != null ? GetStoryOfTheDayFileById(data.Filename2) : string.Empty,
-                                StoryId = data.StoryId,
-                                EventTypeID = data.EventTypeID,
-                                EventName = data.EventName,
-                                Event1Posttime = data.Event1Posttime,
-                                Event2Posttime = data.Event2Posttime,
-                                Event1PostDate = data.Event1PostDate,
-                                Event2PostDate = data.Event2PostDate,
-                                modifiedby = data.modifiedby,
-                                modifiedon = data.modifiedon,
-                                createdon = data.createdon,
-                                createdby = data.createdby,
-                                eventtypename = data.eventtypename,
-                                Status = data.Status,
-                                EmployeeID = data.EmployeeID,
-                                EmpFirstName = data.EmpFirstName,
-                                SOTDBoards = GetListOfSOTDBoards(data.StoryId),
-                                SOTDCategories = GetListOfSOTDCategory(data.StoryId),
-                                SOTDClasses = GetListOfSOTDClass(data.StoryId),
-                                SOTDCourses = GetListOfSOTDCourse(data.StoryId),
-                                SOTDExamTypes = GetListOfSOTDExamType(data.StoryId)
-                            };
-                            response.Add(item);
+                            story.SOTDBoards.Add(board);
                         }
-                        return new ServiceResponse<List<StoryOfTheDayDTO>>(true, "Records Found", response.AsList(), 200);
-                    }
-                    else
-                    {
-                        return new ServiceResponse<List<StoryOfTheDayDTO>>(false, "Records Not Found", [], 204);
-                    }
-                }
-                else
-                {
-                    var getquery = @"
-                SELECT 
-                    StoryId,
-                    EventTypeID,
-                    EventName,
-                    Event1PostDate,
-                    Event1Posttime,
-                    Event2PostDate,
-                    Event2Posttime,
-                    Filename1,
-                    Filename2,
-                    Status,
-                    APName,
-                    eventtypename,
-                    modifiedon,
-                    modifiedby,
-                    createdon,
-                    createdby,
-                    EmployeeID,
-                    EmpFirstName
-                FROM [iGuruPrep].[dbo].[tblSOTD];";
-                    var storyOfTheDays = await _connection.QueryAsync<StoryOfTheDay>(getquery);
-                    if (storyOfTheDays != null)
-                    {
-                        foreach (var data in storyOfTheDays)
+
+                        story.SOTDClasses ??= new List<SOTDClass>();
+                        if (classItem != null)
                         {
-                            var item = new StoryOfTheDayDTO
-                            {
-                                Filename1 = data.Filename1 != null ? GetStoryOfTheDayFileById(data.Filename1) : string.Empty,
-                                Filename2 = data.Filename2 != null ? GetStoryOfTheDayFileById(data.Filename2) : string.Empty,
-                                StoryId = data.StoryId,
-                                EventTypeID = data.EventTypeID,
-                                EventName = data.EventName,
-                                Event1Posttime = data.Event1Posttime,
-                                Event2Posttime = data.Event2Posttime,
-                                Event1PostDate = data.Event1PostDate,
-                                Event2PostDate = data.Event2PostDate,
-                                modifiedby = data.modifiedby,
-                                modifiedon = data.modifiedon,
-                                createdon = data.createdon,
-                                createdby = data.createdby,
-                                eventtypename = data.eventtypename,
-                                Status = data.Status,
-                                EmployeeID = data.EmployeeID,
-                                EmpFirstName = data.EmpFirstName,
-                                SOTDBoards = GetListOfSOTDBoards(data.StoryId),
-                                SOTDCategories = GetListOfSOTDCategory(data.StoryId),
-                                SOTDClasses = GetListOfSOTDClass(data.StoryId),
-                                SOTDCourses = GetListOfSOTDCourse(data.StoryId),
-                                SOTDExamTypes = GetListOfSOTDExamType(data.StoryId)
-                            };
-                            response.Add(item);
+                            story.SOTDClasses.Add(classItem);
                         }
-                        return new ServiceResponse<List<StoryOfTheDayDTO>>(true, "Records Found", response.AsList(), 200);
-                    }
-                    else
-                    {
-                        return new ServiceResponse<List<StoryOfTheDayDTO>>(false, "Records Not Found", [], 204);
-                    }
-                }
+
+                        story.SOTDCourses ??= new List<SOTDCourse>();
+                        if (course != null)
+                        {
+                            story.SOTDCourses.Add(course);
+                        }
+
+                        story.SOTDExamTypes ??= new List<SOTDExamType>();
+                        if (examType != null)
+                        {
+                            story.SOTDExamTypes.Add(examType);
+                        }
+
+                        return story;
+                    },
+                    splitOn: "SOTDCategoryID, tblSOTDBoardID, tblSOTDClassID, SOTDCourseID, SOTDExamTypeID",
+                    param: request,
+                    commandType: CommandType.Text,
+                    buffered: true);
+
+                var distinctResult = result.Distinct().ToList();
+
+                return new ServiceResponse<List<StoryOfTheDayDTO>>(true, "Records found", distinctResult, 200);
             }
             catch (Exception ex)
             {
