@@ -14,8 +14,14 @@ namespace Config_API.Models
         public int? EmployeeID { get; set; }
         public DateTime? modifiedon { get; set; }
         public string modifiedby { get; set; } = string.Empty;
-        //classname
-        //coursename
-        //EmpFirstName
+
+        public string EmpFirstName { get; set; } = string.Empty;
+
+        public string classname { get; set; } = string.Empty;
+
+        public string coursename { get; set; } = string.Empty;
+
+       
+
     }
 }

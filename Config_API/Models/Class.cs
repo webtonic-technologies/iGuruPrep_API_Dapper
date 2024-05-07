@@ -12,6 +12,6 @@
         public DateTime? modifiedon { get; set; }
         public bool? showcourse { get; set; }
         public int? EmployeeID { get; set; }
-       // EmpFirstName
+        public string EmpFirstName { get; set; } = string.Empty;
     }
 }

@@ -23,8 +23,8 @@ namespace Config_API.Repository.Implementations
                 if (request.StatusId == 0)
                 {
                     // Insert new status message
-                    string query = @"INSERT INTO [tblStatusMessage] (StatusCode, StatusMessage, createdon, createdby, EmployeeID)
-                             VALUES (@StatusCode, @StatusMessage, GETDATE(), @CreatedBy, @EmployeeID)";
+                    string query = @"INSERT INTO [tblStatusMessage] (StatusCode, StatusMessage, createdon, createdby, EmployeeID, EmpFirstName)
+                             VALUES (@StatusCode, @StatusMessage, GETDATE(), @CreatedBy, @EmployeeID, @EmpFirstName)";
 
                     int rowsAffected = await _connection.ExecuteAsync(query, new
                     {
@@ -32,7 +32,8 @@ namespace Config_API.Repository.Implementations
                         request.StatusMessage,
                         createdon = DateTime.Now,
                         request.createdby,
-                        request.EmployeeID
+                        request.EmployeeID,
+                        request.EmpFirstName,
                     });
                     if (rowsAffected > 0)
                     {
@@ -51,6 +52,7 @@ namespace Config_API.Repository.Implementations
                                  StatusMessage = @StatusMessage,
                                  modifiedon = GETDATE(),
                                  modifiedby = @ModifiedBy
+                                EmpFirstName = @EmpFirstName
                              WHERE StatusId = @StatusId";
                     int rowsAffected = await _connection.ExecuteAsync(query, new
                     {
@@ -58,6 +60,7 @@ namespace Config_API.Repository.Implementations
                         request.StatusMessage,
                         request.StatusId,
                         request.modifiedby,
+                        request.EmpFirstName,
                         modifiedon = DateTime.Now
                     });
                     if (rowsAffected > 0)
@@ -79,7 +82,7 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
-                string query = @"SELECT StatusId, StatusCode, StatusMessage, modifiedon, modifiedby, createdon, createdby, EmployeeID 
+                string query = @"SELECT StatusId, StatusCode, StatusMessage, modifiedon, modifiedby, createdon, createdby, EmployeeID, EmpFirstName 
                              FROM [tblStatusMessage]
                              WHERE StatusId = @StatusId";
 
@@ -103,7 +106,7 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
-                string query = @"SELECT StatusId, StatusCode, StatusMessage, modifiedon, modifiedby, createdon, createdby, EmployeeID 
+                string query = @"SELECT StatusId, StatusCode, StatusMessage, modifiedon, modifiedby, createdon, createdby, EmployeeID, EmpFirstName 
                              FROM [tblStatusMessage]";
 
                 var data = await _connection.QueryAsync<StatusMessages>(query);

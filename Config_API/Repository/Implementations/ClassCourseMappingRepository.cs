@@ -1,4 +1,4 @@
-﻿using Config_API.DTOs;
+﻿ using Config_API.DTOs;
 using Config_API.DTOs.ServiceResponse;
 using Config_API.Models;
 using Config_API.Repository.Interfaces;
@@ -30,8 +30,8 @@ namespace Config_API.Repository.Implementations
 
                         foreach (var courseId in request.CourseID ??= ([]))
                         {
-                            string query = @"INSERT INTO tblClassCourses (CourseID, ClassID, Status, createdon, EmployeeID) 
-                                 VALUES (@CourseID, @ClassID, @Status, @createdon, @EmployeeID)";
+                            string query = @"INSERT INTO tblClassCourses (CourseID, ClassID, Status, createdon, EmployeeID, EmpFirstName) 
+                                 VALUES (@CourseID, @ClassID, @Status, @createdon, @EmployeeID, @EmpFirstName)";
 
                             int rowsAffected = await _connection.ExecuteAsync(query, new
                             {
@@ -61,8 +61,8 @@ namespace Config_API.Repository.Implementations
                             //         modifiedon = @modifiedon,
                             //         modifiedby = @modifiedby
                             //     WHERE CourseClassMappingID = @CourseClassMappingID";
-                            string query = @"INSERT INTO tblClassCourses (CourseID, ClassID, Status, createdon, EmployeeID, modifiedon, modifiedby) 
-                                 VALUES (@CourseID, @ClassID, @Status, @createdon, @EmployeeID, @modifiedon, @modifiedby)";
+                            string query = @"INSERT INTO tblClassCourses (CourseID, ClassID, Status, createdon, EmployeeID,EmpFirstName, modifiedon, modifiedby) 
+                                 VALUES (@CourseID, @ClassID, @Status, @createdon, @EmployeeID,@EmpFirstName, @modifiedon, @modifiedby)";
                             int rowsAffected = await _connection.ExecuteAsync(query, new
                             {
                                 request.ClassID,
@@ -72,7 +72,10 @@ namespace Config_API.Repository.Implementations
                                 request.modifiedby,
                                 CourseID = courseId,
                                 request.CourseClassMappingID,
-                                request.EmployeeID
+                                request.EmployeeID,
+                                request.EmpFirstName,
+                                request.classname,
+                                request.coursename,
                             });
                             if (rowsAffected == 0)
                             {
@@ -96,7 +99,7 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
-                string query = "SELECT CourseClassMappingID, ClassID, CourseID, Status, createdon, EmployeeID, modifiedon, modifiedby FROM [tblClassCourses]";
+                string query = "SELECT CourseClassMappingID, ClassID, CourseID, Status, createdon, EmployeeID,EmpFirstName, modifiedon, modifiedby FROM [tblClassCourses]";
                 var classCourseMappings = await _connection.QueryAsync<ClassCourseMapping>(query);
 
                 var groupedMappings = classCourseMappings
@@ -108,6 +111,9 @@ namespace Config_API.Repository.Implementations
                     Status = g.First().Status,
                     createdon = g.First().createdon,
                     EmployeeID = g.First().EmployeeID,
+                    EmpFirstName = g.First().EmpFirstName,
+                    classname = g.First().classname,    
+                    coursename = g.First().coursename,  
                     modifiedon = g.First().modifiedon,
                     modifiedby = g.First().modifiedby,
                     CourseClassMappingID = g.First().CourseClassMappingID
@@ -134,7 +140,7 @@ namespace Config_API.Repository.Implementations
             {
                 var response = new ClassCourseMappingDTO();
                 string getClassIdQuery = @"
-                SELECT CourseClassMappingID, ClassID, Status, createdon, EmployeeID, modifiedon, modifiedby
+                SELECT CourseClassMappingID, ClassID, Status, createdon, EmployeeID,EmpFirstName,classname,coursename, modifiedon, modifiedby
                 FROM [tblClassCourses]
                 WHERE CourseClassMappingID = @CourseClassMappingID";
 
@@ -151,7 +157,10 @@ namespace Config_API.Repository.Implementations
                     ClassID, 
                     Status, 
                     createdon, 
-                    EmployeeID, 
+                    EmployeeID,
+                    EmpFirstName,
+                    coursename,
+                    classname,
                     modifiedon, 
                     modifiedby 
                 FROM 
@@ -171,8 +180,11 @@ namespace Config_API.Repository.Implementations
                 response.Status = classId.Status;
                 response.createdon = classId.createdon;
                 response.EmployeeID = classId.EmployeeID;
+                response.EmpFirstName = classId.EmpFirstName;
                 response.modifiedby = classId.modifiedby;
                 response.modifiedon = classId.modifiedon;
+                response.coursename = classId.coursename;
+                response.classname = classId.classname; 
 
                 if (response != null)
                 {

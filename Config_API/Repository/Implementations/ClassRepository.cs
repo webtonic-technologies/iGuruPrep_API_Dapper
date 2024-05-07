@@ -28,12 +28,13 @@ namespace Config_API.Repository.Implementations
                         createdby = request.createdby,
                         createdon = DateTime.Now,
                         EmployeeID = request.EmployeeID,
+                        EmpFirstName = request.EmpFirstName,
                         showcourse = request.showcourse,
                         Status = true
                     };
                     string insertQuery = @"INSERT INTO [iGuruPrep].[dbo].[tblClass] 
-                           ([ClassName], [ClassCode], [Status], [createdby], [createdon], [showcourse], [EmployeeID])
-                           VALUES (@ClassName, @ClassCode, @Status, @CreatedBy, @CreatedOn, @ShowCourse, @EmployeeID)";
+                           ([ClassName], [ClassCode], [Status], [createdby], [createdon], [showcourse], [EmployeeID], [EmpFirstName])
+                           VALUES (@ClassName, @ClassCode, @Status, @CreatedBy, @CreatedOn, @ShowCourse, @EmployeeID, @EmpFirstName)";
                     int rowsAffected = await _connection.ExecuteAsync(insertQuery, newClass);
 
                     if (rowsAffected > 0)
@@ -49,7 +50,7 @@ namespace Config_API.Repository.Implementations
                 {
                     string updateQuery = @"UPDATE [iGuruPrep].[dbo].[tblClass] 
                            SET [ClassName] = @ClassName, [ClassCode] = @ClassCode, [Status] = @Status, 
-                               [modifiedby] = @ModifiedBy, [modifiedon] = @ModifiedOn, [showcourse] = @ShowCourse, [EmployeeID] = @EmployeeID
+                               [modifiedby] = @ModifiedBy, [modifiedon] = @ModifiedOn, [showcourse] = @ShowCourse, [EmployeeID] = @EmployeeID, [EmpFirstName] = @EmpFirstName
                            WHERE [ClassId] = @ClassId";
                     int rowsAffected = await _connection.ExecuteAsync(updateQuery, new
                     {
@@ -57,6 +58,7 @@ namespace Config_API.Repository.Implementations
                         request.ClassCode,
                         request.Status,
                         request.EmployeeID,
+                        request.EmpFirstName,
                         request.showcourse,
                         request.modifiedby,
                         modifiedon = DateTime.Now,
@@ -93,6 +95,7 @@ namespace Config_API.Repository.Implementations
                                   ,[modifiedon]
                                   ,[showcourse]
                                   ,[EmployeeID]
+                                  ,[EmpFirstName]
                            FROM [iGuruPrep].[dbo].[tblClass]";
                 var classes = await _connection.QueryAsync<Class>(query);
 
@@ -125,6 +128,7 @@ namespace Config_API.Repository.Implementations
                                   ,[modifiedon]
                                   ,[showcourse]
                                   ,[EmployeeID]
+                                  ,[EmpFirstName]
                            FROM [iGuruPrep].[dbo].[tblClass]
                            WHERE [ClassId] = @ClassId";
 

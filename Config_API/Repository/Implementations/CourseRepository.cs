@@ -29,12 +29,13 @@ namespace Config_API.Repository.Implementations
                         createdon = DateTime.Now,
                         displayorder = request.displayorder,
                         EmployeeID = request.EmployeeID,
+                        EmpFirstName = request.EmpFirstName,
                         Status = true
                     };
 
                     string insertQuery = @"INSERT INTO [iGuruPrep].[dbo].[tblCourse] 
-                           ([CourseName], [CourseCode], [Status], [createdby], [createdon], [displayorder], [EmployeeID])
-                           VALUES (@CourseName, @CourseCode, @Status, @CreatedBy, GETDATE(), @DisplayOrder, @EmployeeID)";
+                           ([CourseName], [CourseCode], [Status], [createdby], [createdon], [displayorder], [EmployeeID], [EmpFirstName])
+                           VALUES (@CourseName, @CourseCode, @Status, @CreatedBy, GETDATE(), @DisplayOrder, @EmployeeID, @EmpFirstName)";
                     
                     int rowsAffected = await _connection.ExecuteAsync(insertQuery, newCourse);
 
@@ -56,7 +57,8 @@ namespace Config_API.Repository.Implementations
                            [displayorder] = @DisplayOrder, 
                            [modifiedby] = @ModifiedBy, 
                            [modifiedon] = GETDATE(), 
-                           [EmployeeID] = @EmployeeID
+                           [EmployeeID] = @EmployeeID,
+                          [EmpFirstName] = @EmpFirstName,
                            WHERE [CourseId] = @CourseId";
                     int rowsAffected = await _connection.ExecuteAsync(updateQuery, new
                     {
@@ -67,6 +69,7 @@ namespace Config_API.Repository.Implementations
                         request.modifiedby,
                         modifiedon = DateTime.Now,
                         request.EmployeeID,
+                        request.EmpFirstName,
                         request.CourseId
                     });
                     if (rowsAffected > 0)
@@ -90,7 +93,7 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
-                string query = @"SELECT [CourseId], [CourseName], [CourseCode], [Status], [createdby], [createdon], [displayorder], [modifiedby], [modifiedon], [EmployeeID]
+                string query = @"SELECT [CourseId], [CourseName], [CourseCode], [Status], [createdby], [createdon], [displayorder], [modifiedby], [modifiedon], [EmployeeID], [EmpFirstName]
                            FROM [iGuruPrep].[dbo].[tblCourse]";
                 var data = await _connection.QueryAsync<Course>(query);
 
@@ -114,7 +117,7 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
-                string getQuery = @"SELECT [CourseId], [CourseName], [CourseCode], [Status], [createdby], [createdon], [displayorder], [modifiedby], [modifiedon], [EmployeeID]
+                string getQuery = @"SELECT [CourseId], [CourseName], [CourseCode], [Status], [createdby], [createdon], [displayorder], [modifiedby], [modifiedon], [EmployeeID], [EmpFirstName]
                            FROM [iGuruPrep].[dbo].[tblCourse]
                            WHERE [CourseId] = @CourseId";
                 var data = await _connection.QueryFirstOrDefaultAsync<Course>(getQuery, new { CourseId = id });
