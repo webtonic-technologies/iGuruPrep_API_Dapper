@@ -99,6 +99,7 @@ namespace Config_API.Repository.Implementations
                                   ,[modifiedon]
                                   ,[modifiedby]
                                   ,[EmployeeID]
+                                  ,[EmpFirstName]
                             FROM [iGuruPrep].[dbo].[tblBoard]";
 
                 var boards = await _connection.QueryAsync<Board>(sql);
@@ -131,7 +132,9 @@ namespace Config_API.Repository.Implementations
                                   ,[createdby]
                                   ,[modifiedon]
                                   ,[modifiedby]
-                                  ,[EmployeeID] FROM tblBoard WHERE BoardId = @BoardId";
+                                  ,[EmployeeID] 
+                                  ,[EmpFirstName]
+                                   FROM tblBoard WHERE BoardId = @BoardId";
 
                 var board = await _connection.QueryFirstOrDefaultAsync<Board>(sql, new { BoardId = id });
 
