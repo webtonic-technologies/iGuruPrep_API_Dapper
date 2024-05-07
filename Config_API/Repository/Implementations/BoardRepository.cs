@@ -20,8 +20,8 @@ namespace Config_API.Repository.Implementations
                 if (request.BoardId == 0)
                 {
                     // Insert new board
-                    string query = @"INSERT INTO [tblBoard] (BoardName, BoardCode, Status, showcourse, createdon, createdby, EmployeeID) 
-                             VALUES (@BoardName, @BoardCode, @Status, @showcourse, @createdon, @createdby, @EmployeeID)";
+                    string query = @"INSERT INTO [tblBoard] (BoardName, BoardCode, Status, showcourse, createdon, createdby, EmployeeID, EmpFirstName) 
+                             VALUES (@BoardName, @BoardCode, @Status, @showcourse, @createdon, @createdby, @EmployeeID, @EmpFirstName)";
                     int insertedValue = await _connection.ExecuteAsync(query, new
                     {
                         request.BoardId,
@@ -31,7 +31,8 @@ namespace Config_API.Repository.Implementations
                         Status = true,
                         createdon = DateTime.Now,
                         request.createdby,
-                        request.EmployeeID
+                        request.EmployeeID,
+                        request.EmpFirstName
                     });
                     if (insertedValue > 0)
                     {
@@ -52,7 +53,8 @@ namespace Config_API.Repository.Implementations
                              showcourse = @showcourse, 
                              modifiedon = @modifiedon, 
                              modifiedby = @modifiedby, 
-                             EmployeeID = @EmployeeID
+                             EmployeeID = @EmployeeID,
+                             EmpFirstName = @EmpFirstName
                          WHERE BoardId = @BoardId";
                     int rowsAffected = await _connection.ExecuteAsync(query, new
                     {
@@ -63,7 +65,8 @@ namespace Config_API.Repository.Implementations
                         request.Status,
                         ModifiedOn = DateTime.Now,
                         request.modifiedby,
-                        request.EmployeeID
+                        request.EmployeeID,
+                        request.EmpFirstName
                     });
                     if (rowsAffected > 0)
                     {

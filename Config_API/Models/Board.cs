@@ -10,5 +10,5 @@
     public DateTime? modifiedon { get; set; }
     public string modifiedby { get; set; } = string.Empty;
     public int? EmployeeID { get; set; }
-    // ,[EmpFirstName]
+    public string EmpFirstName { get; set; } = string.Empty;
 }
