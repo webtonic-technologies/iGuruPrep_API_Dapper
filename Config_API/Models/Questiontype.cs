@@ -13,6 +13,6 @@
         public string createdby { get; set; } = string.Empty;
         public int EmployeeID {  get; set; }
         public int TypeOfOption {  get; set; }
-        //EmpFirstName
+        public string EmpFirstName { get; set; } = string.Empty;
     }
 }

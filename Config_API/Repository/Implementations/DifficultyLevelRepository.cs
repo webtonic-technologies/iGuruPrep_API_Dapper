@@ -24,20 +24,21 @@ namespace Config_API.Repository.Implementations
                 {
                     var newQuestionLevel = new DifficultyLevel
                     {
-                       createdby = request.createdby,
-                       createdon = DateTime.Now,
-                       EmployeeID = request.EmployeeID,
-                       LevelCode = request.LevelCode,
-                       LevelName = request.LevelName,
-                       NoofQperLevel = request.NoofQperLevel,
-                       patterncode = request.patterncode,
-                       Status = true,
-                       SuccessRate = request.SuccessRate,
+                        createdby = request.createdby,
+                        createdon = DateTime.Now,
+                        EmployeeID = request.EmployeeID,
+                        LevelCode = request.LevelCode,
+                        LevelName = request.LevelName,
+                        NoofQperLevel = request.NoofQperLevel,
+                        patterncode = request.patterncode,
+                        Status = true,
+                        SuccessRate = request.SuccessRate,
+                        EmpFirstName = request.EmpFirstName
                     };
 
                     string insertQuery = @"INSERT INTO [tbldifficultylevel] 
-                             ([LevelName], [LevelCode], [Status], [NoofQperLevel], [SuccessRate], [createdon], [patterncode], [createdby], [EmployeeID])
-                             VALUES (@LevelName, @LevelCode, @Status, @NoofQperLevel, @SuccessRate, @createdon, @patterncode, @createdby, @EmployeeID)";
+                             ([LevelName], [LevelCode], [Status], [NoofQperLevel], [SuccessRate], [createdon], [patterncode], [createdby], [EmployeeID], EmpFirstName)
+                             VALUES (@LevelName, @LevelCode, @Status, @NoofQperLevel, @SuccessRate, @createdon, @patterncode, @createdby, @EmployeeID, @EmpFirstName)";
 
                     int rowsAffected = await _connection.ExecuteAsync(insertQuery, newQuestionLevel);
 
@@ -56,7 +57,7 @@ namespace Config_API.Repository.Implementations
                     string updateQuery = @"UPDATE [tbldifficultylevel] SET 
                              [LevelName] = @LevelName, [LevelCode] = @LevelCode, [Status] = @Status, [NoofQperLevel] = @NoofQperLevel, 
                              [SuccessRate] = @SuccessRate, [patterncode] = @patterncode, [modifiedon] = @modifiedon, 
-                             [modifiedby] = @modifiedby, [EmployeeID] = @EmployeeID
+                             [modifiedby] = @modifiedby, [EmployeeID] = @EmployeeID, EmpFirstName = @EmpFirstName
                              WHERE [LevelId] = @LevelId";
 
                     var parameters = new
@@ -70,7 +71,8 @@ namespace Config_API.Repository.Implementations
                         request.Status,
                         request.SuccessRate,
                         modifiedon = DateTime.Now,
-                        request.modifiedby
+                        request.modifiedby,
+                        request.EmpFirstName
                     };
 
                     int rowsAffected = await _connection.ExecuteAsync(updateQuery, parameters);
@@ -96,7 +98,7 @@ namespace Config_API.Repository.Implementations
             try
             {
                 string query = @"SELECT [LevelId], [LevelName], [LevelCode], [Status], [NoofQperLevel], [SuccessRate], 
-                             [createdon], [patterncode], [modifiedon], [modifiedby], [createdby], [EmployeeID]
+                             [createdon], [patterncode], [modifiedon], [modifiedby], [createdby], [EmployeeID], EmpFirstName
                              FROM [tbldifficultylevel]";
 
                 var data = await _connection.QueryAsync<DifficultyLevel>(query);
@@ -122,7 +124,7 @@ namespace Config_API.Repository.Implementations
             try
             {
                 string query = @"SELECT [LevelId], [LevelName], [LevelCode], [Status], [NoofQperLevel], [SuccessRate], 
-                             [createdon], [patterncode], [modifiedon], [modifiedby], [createdby], [EmployeeID]
+                             [createdon], [patterncode], [modifiedon], [modifiedby], [createdby], [EmployeeID], EmpFirstName
                              FROM [tbldifficultylevel]
                              WHERE [LevelId] = @LevelId";
 

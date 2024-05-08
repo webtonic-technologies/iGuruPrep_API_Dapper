@@ -12,7 +12,6 @@
         public DateTime? modifiedon { get; set; }
         public int? displayorder { get; set; }
         public int? EmployeeID { get; set;}
-
         public string EmpFirstName { get; set; } = string.Empty;
 
     }

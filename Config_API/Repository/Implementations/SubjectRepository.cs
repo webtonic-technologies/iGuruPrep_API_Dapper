@@ -21,8 +21,8 @@ namespace Config_API.Repository.Implementations
             {
                 if (request.SubjectId == 0)
                 {
-                    string insertSql = @"INSERT INTO [iGuruPrep].[dbo].[tblSubject] ([SubjectName], [SubjectCode], [Status], [createdby], [createdon], [displayorder], [groupname], [icon], [colorcode], [subjecttype], [EmployeeID])
-                           VALUES (@SubjectName, @SubjectCode, @Status, @CreatedBy, GETDATE(), @DisplayOrder, @GroupName, @Icon, @ColorCode, @SubjectType, @EmployeeID)";
+                    string insertSql = @"INSERT INTO [iGuruPrep].[dbo].[tblSubject] ([SubjectName], [SubjectCode], [Status], [createdby], [createdon], [displayorder], [groupname], [icon], [colorcode], [subjecttype], [EmployeeID], EmpFirstName)
+                           VALUES (@SubjectName, @SubjectCode, @Status, @CreatedBy, GETDATE(), @DisplayOrder, @GroupName, @Icon, @ColorCode, @SubjectType, @EmployeeID, @EmpFirstName)";
                     
                     int rowsAffected = await _connection.ExecuteAsync(insertSql, new
                     {
@@ -36,7 +36,8 @@ namespace Config_API.Repository.Implementations
                         request.icon,
                         request.colorcode,
                         request.subjecttype,
-                        request.EmployeeID
+                        request.EmployeeID,
+                        request.EmpFirstName
                     });
 
                     if (rowsAffected > 0)
@@ -51,7 +52,7 @@ namespace Config_API.Repository.Implementations
                 else
                 {
                     string updateSql = @"UPDATE [iGuruPrep].[dbo].[tblSubject]
-                           SET [SubjectName] = @SubjectName, [SubjectCode] = @SubjectCode, [Status] = @Status, [modifiedby] = @ModifiedBy, [modifiedon] = GETDATE(), [groupname] = @GroupName, [icon] = @Icon, [colorcode] = @ColorCode, [subjecttype] = @SubjectType
+                           SET [SubjectName] = @SubjectName, [SubjectCode] = @SubjectCode, [Status] = @Status, [modifiedby] = @ModifiedBy, [modifiedon] = GETDATE(), [groupname] = @GroupName, [icon] = @Icon, [colorcode] = @ColorCode, [subjecttype] = @SubjectType, EmpFirstName = @EmpFirstName
                            WHERE [SubjectId] = @SubjectId";
 
                     int rowsAffected = await _connection.ExecuteAsync(updateSql, new
@@ -67,7 +68,8 @@ namespace Config_API.Repository.Implementations
                         request.icon,
                         request.colorcode,
                         request.subjecttype,
-                        request.EmployeeID
+                        request.EmployeeID,
+                        request.EmpFirstName
                     });
 
                     if (rowsAffected > 0)
@@ -91,7 +93,7 @@ namespace Config_API.Repository.Implementations
             try
             {
                 // Construct the SQL query to select all subjects
-                string query = "SELECT [SubjectId], [SubjectName], [SubjectCode], [Status], [createdby], [createdon], [displayorder], [modifiedby], [modifiedon], [groupname], [icon], [colorcode], [subjecttype], [EmployeeID] FROM [iGuruPrep].[dbo].[tblSubject]";
+                string query = "SELECT [SubjectId], [SubjectName], [SubjectCode], [Status], [createdby], [createdon], [displayorder], [modifiedby], [modifiedon], [groupname], [icon], [colorcode], [subjecttype], [EmployeeID], EmpFirstName FROM [iGuruPrep].[dbo].[tblSubject]";
 
                 // Execute the select query asynchronously
                 var data = await _connection.QueryAsync<Subject>(query);
@@ -116,7 +118,7 @@ namespace Config_API.Repository.Implementations
 
             try
             {
-                string query = "SELECT [SubjectId], [SubjectName], [SubjectCode], [Status], [createdby], [createdon], [displayorder], [modifiedby], [modifiedon], [groupname], [icon], [colorcode], [subjecttype], [EmployeeID] FROM [iGuruPrep].[dbo].[tblSubject] WHERE [SubjectId] = @SubjectId";
+                string query = "SELECT [SubjectId], [SubjectName], [SubjectCode], [Status], [createdby], [createdon], [displayorder], [modifiedby], [modifiedon], [groupname], [icon], [colorcode], [subjecttype], [EmployeeID], EmpFirstName FROM [iGuruPrep].[dbo].[tblSubject] WHERE [SubjectId] = @SubjectId";
 
                 var data = await _connection.QueryFirstOrDefaultAsync<Subject>(query, new { SubjectId = id });
 

@@ -30,8 +30,8 @@ namespace Config_API.Repository.Implementations
 
                         foreach (var courseId in request.CourseID ??= ([]))
                         {
-                            string query = @"INSERT INTO tblClassCourses (CourseID, ClassID, Status, createdon, EmployeeID, EmpFirstName) 
-                                 VALUES (@CourseID, @ClassID, @Status, @createdon, @EmployeeID, @EmpFirstName)";
+                            string query = @"INSERT INTO tblClassCourses (CourseID, ClassID, Status, createdon, EmployeeID, EmpFirstName, classname, coursename) 
+                                 VALUES (@CourseID, @ClassID, @Status, @createdon, @EmployeeID, @EmpFirstName, @classname, @coursename)";
 
                             int rowsAffected = await _connection.ExecuteAsync(query, new
                             {
@@ -39,7 +39,10 @@ namespace Config_API.Repository.Implementations
                                 request.ClassID,
                                 Status = true,
                                 createdon = DateTime.Now,
-                                request.EmployeeID
+                                request.EmployeeID,
+                                request.EmpFirstName,
+                                request.classname,
+                                request.coursename
                             });
                             if (rowsAffected == 0)
                             {
@@ -55,14 +58,8 @@ namespace Config_API.Repository.Implementations
 
                         foreach (var courseId in request.CourseID ??= ([]))
                         {
-                            //string query = @"UPDATE tblClassCourses 
-                            //     SET ClassID = @ClassID, 
-                            //         Status = @Status,
-                            //         modifiedon = @modifiedon,
-                            //         modifiedby = @modifiedby
-                            //     WHERE CourseClassMappingID = @CourseClassMappingID";
-                            string query = @"INSERT INTO tblClassCourses (CourseID, ClassID, Status, createdon, EmployeeID,EmpFirstName, modifiedon, modifiedby) 
-                                 VALUES (@CourseID, @ClassID, @Status, @createdon, @EmployeeID,@EmpFirstName, @modifiedon, @modifiedby)";
+                            string query = @"INSERT INTO tblClassCourses (CourseID, ClassID, Status, createdon, EmployeeID,EmpFirstName, modifiedon, modifiedby, classname, coursename) 
+                                 VALUES (@CourseID, @ClassID, @Status, @createdon, @EmployeeID,@EmpFirstName, @modifiedon, @modifiedby, @classname, @coursename)";
                             int rowsAffected = await _connection.ExecuteAsync(query, new
                             {
                                 request.ClassID,
@@ -99,7 +96,7 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
-                string query = "SELECT CourseClassMappingID, ClassID, CourseID, Status, createdon, EmployeeID,EmpFirstName, modifiedon, modifiedby FROM [tblClassCourses]";
+                string query = "SELECT CourseClassMappingID, ClassID, CourseID, Status, createdon, EmployeeID,EmpFirstName, modifiedon, modifiedby, classname, coursename FROM [tblClassCourses]";
                 var classCourseMappings = await _connection.QueryAsync<ClassCourseMapping>(query);
 
                 var groupedMappings = classCourseMappings
@@ -140,7 +137,7 @@ namespace Config_API.Repository.Implementations
             {
                 var response = new ClassCourseMappingDTO();
                 string getClassIdQuery = @"
-                SELECT CourseClassMappingID, ClassID, Status, createdon, EmployeeID,EmpFirstName,classname,coursename, modifiedon, modifiedby
+                SELECT CourseClassMappingID, ClassID, Status, createdon, EmployeeID,EmpFirstName,classname,coursename, modifiedon, modifiedby, classname, coursename
                 FROM [tblClassCourses]
                 WHERE CourseClassMappingID = @CourseClassMappingID";
 

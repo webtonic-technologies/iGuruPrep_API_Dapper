@@ -16,6 +16,6 @@
         public string groupname { get; set; } = string.Empty;
         public int? subjecttype { get; set; }
         public int? EmployeeID {  get; set; }
-       // EmpFirstName
+        public string EmpFirstName { get; set; } = string.Empty;
     }
 }

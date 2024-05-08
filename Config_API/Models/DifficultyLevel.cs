@@ -18,6 +18,6 @@ namespace Config_API.Models
         public string modifiedby { get; set; } = string.Empty;
         public string createdby { get; set; } = string.Empty;
         public int? EmployeeID {  get; set; }
-        //EmpFirstName
+        public string EmpFirstName { get; set; } = string.Empty;
     }
 }

@@ -13,11 +13,8 @@ namespace Config_API.DTOs
         public int? EmployeeID { get; set; }
         public DateTime? modifiedon { get; set; }
         public string modifiedby { get; set; } = string.Empty;
-
         public string EmpFirstName { get; set; } = string.Empty;
-
         public string classname { get; set; } = string.Empty;
-
         public string coursename { get; set; } = string.Empty;
     }
 }
