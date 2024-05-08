@@ -38,7 +38,7 @@ namespace Schools_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<ProjectDetailsDTO>> GetProjectByIdAsync(int projectId)
+        public async Task<ServiceResponse<ProjectDTO>> GetProjectByIdAsync(int projectId)
         {
             try
             {
@@ -46,7 +46,7 @@ namespace Schools_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<ProjectDetailsDTO>(false, ex.Message, new ProjectDetailsDTO(), 500);
+                return new ServiceResponse<ProjectDTO>(false, ex.Message, new ProjectDTO(), 500);
             }
         }
     }

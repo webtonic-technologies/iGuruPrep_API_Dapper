@@ -7,6 +7,6 @@ namespace Schools_API.Repository.Interfaces
     {
         Task<ServiceResponse<string>> AddProjectAsync(ProjectDTO projectDTO);
         Task<ServiceResponse<IEnumerable<ProjectDTO>>> GetAllProjectsByFilter(ProjectFilter filter);
-        Task<ServiceResponse<ProjectDetailsDTO>> GetProjectByIdAsync(int projectId);
+        Task<ServiceResponse<ProjectDTO>> GetProjectByIdAsync(int projectId);
     }
 }
