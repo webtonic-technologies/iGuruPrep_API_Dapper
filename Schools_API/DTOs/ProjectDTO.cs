@@ -2,20 +2,61 @@
 {
     public class ProjectDTO
     {
-        public int? ProjectId { get; set; }
+        public int ProjectId { get; set; }
         public string ProjectName { get; set; } = string.Empty;
         public string ProjectDescription { get; set; } = string.Empty;
         public string? PathURL { get; set; }
-        public int CourseId { get; set; }
-        public int ClassId { get; set; }
-        public int BoardId { get; set; }
-        public int SubjectId { get; set; }
-        public string CreatedBy { get; set; } = string.Empty;
-        public IFormFile? image { get; set; }
+        public string createdby { get; set; } = string.Empty;
         public string ReferenceLink { get; set; } = string.Empty;
-        public int? UserID { get; set; }
+        public int? EmployeeID { get; set; }
         public bool? status { get; set; }
         public string modifiedby { get; set; } = string.Empty;
         public DateTime? modifiedon { get; set; }
+        public DateTime? createdon { get; set; }
+        public string EmpFirstName { get; set; } = string.Empty;
+        public string pdfVideoFile { get; set; } = string.Empty;
+        public List<ProjectCategory>? ProjectCategories { get; set; }
+        public List<ProjectBoard>? ProjectBoards { get; set; }
+        public List<ProjectClass>? ProjectClasses { get; set; }
+        public List<ProjectCourse>? ProjectCourses { get; set; }
+        public List<ProjectExamType>? ProjectExamTypes { get; set; }
+        public List<ProjectSubject>? ProjectSubjects { get; set; }
+    }
+    public class ProjectCategory
+    {
+        public int ProjectCategoryId { get; set; }
+        public int APID { get; set; }
+        public int ProjectId { get; set; } //Academic-Professional Id
+        public string APIDName { get; set; } = string.Empty;
+    }
+    public class ProjectBoard
+    {
+        public int ProjectBoardID { get; set; }
+        public int ProjectID { get; set; }
+        public int BoardID { get; set; }
+    }
+    public class ProjectClass
+    {
+        public int ProjectClassID { get; set; }
+        public int ProjectID { get; set; }
+        public int ClassID { get; set; }
+    }
+    public class ProjectCourse
+    {
+        public int ProjectCourseID { get; set; }
+        public int ProjectID { get; set; }
+        public int CourseID { get; set; }
+    }
+    public class ProjectExamType
+    {
+        public int ProjectExamTypeID { get; set; }
+        public int ProjectID { get; set; }
+        public int ExamTypeID { get; set; }
+    }
+    public class ProjectSubject
+    {
+        public int ProjectSubjectID { get; set; }
+        public int ProjectID { get; set; }
+        public int SubjectID { get; set; }
     }
 }
