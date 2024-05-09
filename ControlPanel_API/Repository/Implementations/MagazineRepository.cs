@@ -36,7 +36,8 @@ namespace ControlPanel_API.Repository.Implementations
                 string sql = @"INSERT INTO [iGuruPrep].[dbo].[tblMagazine] 
                    ([Date], [Time], [PathURL], [MagazineTitle], [Status], [Link], [EmployeeID], [EmpFirstName], [createdon], [createdby]) 
                    VALUES 
-                   (GETDATE(), @Time, @PathURL, @MagazineTitle, @Status, @Link, @EmployeeID, @EmpFirstName, GETDATE(), @createdby)";
+                   (GETDATE(), @Time, @PathURL, @MagazineTitle, @Status, @Link, @EmployeeID, @EmpFirstName, GETDATE(), @createdby);
+                    SELECT CAST(SCOPE_IDENTITY() AS INT);";
                 int insertedValue = await _connection.QueryFirstOrDefaultAsync<int>(sql, magazine);
 
                 if (insertedValue > 0)
@@ -48,7 +49,7 @@ namespace ControlPanel_API.Repository.Implementations
                     int exam = MagazineExamTypeMapping(request.MagazineExamTypes ??= ([]), insertedValue);
                     if (category > 0 && classes > 0 && board > 0 && course > 0 && exam > 0)
                     {
-                        return new ServiceResponse<string>(true, "Operation Successful", "SOTD Added Successfully", 200);
+                        return new ServiceResponse<string>(true, "Operation Successful", "Magazine Added Successfully", 200);
                     }
                     else
                     {
@@ -95,7 +96,7 @@ namespace ControlPanel_API.Repository.Implementations
                     int exam = MagazineExamTypeMapping(request.MagazineExamTypes ??= ([]), request.MagazineId);
                     if (category > 0 && classes > 0 && board > 0 && course > 0 && exam > 0)
                     {
-                        return new ServiceResponse<string>(true, "Operation Successful", "SOTD updated Successfully", 200);
+                        return new ServiceResponse<string>(true, "Operation Successful", "Magazine updated Successfully", 200);
                     }
                     else
                     {
@@ -136,6 +137,26 @@ namespace ControlPanel_API.Repository.Implementations
                      new { MagazineId = id });
                 if (rowsAffected > 0)
                 {
+                    var deleteCat = @"DELETE FROM [iGuruPrep].[dbo].[tblMagazineCategory]
+                          WHERE [MagazineId] = @MagazineId;";
+                    var delCat = _connection.Execute(deleteCat, new { MagazineId = id });
+
+                    var deleteClas = @"DELETE FROM [iGuruPrep].[dbo].[tblMagazineClass]
+                          WHERE [MagazineID] = @MagazineID;";
+                    var delClass = _connection.Execute(deleteClas, new { MagazineID = id });
+
+                    var deleteBoard = @"DELETE FROM [iGuruPrep].[dbo].[tblMagazineBoard]
+                          WHERE [MagazineID] = @MagazineID;";
+                    var delBoard = _connection.Execute(deleteBoard, new { MagazineID = id });
+
+                    var deleteCourse = @"DELETE FROM [iGuruPrep].[dbo].[tblMagazineCourse]
+                          WHERE [MagazineID] = @MagazineID;";
+                    var delCourse = _connection.Execute(deleteCourse, new { MagazineID = id });
+
+                    var deleteExamType = @"DELETE FROM [iGuruPrep].[dbo].[tblMagazineExamType]
+                          WHERE [MagazineID] = @MagazineID;";
+                    var delExamType = _connection.Execute(deleteExamType, new { MagazineID = id });
+
                     return new ServiceResponse<bool>(true, "Operation Successful", true, 200);
                 }
                 else
@@ -316,6 +337,10 @@ namespace ControlPanel_API.Repository.Implementations
         }
         private string ImageUpload(string image)
         {
+            if (string.IsNullOrEmpty(image) || image == "string")
+            {
+                return string.Empty;
+            }
             byte[] imageData = Convert.FromBase64String(image);
             string directoryPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "Magazine");
 
@@ -333,6 +358,10 @@ namespace ControlPanel_API.Repository.Implementations
         }
         private string PDFUpload(string pdf)
         {
+            if (string.IsNullOrEmpty(pdf) || pdf == "string")
+            {
+                return string.Empty;
+            }
             byte[] imageData = Convert.FromBase64String(pdf);
             string directoryPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "MagazinePDF");
 
@@ -353,7 +382,7 @@ namespace ControlPanel_API.Repository.Implementations
 
             if (!File.Exists(filePath))
             {
-                throw new Exception("File not found");
+                return string.Empty;
             }
             byte[] fileBytes = File.ReadAllBytes(filePath);
             string base64String = Convert.ToBase64String(fileBytes);
@@ -365,7 +394,7 @@ namespace ControlPanel_API.Repository.Implementations
 
             if (!File.Exists(filePath))
             {
-                throw new Exception("File not found");
+                return string.Empty;
             }
             byte[] fileBytes = File.ReadAllBytes(filePath);
             string base64String = Convert.ToBase64String(fileBytes);

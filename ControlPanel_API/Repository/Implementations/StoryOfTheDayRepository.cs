@@ -174,6 +174,26 @@ namespace ControlPanel_API.Repository.Implementations
 
                 if (rowsAffected > 0)
                 {
+                    var deleteCat = @"DELETE FROM [iGuruPrep].[dbo].[tblSOTDCategory]
+                          WHERE [SOTDID] = @SOTDID;";
+                    var delCat = _connection.Execute(deleteCat, new { SOTDID = id });
+
+                    var deleteClass = @"DELETE FROM [iGuruPrep].[dbo].[tblSOTDClass]
+                          WHERE [SOTDID] = @SOTDID;";
+                    var delClass = _connection.Execute(deleteClass, new { SOTDID = id });
+
+                    var deleteBoard = @"DELETE FROM [iGuruPrep].[dbo].[tblSOTDBoard]
+                          WHERE [SOTDID] = @SOTDID;";
+                    var delBoard = _connection.Execute(deleteBoard, new { SOTDID = id });
+
+                    var deleteCourse = @"DELETE FROM [iGuruPrep].[dbo].[tblSOTDCourse]
+                          WHERE [SOTDID] = @SOTDID;";
+                    var delCourse = _connection.Execute(deleteCourse, new { SOTDID = id });
+
+                    var deleteExamType = @"DELETE FROM [iGuruPrep].[dbo].[tblSOTDExamType]
+                          WHERE [SOTDID] = @SOTDID;";
+                    var delExamType = _connection.Execute(deleteExamType, new { SOTDID = id });
+
                     return new ServiceResponse<bool>(true, "Operation Successful", true, 200);
                 }
                 else
@@ -398,6 +418,10 @@ namespace ControlPanel_API.Repository.Implementations
         }
         private string ImageUpload(string image)
         {
+            if (string.IsNullOrEmpty(image) || image == "string")
+            {
+                return string.Empty;
+            }
             byte[] imageData = Convert.FromBase64String(image);
             string directoryPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "StoryOfTheDay");
 
@@ -419,7 +443,7 @@ namespace ControlPanel_API.Repository.Implementations
 
             if (!File.Exists(filePath))
             {
-                throw new Exception("File not found");
+                return string.Empty;
             }
             byte[] fileBytes = File.ReadAllBytes(filePath);
             string base64String = Convert.ToBase64String(fileBytes);

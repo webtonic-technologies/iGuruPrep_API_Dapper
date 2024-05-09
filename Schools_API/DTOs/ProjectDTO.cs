@@ -27,7 +27,7 @@
         public int ProjectCategoryId { get; set; }
         public int APID { get; set; }
         public int ProjectId { get; set; } //Academic-Professional Id
-        public string APIDName { get; set; } = string.Empty;
+        public string APName { get; set; } = string.Empty;
     }
     public class ProjectBoard
     {

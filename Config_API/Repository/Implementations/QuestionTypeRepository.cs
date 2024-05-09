@@ -22,7 +22,7 @@ namespace Config_API.Repository.Implementations
                 {
                     string query = @"
         INSERT INTO [tblQBQuestionType] (QuestionType, Code, Status, MinNoOfOptions, createdon, createdby, EmployeeID, TypeOfOption, EmpFirstName)
-        VALUES (@QuestionType, @Code, @Status, @MinNoOfOptions, @createdon, @createdby, @EmployeeID, @TypeOfOption. @EmpFirstName);";
+        VALUES (@QuestionType, @Code, @Status, @MinNoOfOptions, @createdon, @createdby, @EmployeeID, @TypeOfOption, @EmpFirstName);";
                     int insertedValue = await _connection.ExecuteAsync(query, new
                     {
                         request.MinNoOfOptions,

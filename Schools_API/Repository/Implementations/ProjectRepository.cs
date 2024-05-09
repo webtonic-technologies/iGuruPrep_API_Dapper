@@ -5,6 +5,7 @@ using Schools_API.Models;
 using Schools_API.Repository.Interfaces;
 using System.Data;
 using System.Text;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace Schools_API.Repository.Implementations
 {
@@ -25,7 +26,7 @@ namespace Schools_API.Repository.Implementations
                 if (request.ProjectId == 0)
                 {
                     var insertQuery = @"
-                    INSERT INTO Project (ProjectName, ProjectDescription, PathURL, createdby, ReferenceLink, EmployeeID, status, createdon, EmpFirstName, pdfVideoFile)
+                    INSERT INTO tblProject (ProjectName, ProjectDescription, PathURL, createdby, ReferenceLink, EmployeeID, status, createdon, EmpFirstName, pdfVideoFile)
                     VALUES (@ProjectName, @ProjectDescription, @PathURL, @createdby, @ReferenceLink, @EmployeeID, @status, @createdon, @EmpFirstName, @pdfVideoFile);
                     SELECT CAST(SCOPE_IDENTITY() AS INT);";
                     var project = new Project
@@ -67,7 +68,7 @@ namespace Schools_API.Repository.Implementations
                 else
                 {
                     var updateQuery = @"
-                        UPDATE Project
+                        UPDATE tblProject
                         SET ProjectName = @ProjectName,
                         ProjectDescription = @ProjectDescription,
                         PathURL = @PathURL,
@@ -197,7 +198,7 @@ namespace Schools_API.Repository.Implementations
                    createdon,
                    EmpFirstName,
                    pdfVideoFile
-            FROM tblproject
+            FROM tblProject
             WHERE ProjectId = @ProjectId";
 
                 var data = await _connection.QueryFirstOrDefaultAsync<Project>(sql, new { ProjectId = projectId });
@@ -250,6 +251,10 @@ namespace Schools_API.Repository.Implementations
         }
         private string FileUpload(string base64String)
         {
+            if (string.IsNullOrEmpty(base64String) || base64String == "string")
+            {
+                return string.Empty;
+            }
             if (base64String == string.Empty)
             {
                 return string.Empty;
@@ -278,7 +283,7 @@ namespace Schools_API.Repository.Implementations
 
             if (!File.Exists(filePath))
             {
-                throw new Exception("File not found");
+                return string.Empty;
             }
             byte[] fileBytes = File.ReadAllBytes(filePath);
             string base64String = Convert.ToBase64String(fileBytes);
@@ -554,7 +559,7 @@ namespace Schools_API.Repository.Implementations
         }
         private List<ProjectExamType> GetListOfProjectExamType(int ProjectId)
         {
-            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tblProjectExamType] WHERE  bookID = @bookID;";
+            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tblProjectExamType] WHERE  ProjectID = @ProjectID;";
             // Execute the SQL query with the SOTDID parameter
             var data = _connection.Query<ProjectExamType>(query, new { ProjectID = ProjectId });
             return data != null ? data.AsList() : [];

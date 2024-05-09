@@ -15,7 +15,7 @@ namespace Schools_API.Controllers
             _projectServices = projectServices;
         }
         [HttpPost("AddProject")]
-        public async Task<IActionResult> AddProject([FromForm] ProjectDTO projectDTO)
+        public async Task<IActionResult> AddProject([FromBody] ProjectDTO projectDTO)
         {
             try
             {
@@ -40,8 +40,8 @@ namespace Schools_API.Controllers
             }
         }
 
-        [HttpGet("GetAllProjects")]
-        public async Task<IActionResult> GetAllProjects([FromQuery] ProjectFilter filter)
+        [HttpPost("GetAllProjects")]
+        public async Task<IActionResult> GetAllProjects(ProjectFilter filter)
         {
             var projects = await _projectServices.GetAllProjectsByFilter(filter);
 

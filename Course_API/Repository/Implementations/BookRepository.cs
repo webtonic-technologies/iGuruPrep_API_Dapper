@@ -5,6 +5,7 @@ using Course_API.Repository.Interfaces;
 using Dapper;
 using System.Data;
 using System.Text;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace Course_API.Repository.Implementations
 {
@@ -299,7 +300,7 @@ namespace Course_API.Repository.Implementations
                     int author = BookAuthorMapping(request.BookAuthorDetails ??= ([]), request.BookId);
                     if (category > 0 && classes > 0 && board > 0 && course > 0 && exam > 0 && subject > 0 && author > 0)
                     {
-                        return new ServiceResponse<string>(true, "Operation Successful", "Book Added Successfully", 200);
+                        return new ServiceResponse<string>(true, "Operation Successful", "Book Updated Successfully", 200);
                     }
                     else
                     {
@@ -564,7 +565,7 @@ namespace Course_API.Repository.Implementations
         }
         private List<BookClass> GetListOfBookClass(int bookID)
         {
-            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tblMagazineClass] WHERE  bookID = @bookID;";
+            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tbllibraryClass] WHERE  bookID = @bookID;";
             // Execute the SQL query with the SOTDID parameter
             var data = _connection.Query<BookClass>(query, new { bookID });
             return data != null ? data.AsList() : [];
@@ -599,6 +600,10 @@ namespace Course_API.Repository.Implementations
         }
         private string ImageUpload(string image)
         {
+            if (string.IsNullOrEmpty(image) || image == "string")
+            {
+                return string.Empty;
+            }
             byte[] imageData = Convert.FromBase64String(image);
             string directoryPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "Books");
 
@@ -632,6 +637,10 @@ namespace Course_API.Repository.Implementations
         }
         private string AudioVideoUpload(string data)
         {
+            if (string.IsNullOrEmpty(data) || data == "string")
+            {
+                return string.Empty;
+            }
             byte[] bytes = Convert.FromBase64String(data);
             string header = Encoding.UTF8.GetString(bytes, 0, 4);
             string directoryPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "BooksAudioVideo");
@@ -709,7 +718,7 @@ namespace Course_API.Repository.Implementations
 
             if (!File.Exists(filePath))
             {
-                throw new Exception("File not found");
+                return string.Empty;
             }
             byte[] fileBytes = File.ReadAllBytes(filePath);
             string base64String = Convert.ToBase64String(fileBytes);
@@ -721,7 +730,7 @@ namespace Course_API.Repository.Implementations
 
             if (!File.Exists(filePath))
             {
-                throw new Exception("File not found");
+                return string.Empty;
             }
             byte[] fileBytes = File.ReadAllBytes(filePath);
             string base64String = Convert.ToBase64String(fileBytes);
