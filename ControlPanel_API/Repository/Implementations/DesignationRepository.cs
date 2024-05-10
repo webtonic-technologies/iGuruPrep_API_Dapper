@@ -15,13 +15,12 @@ namespace ControlPanel_API.Repository.Implementations
             _connection = connection;
         }
         public async Task<ServiceResponse<string>> AddDesignation(Designation request)
-        {
-
+        { 
             try
             {
                 // Construct the SQL insert query
-                string sql = @"INSERT INTO tblDesignation (DesignationName, DesgnCode, Status) 
-                       VALUES (@DesignationName, @DesgnCode, @Status);";
+                string sql = @"INSERT INTO tblDesignation (DesignationName, DesgnCode, Status, createdon, createdby) 
+                       VALUES (@DesignationName, @DesgnCode, @Status, @createdon, @createdby);";
 
                 // Execute the insert query asynchronously using Dapper
                 int rowsAffected = await _connection.ExecuteAsync(sql, request);
@@ -92,9 +91,9 @@ namespace ControlPanel_API.Repository.Implementations
             try
             {
                 string sql = @"UPDATE tblDesignation 
-                       SET DesgnCode = @DesgnCode, DesignationName = @DesignationName, Status = @Status
+                       SET DesgnCode = @DesgnCode, DesignationName = @DesignationName, Status = @Status,
+                       modifiedon = @modifiedon, modifiedby = @modifiedby
                        WHERE DesgnID = @DesgnID";
-
 
                 int rowsAffected = await _connection.ExecuteAsync(sql, request);
 
