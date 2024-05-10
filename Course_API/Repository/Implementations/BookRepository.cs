@@ -642,22 +642,18 @@ namespace Course_API.Repository.Implementations
                 return string.Empty;
             }
             byte[] bytes = Convert.FromBase64String(data);
-            string header = Encoding.UTF8.GetString(bytes, 0, 4);
             string directoryPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "BooksAudioVideo");
-            string fileExtension = string.Empty;
+
             if (!Directory.Exists(directoryPath))
             {
                 Directory.CreateDirectory(directoryPath);
             }
-            if (header.StartsWith("RIFF") || header.StartsWith("ID3"))
-            {
-                fileExtension = IsMP3(bytes) == true ? ".mp3" : IsWAV(bytes) == true ? ".wav" :
-                    IsAAC(bytes) == true ? ".aac" : IsOGG(bytes) == true ? ".ogg" : IsFLAC(bytes) == true ? ".flac" : IsM4A(bytes) == true ? ".m4a" : string.Empty;
-            }
-            else if (header.StartsWith("ftyp") || header.StartsWith("moov"))
-            {
-                fileExtension = IsMP4(bytes) == true ? ".mp4" : IsMOV(bytes) == true ? ".mov" : IsAVI(bytes) == true ? ".avi" : string.Empty;
-            }
+
+            string fileExtension = IsMP3(bytes) == true ? ".mp3" : IsWAV(bytes) == true ? ".wav" :
+                IsAAC(bytes) == true ? ".aac" : IsOGG(bytes) == true ? ".ogg" :
+                IsFLAC(bytes) == true ? ".flac" : IsM4A(bytes) == true ? ".m4a" :
+                IsMp4(bytes) == true ? ".mp4" : IsMov(bytes) == true ? ".mov" : IsAvi(bytes) == true ? ".avi" : string.Empty; ;
+
             string fileName = Guid.NewGuid().ToString() + fileExtension;
             string filePath = Path.Combine(directoryPath, fileName);
 
@@ -665,26 +661,35 @@ namespace Course_API.Repository.Implementations
             File.WriteAllBytes(filePath, bytes);
             return filePath;
         }
-        private bool IsMP4(byte[] bytes)
+        private bool IsMp4(byte[] bytes)
         {
-            // MP4 magic number: "ftyp"
-            return bytes.Length > 3 && bytes[0] == 0x66 && bytes[1] == 0x74 && bytes[2] == 0x79 && bytes[3] == 0x70;
+            // MP4 magic number: 0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70
+            return bytes.Length > 7 &&
+                   bytes[0] == 0x00 && bytes[1] == 0x00 && bytes[2] == 0x00 && bytes[3] == 0x20 &&
+                   bytes[4] == 0x66 && bytes[5] == 0x74 && bytes[6] == 0x79 && bytes[7] == 0x70;
         }
-        private bool IsMOV(byte[] bytes)
-        {
-            // MOV magic number: "moov"
-            return bytes.Length > 3 && bytes[0] == 0x6D && bytes[1] == 0x6F && bytes[2] == 0x6F && bytes[3] == 0x76;
-        }
-        private bool IsAVI(byte[] bytes)
+        private bool IsAvi(byte[] bytes)
         {
             // AVI magic number: "RIFF"
-            return bytes.Length > 3 && bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46;
+            return bytes.Length > 3 &&
+                   bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46;
+        }
+        private bool IsMov(byte[] bytes)
+        {
+            // MOV magic number: "moov"
+            return bytes.Length > 3 &&
+                   bytes[0] == 0x6D && bytes[1] == 0x6F && bytes[2] == 0x6F && bytes[3] == 0x76;
         }
         //extensions for audio
         private bool IsMP3(byte[] bytes)
         {
             // MP3 magic number: 0x49 0x44 0x33
-            return bytes.Length > 2 && bytes[0] == 0x49 && bytes[1] == 0x44 && bytes[2] == 0x33;
+          //  return bytes.Length > 2 && bytes[0] == 0x49 && bytes[1] == 0x44 && bytes[2] == 0x33;
+
+
+            return bytes.Length > 1 &&
+         (bytes[0] == 0xFF && (bytes[1] & 0xF0) == 0xF0 || // MPEG-1 Layer 3
+          bytes[0] == 0x49 && bytes[1] == 0x44 && bytes[2] == 0x33); // ID3 tag
         }
         private bool IsWAV(byte[] bytes)
         {

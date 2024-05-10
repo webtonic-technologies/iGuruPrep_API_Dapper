@@ -24,7 +24,7 @@ namespace Course_API.Repository.Implementations
             {
                 if (request.contentid == 0)
                 {
-                    var insertQuery = @"INSERT INTO ContentMaster (subjectindexid, boardId, classId, courseId, subjectId, fileName, PathURL, createdon, createdby)
+                    var insertQuery = @"INSERT INTO tblContentMaster (subjectindexid, boardId, classId, courseId, subjectId, fileName, PathURL, createdon, createdby)
                 VALUES (@subjectindexid, @boardId, @classId, @courseId, @subjectId, @fileName, @PathURL, @createdon, @createdby);";
                     var content = new ContentMaster
                     {
@@ -51,7 +51,7 @@ namespace Course_API.Repository.Implementations
                 }
                 else
                 {
-                    var updateQuery = @"UPDATE ContentMaster
+                    var updateQuery = @"UPDATE tblContentMaster
                 SET subjectindexid = @subjectindexid,
                     boardId = @boardId,
                     classId = @classId,
@@ -96,9 +96,9 @@ namespace Course_API.Repository.Implementations
             try
             {
                 string selectQuery = @"
-            SELECT Content_Id, SubjectIndexId, Board_Id, Class_Id, Course_Id, Subject_Id
+            SELECT *
             FROM tblContentMaster
-            WHERE Content_Id = @ContentId";
+            WHERE contentid = @ContentId";
                 var data = await _connection.QuerySingleOrDefaultAsync<ContentMaster>(selectQuery, new { ContentId });
                 if (data != null)
                 {
@@ -121,7 +121,7 @@ namespace Course_API.Repository.Implementations
             try
             {
                 string selectQuery = @"
-            SELECT Content_Id, SubjectIndexId, Board_Id, Class_Id, Course_Id, Subject_Id
+            SELECT *
             FROM tblContentMaster";
                 var data = await _connection.QueryAsync<ContentMaster>(selectQuery);
                 if (data != null)
@@ -180,6 +180,10 @@ namespace Course_API.Repository.Implementations
         }
         private string PDFUpload(string pdf)
         {
+            if (string.IsNullOrEmpty(pdf) || pdf == "string")
+            {
+                return string.Empty;
+            }
             byte[] imageData = Convert.FromBase64String(pdf);
             string directoryPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "ContentMaster");
 
@@ -196,13 +200,17 @@ namespace Course_API.Repository.Implementations
         }
         private string VideoUpload(string data)
         {
+            if (string.IsNullOrEmpty(data) || data == "string")
+            {
+                return string.Empty;
+            }
             byte[] bytes = Convert.FromBase64String(data);
             string directoryPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "ContentMasterVideo");
             if (!Directory.Exists(directoryPath))
             {
                 Directory.CreateDirectory(directoryPath);
             }
-            string fileExtension = IsMP4(bytes) == true ? ".mp4" : IsMOV(bytes) == true ? ".mov" : IsAVI(bytes) == true ? ".avi" : string.Empty;
+            string fileExtension = IsMp4(bytes) == true ? ".mp4" : IsMov(bytes) == true ? ".mov" : IsAvi(bytes) == true ? ".avi" : string.Empty;
 
             string fileName = Guid.NewGuid().ToString() + fileExtension;
             string filePath = Path.Combine(directoryPath, fileName);
@@ -211,20 +219,24 @@ namespace Course_API.Repository.Implementations
             File.WriteAllBytes(filePath, bytes);
             return filePath;
         }
-        private bool IsMP4(byte[] bytes)
+        private bool IsMp4(byte[] bytes)
         {
-            // MP4 magic number: "ftyp"
-            return bytes.Length > 3 && bytes[0] == 0x66 && bytes[1] == 0x74 && bytes[2] == 0x79 && bytes[3] == 0x70;
+            // MP4 magic number: 0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70
+            return bytes.Length > 7 &&
+                   bytes[0] == 0x00 && bytes[1] == 0x00 && bytes[2] == 0x00 && bytes[3] == 0x20 &&
+                   bytes[4] == 0x66 && bytes[5] == 0x74 && bytes[6] == 0x79 && bytes[7] == 0x70;
         }
-        private bool IsMOV(byte[] bytes)
-        {
-            // MOV magic number: "moov"
-            return bytes.Length > 3 && bytes[0] == 0x6D && bytes[1] == 0x6F && bytes[2] == 0x6F && bytes[3] == 0x76;
-        }
-        private bool IsAVI(byte[] bytes)
+        private bool IsAvi(byte[] bytes)
         {
             // AVI magic number: "RIFF"
-            return bytes.Length > 3 && bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46;
+            return bytes.Length > 3 &&
+                   bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46;
+        }
+        private bool IsMov(byte[] bytes)
+        {
+            // MOV magic number: "moov"
+            return bytes.Length > 3 &&
+                   bytes[0] == 0x6D && bytes[1] == 0x6F && bytes[2] == 0x6F && bytes[3] == 0x76;
         }
         private string GetVideo(string Filename)
         {
@@ -232,7 +244,7 @@ namespace Course_API.Repository.Implementations
 
             if (!File.Exists(filePath))
             {
-                throw new Exception("File not found");
+                return string.Empty;
             }
             byte[] fileBytes = File.ReadAllBytes(filePath);
             string base64String = Convert.ToBase64String(fileBytes);
@@ -244,7 +256,7 @@ namespace Course_API.Repository.Implementations
 
             if (!File.Exists(filePath))
             {
-                throw new Exception("File not found");
+                return string.Empty;
             }
             byte[] fileBytes = File.ReadAllBytes(filePath);
             string base64String = Convert.ToBase64String(fileBytes);

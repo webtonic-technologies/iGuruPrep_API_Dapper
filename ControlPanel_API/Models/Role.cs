@@ -15,6 +15,6 @@ namespace ControlPanel_API.Models
         [Required]
         public string RoleCode { get; set; } = string.Empty;
         [Required]
-        public int? Status { get; set; }
+        public bool? Status { get; set; }
     }
 }

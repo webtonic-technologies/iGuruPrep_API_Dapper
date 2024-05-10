@@ -117,7 +117,7 @@ namespace ControlPanel_API.Repository.Implementations
 
                 if (role.Data != null)
                 {
-                    role.Data.Status = role.Data.Status == 1 ? role.Data.Status = 0 : role.Data.Status = 1;
+                    role.Data.Status = !role.Data.Status;
 
                     string sql = "UPDATE [tblRole] SET Status = @Status WHERE [RoleID] = @RoleID";
 
