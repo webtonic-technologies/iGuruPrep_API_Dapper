@@ -39,7 +39,7 @@ namespace ControlPanel_API.Repository.Implementations
                     Filename2 = request.Filename2 != null ? ImageUpload(request.Filename2) : string.Empty,
                 };
                 var query = @"
-                INSERT INTO [iGuruPrep].[dbo].[tblSOTD] (
+                INSERT INTO [tblSOTD] (
                     createdby, createdon, Event1Posttime, Event2Posttime, EmpFirstName, 
                     EmployeeID, Event1PostDate, Event2PostDate, EventName, EventTypeID, 
                     eventtypename, Status, Filename1, Filename2)
@@ -82,7 +82,7 @@ namespace ControlPanel_API.Repository.Implementations
             try
             {
                 var query = @"
-                UPDATE [iGuruPrep].[dbo].[tblSOTD]
+                UPDATE [tblSOTD]
                 SET 
                     modifiedby = @modifiedby,
                     modifiedon = @modifiedon,
@@ -174,23 +174,23 @@ namespace ControlPanel_API.Repository.Implementations
 
                 if (rowsAffected > 0)
                 {
-                    var deleteCat = @"DELETE FROM [iGuruPrep].[dbo].[tblSOTDCategory]
+                    var deleteCat = @"DELETE FROM [tblSOTDCategory]
                           WHERE [SOTDID] = @SOTDID;";
                     var delCat = _connection.Execute(deleteCat, new { SOTDID = id });
 
-                    var deleteClass = @"DELETE FROM [iGuruPrep].[dbo].[tblSOTDClass]
+                    var deleteClass = @"DELETE FROM [tblSOTDClass]
                           WHERE [SOTDID] = @SOTDID;";
                     var delClass = _connection.Execute(deleteClass, new { SOTDID = id });
 
-                    var deleteBoard = @"DELETE FROM [iGuruPrep].[dbo].[tblSOTDBoard]
+                    var deleteBoard = @"DELETE FROM [tblSOTDBoard]
                           WHERE [SOTDID] = @SOTDID;";
                     var delBoard = _connection.Execute(deleteBoard, new { SOTDID = id });
 
-                    var deleteCourse = @"DELETE FROM [iGuruPrep].[dbo].[tblSOTDCourse]
+                    var deleteCourse = @"DELETE FROM [tblSOTDCourse]
                           WHERE [SOTDID] = @SOTDID;";
                     var delCourse = _connection.Execute(deleteCourse, new { SOTDID = id });
 
-                    var deleteExamType = @"DELETE FROM [iGuruPrep].[dbo].[tblSOTDExamType]
+                    var deleteExamType = @"DELETE FROM [tblSOTDExamType]
                           WHERE [SOTDID] = @SOTDID;";
                     var delExamType = _connection.Execute(deleteExamType, new { SOTDID = id });
 
@@ -323,7 +323,7 @@ namespace ControlPanel_API.Repository.Implementations
                     createdby,
                     EmployeeID,
                     EmpFirstName
-                FROM [iGuruPrep].[dbo].[tblSOTD]
+                FROM [tblSOTD]
                 WHERE StoryId = @StoryId;";
                 var storyOfTheDay = await _connection.QueryFirstOrDefaultAsync<StoryOfTheDay>(query, new { StoryId = id });
 
@@ -400,7 +400,7 @@ namespace ControlPanel_API.Repository.Implementations
         {
             try
             {
-                var query = "SELECT EventTypeID, EventTypeName FROM [dbo].[tblSOTDEventtype];";
+                var query = "SELECT EventTypeID, EventTypeName FROM [tblSOTDEventtype];";
                 var eventTypes = await _connection.QueryAsync<EventType>(query);
                 if (eventTypes != null)
                 {
@@ -455,16 +455,16 @@ namespace ControlPanel_API.Repository.Implementations
             {
                 data.SOTDID = SOTDID;
             }
-            string query = "SELECT COUNT(*) FROM [dbo].[tblSOTDCategory] WHERE [SOTDID] = @SOTDID";
+            string query = "SELECT COUNT(*) FROM [tblSOTDCategory] WHERE [SOTDID] = @SOTDID";
             int count = _connection.QueryFirstOrDefault<int>(query, new { SOTDID });
             if (count > 0)
             {
-                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tblSOTDCategory]
+                var deleteDuery = @"DELETE FROM [tblSOTDCategory]
                           WHERE [SOTDID] = @SOTDID;";
                 var rowsAffected = _connection.Execute(deleteDuery, new { SOTDID });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblSOTDCategory] ([APID], [SOTDID], [APIDName])
+                    var insertquery = @"INSERT INTO [tblSOTDCategory] ([APID], [SOTDID], [APIDName])
                           VALUES (@APID, @SOTDID, @APIDName);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
@@ -476,7 +476,7 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblSOTDCategory] ([APID], [SOTDID], [APIDName])
+                var insertquery = @"INSERT INTO [tblSOTDCategory] ([APID], [SOTDID], [APIDName])
                           VALUES (@APID, @SOTDID, @APIDName);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
@@ -488,16 +488,16 @@ namespace ControlPanel_API.Repository.Implementations
             {
                 data.SOTDID = SOTDID;
             }
-            string query = "SELECT COUNT(*) FROM [dbo].[tblSOTDClass] WHERE [SOTDID] = @SOTDID";
+            string query = "SELECT COUNT(*) FROM [tblSOTDClass] WHERE [SOTDID] = @SOTDID";
             int count = _connection.QueryFirstOrDefault<int>(query, new { SOTDID });
             if (count > 0)
             {
-                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tblSOTDClass]
+                var deleteDuery = @"DELETE FROM [tblSOTDClass]
                           WHERE [SOTDID] = @SOTDID;";
                 var rowsAffected = _connection.Execute(deleteDuery, new { SOTDID });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblSOTDClass] ([SOTDID], [ClassID])
+                    var insertquery = @"INSERT INTO [tblSOTDClass] ([SOTDID], [ClassID])
                           VALUES (@SOTDID, @ClassID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
@@ -509,7 +509,7 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblSOTDClass] ([SOTDID], [ClassID])
+                var insertquery = @"INSERT INTO [tblSOTDClass] ([SOTDID], [ClassID])
                           VALUES (@SOTDID, @ClassID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
@@ -521,16 +521,16 @@ namespace ControlPanel_API.Repository.Implementations
             {
                 data.SOTDID = SOTDID;
             }
-            string query = "SELECT COUNT(*) FROM [dbo].[tblSOTDBoard] WHERE [SOTDID] = @SOTDID";
+            string query = "SELECT COUNT(*) FROM [tblSOTDBoard] WHERE [SOTDID] = @SOTDID";
             int count = _connection.QueryFirstOrDefault<int>(query, new { SOTDID });
             if (count > 0)
             {
-                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tblSOTDBoard]
+                var deleteDuery = @"DELETE FROM [tblSOTDBoard]
                           WHERE [SOTDID] = @SOTDID;";
                 var rowsAffected = _connection.Execute(deleteDuery, new { SOTDID });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblSOTDBoard] ([SOTDID], [BoardID])
+                    var insertquery = @"INSERT INTO [tblSOTDBoard] ([SOTDID], [BoardID])
                           VALUES (@SOTDID, @BoardID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
@@ -542,7 +542,7 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblSOTDBoard] ([SOTDID], [BoardID])
+                var insertquery = @"INSERT INTO [tblSOTDBoard] ([SOTDID], [BoardID])
                           VALUES (@SOTDID, @BoardID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
@@ -554,16 +554,16 @@ namespace ControlPanel_API.Repository.Implementations
             {
                 data.SOTDID = SOTDID;
             }
-            string query = "SELECT COUNT(*) FROM [dbo].[tblSOTDCourse] WHERE [SOTDID] = @SOTDID";
+            string query = "SELECT COUNT(*) FROM [tblSOTDCourse] WHERE [SOTDID] = @SOTDID";
             int count = _connection.QueryFirstOrDefault<int>(query, new { SOTDID });
             if (count > 0)
             {
-                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tblSOTDCourse]
+                var deleteDuery = @"DELETE FROM [tblSOTDCourse]
                           WHERE [SOTDID] = @SOTDID;";
                 var rowsAffected = _connection.Execute(deleteDuery, new { SOTDID });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblSOTDCourse] ([SOTDID], [CourseID])
+                    var insertquery = @"INSERT INTO [tblSOTDCourse] ([SOTDID], [CourseID])
                           VALUES (@SOTDID, @CourseID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
@@ -575,7 +575,7 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblSOTDCourse] ([SOTDID], [CourseID])
+                var insertquery = @"INSERT INTO [tblSOTDCourse] ([SOTDID], [CourseID])
                           VALUES (@SOTDID, @CourseID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
@@ -587,16 +587,16 @@ namespace ControlPanel_API.Repository.Implementations
             {
                 data.SOTDID = SOTDID;
             }
-            string query = "SELECT COUNT(*) FROM [dbo].[tblSOTDExamType] WHERE [SOTDID] = @SOTDID";
+            string query = "SELECT COUNT(*) FROM [tblSOTDExamType] WHERE [SOTDID] = @SOTDID";
             int count = _connection.QueryFirstOrDefault<int>(query, new { SOTDID });
             if (count > 0)
             {
-                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tblSOTDExamType]
+                var deleteDuery = @"DELETE FROM [tblSOTDExamType]
                           WHERE [SOTDID] = @SOTDID;";
                 var rowsAffected = _connection.Execute(deleteDuery, new { SOTDID });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblSOTDExamType] ([SOTDID], [ExamTypeID])
+                    var insertquery = @"INSERT INTO [tblSOTDExamType] ([SOTDID], [ExamTypeID])
                           VALUES (@SOTDID, @ExamTypeID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
@@ -608,7 +608,7 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblSOTDExamType] ([SOTDID], [ExamTypeID])
+                var insertquery = @"INSERT INTO [tblSOTDExamType] ([SOTDID], [ExamTypeID])
                           VALUES (@SOTDID, @ExamTypeID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
@@ -622,7 +622,7 @@ namespace ControlPanel_API.Repository.Implementations
                     SOTDID,
                     BoardID
                 FROM 
-                    [iGuruPrep].[dbo].[tblSOTDBoard]
+                    [tblSOTDBoard]
                 WHERE 
                     SOTDID = @SOTDID;";
 
@@ -632,28 +632,28 @@ namespace ControlPanel_API.Repository.Implementations
         }
         private List<SOTDCategory> GetListOfSOTDCategory(int SOTDID)
         {
-            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tblSOTDCategory] WHERE  SOTDID = @SOTDID;";
+            var query = @"SELECT * FROM [tblSOTDCategory] WHERE  SOTDID = @SOTDID;";
             // Execute the SQL query with the SOTDID parameter
             var data = _connection.Query<SOTDCategory>(query, new { SOTDID });
             return data != null ? data.AsList() : [];
         }
         private List<SOTDClass> GetListOfSOTDClass(int SOTDID)
         {
-            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tblSOTDClass] WHERE  SOTDID = @SOTDID;";
+            var query = @"SELECT * FROM [tblSOTDClass] WHERE  SOTDID = @SOTDID;";
             // Execute the SQL query with the SOTDID parameter
             var data = _connection.Query<SOTDClass>(query, new { SOTDID });
             return data != null ? data.AsList() : [];
         }
         private List<SOTDCourse> GetListOfSOTDCourse(int SOTDID)
         {
-            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tblSOTDCourse] WHERE  SOTDID = @SOTDID;";
+            var query = @"SELECT * FROM [tblSOTDCourse] WHERE  SOTDID = @SOTDID;";
             // Execute the SQL query with the SOTDID parameter
             var data = _connection.Query<SOTDCourse>(query, new { SOTDID });
             return data != null ? data.AsList() : [];
         }
         private List<SOTDExamType> GetListOfSOTDExamType(int SOTDID)
         {
-            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tblSOTDExamType] WHERE  SOTDID = @SOTDID;";
+            var query = @"SELECT * FROM [tblSOTDExamType] WHERE  SOTDID = @SOTDID;";
             // Execute the SQL query with the SOTDID parameter
             var data = _connection.Query<SOTDExamType>(query, new { SOTDID });
             return data != null ? data.AsList() : [];

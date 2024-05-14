@@ -100,7 +100,7 @@ namespace Config_API.Repository.Implementations
                                   ,[modifiedby]
                                   ,[EmployeeID]
                                   ,[EmpFirstName]
-                            FROM [iGuruPrep].[dbo].[tblBoard]";
+                            FROM tblBoard";
 
                 var boards = await _connection.QueryAsync<Board>(sql);
 

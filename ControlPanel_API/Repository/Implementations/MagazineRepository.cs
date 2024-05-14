@@ -33,7 +33,7 @@ namespace ControlPanel_API.Repository.Implementations
                   EmployeeID = request.EmployeeID,
                   Time = request.Time
                 };
-                string sql = @"INSERT INTO [iGuruPrep].[dbo].[tblMagazine] 
+                string sql = @"INSERT INTO [tblMagazine] 
                    ([Date], [Time], [PathURL], [MagazineTitle], [Status], [Link], [EmployeeID], [EmpFirstName], [createdon], [createdby]) 
                    VALUES 
                    (GETDATE(), @Time, @PathURL, @MagazineTitle, @Status, @Link, @EmployeeID, @EmpFirstName, GETDATE(), @createdby);
@@ -70,7 +70,7 @@ namespace ControlPanel_API.Repository.Implementations
         {
             try
             {
-                string query = @"UPDATE [iGuruPrep].[dbo].[tblMagazine] 
+                string query = @"UPDATE [tblMagazine] 
                    SET [MagazineTitle] = @MagazineTitle, [PathURL] = @PathURL, [Link] = @Link, [EmployeeID] = @EmployeeID, [EmpFirstName] = @EmpFirstName, [modifiedon] = GETDATE(), [modifiedby] = @modifiedby
                    WHERE [MagazineId] = @MagazineId";
                 var magazine = new Magazine
@@ -137,23 +137,23 @@ namespace ControlPanel_API.Repository.Implementations
                      new { MagazineId = id });
                 if (rowsAffected > 0)
                 {
-                    var deleteCat = @"DELETE FROM [iGuruPrep].[dbo].[tblMagazineCategory]
+                    var deleteCat = @"DELETE FROM [tblMagazineCategory]
                           WHERE [MagazineId] = @MagazineId;";
                     var delCat = _connection.Execute(deleteCat, new { MagazineId = id });
 
-                    var deleteClas = @"DELETE FROM [iGuruPrep].[dbo].[tblMagazineClass]
+                    var deleteClas = @"DELETE FROM [tblMagazineClass]
                           WHERE [MagazineID] = @MagazineID;";
                     var delClass = _connection.Execute(deleteClas, new { MagazineID = id });
 
-                    var deleteBoard = @"DELETE FROM [iGuruPrep].[dbo].[tblMagazineBoard]
+                    var deleteBoard = @"DELETE FROM [tblMagazineBoard]
                           WHERE [MagazineID] = @MagazineID;";
                     var delBoard = _connection.Execute(deleteBoard, new { MagazineID = id });
 
-                    var deleteCourse = @"DELETE FROM [iGuruPrep].[dbo].[tblMagazineCourse]
+                    var deleteCourse = @"DELETE FROM [tblMagazineCourse]
                           WHERE [MagazineID] = @MagazineID;";
                     var delCourse = _connection.Execute(deleteCourse, new { MagazineID = id });
 
-                    var deleteExamType = @"DELETE FROM [iGuruPrep].[dbo].[tblMagazineExamType]
+                    var deleteExamType = @"DELETE FROM [tblMagazineExamType]
                           WHERE [MagazineID] = @MagazineID;";
                     var delExamType = _connection.Execute(deleteExamType, new { MagazineID = id });
 
@@ -265,7 +265,7 @@ namespace ControlPanel_API.Repository.Implementations
             {
                 var response = new MagazineDTO();
                 string query = @"SELECT [MagazineId], [Date], [Time], [PathURL], [MagazineTitle], [Status], [Link], [EmployeeID], [EmpFirstName], [createdon], [createdby], [modifiedby], [modifiedon]
-                   FROM [iGuruPrep].[dbo].[tblMagazine]
+                   FROM [tblMagazine]
                    WHERE [MagazineId] = @MagazineId";
 
                 var magazine = await _connection.QueryFirstOrDefaultAsync<Magazine>(query, new { MagazineId = id });
@@ -406,16 +406,16 @@ namespace ControlPanel_API.Repository.Implementations
             {
                 data.MagazineId = MagazineId;
             }
-            string query = "SELECT COUNT(*) FROM [dbo].[tblMagazineCategory] WHERE [MagazineId] = @MagazineId";
+            string query = "SELECT COUNT(*) FROM [tblMagazineCategory] WHERE [MagazineId] = @MagazineId";
             int count = _connection.QueryFirstOrDefault<int>(query, new { MagazineId });
             if (count > 0)
             {
-                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tblMagazineCategory]
+                var deleteDuery = @"DELETE FROM [tblMagazineCategory]
                           WHERE [MagazineId] = @MagazineId;";
                 var rowsAffected = _connection.Execute(deleteDuery, new { MagazineId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblMagazineCategory] ([APID], [MagazineId], [APIDName])
+                    var insertquery = @"INSERT INTO [tblMagazineCategory] ([APID], [MagazineId], [APIDName])
                           VALUES (@APID, @MagazineId, @APIDName);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
@@ -427,7 +427,7 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblMagazineCategory] ([APID], [MagazineId], [APIDName])
+                var insertquery = @"INSERT INTO [tblMagazineCategory] ([APID], [MagazineId], [APIDName])
                           VALUES (@APID, @MagazineId, @APIDName);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
@@ -439,16 +439,16 @@ namespace ControlPanel_API.Repository.Implementations
             {
                 data.MagazineID = MagazineID;
             }
-            string query = "SELECT COUNT(*) FROM [dbo].[tblMagazineClass] WHERE [MagazineID] = @MagazineID";
+            string query = "SELECT COUNT(*) FROM [tblMagazineClass] WHERE [MagazineID] = @MagazineID";
             int count = _connection.QueryFirstOrDefault<int>(query, new { MagazineID });
             if (count > 0)
             {
-                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tblMagazineClass]
+                var deleteDuery = @"DELETE FROM [tblMagazineClass]
                           WHERE [MagazineID] = @MagazineID;";
                 var rowsAffected = _connection.Execute(deleteDuery, new { MagazineID });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblMagazineClass] ([MagazineID], [ClassID])
+                    var insertquery = @"INSERT INTO [tblMagazineClass] ([MagazineID], [ClassID])
                           VALUES (@MagazineID, @ClassID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
@@ -460,7 +460,7 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblMagazineClass] ([MagazineID], [ClassID])
+                var insertquery = @"INSERT INTO [tblMagazineClass] ([MagazineID], [ClassID])
                           VALUES (@MagazineID, @ClassID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
@@ -472,16 +472,16 @@ namespace ControlPanel_API.Repository.Implementations
             {
                 data.MagazineID = MagazineID;
             }
-            string query = "SELECT COUNT(*) FROM [dbo].[tblMagazineBoard] WHERE [MagazineID] = @MagazineID";
+            string query = "SELECT COUNT(*) FROM [tblMagazineBoard] WHERE [MagazineID] = @MagazineID";
             int count = _connection.QueryFirstOrDefault<int>(query, new { MagazineID });
             if (count > 0)
             {
-                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tblMagazineBoard]
+                var deleteDuery = @"DELETE FROM [tblMagazineBoard]
                           WHERE [MagazineID] = @MagazineID;";
                 var rowsAffected = _connection.Execute(deleteDuery, new { MagazineID });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblMagazineBoard] ([MagazineID], [BoardIDID])
+                    var insertquery = @"INSERT INTO [tblMagazineBoard] ([MagazineID], [BoardIDID])
                           VALUES (@MagazineID, @BoardIDID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
@@ -493,7 +493,7 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblMagazineBoard] ([MagazineID], [BoardIDID])
+                var insertquery = @"INSERT INTO [tblMagazineBoard] ([MagazineID], [BoardIDID])
                           VALUES (@MagazineID, @BoardIDID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
@@ -505,16 +505,16 @@ namespace ControlPanel_API.Repository.Implementations
             {
                 data.MagazineID = MagazineID;
             }
-            string query = "SELECT COUNT(*) FROM [dbo].[tblMagazineCourse] WHERE [MagazineID] = @MagazineID";
+            string query = "SELECT COUNT(*) FROM [tblMagazineCourse] WHERE [MagazineID] = @MagazineID";
             int count = _connection.QueryFirstOrDefault<int>(query, new { MagazineID });
             if (count > 0)
             {
-                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tblMagazineCourse]
+                var deleteDuery = @"DELETE FROM [tblMagazineCourse]
                           WHERE [MagazineID] = @MagazineID;";
                 var rowsAffected = _connection.Execute(deleteDuery, new { MagazineID });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblMagazineCourse] ([MagazineID], [CourseID])
+                    var insertquery = @"INSERT INTO [tblMagazineCourse] ([MagazineID], [CourseID])
                           VALUES (@MagazineID, @CourseID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
@@ -526,7 +526,7 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblMagazineCourse] ([MagazineID], [CourseID])
+                var insertquery = @"INSERT INTO [tblMagazineCourse] ([MagazineID], [CourseID])
                           VALUES (@MagazineID, @CourseID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
@@ -538,16 +538,16 @@ namespace ControlPanel_API.Repository.Implementations
             {
                 data.MagazineID = MagazineID;
             }
-            string query = "SELECT COUNT(*) FROM [dbo].[tblMagazineExamType] WHERE [MagazineID] = @MagazineID";
+            string query = "SELECT COUNT(*) FROM [tblMagazineExamType] WHERE [MagazineID] = @MagazineID";
             int count = _connection.QueryFirstOrDefault<int>(query, new { MagazineID });
             if (count > 0)
             {
-                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tblMagazineExamType]
+                var deleteDuery = @"DELETE FROM [tblMagazineExamType]
                           WHERE [MagazineID] = @MagazineID;";
                 var rowsAffected = _connection.Execute(deleteDuery, new { MagazineID });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblMagazineExamType] ([MagazineID], [ExamTypeID])
+                    var insertquery = @"INSERT INTO [tblMagazineExamType] ([MagazineID], [ExamTypeID])
                           VALUES (@MagazineID, @ExamTypeID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
@@ -559,7 +559,7 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblMagazineExamType] ([MagazineID], [ExamTypeID])
+                var insertquery = @"INSERT INTO [tblMagazineExamType] ([MagazineID], [ExamTypeID])
                           VALUES (@MagazineID, @ExamTypeID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
@@ -567,7 +567,7 @@ namespace ControlPanel_API.Repository.Implementations
         }
         private List<MagazineBoard> GetListOfMagazineBoards(int MagazineID)
         {
-            var boardquery = @"SELECT * FROM [iGuruPrep].[dbo].[tblMagazineBoard] WHERE MagazineID = @MagazineID;";
+            var boardquery = @"SELECT * FROM [tblMagazineBoard] WHERE MagazineID = @MagazineID;";
 
             // Execute the SQL query with the SOTDID parameter
             var data = _connection.Query<MagazineBoard>(boardquery, new { MagazineID });
@@ -575,28 +575,28 @@ namespace ControlPanel_API.Repository.Implementations
         }
         private List<MagazineCategory> GetListOfMagazineCategory(int MagazineId)
         {
-            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tblMagazineCategory] WHERE  MagazineId = @MagazineId;";
+            var query = @"SELECT * FROM [tblMagazineCategory] WHERE  MagazineId = @MagazineId;";
             // Execute the SQL query with the SOTDID parameter
             var data = _connection.Query<MagazineCategory>(query, new { MagazineId });
             return data != null ? data.AsList() : [];
         }
         private List<MagazineClass> GetListOfMagazineClass(int MagazineID)
         {
-            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tblMagazineClass] WHERE  MagazineID = @MagazineID;";
+            var query = @"SELECT * FROM [tblMagazineClass] WHERE  MagazineID = @MagazineID;";
             // Execute the SQL query with the SOTDID parameter
             var data = _connection.Query<MagazineClass>(query, new { MagazineID });
             return data != null ? data.AsList() : [];
         }
         private List<MagazineCourse> GetListOfMagazineCourse(int MagazineID)
         {
-            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tblMagazineCourse] WHERE  MagazineID = @MagazineID;";
+            var query = @"SELECT * FROM [tblMagazineCourse] WHERE  MagazineID = @MagazineID;";
             // Execute the SQL query with the SOTDID parameter
             var data = _connection.Query<MagazineCourse>(query, new { MagazineID });
             return data != null ? data.AsList() : [];
         }
         private List<MagazineExamType> GetListOfMagazineExamType(int MagazineID)
         {
-            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tblMagazineExamType] WHERE  MagazineID = @MagazineID;";
+            var query = @"SELECT * FROM [tblMagazineExamType] WHERE  MagazineID = @MagazineID;";
             // Execute the SQL query with the SOTDID parameter
             var data = _connection.Query<MagazineExamType>(query, new { MagazineID });
             return data != null ? data.AsList() : [];

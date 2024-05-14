@@ -2,8 +2,8 @@
 {
     public class NotificationDetail
     {
-        public int ND_id { get; set; }
-        public int? NBNotificationID { get; set; }
-        public string NotificationDetails { get; set; } = string.Empty;
+        public int NBNotificationDetailid { get; set; }
+        public int? NBNID { get; set; }
+        public string NBNotificationDetail { get; set; } = string.Empty;
     }
 }

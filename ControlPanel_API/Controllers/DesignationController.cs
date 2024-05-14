@@ -66,7 +66,7 @@ namespace ControlPanel_API.Controllers
             }
 
         }
-        [HttpPost("UpdateDesignation")]
+        [HttpPut("UpdateDesignation")]
         public async Task<ActionResult> UpdateDesignation(Designation designation)
         {
             try

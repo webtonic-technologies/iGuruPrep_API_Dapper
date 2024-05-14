@@ -59,37 +59,5 @@ namespace ControlPanel_API.Controllers
             }
         }
 
-        [HttpPut("UpdateFile")]
-        public async Task<IActionResult> UpdateNotificationFile([FromForm] NotificationImageDTO request)
-        {
-            if (request.PathURL == null)
-            {
-                return BadRequest("The File field is required");
-            }
-
-            try
-            {
-                var data = await _notificationServices.UpdateNotificationFile(request);
-                return Ok(data);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
-        [HttpGet("GetFile/{id}")]
-        public async Task<IActionResult> GetNotificationFileById(int id)
-        {
-            try
-            {
-                var file = await _notificationServices.GetNotificationFileById(id);
-                return File(file.Data, "application/pdf");
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
-
     }
 }

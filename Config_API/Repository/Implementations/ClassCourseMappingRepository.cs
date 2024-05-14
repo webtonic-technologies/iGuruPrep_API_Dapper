@@ -96,7 +96,7 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
-                string query = "SELECT CourseClassMappingID, ClassID, CourseID, Status, createdon, EmployeeID,EmpFirstName, modifiedon, modifiedby, classname, coursename FROM [tblClassCourses]";
+                string query = "SELECT CourseClassMappingID, ClassID, CourseID, Status, createdon, EmployeeID,EmpFirstName, modifiedon, modifiedby, classname, coursename FROM tblClassCourses";
                 var classCourseMappings = await _connection.QueryAsync<ClassCourseMapping>(query);
 
                 var groupedMappings = classCourseMappings

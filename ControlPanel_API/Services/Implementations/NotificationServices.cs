@@ -14,7 +14,7 @@ namespace ControlPanel_API.Services.Implementations
         {
             _notificationRepository = notificationRepository;
         }
-        public async Task<ServiceResponse<int>> AddUpdateNotification(NotificationDTO request)
+        public async Task<ServiceResponse<string>> AddUpdateNotification(NotificationDTO request)
         {
             try
             {
@@ -22,7 +22,7 @@ namespace ControlPanel_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<int>(false, ex.Message, 0, 500);
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
 
@@ -37,7 +37,6 @@ namespace ControlPanel_API.Services.Implementations
                 return new ServiceResponse<List<Notification>>(false, ex.Message, new List<Notification>(), 500);
             }
         }
-
         public async Task<ServiceResponse<NotificationDTO>> GetNotificationById(int NotificationId)
         {
             try
@@ -47,30 +46,6 @@ namespace ControlPanel_API.Services.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<NotificationDTO>(false, ex.Message, new NotificationDTO(), 500);
-            }
-        }
-
-        public async Task<ServiceResponse<byte[]>> GetNotificationFileById(int NotificationId)
-        {
-            try
-            {
-                return await _notificationRepository.GetNotificationFileById(NotificationId);
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<byte[]>(false, ex.Message, Array.Empty<byte>(), 500);
-            }
-        }
-
-        public async Task<ServiceResponse<string>> UpdateNotificationFile(NotificationImageDTO request)
-        {
-            try
-            {
-                return await _notificationRepository.UpdateNotificationFile(request);
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
     }

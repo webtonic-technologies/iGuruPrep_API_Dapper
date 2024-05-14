@@ -311,16 +311,16 @@ namespace Schools_API.Repository.Implementations
             {
                 data.ProjectId = ProjectId;
             }
-            string query = "SELECT COUNT(*) FROM [dbo].[tblProjectCategory] WHERE [ProjectId] = @ProjectId";
+            string query = "SELECT COUNT(*) FROM [tblProjectCategory] WHERE [ProjectId] = @ProjectId";
             int count = _connection.QueryFirstOrDefault<int>(query, new { ProjectId });
             if (count > 0)
             {
-                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tblProjectCategory]
+                var deleteDuery = @"DELETE FROM [tblProjectCategory]
                           WHERE [ProjectId] = @ProjectId;";
                 var rowsAffected = _connection.Execute(deleteDuery, new { ProjectId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblProjectCategory] ([APId], [ProjectId], [APName])
+                    var insertquery = @"INSERT INTO [tblProjectCategory] ([APId], [ProjectId], [APName])
                           VALUES (@APId, @ProjectId, @APName);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
@@ -332,7 +332,7 @@ namespace Schools_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblProjectCategory] ([APId], [ProjectId], [APName])
+                var insertquery = @"INSERT INTO [tblProjectCategory] ([APId], [ProjectId], [APName])
                           VALUES (@APId, @ProjectId, @APName);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
@@ -344,16 +344,16 @@ namespace Schools_API.Repository.Implementations
             {
                 data.ProjectID = ProjectId;
             }
-            string query = "SELECT COUNT(*) FROM [dbo].[tblProjectClass] WHERE [ProjectID] = @ProjectID";
+            string query = "SELECT COUNT(*) FROM [tblProjectClass] WHERE [ProjectID] = @ProjectID";
             int count = _connection.QueryFirstOrDefault<int>(query, new { ProjectID = ProjectId });
             if (count > 0)
             {
-                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tblProjectClass]
+                var deleteDuery = @"DELETE FROM [tblProjectClass]
                           WHERE [ProjectID] = @ProjectID;";
                 var rowsAffected = _connection.Execute(deleteDuery, new { ProjectID = ProjectId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblProjectClass] ([ProjectID], [ClassID])
+                    var insertquery = @"INSERT INTO [tblProjectClass] ([ProjectID], [ClassID])
                           VALUES (@ProjectID, @ClassID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
@@ -365,7 +365,7 @@ namespace Schools_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblProjectClass] ([ProjectID], [ClassID])
+                var insertquery = @"INSERT INTO [tblProjectClass] ([ProjectID], [ClassID])
                           VALUES (@ProjectID, @ClassID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
@@ -377,16 +377,16 @@ namespace Schools_API.Repository.Implementations
             {
                 data.ProjectID = ProjectId;
             }
-            string query = "SELECT COUNT(*) FROM [dbo].[tblProjectBoard] WHERE [ProjectID] = @ProjectID";
+            string query = "SELECT COUNT(*) FROM [tblProjectBoard] WHERE [ProjectID] = @ProjectID";
             int count = _connection.QueryFirstOrDefault<int>(query, new { ProjectID = ProjectId });
             if (count > 0)
             {
-                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tblProjectBoard]
+                var deleteDuery = @"DELETE FROM [tblProjectBoard]
                           WHERE [ProjectID] = @ProjectID;";
                 var rowsAffected = _connection.Execute(deleteDuery, new { ProjectID = ProjectId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblProjectBoard] ([ProjectID], [BoardID])
+                    var insertquery = @"INSERT INTO [tblProjectBoard] ([ProjectID], [BoardID])
                           VALUES (@ProjectID, @BoardID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
@@ -398,7 +398,7 @@ namespace Schools_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblProjectBoard] ([ProjectID], [BoardID])
+                var insertquery = @"INSERT INTO [tblProjectBoard] ([ProjectID], [BoardID])
                           VALUES (@ProjectID, @BoardID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
@@ -410,16 +410,16 @@ namespace Schools_API.Repository.Implementations
             {
                 data.ProjectID = ProjectId;
             }
-            string query = "SELECT COUNT(*) FROM [dbo].[tblProjectCourse] WHERE [ProjectID] = @ProjectID";
+            string query = "SELECT COUNT(*) FROM [tblProjectCourse] WHERE [ProjectID] = @ProjectID";
             int count = _connection.QueryFirstOrDefault<int>(query, new { ProjectID = ProjectId });
             if (count > 0)
             {
-                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tblProjectCourse]
+                var deleteDuery = @"DELETE FROM [tblProjectCourse]
                           WHERE [ProjectID] = @ProjectID;";
                 var rowsAffected = _connection.Execute(deleteDuery, new { ProjectID = ProjectId});
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblProjectCourse] ([ProjectID], [CourseID])
+                    var insertquery = @"INSERT INTO [tblProjectCourse] ([ProjectID], [CourseID])
                           VALUES (@ProjectID, @CourseID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
@@ -431,7 +431,7 @@ namespace Schools_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblProjectCourse] ([ProjectID], [CourseID])
+                var insertquery = @"INSERT INTO [tblProjectCourse] ([ProjectID], [CourseID])
                           VALUES (@ProjectID, @CourseID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
@@ -443,16 +443,16 @@ namespace Schools_API.Repository.Implementations
             {
                 data.ProjectID = ProjectId;
             }
-            string query = "SELECT COUNT(*) FROM [dbo].[tblProjectExamType] WHERE [ProjectID] = @ProjectID";
+            string query = "SELECT COUNT(*) FROM [tblProjectExamType] WHERE [ProjectID] = @ProjectID";
             int count = _connection.QueryFirstOrDefault<int>(query, new { ProjectID = ProjectId });
             if (count > 0)
             {
-                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tblProjectExamType]
+                var deleteDuery = @"DELETE FROM [tblProjectExamType]
                           WHERE [ProjectID] = @ProjectID;";
                 var rowsAffected = _connection.Execute(deleteDuery, new { ProjectID = ProjectId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblProjectExamType] ([ProjectID], [ExamTypeID])
+                    var insertquery = @"INSERT INTO [tblProjectExamType] ([ProjectID], [ExamTypeID])
                           VALUES (@ProjectID, @ExamTypeID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
@@ -464,7 +464,7 @@ namespace Schools_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblProjectExamType] ([ProjectID], [ExamTypeID])
+                var insertquery = @"INSERT INTO [tblProjectExamType] ([ProjectID], [ExamTypeID])
                           VALUES (@ProjectID, @ExamTypeID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
@@ -476,16 +476,16 @@ namespace Schools_API.Repository.Implementations
             {
                 data.ProjectID = ProjectId;
             }
-            string query = "SELECT COUNT(*) FROM [dbo].[tblProjectSubject] WHERE [ProjectID] = @ProjectID";
+            string query = "SELECT COUNT(*) FROM [tblProjectSubject] WHERE [ProjectID] = @ProjectID";
             int count = _connection.QueryFirstOrDefault<int>(query, new { ProjectID = ProjectId });
             if (count > 0)
             {
-                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tblProjectSubject]
+                var deleteDuery = @"DELETE FROM [tblProjectSubject]
                           WHERE [ProjectID] = @ProjectID;";
                 var rowsAffected = _connection.Execute(deleteDuery, new { ProjectID = ProjectId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblProjectSubject] ([ProjectID], [SubjectID])
+                    var insertquery = @"INSERT INTO [tblProjectSubject] ([ProjectID], [SubjectID])
                           VALUES (@ProjectID, @SubjectID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
@@ -497,7 +497,7 @@ namespace Schools_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tblProjectSubject] ([ProjectID], [SubjectID])
+                var insertquery = @"INSERT INTO [tblProjectSubject] ([ProjectID], [SubjectID])
                           VALUES (@ProjectID, @SubjectID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
@@ -530,7 +530,7 @@ namespace Schools_API.Repository.Implementations
         }
         private List<ProjectBoard> GetListOfProjectBoards(int ProjectId)
         {
-            var boardquery = @"SELECT * FROM [iGuruPrep].[dbo].[tblProjectBoard] WHERE ProjectID = @ProjectID;";
+            var boardquery = @"SELECT * FROM [tblProjectBoard] WHERE ProjectID = @ProjectID;";
 
             // Execute the SQL query with the SOTDID parameter
             var data = _connection.Query<ProjectBoard>(boardquery, new { ProjectID = ProjectId });
@@ -538,35 +538,35 @@ namespace Schools_API.Repository.Implementations
         }
         private List<ProjectCategory> GetListOfProjectCategory(int ProjectId)
         {
-            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tblProjectCategory] WHERE  ProjectId = @ProjectId;";
+            var query = @"SELECT * FROM [tblProjectCategory] WHERE  ProjectId = @ProjectId;";
             // Execute the SQL query with the SOTDID parameter
             var data = _connection.Query<ProjectCategory>(query, new { ProjectId });
             return data != null ? data.AsList() : [];
         }
         private List<ProjectClass> GetListOfProjectClass(int ProjectId)
         {
-            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tblProjectClass] WHERE  ProjectID = @ProjectID;";
+            var query = @"SELECT * FROM [tblProjectClass] WHERE  ProjectID = @ProjectID;";
             // Execute the SQL query with the SOTDID parameter
             var data = _connection.Query<ProjectClass>(query, new { ProjectID = ProjectId });
             return data != null ? data.AsList() : [];
         }
         private List<ProjectCourse> GetListOfProjectCourse(int ProjectId)
         {
-            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tblProjectCourse] WHERE  ProjectID = @ProjectID;";
+            var query = @"SELECT * FROM [tblProjectCourse] WHERE  ProjectID = @ProjectID;";
             // Execute the SQL query with the SOTDID parameter
             var data = _connection.Query<ProjectCourse>(query, new { ProjectID = ProjectId });
             return data != null ? data.AsList() : [];
         }
         private List<ProjectExamType> GetListOfProjectExamType(int ProjectId)
         {
-            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tblProjectExamType] WHERE  ProjectID = @ProjectID;";
+            var query = @"SELECT * FROM [tblProjectExamType] WHERE  ProjectID = @ProjectID;";
             // Execute the SQL query with the SOTDID parameter
             var data = _connection.Query<ProjectExamType>(query, new { ProjectID = ProjectId });
             return data != null ? data.AsList() : [];
         }
         private List<ProjectSubject> GetListOfProjectSubject(int ProjectId)
         {
-            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tblProjectSubject] WHERE  ProjectID = @ProjectID;";
+            var query = @"SELECT * FROM [tblProjectSubject] WHERE  ProjectID = @ProjectID;";
             // Execute the SQL query with the SOTDID parameter
             var data = _connection.Query<ProjectSubject>(query, new { ProjectID = ProjectId });
             return data != null ? data.AsList() : [];

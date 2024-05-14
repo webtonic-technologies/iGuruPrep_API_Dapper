@@ -37,7 +37,7 @@ namespace Course_API.Repository.Implementations
                     FileTypeId = request.FileTypeId
                 };
                 string insertQuery = @"
-        INSERT INTO [iGuruPrep].[dbo].[tblLibrary] 
+        INSERT INTO [tblLibrary] 
             (BookName, Status, pathURL, link, createdon, createdby, EmployeeID, EmpFirstName, FileTypeId)
         VALUES 
             (@BookName, @Status, @pathURL, @link, @createdon, @createdby, @EmployeeID, @EmpFirstName, @FileTypeId);
@@ -77,11 +77,50 @@ namespace Course_API.Repository.Implementations
         {
             try
             {
+                var book = await _connection.QueryFirstOrDefaultAsync<Book>(
+                   "SELECT * FROM tblBook WHERE BookId = @BookId",
+                   new { BookId = id });
+
+                if (book == null)
+                    throw new Exception("Book not found");
+                
+                var filePath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "BooksAudioVideo", book.pathURL);
+                var filePath1 = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "BooksAudioVideo", book.link);
+                if (File.Exists(filePath) || File.Exists(filePath1))
+                {
+                    File.Delete(filePath1);
+                    File.Delete(filePath);
+                }
+
                 int rowsAffected = await _connection.ExecuteAsync(
                     "DELETE FROM tblBook WHERE BookId = @BookId", new { BookId = id });
 
                 if (rowsAffected > 0)
                 {
+                    var deleteCat = @"DELETE FROM [tbllibraryCategory]
+                          WHERE BookId = @BookId;";
+                    var delCat = _connection.Execute(deleteCat, new { BookId = id });
+
+                    var deleteClas = @"DELETE FROM [tbllibraryClass]
+                          WHERE bookID = @BookId;";
+                    var delClass = _connection.Execute(deleteClas, new { BookId = id });
+
+                    var deleteBoard = @"DELETE FROM [tbllibraryBoard]
+                          WHERE bookID = @BookId;";
+                    var delBoard = _connection.Execute(deleteBoard, new { BookId = id });
+
+                    var deleteCourse = @"DELETE FROM [tbllibraryCourse]
+                          WHERE bookID = @BookId;";
+                    var delCourse = _connection.Execute(deleteCourse, new { BookId = id });
+
+                    var deleteExamType = @"DELETE FROM [tbllibraryExamType]
+                          WHERE bookID = @BookId;";
+                    var delExamType = _connection.Execute(deleteExamType, new { BookId = id });
+
+                    var deleteSubject = @"DELETE FROM [tbllibrarySubject]
+                          WHERE bookID = @BookId;";
+                    var delSubject = _connection.Execute(deleteSubject, new { BookId = id });
+
                     return new ServiceResponse<bool>(true, "Operation Successful", true, 200);
                 }
                 else
@@ -114,7 +153,7 @@ namespace Course_API.Repository.Implementations
             EmpFirstName,
             FileTypeId
         FROM 
-            [iGuruPrep].[dbo].[tblLibrary]
+            [tblLibrary]
         WHERE 
             BookId = @BookId";
                 var book = await _connection.QueryFirstOrDefaultAsync<Book>(selectQuery, new { BookId = id });
@@ -275,7 +314,7 @@ namespace Course_API.Repository.Implementations
                     BookId = request.BookId
                 };
                 string updateQuery = @"
-        UPDATE [iGuruPrep].[dbo].[tblLibrary]
+        UPDATE [tblLibrary]
         SET 
             BookName = @BookName,
             Status = @Status,
@@ -323,16 +362,16 @@ namespace Course_API.Repository.Implementations
             {
                 data.BookId = BookId;
             }
-            string query = "SELECT COUNT(*) FROM [dbo].[tbllibraryCategory] WHERE [BookId] = @BookId";
+            string query = "SELECT COUNT(*) FROM [tbllibraryCategory] WHERE [BookId] = @BookId";
             int count = _connection.QueryFirstOrDefault<int>(query, new { BookId });
             if (count > 0)
             {
-                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tbllibraryCategory]
+                var deleteDuery = @"DELETE FROM [tbllibraryCategory]
                           WHERE [BookId] = @BookId;";
                 var rowsAffected = _connection.Execute(deleteDuery, new { BookId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tbllibraryCategory] ([APId], [BookId], [APName])
+                    var insertquery = @"INSERT INTO [tbllibraryCategory] ([APId], [BookId], [APName])
                           VALUES (@APId, @BookId, @APName);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
@@ -344,7 +383,7 @@ namespace Course_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tbllibraryCategory] ([APId], [BookId], [APName])
+                var insertquery = @"INSERT INTO [tbllibraryCategory] ([APId], [BookId], [APName])
                           VALUES (@APId, @BookId, @APName);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
@@ -356,16 +395,16 @@ namespace Course_API.Repository.Implementations
             {
                 data.bookID = BookId;
             }
-            string query = "SELECT COUNT(*) FROM [dbo].[tbllibraryClass] WHERE [bookID] = @bookID";
+            string query = "SELECT COUNT(*) FROM [tbllibraryClass] WHERE [bookID] = @bookID";
             int count = _connection.QueryFirstOrDefault<int>(query, new { bookID = BookId });
             if (count > 0)
             {
-                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tbllibraryClass]
+                var deleteDuery = @"DELETE FROM [tbllibraryClass]
                           WHERE [bookID] = @bookID;";
                 var rowsAffected = _connection.Execute(deleteDuery, new { bookID = BookId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tbllibraryClass] ([bookID], [ClassID])
+                    var insertquery = @"INSERT INTO [tbllibraryClass] ([bookID], [ClassID])
                           VALUES (@bookID, @ClassID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
@@ -377,7 +416,7 @@ namespace Course_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tbllibraryClass] ([bookID], [ClassID])
+                var insertquery = @"INSERT INTO [tbllibraryClass] ([bookID], [ClassID])
                           VALUES (@bookID, @ClassID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
@@ -389,16 +428,16 @@ namespace Course_API.Repository.Implementations
             {
                 data.bookID = BookId;
             }
-            string query = "SELECT COUNT(*) FROM [dbo].[tbllibraryBoard] WHERE [bookID] = @bookID";
+            string query = "SELECT COUNT(*) FROM [tbllibraryBoard] WHERE [bookID] = @bookID";
             int count = _connection.QueryFirstOrDefault<int>(query, new { bookID = BookId });
             if (count > 0)
             {
-                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tbllibraryBoard]
+                var deleteDuery = @"DELETE FROM [tbllibraryBoard]
                           WHERE [bookID] = @bookID;";
                 var rowsAffected = _connection.Execute(deleteDuery, new { bookID = BookId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tbllibraryBoard] ([bookID], [BoardID])
+                    var insertquery = @"INSERT INTO [tbllibraryBoard] ([bookID], [BoardID])
                           VALUES (@bookID, @BoardID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
@@ -410,7 +449,7 @@ namespace Course_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tbllibraryBoard] ([bookID], [BoardID])
+                var insertquery = @"INSERT INTO [tbllibraryBoard] ([bookID], [BoardID])
                           VALUES (@bookID, @BoardID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
@@ -422,16 +461,16 @@ namespace Course_API.Repository.Implementations
             {
                 data.bookID = BookId;
             }
-            string query = "SELECT COUNT(*) FROM [dbo].[tbllibraryCourse] WHERE [bookID] = @bookID";
+            string query = "SELECT COUNT(*) FROM [tbllibraryCourse] WHERE [bookID] = @bookID";
             int count = _connection.QueryFirstOrDefault<int>(query, new { bookID = BookId });
             if (count > 0)
             {
-                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tbllibraryCourse]
+                var deleteDuery = @"DELETE FROM [tbllibraryCourse]
                           WHERE [bookID] = @bookID;";
                 var rowsAffected = _connection.Execute(deleteDuery, new { bookID = BookId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tbllibraryCourse] ([bookID], [CourseID])
+                    var insertquery = @"INSERT INTO [tbllibraryCourse] ([bookID], [CourseID])
                           VALUES (@bookID, @CourseID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
@@ -443,7 +482,7 @@ namespace Course_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tbllibraryCourse] ([bookID], [CourseID])
+                var insertquery = @"INSERT INTO [tbllibraryCourse] ([bookID], [CourseID])
                           VALUES (@bookID, @CourseID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
@@ -455,16 +494,16 @@ namespace Course_API.Repository.Implementations
             {
                 data.bookID = BookId;
             }
-            string query = "SELECT COUNT(*) FROM [dbo].[tbllibraryExamType] WHERE [bookID] = @bookID";
+            string query = "SELECT COUNT(*) FROM [tbllibraryExamType] WHERE [bookID] = @bookID";
             int count = _connection.QueryFirstOrDefault<int>(query, new { bookID = BookId });
             if (count > 0)
             {
-                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tbllibraryExamType]
+                var deleteDuery = @"DELETE FROM [tbllibraryExamType]
                           WHERE [bookID] = @bookID;";
                 var rowsAffected = _connection.Execute(deleteDuery, new { bookID = BookId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tbllibraryExamType] ([bookID], [ExamTypeID])
+                    var insertquery = @"INSERT INTO [tbllibraryExamType] ([bookID], [ExamTypeID])
                           VALUES (@bookID, @ExamTypeID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
@@ -476,7 +515,7 @@ namespace Course_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tbllibraryExamType] ([bookID], [ExamTypeID])
+                var insertquery = @"INSERT INTO [tbllibraryExamType] ([bookID], [ExamTypeID])
                           VALUES (@bookID, @ExamTypeID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
@@ -488,16 +527,16 @@ namespace Course_API.Repository.Implementations
             {
                 data.bookID = BookId;
             }
-            string query = "SELECT COUNT(*) FROM [dbo].[tbllibrarySubject] WHERE [bookID] = @bookID";
+            string query = "SELECT COUNT(*) FROM [tbllibrarySubject] WHERE [bookID] = @bookID";
             int count = _connection.QueryFirstOrDefault<int>(query, new { bookID = BookId });
             if (count > 0)
             {
-                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tbllibrarySubject]
+                var deleteDuery = @"DELETE FROM [tbllibrarySubject]
                           WHERE [bookID] = @bookID;";
                 var rowsAffected = _connection.Execute(deleteDuery, new { bookID = BookId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tbllibrarySubject] ([bookID], [SubjectID])
+                    var insertquery = @"INSERT INTO [tbllibrarySubject] ([bookID], [SubjectID])
                           VALUES (@bookID, @SubjectID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
@@ -509,7 +548,7 @@ namespace Course_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tbllibrarySubject] ([bookID], [SubjectID])
+                var insertquery = @"INSERT INTO [tbllibrarySubject] ([bookID], [SubjectID])
                           VALUES (@bookID, @SubjectID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
@@ -521,16 +560,16 @@ namespace Course_API.Repository.Implementations
             {
                 data.BookId = BookId;
             }
-            string query = "SELECT COUNT(*) FROM [dbo].[tbllibraryAuthorDetails] WHERE [BookId] = @BookId";
+            string query = "SELECT COUNT(*) FROM [tbllibraryAuthorDetails] WHERE [BookId] = @BookId";
             int count = _connection.QueryFirstOrDefault<int>(query, new { BookId });
             if (count > 0)
             {
-                var deleteDuery = @"DELETE FROM [iGuruPrep].[dbo].[tbllibraryAuthorDetails]
+                var deleteDuery = @"DELETE FROM [tbllibraryAuthorDetails]
                           WHERE [BookId] = @BookId;";
                 var rowsAffected = _connection.Execute(deleteDuery, new { BookId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tbllibraryAuthorDetails] ([BookId], [AuthorDetails])
+                    var insertquery = @"INSERT INTO [tbllibraryAuthorDetails] ([BookId], [AuthorDetails])
                           VALUES (@BookId, @AuthorDetails);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
@@ -542,7 +581,7 @@ namespace Course_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [iGuruPrep].[dbo].[tbllibraryAuthorDetails] ([BookId], [AuthorDetails])
+                var insertquery = @"INSERT INTO [tbllibraryAuthorDetails] ([BookId], [AuthorDetails])
                           VALUES (@BookId, @AuthorDetails);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
@@ -550,7 +589,7 @@ namespace Course_API.Repository.Implementations
         }
         private List<BookBoard> GetListOfBookBoards(int BookId)
         {
-            var boardquery = @"SELECT * FROM [iGuruPrep].[dbo].[tbllibraryBoard] WHERE bookID = @bookID;";
+            var boardquery = @"SELECT * FROM [tbllibraryBoard] WHERE bookID = @bookID;";
 
             // Execute the SQL query with the SOTDID parameter
             var data = _connection.Query<BookBoard>(boardquery, new { bookID = BookId });
@@ -558,42 +597,42 @@ namespace Course_API.Repository.Implementations
         }
         private List<BookCategory> GetListOfBookCategory(int BookId)
         {
-            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tbllibraryCategory] WHERE  BookId = @BookId;";
+            var query = @"SELECT * FROM [tbllibraryCategory] WHERE  BookId = @BookId;";
             // Execute the SQL query with the SOTDID parameter
             var data = _connection.Query<BookCategory>(query, new { BookId });
             return data != null ? data.AsList() : [];
         }
         private List<BookClass> GetListOfBookClass(int bookID)
         {
-            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tbllibraryClass] WHERE  bookID = @bookID;";
+            var query = @"SELECT * FROM [tbllibraryClass] WHERE  bookID = @bookID;";
             // Execute the SQL query with the SOTDID parameter
             var data = _connection.Query<BookClass>(query, new { bookID });
             return data != null ? data.AsList() : [];
         }
         private List<BookCourse> GetListOfBookCourse(int bookID)
         {
-            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tbllibraryCourse] WHERE  bookID = @bookID;";
+            var query = @"SELECT * FROM [tbllibraryCourse] WHERE  bookID = @bookID;";
             // Execute the SQL query with the SOTDID parameter
             var data = _connection.Query<BookCourse>(query, new { bookID });
             return data != null ? data.AsList() : [];
         }
         private List<BookExamType> GetListOfBookExamType(int bookID)
         {
-            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tbllibraryExamType] WHERE  bookID = @bookID;";
+            var query = @"SELECT * FROM [tbllibraryExamType] WHERE  bookID = @bookID;";
             // Execute the SQL query with the SOTDID parameter
             var data = _connection.Query<BookExamType>(query, new { bookID });
             return data != null ? data.AsList() : [];
         }
         private List<BookSubject> GetListOfBookSubject(int bookID)
         {
-            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tbllibrarySubject] WHERE  bookID = @bookID;";
+            var query = @"SELECT * FROM [tbllibrarySubject] WHERE  bookID = @bookID;";
             // Execute the SQL query with the SOTDID parameter
             var data = _connection.Query<BookSubject>(query, new { bookID });
             return data != null ? data.AsList() : [];
         }
         private List<BookAuthorDetails> GetListOfAuthorDettails(int BookId)
         {
-            var query = @"SELECT * FROM [iGuruPrep].[dbo].[tbllibraryAuthorDetails] WHERE  BookId = @BookId;";
+            var query = @"SELECT * FROM [tbllibraryAuthorDetails] WHERE  BookId = @BookId;";
             // Execute the SQL query with the SOTDID parameter
             var data = _connection.Query<BookAuthorDetails>(query, new { BookId });
             return data != null ? data.AsList() : [];

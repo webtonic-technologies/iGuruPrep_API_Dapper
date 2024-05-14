@@ -7,8 +7,8 @@ namespace ControlPanel_API.Repository.Interfaces
     public interface IEmployeeRepository
     {
         Task<ServiceResponse<List<Employee>>> GetEmployeeList(GetEmployeeListDTO request);
-        Task<ServiceResponse<Employee>> GetEmployeeByID(int ID);
-        Task<ServiceResponse<string>> AddUpdateEmployee(Employee request);
+        Task<ServiceResponse<EmployeeDTO>> GetEmployeeByID(int ID);
+        Task<ServiceResponse<string>> AddUpdateEmployee(EmployeeDTO request);
         Task<ServiceResponse<bool>> StatusActiveInactive(int id);
     }
 }

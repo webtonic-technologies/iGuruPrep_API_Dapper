@@ -33,7 +33,7 @@ namespace Config_API.Repository.Implementations
                         Status = true
                     };
 
-                    string insertQuery = @"INSERT INTO [iGuruPrep].[dbo].[tblCourse] 
+                    string insertQuery = @"INSERT INTO [tblCourse] 
                            ([CourseName], [CourseCode], [Status], [createdby], [createdon], [displayorder], [EmployeeID], [EmpFirstName])
                            VALUES (@CourseName, @CourseCode, @Status, @CreatedBy, GETDATE(), @DisplayOrder, @EmployeeID, @EmpFirstName)";
                     
@@ -50,7 +50,7 @@ namespace Config_API.Repository.Implementations
                 }
                 else
                 {
-                    string updateQuery = @"UPDATE [iGuruPrep].[dbo].[tblCourse] SET 
+                    string updateQuery = @"UPDATE [tblCourse] SET 
                            [CourseName] = @CourseName, 
                            [CourseCode] = @CourseCode, 
                            [Status] = @Status, 
@@ -94,7 +94,7 @@ namespace Config_API.Repository.Implementations
             try
             {
                 string query = @"SELECT [CourseId], [CourseName], [CourseCode], [Status], [createdby], [createdon], [displayorder], [modifiedby], [modifiedon], [EmployeeID], [EmpFirstName]
-                           FROM [iGuruPrep].[dbo].[tblCourse]";
+                           FROM [tblCourse]";
                 var data = await _connection.QueryAsync<Course>(query);
 
                 if (data != null)
@@ -118,7 +118,7 @@ namespace Config_API.Repository.Implementations
             try
             {
                 string getQuery = @"SELECT [CourseId], [CourseName], [CourseCode], [Status], [createdby], [createdon], [displayorder], [modifiedby], [modifiedon], [EmployeeID], [EmpFirstName]
-                           FROM [iGuruPrep].[dbo].[tblCourse]
+                           FROM [tblCourse]
                            WHERE [CourseId] = @CourseId";
                 var data = await _connection.QueryFirstOrDefaultAsync<Course>(getQuery, new { CourseId = id });
 

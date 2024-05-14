@@ -32,7 +32,7 @@ namespace Config_API.Repository.Implementations
                         showcourse = request.showcourse,
                         Status = true
                     };
-                    string insertQuery = @"INSERT INTO [iGuruPrep].[dbo].[tblClass] 
+                    string insertQuery = @"INSERT INTO [tblClass] 
                            ([ClassName], [ClassCode], [Status], [createdby], [createdon], [showcourse], [EmployeeID], [EmpFirstName])
                            VALUES (@ClassName, @ClassCode, @Status, @CreatedBy, @CreatedOn, @ShowCourse, @EmployeeID, @EmpFirstName)";
                     int rowsAffected = await _connection.ExecuteAsync(insertQuery, newClass);
@@ -48,7 +48,7 @@ namespace Config_API.Repository.Implementations
                 }
                 else
                 {
-                    string updateQuery = @"UPDATE [iGuruPrep].[dbo].[tblClass] 
+                    string updateQuery = @"UPDATE [tblClass] 
                            SET [ClassName] = @ClassName, [ClassCode] = @ClassCode, [Status] = @Status, 
                                [modifiedby] = @ModifiedBy, [modifiedon] = @ModifiedOn, [showcourse] = @ShowCourse, [EmployeeID] = @EmployeeID, [EmpFirstName] = @EmpFirstName
                            WHERE [ClassId] = @ClassId";
@@ -96,7 +96,7 @@ namespace Config_API.Repository.Implementations
                                   ,[showcourse]
                                   ,[EmployeeID]
                                   ,[EmpFirstName]
-                           FROM [iGuruPrep].[dbo].[tblClass]";
+                           FROM [tblClass]";
                 var classes = await _connection.QueryAsync<Class>(query);
 
                 if (classes != null)
@@ -129,7 +129,7 @@ namespace Config_API.Repository.Implementations
                                   ,[showcourse]
                                   ,[EmployeeID]
                                   ,[EmpFirstName]
-                           FROM [iGuruPrep].[dbo].[tblClass]
+                           FROM [tblClass]
                            WHERE [ClassId] = @ClassId";
 
                 var classObj = await _connection.QueryFirstOrDefaultAsync<Class>(query, new { ClassId = id });

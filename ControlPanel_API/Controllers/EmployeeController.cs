@@ -52,7 +52,7 @@ namespace ControlPanel_API.Controllers
         }
 
         [HttpPost("AddUpdateEmployee")]
-        public async Task<IActionResult> AddUpdateEmployee(Employee request)
+        public async Task<IActionResult> AddUpdateEmployee(EmployeeDTO request)
         {
             try
             {

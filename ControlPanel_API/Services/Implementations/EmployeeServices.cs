@@ -1,7 +1,6 @@
 ﻿using ControlPanel_API.DTOs;
 using ControlPanel_API.DTOs.ServiceResponse;
 using ControlPanel_API.Models;
-using ControlPanel_API.Repository.Implementations;
 using ControlPanel_API.Repository.Interfaces;
 using ControlPanel_API.Services.Interfaces;
 
@@ -14,7 +13,7 @@ namespace ControlPanel_API.Services.Implementations
         {
             _employeeRepository = employeeRepository;
         }
-        public async Task<ServiceResponse<string>> AddUpdateEmployee(Employee request)
+        public async Task<ServiceResponse<string>> AddUpdateEmployee(EmployeeDTO request)
         {
             try
             {
@@ -26,7 +25,7 @@ namespace ControlPanel_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<Employee>> GetEmployeeByID(int ID)
+        public async Task<ServiceResponse<EmployeeDTO>> GetEmployeeByID(int ID)
         {
             try
             {
@@ -34,7 +33,7 @@ namespace ControlPanel_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<Employee>(false, ex.Message, new Employee(), 500);
+                return new ServiceResponse<EmployeeDTO>(false, ex.Message, new EmployeeDTO(), 500);
             }
         }
 
