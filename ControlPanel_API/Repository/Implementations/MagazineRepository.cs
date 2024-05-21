@@ -173,90 +173,85 @@ namespace ControlPanel_API.Repository.Implementations
         {
             try
             {
-                var sql = @"
-            SELECT m.MagazineId,
-                   m.Date,
-                   m.Time,
-                   m.PathURL,
-                   m.MagazineTitle,
-                   m.Status,
-                   m.Link,
-                   m.modifiedon,
-                   m.modifiedby,
-                   m.createdon,
-                   m.createdby,
-                   m.EmployeeID,
-                   m.EmpFirstName,
-                   c.MgCategoryID,
-                   c.APID,
-                   c.APIDName,
-                   b.MagazineBoardId,
-                   b.MagazineID,
-                   b.BoardIDID,
-                   cls.MagazineClassId,
-                   cls.MagazineID,
-                   cls.ClassID,
-                   course.MagazineCourseID,
-                   course.MagazineID,
-                   course.CourseID,
-                   et.MagazineExamTypeID,
-                   et.MagazineID,
-                   et.ExamTypeID
-            FROM tblMagazine m
-            LEFT JOIN tblMagazineCategory c ON m.MagazineId = c.MagazineId
-            LEFT JOIN tblMagazineBoard b ON m.MagazineId = b.MagazineID
-            LEFT JOIN tblMagazineClass cls ON m.MagazineId = cls.MagazineID
-            LEFT JOIN tblMagazineCourse course ON m.MagazineId = course.MagazineID
-            LEFT JOIN tblMagazineExamType et ON m.MagazineId = et.MagazineID";
+                var magazineIds = new HashSet<int>();
 
-                var result = await _connection.QueryAsync<MagazineDTO, MagazineCategory, MagazineBoard, MagazineClass, MagazineCourse, MagazineExamType, MagazineDTO>(
-                    sql,
-                    (magazine, category, board, classItem, course, examType) =>
+                // Define the queries
+                string categoriesQuery = @"SELECT MagazineId FROM [tblMagazineCategory] WHERE [APID] = @APID";
+                string boardsQuery = @"SELECT MagazineID FROM [tblMagazineBoard] WHERE [BoardIDID] = @BoardIDID";
+                string classesQuery = @"SELECT MagazineID FROM [tblMagazineClass] WHERE [ClassID] = @ClassID";
+                string coursesQuery = @"SELECT MagazineID FROM [tblMagazineCourse] WHERE [CourseID] = @CourseID";
+                string examsQuery = @"SELECT MagazineID FROM [tblMagazineExamType] WHERE [ExamTypeID] = @ExamTypeID";
+
+                // Create tasks for concurrent execution
+                var categoryTask = _connection.QueryAsync<int>(categoriesQuery, new { request.APID });
+                var boardTask = _connection.QueryAsync<int>(boardsQuery, new { request.BoardIDID });
+                var classTask = _connection.QueryAsync<int>(classesQuery, new { request.ClassID });
+                var courseTask = _connection.QueryAsync<int>(coursesQuery, new { request.CourseID });
+                var examTask = _connection.QueryAsync<int>(examsQuery, new { request.ExamTypeID });
+
+                // Wait for all tasks to complete
+                var results = await Task.WhenAll(categoryTask, boardTask, classTask, courseTask, examTask);
+
+                // Add all results to the HashSet to ensure uniqueness
+                foreach (var result in results)
+                {
+                    foreach (var id in result)
                     {
-                        magazine.MagazineCategories ??= new List<MagazineCategory>();
-                        if (category != null)
-                        {
-                            magazine.MagazineCategories.Add(category);
-                        }
+                        magazineIds.Add(id);
+                    }
+                }
 
-                        magazine.MagazineBoards ??= new List<MagazineBoard>();
-                        if (board != null)
-                        {
-                            magazine.MagazineBoards.Add(board);
-                        }
+                // Prepare the list of IDs for the final query
+                var parameters = new { Ids = magazineIds.ToList() };
 
-                        magazine.MagazineClasses ??= new List<MagazineClass>();
-                        if (classItem != null)
-                        {
-                            magazine.MagazineClasses.Add(classItem);
-                        }
+                // Main query to fetch magazine details
+                string mainQuery = @"
+        SELECT 
+            [MagazineId],
+            [Date],
+            [Time],
+            [PathURL],
+            [Link],
+            [MagazineTitle],
+            [Status],
+            [modifiedon],
+            [modifiedby],
+            [createdon],
+            [createdby],
+            [EmployeeID],
+            [EmpFirstName]
+        FROM [tblMagazine]
+        WHERE [MagazineId] IN @Ids";
 
-                        magazine.MagazineCourses ??= new List<MagazineCourse>();
-                        if (course != null)
-                        {
-                            magazine.MagazineCourses.Add(course);
-                        }
+                var magazines = await _connection.QueryAsync<Magazine>(mainQuery, parameters);
 
-                        magazine.MagazineExamTypes ??= new List<MagazineExamType>();
-                        if (examType != null)
-                        {
-                            magazine.MagazineExamTypes.Add(examType);
-                        }
+                var response = magazines.Select(item => new MagazineDTO
+                {
+                    MagazineId = item.MagazineId,
+                    Date = item.Date,
+                    Time = item.Time,
+                    Link = GetPDF(item.Link),
+                    PathURL = GetImage(item.PathURL),
+                    MagazineTitle = item.MagazineTitle,
+                    Status = item.Status,
+                    modifiedon = item.modifiedon,
+                    modifiedby = item.modifiedby,
+                    createdon = item.createdon,
+                    createdby = item.createdby,
+                    EmployeeID = item.EmployeeID,
+                    EmpFirstName = item.EmpFirstName,
+                    MagazineCategories = GetListOfMagazineCategory(item.MagazineId),
+                    MagazineBoards = GetListOfMagazineBoards(item.MagazineId),
+                    MagazineClasses = GetListOfMagazineClass(item.MagazineId),
+                    MagazineCourses = GetListOfMagazineCourse(item.MagazineId),
+                    MagazineExamTypes = GetListOfMagazineExamType(item.MagazineId)
+                }).ToList();
 
-                        return magazine;
-                    },
-                    splitOn: "MgCategoryID, MagazineBoardId, MagazineClassId, MagazineCourseID, MagazineExamTypeID",
-                    param: request,
-                    commandType: CommandType.Text,
-                    buffered: true);
-
-                var distinctResult = result.Distinct().ToList(); // Use custom equality comparer
-
-                return new ServiceResponse<List<MagazineDTO>>(true, "Records found", distinctResult, 200);
+                return new ServiceResponse<List<MagazineDTO>>(true, "Records found", response, 200);
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<MagazineDTO>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<MagazineDTO>>(false, ex.Message, new List<MagazineDTO>(), 500);
             }
         }
         public async Task<ServiceResponse<MagazineDTO>> GetMagazineById(int id)
@@ -448,8 +443,8 @@ namespace ControlPanel_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { MagazineID });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblMagazineClass] ([MagazineID], [ClassID])
-                          VALUES (@MagazineID, @ClassID);";
+                    var insertquery = @"INSERT INTO [tblMagazineClass] ([MagazineID], [ClassID], [Name])
+                          VALUES (@MagazineID, @ClassID, @Name);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -460,8 +455,8 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblMagazineClass] ([MagazineID], [ClassID])
-                          VALUES (@MagazineID, @ClassID);";
+                var insertquery = @"INSERT INTO [tblMagazineClass] ([MagazineID], [ClassID], [Name])
+                          VALUES (@MagazineID, @ClassID, @Name);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -481,8 +476,8 @@ namespace ControlPanel_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { MagazineID });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblMagazineBoard] ([MagazineID], [BoardIDID])
-                          VALUES (@MagazineID, @BoardIDID);";
+                    var insertquery = @"INSERT INTO [tblMagazineBoard] ([MagazineID], [BoardIDID], [Name])
+                          VALUES (@MagazineID, @BoardIDID, @Name);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -493,8 +488,8 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblMagazineBoard] ([MagazineID], [BoardIDID])
-                          VALUES (@MagazineID, @BoardIDID);";
+                var insertquery = @"INSERT INTO [tblMagazineBoard] ([MagazineID], [BoardIDID], [Name])
+                          VALUES (@MagazineID, @BoardIDID, @Name);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -514,8 +509,8 @@ namespace ControlPanel_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { MagazineID });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblMagazineCourse] ([MagazineID], [CourseID])
-                          VALUES (@MagazineID, @CourseID);";
+                    var insertquery = @"INSERT INTO [tblMagazineCourse] ([MagazineID], [CourseID], Name)
+                          VALUES (@MagazineID, @CourseID, @Name);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -526,8 +521,8 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblMagazineCourse] ([MagazineID], [CourseID])
-                          VALUES (@MagazineID, @CourseID);";
+                var insertquery = @"INSERT INTO [tblMagazineCourse] ([MagazineID], [CourseID], Name)
+                          VALUES (@MagazineID, @CourseID, @Name);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -547,8 +542,8 @@ namespace ControlPanel_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { MagazineID });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblMagazineExamType] ([MagazineID], [ExamTypeID])
-                          VALUES (@MagazineID, @ExamTypeID);";
+                    var insertquery = @"INSERT INTO [tblMagazineExamType] ([MagazineID], [ExamTypeID], Name)
+                          VALUES (@MagazineID, @ExamTypeID, @Name);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -559,8 +554,8 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblMagazineExamType] ([MagazineID], [ExamTypeID])
-                          VALUES (@MagazineID, @ExamTypeID);";
+                var insertquery = @"INSERT INTO [tblMagazineExamType] ([MagazineID], [ExamTypeID], Name)
+                          VALUES (@MagazineID, @ExamTypeID, @Name);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }

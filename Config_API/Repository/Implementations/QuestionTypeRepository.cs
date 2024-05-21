@@ -69,7 +69,9 @@ namespace Config_API.Repository.Implementations
                         request.Status,
                         modifiedon = DateTime.Now,
                         request.modifiedby,
-                        request.EmployeeID
+                        request.EmployeeID,
+                        request.EmpFirstName,
+                        request.QuestionTypeID
                     });
                     if (rowsAffected > 0)
                     {

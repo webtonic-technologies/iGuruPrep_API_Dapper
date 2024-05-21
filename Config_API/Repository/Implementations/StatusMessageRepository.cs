@@ -2,7 +2,6 @@
 using Config_API.Models;
 using Config_API.Repository.Interfaces;
 using Dapper;
-using Microsoft.AspNetCore.Http.HttpResults;
 using System.Data;
 
 namespace Config_API.Repository.Implementations
@@ -51,7 +50,7 @@ namespace Config_API.Repository.Implementations
                              SET StatusCode = @StatusCode, 
                                  StatusMessage = @StatusMessage,
                                  modifiedon = GETDATE(),
-                                 modifiedby = @ModifiedBy
+                                 modifiedby = @ModifiedBy,
                                 EmpFirstName = @EmpFirstName
                              WHERE StatusId = @StatusId";
                     int rowsAffected = await _connection.ExecuteAsync(query, new

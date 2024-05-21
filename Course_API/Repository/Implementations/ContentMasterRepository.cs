@@ -3,9 +3,7 @@ using Course_API.DTOs.ServiceResponse;
 using Course_API.Models;
 using Course_API.Repository.Interfaces;
 using Dapper;
-using System.Collections.Generic;
 using System.Data;
-using System.Text;
 
 namespace Course_API.Repository.Implementations
 {
@@ -126,6 +124,11 @@ namespace Course_API.Repository.Implementations
                 var data = await _connection.QueryAsync<ContentMaster>(selectQuery);
                 if (data != null)
                 {
+                    foreach (var item in data)
+                    {
+                        item.fileName = GetPDF(item.fileName);
+                        item.PathURL = GetVideo(item.PathURL);
+                    }
                     return new ServiceResponse<List<ContentMaster>>(true, "Operation Successful", data.AsList(), 200);
                 }
                 else

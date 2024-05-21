@@ -23,11 +23,11 @@ namespace ControlPanel_API.Repository.Implementations
                 {
                     string insertQuery = @"
                 INSERT INTO [tblEmployee] (UserCode, RoleId, DesignationID, EmpFirstName, EmpLastName,
-                                             EmpPhoneNumber, EmpEmail, EmpDOB, ZipCode, DistrictName, SubjectId,
+                                             EmpPhoneNumber, EmpEmail, EmpDOB, ZipCode, DistrictName,
                                              StateName, VcName, RoleName, DesignationName,
                                              CreatedOn, CreatedBy, Status)
                 VALUES (@UserCode, @RoleId, @DesignationID, @EmpFirstName, @EmpLastName,
-                        @EmpPhoneNumber, @EmpEmail, @EmpDOB, @ZipCode, @DistrictName, @SubjectId,
+                        @EmpPhoneNumber, @EmpEmail, @EmpDOB, @ZipCode, @DistrictName,
                         @StateName, @VcName, @RoleName, @DesignationName,
                         @CreatedOn, @CreatedBy, @Status);
                         SELECT CAST(SCOPE_IDENTITY() AS INT);";
@@ -77,7 +77,6 @@ namespace ControlPanel_API.Repository.Implementations
                     EmpDOB = @EmpDOB,
                     ZipCode = @ZipCode,
                     DistrictName = @DistrictName,
-                    SubjectId = @SubjectId,
                     StateName = @StateName,
                     VcName = @VcName,
                     RoleName = @RoleName,
@@ -184,7 +183,7 @@ namespace ControlPanel_API.Repository.Implementations
                 {
                     query += " AND [RoleID] = @RoleId";
                 }
-                if (request.Designation > 0)
+                if (request.DesignationId > 0)
                 {
                     query += " AND [DesignationID] = @DesignationId";
                 }

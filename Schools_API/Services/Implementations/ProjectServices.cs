@@ -25,7 +25,7 @@ namespace Schools_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<IEnumerable<ProjectDTO>>> GetAllProjectsByFilter(ProjectFilter filter)
+        public async Task<ServiceResponse<List<ProjectDTO>>> GetAllProjectsByFilter(ProjectFilter filter)
         {
 
             try
@@ -34,7 +34,7 @@ namespace Schools_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<IEnumerable<ProjectDTO>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<ProjectDTO>>(false, ex.Message, [], 500);
             }
         }
 

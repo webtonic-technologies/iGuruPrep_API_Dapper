@@ -2,9 +2,11 @@
 {
     public class ProjectFilter
     {
-        public int? CourseId { get; set; }
-        public int? ClassId { get; set; }
-        public int? BoardId { get; set; }
-        public int? SubjectId { get; set; }
+        public int APID { get; set; }
+        public int? CourseID { get; set; }
+        public int? ClassID { get; set; }
+        public int? BoardID { get; set; }
+        public int? SubjectID { get; set; }
+        public int? ExamTypeID {  get; set; }
     }
 }

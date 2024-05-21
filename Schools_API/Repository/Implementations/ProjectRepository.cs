@@ -4,8 +4,7 @@ using Schools_API.DTOs.ServiceResponse;
 using Schools_API.Models;
 using Schools_API.Repository.Interfaces;
 using System.Data;
-using System.Text;
-using static System.Net.Mime.MediaTypeNames;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Schools_API.Repository.Implementations
 {
@@ -123,59 +122,90 @@ namespace Schools_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-        public async Task<ServiceResponse<IEnumerable<ProjectDTO>>> GetAllProjectsByFilter(ProjectFilter filter)
+        public async Task<ServiceResponse<List<ProjectDTO>>> GetAllProjectsByFilter(ProjectFilter request)
         {
             try
             {
-                var queryBuilder = new StringBuilder("SELECT * FROM tblproject WHERE 1 = 1");
-                var parameters = new DynamicParameters();
+                var ProjectIds = new HashSet<int>();
 
-                if (filter.BoardId.HasValue)
-                {
-                    queryBuilder.Append(" AND BoardId = @BoardId");
-                    parameters.Add("@BoardId", filter.BoardId.Value);
-                }
-                if (filter.ClassId.HasValue)
-                {
-                    queryBuilder.Append(" AND ClassId = @ClassId");
-                    parameters.Add("@ClassId", filter.ClassId.Value);
-                }
-                if (filter.CourseId.HasValue)
-                {
-                    queryBuilder.Append(" AND CourseId = @CourseId");
-                    parameters.Add("@CourseId", filter.CourseId.Value);
-                }
-                if (filter.SubjectId.HasValue)
-                {
-                    queryBuilder.Append(" AND SubjectId = @SubjectId");
-                    parameters.Add("@SubjectId", filter.SubjectId.Value);
-                }
+                // Define the queries
+                string categoriesQuery = @"SELECT [ProjectId] FROM [tblProjectCategory] WHERE [APID] = @APID";
+                string boardsQuery = @"SELECT [ProjectID] FROM [tblProjectBoard] WHERE [BoardID] = @BoardID";
+                string classesQuery = @"SELECT [ProjectID] FROM [tblProjectClass] WHERE [ClassID] = @ClassID";
+                string coursesQuery = @"SELECT [ProjectID] FROM [tblProjectCourse] WHERE [CourseID] = @CourseID";
+                string examsQuery = @"SELECT [ProjectID] FROM [tblProjectExamType] WHERE [ExamTypeID] = @ExamTypeID";
+                string subjectQuery = @"SELECT [ProjectID] FROM [tblProjectSubject] WHERE [SubjectID] = @SubjectID";
 
-                // Execute the SQL query using Dapper
-                var projects = await _connection.QueryAsync<ProjectDTO>(queryBuilder.ToString(), parameters);
+                // Create tasks for concurrent execution
+                var categoryTask = _connection.QueryAsync<int>(categoriesQuery, new { request.APID });
+                var boardTask = _connection.QueryAsync<int>(boardsQuery, new { request.BoardID });
+                var classTask = _connection.QueryAsync<int>(classesQuery, new { request.ClassID });
+                var courseTask = _connection.QueryAsync<int>(coursesQuery, new { request.CourseID });
+                var examTask = _connection.QueryAsync<int>(examsQuery, new { request.ExamTypeID });
+                var subjectTask = _connection.QueryAsync<int>(subjectQuery, new { request.SubjectID });
 
-                // Process the PathURL if necessary
-                foreach (var project in projects)
+                // Wait for all tasks to complete
+                var results = await Task.WhenAll(categoryTask, boardTask, classTask, courseTask, examTask, subjectTask);
+
+                // Add all results to the HashSet to ensure uniqueness
+                foreach (var result in results)
                 {
-                    if (project.PathURL != null)
+                    foreach (var id in result)
                     {
-                        project.PathURL = Path.Combine(_hostingEnvironment.ContentRootPath, "ProjectImages", project.PathURL);
+                        ProjectIds.Add(id);
                     }
                 }
 
-                if (projects != null)
-                {
-                    return new ServiceResponse<IEnumerable<ProjectDTO>>(true, "Operation Successful", projects.AsList(), 200);
-                }
-                else
-                {
-                    return new ServiceResponse<IEnumerable<ProjectDTO>>(false, "Opertion Failed", new List<ProjectDTO>(), 500);
-                }
+                // Prepare the list of IDs for the final query
+                var parameters = new { Ids = ProjectIds.ToList() };
+                string mainQuery = @"
+                SELECT 
+                    [ProjectId],
+                    [ProjectName],
+                    [ProjectDescription],
+                    [PathURL],
+                    [createdby],
+                    [ReferenceLink],
+                    [EmployeeID],
+                    [status],
+                    [modifiedby],
+                    [modifiedon],
+                    [createdon],
+                    [EmpFirstName],
+                    [pdfVideoFile]
+                FROM [tblProject]
+                WHERE [ProjectId] IN @Ids";
 
+                var projects = await _connection.QueryAsync<Project>(mainQuery, parameters);
+
+                var response = projects.Select(item => new ProjectDTO
+                {
+                    ProjectId = item.ProjectId,
+                    ProjectName = item.ProjectName,
+                    ProjectDescription = item.ProjectDescription,
+                    PathURL = GetFile(item.PathURL ??= string.Empty),
+                    createdby = item.createdby,
+                    ReferenceLink = item.ReferenceLink,
+                    EmployeeID = item.EmployeeID,
+                    status = item.status,
+                    modifiedby = item.modifiedby,
+                    modifiedon = item.modifiedon,
+                    createdon = item.createdon,
+                    EmpFirstName = item.EmpFirstName,
+                    pdfVideoFile = GetFile(item.pdfVideoFile),
+                    ProjectCategories = GetListOfProjectCategory(item.ProjectId),
+                    ProjectBoards = GetListOfProjectBoards(item.ProjectId),
+                    ProjectClasses = GetListOfProjectClass(item.ProjectId),
+                    ProjectCourses = GetListOfProjectCourse(item.ProjectId),
+                    ProjectExamTypes = GetListOfProjectExamType(item.ProjectId),
+                    ProjectSubjects = GetListOfProjectSubject(item.ProjectId)
+                }).ToList();
+
+                return new ServiceResponse<List<ProjectDTO>>(true, "Records found", response, 200);
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<IEnumerable<ProjectDTO>>(false, ex.Message, new List<ProjectDTO>(), 500);
+                return new ServiceResponse<List<ProjectDTO>>(false, ex.Message, [], 500);
             }
         }
         public async Task<ServiceResponse<ProjectDTO>> GetProjectByIdAsync(int projectId)
@@ -353,8 +383,8 @@ namespace Schools_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { ProjectID = ProjectId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblProjectClass] ([ProjectID], [ClassID])
-                          VALUES (@ProjectID, @ClassID);";
+                    var insertquery = @"INSERT INTO [tblProjectClass] ([ProjectID], [ClassID], Name)
+                          VALUES (@ProjectID, @ClassID, @Name);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -365,8 +395,8 @@ namespace Schools_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblProjectClass] ([ProjectID], [ClassID])
-                          VALUES (@ProjectID, @ClassID);";
+                var insertquery = @"INSERT INTO [tblProjectClass] ([ProjectID], [ClassID], Name)
+                          VALUES (@ProjectID, @ClassID, @Name);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -386,8 +416,8 @@ namespace Schools_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { ProjectID = ProjectId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblProjectBoard] ([ProjectID], [BoardID])
-                          VALUES (@ProjectID, @BoardID);";
+                    var insertquery = @"INSERT INTO [tblProjectBoard] ([ProjectID], [BoardID], Name)
+                          VALUES (@ProjectID, @BoardID, @Name);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -398,8 +428,8 @@ namespace Schools_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblProjectBoard] ([ProjectID], [BoardID])
-                          VALUES (@ProjectID, @BoardID);";
+                var insertquery = @"INSERT INTO [tblProjectBoard] ([ProjectID], [BoardID], Name)
+                          VALUES (@ProjectID, @BoardID, @Name);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -419,8 +449,8 @@ namespace Schools_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { ProjectID = ProjectId});
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblProjectCourse] ([ProjectID], [CourseID])
-                          VALUES (@ProjectID, @CourseID);";
+                    var insertquery = @"INSERT INTO [tblProjectCourse] ([ProjectID], [CourseID], Name)
+                          VALUES (@ProjectID, @CourseID, @Name);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -431,8 +461,8 @@ namespace Schools_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblProjectCourse] ([ProjectID], [CourseID])
-                          VALUES (@ProjectID, @CourseID);";
+                var insertquery = @"INSERT INTO [tblProjectCourse] ([ProjectID], [CourseID], Name)
+                          VALUES (@ProjectID, @CourseID, @Name);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -452,8 +482,8 @@ namespace Schools_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { ProjectID = ProjectId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblProjectExamType] ([ProjectID], [ExamTypeID])
-                          VALUES (@ProjectID, @ExamTypeID);";
+                    var insertquery = @"INSERT INTO [tblProjectExamType] ([ProjectID], [ExamTypeID], Name)
+                          VALUES (@ProjectID, @ExamTypeID, @Name);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -464,8 +494,8 @@ namespace Schools_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblProjectExamType] ([ProjectID], [ExamTypeID])
-                          VALUES (@ProjectID, @ExamTypeID);";
+                var insertquery = @"INSERT INTO [tblProjectExamType] ([ProjectID], [ExamTypeID], Name)
+                          VALUES (@ProjectID, @ExamTypeID, @Name);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -485,8 +515,8 @@ namespace Schools_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { ProjectID = ProjectId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblProjectSubject] ([ProjectID], [SubjectID])
-                          VALUES (@ProjectID, @SubjectID);";
+                    var insertquery = @"INSERT INTO [tblProjectSubject] ([ProjectID], [SubjectID], Name)
+                          VALUES (@ProjectID, @SubjectID, @Name);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -497,8 +527,8 @@ namespace Schools_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblProjectSubject] ([ProjectID], [SubjectID])
-                          VALUES (@ProjectID, @SubjectID);";
+                var insertquery = @"INSERT INTO [tblProjectSubject] ([ProjectID], [SubjectID], Name)
+                          VALUES (@ProjectID, @SubjectID, @Name);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }

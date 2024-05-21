@@ -14,7 +14,7 @@ namespace Course_API.Controllers
         {
             _bookServices = bookServices;
         }
-        [HttpGet]
+        [HttpPost("GetAllBook")]
         public async Task<IActionResult> Get(BookListDTO request)
         {
             try

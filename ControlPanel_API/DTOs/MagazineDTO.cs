@@ -25,7 +25,7 @@
     {
         public int MgCategoryID { get; set; }
         public int APID { get; set; }
-        public int MagazineId { get; set; } //Academic-Professional Id
+        public int MagazineId { get; set; }
         public string APIDName { get; set; } = string.Empty;
     }
     public class MagazineBoard
@@ -33,32 +33,35 @@
         public int MagazineBoardId { get; set; }
         public int MagazineID { get; set; }
         public int BoardIDID { get; set; }
+        public string Name {  get; set; } = string.Empty;
     }
     public class MagazineClass
     {
         public int MagazineClassId { get; set; }
         public int MagazineID { get; set; }
         public int ClassID { get; set; }
+        public string Name { get; set; } = string.Empty;
     }
     public class MagazineCourse
     {
         public int MagazineCourseID { get; set; }
         public int MagazineID { get; set; }
         public int CourseID { get; set; }
+        public string Name { get; set; } = string.Empty;
     }
     public class MagazineExamType
     {
         public int MagazineExamTypeID { get; set; }
         public int MagazineID { get; set; }
         public int ExamTypeID { get; set; }
+        public string Name { get; set; } = string.Empty;
     }
     public class MagazineListDTO
     {
         public int APID { get; set; }
-        public int BoardId { get; set; }
-        public int ClassId { get; set; }
-        public int CourseId { get; set; }
-        public int EventTypeId { get; set; }
-        public int ExamType { get; set; }
+        public int BoardIDID { get; set; }
+        public int ClassID { get; set; }
+        public int CourseID { get; set; }
+        public int ExamTypeID { get; set; }
     }
 }

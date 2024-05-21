@@ -60,10 +60,10 @@
     public class SOTDListDTO
     {
         public int APID { get; set; }
-        public int BoardId {  get; set; }
-        public int ClassId {  get; set; }
-        public int CourseId {  get; set; }
-        public int EventTypeId {  get; set; }
-        public int ExamType {  get; set; }
+        public int BoardID {  get; set; }
+        public int ClassID {  get; set; }
+        public int CourseID {  get; set; }
+        public int ExamTypeID {  get; set; }
+        public int EventTypeID {  get; set; }
     }
 }

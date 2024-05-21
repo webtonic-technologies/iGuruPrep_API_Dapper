@@ -210,88 +210,92 @@ namespace ControlPanel_API.Repository.Implementations
         {
             try
             {
-                // Construct the base SQL query
-                var sql = @"
-            SELECT s.StoryId,
-                   s.EventTypeID,
-                   s.EventName,
-                   s.Event1Posttime,
-                   s.Event1PostDate,
-                   s.Event2PostDate,
-                   s.Event2Posttime,
-                   s.modifiedby,
-                   s.createdby,
-                   s.eventtypename,
-                   s.modifiedon,
-                   s.createdon,
-                   s.Status,
-                   s.EmployeeID,
-                   s.Filename1,
-                   s.Filename2,
-                   s.EmpFirstName,
-                   c.SOTDCategoryID,
-                   c.APID,
-                   c.APIDName,
-                   b.tblSOTDBoardID,
-                   b.BoardID,
-                   cls.tblSOTDClassID,
-                   cls.ClassID,
-                   course.SOTDCourseID,
-                   course.CourseID,
-                   et.SOTDExamTypeID,
-                   et.ExamTypeID
-            FROM tblSOTD s
-            LEFT JOIN tblSOTDCategory c ON s.StoryId = c.SOTDID
-            LEFT JOIN tblSOTDBoard b ON s.StoryId = b.SOTDID
-            LEFT JOIN tblSOTDClass cls ON s.StoryId = cls.SOTDID
-            LEFT JOIN tblSOTDCourse course ON s.StoryId = course.SOTDID
-            LEFT JOIN tblSOTDExamType et ON s.StoryId = et.SOTDID";
+                var SOTDIds = new HashSet<int>();
 
-                // Execute the SQL query with Dapper
-                var result = await _connection.QueryAsync<StoryOfTheDayDTO, SOTDCategory, SOTDBoard, SOTDClass, SOTDCourse, SOTDExamType, StoryOfTheDayDTO>(
-                    sql,
-                    (story, category, board, classItem, course, examType) =>
+                // Define the queries
+                string categoriesQuery = @"SELECT [SOTDID] FROM [tblSOTDCategory] WHERE [APID] = @APID";
+                string boardsQuery = @"SELECT [SOTDID] FROM [tblSOTDBoard] WHERE [BoardID] = @BoardID";
+                string classesQuery = @"SELECT SOTDID FROM [tblSOTDClass] WHERE [ClassID] = @ClassID";
+                string coursesQuery = @"SELECT SOTDID FROM [tblSOTDCourse] WHERE [CourseID] = @CourseID";
+                string examsQuery = @"SELECT SOTDID FROM [tblSOTDExamType] WHERE [ExamTypeID] = @ExamTypeID";
+                string sotdQuery = @"SELECT SOTDID FROM [tblSOTD] WHERE [EventTypeID] = @EventTypeID";
+
+                // Create tasks for concurrent execution
+                var categoryTask = _connection.QueryAsync<int>(categoriesQuery, new { request.APID });
+                var boardTask = _connection.QueryAsync<int>(boardsQuery, new { request.BoardID });
+                var classTask = _connection.QueryAsync<int>(classesQuery, new { request.ClassID });
+                var courseTask = _connection.QueryAsync<int>(coursesQuery, new { request.CourseID });
+                var examTask = _connection.QueryAsync<int>(examsQuery, new { request.ExamTypeID });
+                var sotdTask = _connection.QueryAsync<int>(sotdQuery, new { request.EventTypeID });
+
+                // Wait for all tasks to complete
+                var results = await Task.WhenAll(categoryTask, boardTask, classTask, courseTask, examTask, sotdTask);
+
+                // Add all results to the HashSet to ensure uniqueness
+                foreach (var result in results)
+                {
+                    foreach (var id in result)
                     {
-                        story.SOTDCategories ??= new List<SOTDCategory>();
-                        if (category != null)
-                        {
-                            story.SOTDCategories.Add(category);
-                        }
+                        SOTDIds.Add(id);
+                    }
+                }
 
-                        story.SOTDBoards ??= new List<SOTDBoard>();
-                        if (board != null)
-                        {
-                            story.SOTDBoards.Add(board);
-                        }
+                // Prepare the list of IDs for the final query
+                var parameters = new { Ids = SOTDIds.ToList() };
 
-                        story.SOTDClasses ??= new List<SOTDClass>();
-                        if (classItem != null)
-                        {
-                            story.SOTDClasses.Add(classItem);
-                        }
+                // Main query to fetch magazine details
 
-                        story.SOTDCourses ??= new List<SOTDCourse>();
-                        if (course != null)
-                        {
-                            story.SOTDCourses.Add(course);
-                        }
+                string mainQuery = @"
+                SELECT 
+                    [StoryId],
+                    [EventTypeID],
+                    [EventName],
+                    [Event1Posttime],
+                    [Event1PostDate],
+                    [Event2PostDate],
+                    [Event2Posttime],
+                    [modifiedby],
+                    [createdby],
+                    [eventtypename],
+                    [modifiedon],
+                    [createdon],
+                    [Status],
+                    [EmployeeID],
+                    [Filename1],
+                    [Filename2],
+                    [EmpFirstName]
+                FROM [tblSOTD]
+                WHERE [StoryId] IN @Ids";
 
-                        story.SOTDExamTypes ??= new List<SOTDExamType>();
-                        if (examType != null)
-                        {
-                            story.SOTDExamTypes.Add(examType);
-                        }
+                var SOTDs = await _connection.QueryAsync<StoryOfTheDay>(mainQuery, parameters);
 
-                        return story;
-                    },
-                    splitOn: "SOTDCategoryID, tblSOTDBoardID, tblSOTDClassID, SOTDCourseID, SOTDExamTypeID",
-                    param: request,
-                    commandType: CommandType.Text,
-                    buffered: true);
+                var response = SOTDs.Select(item => new StoryOfTheDayDTO
+                {
+                    StoryId = item.StoryId,
+                    EventTypeID = item.EventTypeID,
+                    EventName = item.EventName,
+                    Event1Posttime = item.Event1Posttime,
+                    Event1PostDate = item.Event1PostDate,
+                    Event2PostDate = item.Event2PostDate,
+                    Event2Posttime = item.Event2Posttime,
+                    modifiedby = item.modifiedby,
+                    createdby = item.createdby,
+                    eventtypename = item.eventtypename,
+                    modifiedon = item.modifiedon,
+                    createdon = item.createdon,
+                    Status = item.Status,
+                    EmployeeID = item.EmployeeID,
+                    Filename1 = GetStoryOfTheDayFileById(item.Filename1),
+                    Filename2 = GetStoryOfTheDayFileById(item.Filename2),
+                    EmpFirstName = item.EmpFirstName,
+                    SOTDCategories = GetListOfSOTDCategory(item.StoryId),
+                    SOTDBoards = GetListOfSOTDBoards(item.StoryId),
+                    SOTDClasses = GetListOfSOTDClass(item.StoryId),
+                    SOTDCourses = GetListOfSOTDCourse(item.StoryId),
+                    SOTDExamTypes = GetListOfSOTDExamType(item.StoryId)
+                }).ToList();
 
-                var distinctResult = result.Distinct().ToList();
-
-                return new ServiceResponse<List<StoryOfTheDayDTO>>(true, "Records found", distinctResult, 200);
+                return new ServiceResponse<List<StoryOfTheDayDTO>>(true, "Records found", response, 200);
             }
             catch (Exception ex)
             {
@@ -497,8 +501,8 @@ namespace ControlPanel_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { SOTDID });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblSOTDClass] ([SOTDID], [ClassID])
-                          VALUES (@SOTDID, @ClassID);";
+                    var insertquery = @"INSERT INTO [tblSOTDClass] ([SOTDID], [ClassID], Name)
+                          VALUES (@SOTDID, @ClassID, @Name);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -509,8 +513,8 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblSOTDClass] ([SOTDID], [ClassID])
-                          VALUES (@SOTDID, @ClassID);";
+                var insertquery = @"INSERT INTO [tblSOTDClass] ([SOTDID], [ClassID], Name)
+                          VALUES (@SOTDID, @ClassID, @Name);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -530,8 +534,8 @@ namespace ControlPanel_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { SOTDID });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblSOTDBoard] ([SOTDID], [BoardID])
-                          VALUES (@SOTDID, @BoardID);";
+                    var insertquery = @"INSERT INTO [tblSOTDBoard] ([SOTDID], [BoardID], Name)
+                          VALUES (@SOTDID, @BoardID, @Name);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -542,8 +546,8 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblSOTDBoard] ([SOTDID], [BoardID])
-                          VALUES (@SOTDID, @BoardID);";
+                var insertquery = @"INSERT INTO [tblSOTDBoard] ([SOTDID], [BoardID], Name)
+                          VALUES (@SOTDID, @BoardID, @Name);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -563,8 +567,8 @@ namespace ControlPanel_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { SOTDID });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblSOTDCourse] ([SOTDID], [CourseID])
-                          VALUES (@SOTDID, @CourseID);";
+                    var insertquery = @"INSERT INTO [tblSOTDCourse] ([SOTDID], [CourseID], Name)
+                          VALUES (@SOTDID, @CourseID, @Name);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -575,8 +579,8 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblSOTDCourse] ([SOTDID], [CourseID])
-                          VALUES (@SOTDID, @CourseID);";
+                var insertquery = @"INSERT INTO [tblSOTDCourse] ([SOTDID], [CourseID], Name)
+                          VALUES (@SOTDID, @CourseID, @Name);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -596,8 +600,8 @@ namespace ControlPanel_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { SOTDID });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblSOTDExamType] ([SOTDID], [ExamTypeID])
-                          VALUES (@SOTDID, @ExamTypeID);";
+                    var insertquery = @"INSERT INTO [tblSOTDExamType] ([SOTDID], [ExamTypeID], Name)
+                          VALUES (@SOTDID, @ExamTypeID, @Name);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -608,8 +612,8 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblSOTDExamType] ([SOTDID], [ExamTypeID])
-                          VALUES (@SOTDID, @ExamTypeID);";
+                var insertquery = @"INSERT INTO [tblSOTDExamType] ([SOTDID], [ExamTypeID], Name)
+                          VALUES (@SOTDID, @ExamTypeID, @Name);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -617,10 +621,7 @@ namespace ControlPanel_API.Repository.Implementations
         private List<SOTDBoard> GetListOfSOTDBoards(int SOTDID)
         {
             var boardquery = @"
-                SELECT 
-                    tblSOTDBoardID,
-                    SOTDID,
-                    BoardID
+                SELECT *
                 FROM 
                     [tblSOTDBoard]
                 WHERE 
