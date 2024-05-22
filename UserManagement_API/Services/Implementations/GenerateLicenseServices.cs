@@ -36,7 +36,7 @@ namespace UserManagement_API.Services.Implementations
                 return new ServiceResponse<GenerateLicenseDTO>(false, ex.Message, new GenerateLicenseDTO(), 500);
             }
         }
-        public async Task<ServiceResponse<List<GenerateLicenseListDTO>>> GetGenerateLicenseList()
+        public async Task<ServiceResponse<List<GenerateLicenseDTO>>> GetGenerateLicenseList()
         {
             try
             {
@@ -44,7 +44,7 @@ namespace UserManagement_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<GenerateLicenseListDTO>>(false, ex.Message, new List<GenerateLicenseListDTO>(), 500);
+                return new ServiceResponse<List<GenerateLicenseDTO>>(false, ex.Message, [], 500);
             }
         }
     }

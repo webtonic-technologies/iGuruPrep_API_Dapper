@@ -38,24 +38,28 @@
         public int tblSOTDBoardID { get; set; }
         public int SOTDID { get; set; }
         public int BoardID { get; set; }
+        public string Name { get; set; } = string.Empty;
     }
     public class SOTDClass
     {
         public int tblSOTDClassID { get; set; }
         public int SOTDID { get; set; }
         public int ClassID { get; set; }
+        public string Name { get; set; } = string.Empty;
     }
     public class SOTDCourse
     {
         public int SOTDCourseID { get; set; }
         public int SOTDID { get; set; }
         public int CourseID { get; set; }
+        public string Name { get; set; } = string.Empty;
     }
     public class SOTDExamType
     {
         public int SOTDExamTypeID { get; set; }
         public int SOTDID { get; set; }
         public int ExamTypeID { get; set; }
+        public string Name { get; set; } = string.Empty;
     }
     public class SOTDListDTO
     {

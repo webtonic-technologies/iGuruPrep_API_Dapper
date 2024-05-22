@@ -7,6 +7,6 @@ namespace UserManagement_API.Repository.Interfaces
     {
         Task<ServiceResponse<string>> AddUpdateGenerateLicense(GenerateLicenseDTO request);
         Task<ServiceResponse<GenerateLicenseDTO>> GetGenerateLicenseById(int GenerateLicenseID);
-        Task<ServiceResponse<List<GenerateLicenseListDTO>>> GetGenerateLicenseList();
+        Task<ServiceResponse<List<GenerateLicenseDTO>>> GetGenerateLicenseList();
     }
 }

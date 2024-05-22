@@ -31,12 +31,12 @@ namespace ControlPanel_API.Controllers
             }
         }
 
-        [HttpGet]
-        public async Task<IActionResult> GetAllNotificationsList()
+        [HttpPost("GetNotificationsList")]
+        public async Task<IActionResult> GetAllNotificationsList(NotificationsListDTO request)
         {
             try
             {
-                var storyOfTheDays = await _notificationServices.GetAllNotificationsList();
+                var storyOfTheDays = await _notificationServices.GetAllNotificationsList(request);
                 return Ok(storyOfTheDays);
             }
             catch (Exception ex)

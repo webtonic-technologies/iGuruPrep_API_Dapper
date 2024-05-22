@@ -7,6 +7,6 @@ namespace UserManagement_API.Repository.Interfaces
     {
         Task<ServiceResponse<string>> AddUpdateGenerateReference(GenerateReferenceDTO request);
         Task<ServiceResponse<GenerateReferenceDTO>> GetGenerateReferenceById(int GenerateReferenceID);
-        Task<ServiceResponse<List<GenerateReferenceListDTO>>> GetGenerateReferenceList();
+        Task<ServiceResponse<List<GenerateReferenceDTO>>> GetGenerateReferenceList();
     }
 }

@@ -7,7 +7,7 @@ namespace ControlPanel_API.Services.Interfaces
     public interface INotificationServices
     {
         Task<ServiceResponse<string>> AddUpdateNotification(NotificationDTO request);
-        Task<ServiceResponse<List<Notification>>> GetAllNotificationsList();
+        Task<ServiceResponse<List<NotificationDTO>>> GetAllNotificationsList(NotificationsListDTO request);
         Task<ServiceResponse<NotificationDTO>> GetNotificationById(int NotificationId);
     }
 }

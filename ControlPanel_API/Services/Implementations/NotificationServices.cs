@@ -26,15 +26,15 @@ namespace ControlPanel_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<Notification>>> GetAllNotificationsList()
+        public async Task<ServiceResponse<List<NotificationDTO>>> GetAllNotificationsList(NotificationsListDTO request)
         {
             try
             {
-                return await _notificationRepository.GetAllNotificationsList();
+                return await _notificationRepository.GetAllNotificationsList(request);
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<Notification>>(false, ex.Message, new List<Notification>(), 500);
+                return new ServiceResponse<List<NotificationDTO>>(false, ex.Message, [], 500);
             }
         }
         public async Task<ServiceResponse<NotificationDTO>> GetNotificationById(int NotificationId)

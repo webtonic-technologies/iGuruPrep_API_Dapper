@@ -37,7 +37,7 @@ namespace UserManagement_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<GenerateReferenceListDTO>>> GetGenerateReferenceList()
+        public async Task<ServiceResponse<List<GenerateReferenceDTO>>> GetGenerateReferenceList()
         {
             try
             {
@@ -45,7 +45,7 @@ namespace UserManagement_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<GenerateReferenceListDTO>>(false, ex.Message, new List<GenerateReferenceListDTO>(), 500);
+                return new ServiceResponse<List<GenerateReferenceDTO>>(false, ex.Message, [], 500);
             }
         }
     }

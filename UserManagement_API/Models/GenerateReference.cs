@@ -3,10 +3,9 @@
     public class GenerateReference
     {
         public int referenceLinkID { get; set; }
-        public string InstitutionName { get; set; } = string.Empty;
-        public string InstitutionCode { get; set; } = string.Empty;
-        public string InstitutionBranchName { get; set; } = string.Empty;
-        public string InstitutionBranchCode { get; set; } = string.Empty;
+        public string StateName { get; set; } = string.Empty;
+        public string DistrictName { get; set; } = string.Empty;
+        public int NumberOfRef { get; set; }
         public string MobileNo { get; set; } = string.Empty;
         public string EmailID { get; set; } = string.Empty;
         public int? StateId { get; set; }

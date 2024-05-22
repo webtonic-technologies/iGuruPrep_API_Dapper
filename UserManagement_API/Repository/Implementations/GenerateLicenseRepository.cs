@@ -50,8 +50,8 @@ namespace UserManagement_API.Repository.Implementations
                     if (generatedId != 0)
                     {
                         string insertQuery = @"
-        INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID)
-        VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID);";
+        INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID, BoardName, ClassName, CourseName, CategoryName)
+        VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID, @BoardName, @ClassName, @CourseName, @CategoryName);";
                         if (request.LicenseDetails != null)
                         {
                             foreach (var item in request.LicenseDetails)
@@ -133,9 +133,9 @@ namespace UserManagement_API.Repository.Implementations
                             if (rowsAffected1 > 0)
                             {
                                 string insertQuery = @"
-        INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID)
-        VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID);";
-                           
+        INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID, BoardName, ClassName, CourseName, CategoryName)
+        VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID, @BoardName, @ClassName, @CourseName, @CategoryName);";
+
                                 if (request.LicenseDetails != null)
                                     foreach (var item in request.LicenseDetails)
                                     {
@@ -160,8 +160,8 @@ namespace UserManagement_API.Repository.Implementations
                         else
                         {
                             string insertQuery = @"
-        INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID)
-        VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID);";
+        INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID, BoardName, ClassName, CourseName, CategoryName)
+        VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID, @BoardName, @ClassName, @CourseName, @CategoryName);";
                             if (request.LicenseDetails != null)
                                 foreach (var item in request.LicenseDetails)
                                 {
@@ -250,35 +250,59 @@ namespace UserManagement_API.Repository.Implementations
                 return new ServiceResponse<GenerateLicenseDTO>(false, ex.Message, new GenerateLicenseDTO(), 500);
             }
         }
-        public async Task<ServiceResponse<List<GenerateLicenseListDTO>>> GetGenerateLicenseList()
+        public async Task<ServiceResponse<List<GenerateLicenseDTO>>> GetGenerateLicenseList()
         {
             try
             {
-                List<GenerateLicenseListDTO> resposne = [];
+                List<GenerateLicenseDTO> resposne = [];
                 string selectQuery = @"SELECT * FROM tblGenerateLicense";
                 var data = await _connection.QueryAsync<GenerateLicense>(selectQuery);
-                if(data != null)
+                if (data != null)
                 {
-                    foreach(var item in data)
+                    string query = @"
+                    SELECT * 
+                    FROM tblLicenseDetail
+                    WHERE GenerateLicenseID = @GenerateLicenseID;";
+                    foreach (var item in data)
                     {
-                        var record = new GenerateLicenseListDTO
+                        var data1 = await _connection.QueryAsync<LicenseDetail>(query, new { item.GenerateLicenseID });
+                        var record = new GenerateLicenseDTO
                         {
                             GenerateLicenseID = item.GenerateLicenseID,
+                            SchoolName = item.SchoolName,
                             SchoolCode = item.SchoolCode,
-                            SchoolName = item.SchoolName
+                            BranchName = item.BranchName,
+                            BranchCode = item.BranchCode,
+                            StateName = item.StateName,
+                            DistrictName = item.DistrictName,
+                            ChairmanEmail = item.ChairmanEmail,
+                            ChairmanMobile = item.ChairmanMobile,
+                            PrincipalEmail = item.PrincipalEmail,
+                            PrincipalMobile = item.PrincipalMobile,
+                            stateid = item.stateid,
+                            DistrictID = item.DistrictID,
+                            ClassName = item.ClassName,
+                            CourseName = item.CourseName,
+                            modifiedby = item.modifiedby,
+                            modifiedon = item.modifiedon,
+                            createdon = item.createdon,
+                            createdby = item.createdby,
+                            EmployeeID = item.EmployeeID,
+                            EmpFirstName = item.EmpFirstName,
+                            LicenseDetails = data1.AsList()
                         };
                         resposne.Add(record);
                     }
-                    return new ServiceResponse<List<GenerateLicenseListDTO>>(true, "Records found", resposne, 500);
+                    return new ServiceResponse<List<GenerateLicenseDTO>>(true, "Records found", resposne, 500);
                 }
                 else
                 {
-                    return new ServiceResponse<List<GenerateLicenseListDTO>>(false, "Records not found", new List<GenerateLicenseListDTO>(), 500);
+                    return new ServiceResponse<List<GenerateLicenseDTO>>(false, "Records not found", [], 500);
                 }
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                return new ServiceResponse<List<GenerateLicenseListDTO>>(false, ex.Message, new List<GenerateLicenseListDTO>(), 500);
+                return new ServiceResponse<List<GenerateLicenseDTO>>(false, ex.Message, [], 500);
             }
         }
     }

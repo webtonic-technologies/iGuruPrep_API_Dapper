@@ -4,6 +4,7 @@ using ControlPanel_API.Models;
 using ControlPanel_API.Repository.Interfaces;
 using Dapper;
 using System.Data;
+using System.Data.SqlClient;
 
 namespace ControlPanel_API.Repository.Implementations
 {
@@ -11,11 +12,13 @@ namespace ControlPanel_API.Repository.Implementations
     {
         private readonly IDbConnection _connection;
         private readonly IWebHostEnvironment _hostingEnvironment;
+        private readonly string _connectionString;
 
-        public NotificationRepository(IDbConnection connection, IWebHostEnvironment hostingEnvironment)
+        public NotificationRepository(IDbConnection connection, IWebHostEnvironment hostingEnvironment, IConfiguration configuration)
         {
             _connection = connection;
             _hostingEnvironment = hostingEnvironment;
+            _connectionString = configuration.GetConnectionString("DefaultConnection");
         }
         public async Task<ServiceResponse<string>> AddUpdateNotification(NotificationDTO request)
         {
@@ -116,29 +119,101 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-        public async Task<ServiceResponse<List<Notification>>> GetAllNotificationsList()
+        public async Task<ServiceResponse<List<NotificationDTO>>> GetAllNotificationsList(NotificationsListDTO request)
         {
             try
             {
-                string selectQuery = @"
-            SELECT NBNotificationID, NotificationTitle, NotificationDetails, NotificationLink,
-                   CourseID, ClassID, BoardId, ModuleName, Message, Platform
-            FROM tblNbNotification";
+                var notificationIds = new HashSet<int>();
 
-                var data = await _connection.QueryAsync<Notification>(selectQuery);
+                // Define the queries
+                string categoriesQuery = @"SELECT [NBNotificationID] FROM [tblNbNotificationCategory] WHERE [APID] = @APId";
+                string boardsQuery = @"SELECT [NBNotificationID] FROM [tblNbNotificationBoard] WHERE [BoardID] = @BoardID";
+                string classesQuery = @"SELECT [NBNotificationID] FROM [tblNbNotificationClass] WHERE [ClassID] = @ClassID";
+                string coursesQuery = @"SELECT [NBNotificationID] FROM [tblNbNotificationCourse] WHERE [CourseID] = @CourseID";
+                string examsQuery = @"SELECT [NBNotificationID] FROM [tblNbNotificationExamType] WHERE [ExamTypeID] = @ExamTypeID";
+               // string subjectQuery = @"SELECT [bookID] FROM [tbllibrarySubject] WHERE [SubjectID] = @SubjectID";
 
-                if (data != null)
+                var categoryTask = Task.Run(async () =>
                 {
-                    return new ServiceResponse<List<Notification>>(true, "Records Found", data.AsList(), 200);
-                }
-                else
+                    using var connection = new SqlConnection(_connectionString);
+                    await connection.OpenAsync();
+                    return await connection.QueryAsync<int>(categoriesQuery, new { request.APId });
+                });
+
+                var boardTask = Task.Run(async () =>
                 {
-                    return new ServiceResponse<List<Notification>>(false, "Records Not Found", new List<Notification>(), 204);
+                    using var connection = new SqlConnection(_connectionString);
+                    await connection.OpenAsync();
+                    return await connection.QueryAsync<int>(boardsQuery, new { request.BoardID });
+                });
+
+                var classTask = Task.Run(async () =>
+                {
+                    using var connection = new SqlConnection(_connectionString);
+                    await connection.OpenAsync();
+                    return await connection.QueryAsync<int>(classesQuery, new { request.ClassID });
+                });
+
+                var courseTask = Task.Run(async () =>
+                {
+                    using var connection = new SqlConnection(_connectionString);
+                    await connection.OpenAsync();
+                    return await connection.QueryAsync<int>(coursesQuery, new { request.CourseID });
+                });
+
+                var examTask = Task.Run(async () =>
+                {
+                    using var connection = new SqlConnection(_connectionString);
+                    await connection.OpenAsync();
+                    return await connection.QueryAsync<int>(examsQuery, new { request.ExamTypeID });
+                });
+
+                // Wait for all tasks to complete
+                var results = await Task.WhenAll(categoryTask, boardTask, classTask, courseTask, examTask);
+
+                // Add all results to the HashSet to ensure uniqueness
+                foreach (var result in results)
+                {
+                    foreach (var id in result)
+                    {
+                        notificationIds.Add(id);
+                    }
                 }
+
+                // Prepare the list of IDs for the final query
+                var parameters = new { Ids = notificationIds.ToList() };
+
+                // Main query to fetch magazine details
+                string mainQuery = @"SELECT * FROM tblNbNotification WHERE NBNotificationID IN @Ids";
+
+                var data = await _connection.QueryAsync<Notification>(mainQuery, parameters);
+
+                var response = data.Select(item => new NotificationDTO
+                {
+                    NbNotificationCategories = GetListOfNBCategory(item.NBNotificationID),
+                    NbNotificationBoards = GetListOfNBBoards(item.NBNotificationID),
+                    NbNotificationClasses = GetListOfNBClass(item.NBNotificationID),
+                    NbNotificationCourses = GetListOfNBCourse(item.NBNotificationID),
+                    NbNotificationExamTypes = GetListOfNBExamType(item.NBNotificationID),
+                    NotificationTitle = item.NotificationTitle,
+                    PathURL = GetPDF(item.PathURL ??= string.Empty),
+                    status = item.status,
+                    createdon = item.createdon,
+                    createdby = item.createdby,
+                    EmployeeID = item.EmployeeID,
+                    EmpFirstName = item.EmpFirstName,
+                    modifiedby = item.modifiedby,
+                    modifiedon = item.modifiedon,
+                    NBNotificationID = item.NBNotificationID,
+                    NotificationDetails = GetListOfNotificationDetails(item.NBNotificationID),
+                    NotificationLinkMasters = GetListOfNotificationLink(item.NBNotificationID)
+                }).ToList();
+
+                return new ServiceResponse<List<NotificationDTO>>(true, "Records found", response, 200);
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<Notification>>(false, ex.Message, new List<Notification>(), 500);
+                return new ServiceResponse<List<NotificationDTO>>(false, ex.Message, [], 500);
             }
         }
         public async Task<ServiceResponse<NotificationDTO>> GetNotificationById(int NotificationId)
@@ -320,8 +395,8 @@ namespace ControlPanel_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { NBNotificationID = notificationId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblNbNotificationCategory] ([APID], [NBNotificationID])
-                          VALUES (@APID, @NBNotificationID);";
+                    var insertquery = @"INSERT INTO [tblNbNotificationCategory] ([APID], [NBNotificationID], Name)
+                          VALUES (@APID, @NBNotificationID, @Name);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -332,8 +407,8 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblNbNotificationCategory] ([APID], [NBNotificationID])
-                          VALUES (@APID, @NBNotificationID);";
+                var insertquery = @"INSERT INTO [tblNbNotificationCategory] ([APID], [NBNotificationID], Name)
+                          VALUES (@APID, @NBNotificationID, @Name);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -353,8 +428,8 @@ namespace ControlPanel_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { NBNotificationID = notificationId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblNbNotificationClass] ([NBNotificationID], [ClassID])
-                          VALUES (@NBNotificationID, @ClassID);";
+                    var insertquery = @"INSERT INTO [tblNbNotificationClass] ([NBNotificationID], [ClassID], Name)
+                          VALUES (@NBNotificationID, @ClassID, @Name);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -365,8 +440,8 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblNbNotificationClass] ([NBNotificationID], [ClassID])
-                          VALUES (@NBNotificationID, @ClassID);";
+                var insertquery = @"INSERT INTO [tblNbNotificationClass] ([NBNotificationID], [ClassID], Name)
+                          VALUES (@NBNotificationID, @ClassID, @Name);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -386,8 +461,8 @@ namespace ControlPanel_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { NBNotificationID = notificationId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblNbNotificationBoard] ([NBNotificationID], [BoardID])
-                          VALUES (@NBNotificationID, @BoardID);";
+                    var insertquery = @"INSERT INTO [tblNbNotificationBoard] ([NBNotificationID], [BoardID], Name)
+                          VALUES (@NBNotificationID, @BoardID, @Name);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -398,8 +473,8 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblNbNotificationBoard] ([NBNotificationID], [BoardID])
-                          VALUES (@NBNotificationID, @BoardID);";
+                var insertquery = @"INSERT INTO [tblNbNotificationBoard] ([NBNotificationID], [BoardID], Name)
+                          VALUES (@NBNotificationID, @BoardID, @Name);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -419,8 +494,8 @@ namespace ControlPanel_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { NBNotificationID = notificationId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblNbNotificationCourse] ([NBNotificationID], [CourseID])
-                          VALUES (@NBNotificationID, @CourseID);";
+                    var insertquery = @"INSERT INTO [tblNbNotificationCourse] ([NBNotificationID], [CourseID], Name)
+                          VALUES (@NBNotificationID, @CourseID, @Name);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -431,8 +506,8 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblNbNotificationCourse] ([NBNotificationID], [CourseID])
-                          VALUES (@NBNotificationID, @CourseID);";
+                var insertquery = @"INSERT INTO [tblNbNotificationCourse] ([NBNotificationID], [CourseID], Name)
+                          VALUES (@NBNotificationID, @CourseID, @Name);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -452,8 +527,8 @@ namespace ControlPanel_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { NBNotificationID = notificationId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblNbNotificationExamType] ([NBNotificationID], [ExamTypeID])
-                          VALUES (@NBNotificationID, @ExamTypeID);";
+                    var insertquery = @"INSERT INTO [tblNbNotificationExamType] ([NBNotificationID], [ExamTypeID], Name)
+                          VALUES (@NBNotificationID, @ExamTypeID, @Name);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -464,8 +539,8 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblNbNotificationExamType] ([NBNotificationID], [ExamTypeID])
-                          VALUES (@NBNotificationID, @ExamTypeID);";
+                var insertquery = @"INSERT INTO [tblNbNotificationExamType] ([NBNotificationID], [ExamTypeID], Name)
+                          VALUES (@NBNotificationID, @ExamTypeID, @Name);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -504,6 +579,20 @@ namespace ControlPanel_API.Repository.Implementations
             var query = @"SELECT * FROM [tblNbNotificationExamType] WHERE  NBNotificationID = @NBNotificationID;";
             // Execute the SQL query with the SOTDID parameter
             var data = _connection.Query<NbNotificationExamType>(query, new { NBNotificationID = notificationId });
+            return data != null ? data.AsList() : [];
+        }
+        private List<NotificationDetail> GetListOfNotificationDetails(int notificationId)
+        {
+            string query = @"SELECT * FROM tblNbNotificationDetail WHERE NBNID = @NotificationId";
+            // Execute the SQL query with the SOTDID parameter
+            var data = _connection.Query<NotificationDetail>(query, new { NBNotificationID = notificationId });
+            return data != null ? data.AsList() : [];
+        }
+        private List<NotificationLinkMaster> GetListOfNotificationLink(int notificationId)
+        {
+            string query = @"SELECT * FROM tblNbNotificationLink WHERE NBNLID = @NotificationId";
+            // Execute the SQL query with the SOTDID parameter
+            var data = _connection.Query<NotificationLinkMaster>(query, new { NBNotificationID = notificationId });
             return data != null ? data.AsList() : [];
         }
     }

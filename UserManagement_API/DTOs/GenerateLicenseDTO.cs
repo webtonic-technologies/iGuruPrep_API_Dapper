@@ -27,10 +27,4 @@ namespace UserManagement_API.DTOs
         public string EmpFirstName { get; set; } = string.Empty;
         public List<LicenseDetail>? LicenseDetails { get; set; }
     }
-    public class GenerateLicenseListDTO
-    {
-        public int GenerateLicenseID { get; set; }
-        public string SchoolName { get; set; } = string.Empty;
-        public string SchoolCode { get; set; } = string.Empty;
-    }
 }

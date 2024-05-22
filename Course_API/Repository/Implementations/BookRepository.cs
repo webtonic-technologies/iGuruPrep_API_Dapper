@@ -4,6 +4,7 @@ using Course_API.Models;
 using Course_API.Repository.Interfaces;
 using Dapper;
 using System.Data;
+using System.Data.SqlClient;
 
 namespace Course_API.Repository.Implementations
 {
@@ -11,11 +12,13 @@ namespace Course_API.Repository.Implementations
     {
         private readonly IDbConnection _connection;
         private readonly IWebHostEnvironment _hostingEnvironment;
+        private readonly string _connectionString;
 
-        public BookRepository(IDbConnection connection, IWebHostEnvironment hostingEnvironment)
+        public BookRepository(IDbConnection connection, IWebHostEnvironment hostingEnvironment, IConfiguration configuration)
         {
             _connection = connection;
             _hostingEnvironment = hostingEnvironment;
+            _connectionString = configuration.GetConnectionString("DefaultConnection");
         }
         public async Task<ServiceResponse<string>> Add(BookDTO request)
         {
@@ -204,13 +207,47 @@ namespace Course_API.Repository.Implementations
                 string examsQuery = @"SELECT [bookID] FROM [tbllibraryExamType] WHERE [ExamTypeID] = @ExamTypeID";
                 string subjectQuery = @"SELECT [bookID] FROM [tbllibrarySubject] WHERE [SubjectID] = @SubjectID";
 
-                // Create tasks for concurrent execution
-                var categoryTask = _connection.QueryAsync<int>(categoriesQuery, new { request.APId });
-                var boardTask = _connection.QueryAsync<int>(boardsQuery, new { request.BoardID });
-                var classTask = _connection.QueryAsync<int>(classesQuery, new { request.ClassID });
-                var courseTask = _connection.QueryAsync<int>(coursesQuery, new { request.CourseID });
-                var examTask = _connection.QueryAsync<int>(examsQuery, new { request.ExamTypeID });
-                var subjectTask = _connection.QueryAsync<int>(subjectQuery, new { request.SubjectID });
+                var categoryTask = Task.Run(async () =>
+                {
+                    using var connection = new SqlConnection(_connectionString);
+                    await connection.OpenAsync();
+                    return await connection.QueryAsync<int>(categoriesQuery, new { request.APId });
+                });
+
+                var boardTask = Task.Run(async () =>
+                {
+                    using var connection = new SqlConnection(_connectionString);
+                    await connection.OpenAsync();
+                    return await connection.QueryAsync<int>(boardsQuery, new { request.BoardID });
+                });
+
+                var classTask = Task.Run(async () =>
+                {
+                    using var connection = new SqlConnection(_connectionString);
+                    await connection.OpenAsync();
+                    return await connection.QueryAsync<int>(classesQuery, new { request.ClassID });
+                });
+
+                var courseTask = Task.Run(async () =>
+                {
+                    using var connection = new SqlConnection(_connectionString);
+                    await connection.OpenAsync();
+                    return await connection.QueryAsync<int>(coursesQuery, new { request.CourseID });
+                });
+
+                var examTask = Task.Run(async () =>
+                {
+                    using var connection = new SqlConnection(_connectionString);
+                    await connection.OpenAsync();
+                    return await connection.QueryAsync<int>(examsQuery, new { request.ExamTypeID });
+                });
+
+                var subjectTask = Task.Run(async () =>
+                {
+                    using var connection = new SqlConnection(_connectionString);
+                    await connection.OpenAsync();
+                    return await connection.QueryAsync<int>(subjectQuery, new { request.SubjectID });
+                });
 
                 // Wait for all tasks to complete
                 var results = await Task.WhenAll(categoryTask, boardTask, classTask, courseTask, examTask, subjectTask);

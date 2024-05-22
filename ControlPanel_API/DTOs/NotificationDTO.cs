@@ -26,30 +26,45 @@ namespace ControlPanel_API.DTOs
     {
         public int NbNotificationCategoryId { get; set; }
         public int APID { get; set; }
-        public int NBNotificationID { get; set; } 
+        public int NBNotificationID { get; set; }
+        public string Name { get; set; } = string.Empty;
     }
     public class NbNotificationBoard
     {
         public int NbNotificationBoardId { get; set; }
         public int NBNotificationID { get; set; }
         public int BoardID { get; set; }
+        public string Name { get; set; } = string.Empty;
     }
     public class NbNotificationClass
     {
         public int NbNotificationClassId { get; set; }
         public int NBNotificationID { get; set; }
         public int ClassID { get; set; }
+        public string Name { get; set; } = string.Empty;
     }
     public class NbNotificationCourse
     {
         public int NbNotificationCourseId { get; set; }
         public int NBNotificationID { get; set; }
         public int CourseID { get; set; }
+        public string Name { get; set; } = string.Empty;
     }
     public class NbNotificationExamType
     {
         public int NbNotificationExamTypeId { get; set; }
         public int NBNotificationID { get; set; }
+        public int ExamTypeID { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+
+    public class NotificationsListDTO
+    {
+        public int APId { get; set; }
+        public int BoardID { get; set; }
+        public int ClassID { get; set; }
+        public int CourseID { get; set; }
+        public int SubjectID { get; set; }
         public int ExamTypeID { get; set; }
     }
 }

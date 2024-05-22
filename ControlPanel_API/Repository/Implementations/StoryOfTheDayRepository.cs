@@ -4,6 +4,7 @@ using ControlPanel_API.Models;
 using ControlPanel_API.Repository.Interfaces;
 using Dapper;
 using System.Data;
+using System.Data.SqlClient;
 
 namespace ControlPanel_API.Repository.Implementations
 {
@@ -11,11 +12,12 @@ namespace ControlPanel_API.Repository.Implementations
     {
         private readonly IDbConnection _connection;
         private readonly IWebHostEnvironment _hostingEnvironment;
-
-        public StoryOfTheDayRepository(IDbConnection connection, IWebHostEnvironment hostingEnvironment)
+        private readonly string _connectionString;
+        public StoryOfTheDayRepository(IDbConnection connection, IWebHostEnvironment hostingEnvironment, IConfiguration configuration)
         {
             _connection = connection;
             _hostingEnvironment = hostingEnvironment;
+            _connectionString = configuration.GetConnectionString("DefaultConnection");
         }
         public async Task<ServiceResponse<string>> AddNewStoryOfTheDay(StoryOfTheDayDTO request)
         {
@@ -218,15 +220,50 @@ namespace ControlPanel_API.Repository.Implementations
                 string classesQuery = @"SELECT SOTDID FROM [tblSOTDClass] WHERE [ClassID] = @ClassID";
                 string coursesQuery = @"SELECT SOTDID FROM [tblSOTDCourse] WHERE [CourseID] = @CourseID";
                 string examsQuery = @"SELECT SOTDID FROM [tblSOTDExamType] WHERE [ExamTypeID] = @ExamTypeID";
-                string sotdQuery = @"SELECT SOTDID FROM [tblSOTD] WHERE [EventTypeID] = @EventTypeID";
+                string sotdQuery = @"SELECT StoryId FROM [tblSOTD] WHERE [EventTypeID] = @EventTypeID";
 
-                // Create tasks for concurrent execution
-                var categoryTask = _connection.QueryAsync<int>(categoriesQuery, new { request.APID });
-                var boardTask = _connection.QueryAsync<int>(boardsQuery, new { request.BoardID });
-                var classTask = _connection.QueryAsync<int>(classesQuery, new { request.ClassID });
-                var courseTask = _connection.QueryAsync<int>(coursesQuery, new { request.CourseID });
-                var examTask = _connection.QueryAsync<int>(examsQuery, new { request.ExamTypeID });
-                var sotdTask = _connection.QueryAsync<int>(sotdQuery, new { request.EventTypeID });
+                var categoryTask = Task.Run(async () =>
+                {
+                    using var connection = new SqlConnection(_connectionString);
+                    await connection.OpenAsync();
+                    return await connection.QueryAsync<int>(categoriesQuery, new { request.APID });
+                });
+
+                var boardTask = Task.Run(async () =>
+                {
+                    using var connection = new SqlConnection(_connectionString);
+                    await connection.OpenAsync();
+                    return await connection.QueryAsync<int>(boardsQuery, new { request.BoardID });
+                });
+
+                var classTask = Task.Run(async () =>
+                {
+                    using var connection = new SqlConnection(_connectionString);
+                    await connection.OpenAsync();
+                    return await connection.QueryAsync<int>(classesQuery, new { request.ClassID });
+                });
+
+                var courseTask = Task.Run(async () =>
+                {
+                    using var connection = new SqlConnection(_connectionString);
+                    await connection.OpenAsync();
+                    return await connection.QueryAsync<int>(coursesQuery, new { request.CourseID });
+                });
+
+                var examTask = Task.Run(async () =>
+                {
+                    using var connection = new SqlConnection(_connectionString);
+                    await connection.OpenAsync();
+                    return await connection.QueryAsync<int>(examsQuery, new { request.ExamTypeID });
+                });
+
+                var sotdTask = Task.Run(async () =>
+                {
+                    using var connection = new SqlConnection(_connectionString);
+                    await connection.OpenAsync();
+                    return await connection.QueryAsync<int>(sotdQuery, new { request.EventTypeID });
+                });
+
 
                 // Wait for all tasks to complete
                 var results = await Task.WhenAll(categoryTask, boardTask, classTask, courseTask, examTask, sotdTask);
