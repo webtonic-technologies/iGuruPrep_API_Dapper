@@ -193,7 +193,7 @@ namespace ControlPanel_API.Repository.Implementations
                     request.SearchText = "%" + request.SearchText + "%";
                 }
                 var data = await _connection.QueryAsync<Employee>(query, request);
-                if (data != null)
+                if (data.Any())
                 {
                     return new ServiceResponse<List<Employee>>(true, "Records found", data.AsList(), StatusCodes.Status302Found);
                 }

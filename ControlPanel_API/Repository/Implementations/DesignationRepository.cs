@@ -71,18 +71,18 @@ namespace ControlPanel_API.Repository.Implementations
 
                 var designations = await _connection.QueryAsync<Designation>(sql);
 
-                if (designations != null)
+                if (designations.Any())
                 {
                     return new ServiceResponse<List<Designation>>(true, "Records Found", designations.AsList(), 200);
                 }
                 else
                 {
-                    return new ServiceResponse<List<Designation>>(false, "Records Not Found", new List<Designation>(), 204);
+                    return new ServiceResponse<List<Designation>>(false, "Records Not Found", [], 204);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<Designation>>(false, ex.Message, new List<Designation>(), 500);
+                return new ServiceResponse<List<Designation>>(false, ex.Message, [], 500);
             }
         }
 

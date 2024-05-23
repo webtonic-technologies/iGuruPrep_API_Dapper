@@ -67,18 +67,18 @@ namespace ControlPanel_API.Repository.Implementations
                 var sql = "SELECT * FROM tblRole;";
                 var roles = await _connection.QueryAsync<Role>(sql);
 
-                if (roles != null)
+                if (roles.Any())
                 {
                     return new ServiceResponse<List<Role>>(true, "Records Found", roles.AsList(), 200);
                 }
                 else
                 {
-                    return new ServiceResponse<List<Role>>(false, "Records Not Found", new List<Role>(), 204);
+                    return new ServiceResponse<List<Role>>(false, "Records Not Found", [], 204);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<Role>>(false, ex.Message, new List<Role>(), 500);
+                return new ServiceResponse<List<Role>>(false, ex.Message, [], 500);
             }
         }
 

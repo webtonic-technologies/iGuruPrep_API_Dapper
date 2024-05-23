@@ -27,6 +27,8 @@ builder.Services.AddTransient<INotificationRepository, NotificationRepository>()
 builder.Services.AddTransient<INotificationServices, NotificationServices>();
 builder.Services.AddTransient<IEmployeeRepository, EmployeeRepository>();
 builder.Services.AddTransient<IEmployeeServices, EmployeeServices>();
+builder.Services.AddTransient<IHelpFAQRepository, HelpFAQRepository>();
+builder.Services.AddTransient<IHelpFAQServices, HelpFAQServices>();
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

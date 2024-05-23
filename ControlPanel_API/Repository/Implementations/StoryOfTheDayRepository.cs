@@ -332,7 +332,15 @@ namespace ControlPanel_API.Repository.Implementations
                     SOTDExamTypes = GetListOfSOTDExamType(item.StoryId)
                 }).ToList();
 
-                return new ServiceResponse<List<StoryOfTheDayDTO>>(true, "Records found", response, 200);
+                if (response.Count != 0)
+                {
+                    return new ServiceResponse<List<StoryOfTheDayDTO>>(true, "Records found", response, 200);
+                }
+                else
+                {
+                    return new ServiceResponse<List<StoryOfTheDayDTO>>(false, "Records not found", [], 404);
+                }
+
             }
             catch (Exception ex)
             {

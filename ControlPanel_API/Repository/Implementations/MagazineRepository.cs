@@ -3,7 +3,6 @@ using ControlPanel_API.DTOs.ServiceResponse;
 using ControlPanel_API.Models;
 using ControlPanel_API.Repository.Interfaces;
 using Dapper;
-using Microsoft.Extensions.Configuration;
 using System.Data;
 using System.Data.SqlClient;
 
@@ -280,11 +279,19 @@ namespace ControlPanel_API.Repository.Implementations
                     MagazineExamTypes = GetListOfMagazineExamType(item.MagazineId)
                 }).ToList();
 
-                return new ServiceResponse<List<MagazineDTO>>(true, "Records found", response, 200);
+                if (response.Count != 0)
+                {
+                    return new ServiceResponse<List<MagazineDTO>>(true, "Records found", response, 200);
+                }
+                else
+                {
+                    return new ServiceResponse<List<MagazineDTO>>(false, "Records not found", [], 404);
+                }
+
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<MagazineDTO>>(false, ex.Message, new List<MagazineDTO>(), 500);
+                return new ServiceResponse<List<MagazineDTO>>(false, ex.Message, [], 500);
             }
         }
         public async Task<ServiceResponse<MagazineDTO>> GetMagazineById(int id)
