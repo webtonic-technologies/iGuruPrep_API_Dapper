@@ -97,7 +97,7 @@ namespace Config_API.Repository.Implementations
                            FROM [tblCourse]";
                 var data = await _connection.QueryAsync<Course>(query);
 
-                if (data != null)
+                if (data.Any())
                 {
                     return new ServiceResponse<List<Course>>(true, "Records Found", data.AsList(), StatusCodes.Status302Found);
                 }

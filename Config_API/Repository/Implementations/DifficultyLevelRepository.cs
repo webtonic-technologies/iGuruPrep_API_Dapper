@@ -103,7 +103,7 @@ namespace Config_API.Repository.Implementations
 
                 var data = await _connection.QueryAsync<DifficultyLevel>(query);
 
-                if (data != null)
+                if (data.Any())
                 {
                     return new ServiceResponse<List<DifficultyLevel>>(true, "Records Found", data.AsList(), StatusCodes.Status302Found);
                 }

@@ -99,7 +99,7 @@ namespace Config_API.Repository.Implementations
                            FROM [tblClass]";
                 var classes = await _connection.QueryAsync<Class>(query);
 
-                if (classes != null)
+                if (classes.Any())
                 {
                     return new ServiceResponse<List<Class>>(true, "Records Found", classes.AsList(), StatusCodes.Status302Found);
                 }

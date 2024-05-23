@@ -138,7 +138,7 @@ namespace Config_API.Repository.Implementations
 
                 var data = await _connection.QueryAsync<Questiontype>(query);
 
-                if (data != null)
+                if (data.Any())
                 {
                     return new ServiceResponse<List<Questiontype>>(true, "Records Found", data.AsList(), StatusCodes.Status302Found);
                 }
@@ -161,7 +161,7 @@ namespace Config_API.Repository.Implementations
 
                 var data = await _connection.QueryAsync<NoOfOptions>(query);
 
-                if (data != null)
+                if (data.Any())
                 {
                     return new ServiceResponse<List<NoOfOptions>>(true, "Records Found", data.AsList(), StatusCodes.Status302Found);
                 }
@@ -183,7 +183,7 @@ namespace Config_API.Repository.Implementations
 
                 var data = await _connection.QueryAsync<OptionType>(query);
 
-                if (data != null)
+                if (data.Any())
                 {
                     return new ServiceResponse<List<OptionType>>(true, "Records Found", data.AsList(), StatusCodes.Status302Found);
                 }

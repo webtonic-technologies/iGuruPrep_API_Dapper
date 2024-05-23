@@ -37,7 +37,7 @@ namespace Config_API.Controllers
             }
 
         }
-        [HttpGet("GetAllContentIndex")]
+        [HttpPost("GetAllContentIndex")]
         public async Task<IActionResult> GetAllContentIndexList(ContentIndexListDTO request)
         {
             try

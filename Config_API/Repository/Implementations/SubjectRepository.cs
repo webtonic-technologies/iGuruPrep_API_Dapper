@@ -98,7 +98,7 @@ namespace Config_API.Repository.Implementations
                 // Execute the select query asynchronously
                 var data = await _connection.QueryAsync<Subject>(query);
 
-                if (data != null)
+                if (data.Any())
                 {
                     return new ServiceResponse<List<Subject>>(true, "Records Found", data.AsList(), StatusCodes.Status302Found);
                 }

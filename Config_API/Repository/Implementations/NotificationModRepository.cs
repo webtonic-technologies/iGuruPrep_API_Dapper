@@ -64,7 +64,7 @@ namespace Config_API.Repository.Implementations
             {
                 string sql = "SELECT * FROM tblModule_new";
                 var modules = await _connection.QueryAsync<Module>(sql);
-                if (modules != null)
+                if (modules.Any())
                 {
                     return new ServiceResponse<List<Module>>(true, "Records Found", modules.AsList(), 200);
                 }
@@ -84,7 +84,7 @@ namespace Config_API.Repository.Implementations
             {
                 string sql = "SELECT * FROM tblPlatform";
                 var data = await _connection.QueryAsync<Platform>(sql);
-                if (data != null)
+                if (data.Any())
                 {
                     return new ServiceResponse<List<Platform>>(true, "Records Found", data.AsList(), 200);
                 }

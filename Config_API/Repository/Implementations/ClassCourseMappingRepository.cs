@@ -115,7 +115,7 @@ namespace Config_API.Repository.Implementations
                     modifiedby = g.First().modifiedby,
                     CourseClassMappingID = g.First().CourseClassMappingID
                 }).ToList();
-                if (groupedMappings != null)
+                if (groupedMappings.Any())
                 {
                     return new ServiceResponse<List<ClassCourseMappingDTO>>(true, "Records Found", groupedMappings, 200);
                 }

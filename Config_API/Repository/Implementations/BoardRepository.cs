@@ -104,7 +104,7 @@ namespace Config_API.Repository.Implementations
 
                 var boards = await _connection.QueryAsync<Board>(sql);
 
-                if (boards != null)
+                if (boards.Any())
                 {
                     return new ServiceResponse<List<Board>>(true, "Records Found", boards.AsList(), StatusCodes.Status302Found);
                 }

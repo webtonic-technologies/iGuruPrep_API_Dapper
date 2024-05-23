@@ -114,7 +114,6 @@ namespace Config_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, StatusCodes.Status500InternalServerError);
             }
         }
-
         public async Task<ServiceResponse<List<ContentIndex>>> GetAllContentIndexList(ContentIndexListDTO request)
         {
             try
@@ -132,7 +131,7 @@ namespace Config_API.Repository.Implementations
                 }
 
                 var data = await _connection.QueryAsync<ContentIndex>(query, request);
-                if (data != null)
+                if (data.Any())
                 {
                     return new ServiceResponse<List<ContentIndex>>(true, "Records found", data.AsList(), StatusCodes.Status302Found);
                 }
@@ -146,7 +145,6 @@ namespace Config_API.Repository.Implementations
                 return new ServiceResponse<List<ContentIndex>>(false, ex.Message, [], StatusCodes.Status500InternalServerError);
             }
         }
-
         public async Task<ServiceResponse<ContentIndex>> GetContentIndexById(int id)
         {
             try
@@ -169,7 +167,6 @@ namespace Config_API.Repository.Implementations
                 return new ServiceResponse<ContentIndex>(false, ex.Message, new ContentIndex(), StatusCodes.Status500InternalServerError);
             }
         }
-
         public async Task<ServiceResponse<bool>> StatusActiveInactive(int id)
         {
             try
