@@ -3,7 +3,6 @@ using Schools_API.DTOs.ServiceResponse;
 using Schools_API.Models;
 using Schools_API.Repository.Interfaces;
 using System.Data;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Schools_API.Repository.Implementations
 {
@@ -24,55 +23,54 @@ namespace Schools_API.Repository.Implementations
                 string imagePath = string.Empty;
                 if (request.QuestionId == 0)
                 {
-                    if (request.QuestionImage != null)
-                    {
-                        var folderName = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "QuestionImages");
-                        if (!Directory.Exists(folderName))
-                        {
-                            Directory.CreateDirectory(folderName);
-                        }
-                        var fileName = Path.GetFileNameWithoutExtension(request.QuestionImage.FileName) + "_" + Guid.NewGuid().ToString() + Path.GetExtension(request.QuestionImage.FileName);
-                        var filePath = Path.Combine(folderName, fileName);
-                        using (var fileStream = new FileStream(filePath, FileMode.Create))
-                        {
-                            request.QuestionImage.CopyTo(fileStream);
-                        }
-                        imagePath = fileName; // Set the path where the image is saved
-                    }
-                    else
-                    {
-                        imagePath = string.Empty;
-                    }
-
                     var question = new Question
                     {
-                        Status = request.Status,
-                        CreatedBy = request.CreatedBy,
-                        CreatedOn = request.CreatedOn,
-                        ModifiedBy = request.ModifiedBy,
-                        ModifiedOn = request.ModifiedOn,
                         QuestionDescription = request.QuestionDescription,
                         QuestionFormula = request.QuestionFormula,
-                        QuestionImage = imagePath,
+                        QuestionImage = FileUpload(request.QuestionImage),
                         DifficultyLevelId = request.DifficultyLevelId,
                         QuestionTypeId = request.QuestionTypeId,
                         SubjectIndexId = request.SubjectIndexId,
+                        Duration = request.Duration,
+                        Occurrence = request.Occurrence,
+                        ApprovedStatus = request.ApprovedStatus,
+                        ApprovedBy = request.ApprovedBy,
+                        ReasonNote = request.ReasonNote,
+                        ActualOption = request.ActualOption,
+                        Status = true,
+                        CreatedBy = request.CreatedBy,
+                        CreatedOn = DateTime.Now,
+                        Verified = request.Verified,
                         courseid = request.courseid,
                         boardid = request.boardid,
-                        classid = request.classid
+                        classid = request.classid,
+                        subjectID = request.subjectID,
+                        userid = request.userid,
+                        Rejectedby = request.Rejectedby,
+                        RejectedReason = request.RejectedReason,
+                        APName = request.APName,
+                        BoardName = request.BoardName,
+                        ClassName = request.ClassName,
+                        CourseName = request.CourseName,
+                        SubjectName = request.SubjectName
                     };
 
                     string insertQuery = @"
-            INSERT INTO tblQuestion (QuestionDescription, QuestionFormula, QuestionImage, DifficultyLevelId,
-                                   QuestionTypeId, SubjectIndexId, Duration, Occurrence, ComprehensiveId,
-                                   ApprovedStatus, ApprovedBy, ReasonNote, ActualOption, Status, CreatedBy,
-                                   CreatedOn, ModifiedBy, ModifiedOn, Verified, courseid, boardid, classid)
-            VALUES (@QuestionDescription, @QuestionFormula, @QuestionImage, @DifficultyLevelId,
-                    @QuestionTypeId, @SubjectIndexId, @Duration, @Occurrence, @ComprehensiveId,
-                    @ApprovedStatus, @ApprovedBy, @ReasonNote, @ActualOption, @Status, @CreatedBy,
-                    @CreatedOn, @ModifiedBy, @ModifiedOn, @Verified, @courseid, @boardid, @classid);
-
-            SELECT SCOPE_IDENTITY()";
+                INSERT INTO tblQuestion (
+                    QuestionDescription, QuestionFormula, QuestionImage, DifficultyLevelId, QuestionTypeId, 
+                    SubjectIndexId, Duration, Occurrence, ApprovedStatus, ApprovedBy, ReasonNote, 
+                    ActualOption, Status, CreatedBy, CreatedOn,
+                    Verified, CourseId, BoardId, ClassId, SubjectId, UserId, 
+                    RejectedBy, RejectedReason, APName, BoardName, ClassName, CourseName, SubjectName
+                )
+                VALUES (
+                    @QuestionDescription, @QuestionFormula, @QuestionImage, @DifficultyLevelId, @QuestionTypeId, 
+                    @SubjectIndexId, @Duration, @Occurrence, @ApprovedStatus, @ApprovedBy, @ReasonNote, 
+                    @ActualOption, @Status, @CreatedBy, @CreatedOn, 
+                    @Verified, @CourseId, @BoardId, @ClassId, @SubjectId, @UserId, 
+                    @RejectedBy, @RejectedReason, @APName, @BoardName, @ClassName, @CourseName, @SubjectName
+                );
+                SELECT CAST(SCOPE_IDENTITY() as int);";
 
                     int questionId = await _connection.QuerySingleOrDefaultAsync<int>(insertQuery, question);
                     if (questionId != 0)
@@ -84,22 +82,33 @@ namespace Schools_API.Repository.Implementations
                         var rowsAffected = await AddUpdateReference(request.References, questionId);
 
                         //subject details
-                        var quesSub = await AddUpdateQuestionSubjectMap(request.QuestionSubjectMapping, questionId);
+                        var quesSub = await AddUpdateQuestionSubjectMap(request.QuestionSubjectMappings, questionId);
 
                         string getQuesType = @"select * from tblQBQuestionType where QuestionTypeID = @QuestionTypeID;";
 
                         var questTypedata = await _connection.QuerySingleAsync<QuestionTypes>(getQuesType, new { QuestionTypeID = request.QuestionTypeId });
                         var answer = 0;
+                        string insertAnswerQuery = @"INSERT INTO [tblAnswerMaster] (Questionid, QuestionTypeid) VALUES (@Questionid, @QuestionTypeid);
+                                                   SELECT CAST(SCOPE_IDENTITY() as int)";
+
+                        var Answerid = await _connection.QuerySingleAsync<int>(insertAnswerQuery, new
+                        { Questionid = questionId, QuestionTypeid = questTypedata.QuestionTypeID });
+
                         if (questTypedata != null)
                         {
-                            if (questTypedata.AnswerCode == "MCC" || questTypedata.AnswerCode == "MTC")
+                            if (questTypedata.Code == "MCQ" || questTypedata.Code == "TF" || questTypedata.Code == "MT1" || questTypedata.Code == "MAQ"
+                                || questTypedata.Code == "MT2" || questTypedata.Code == "AR" || questTypedata.Code == "C")
                             {
-                                if (request.AnswerMultipleChoiceCategory != null)
+                                if (request.AnswerMultipleChoiceCategories != null)
                                 {
+                                    foreach (var item in request.AnswerMultipleChoiceCategories)
+                                    {
+                                        item.Answerid = Answerid;
+                                    }
                                     string insertAnsQuery = @"INSERT INTO tblAnswerMultipleChoiceCategory
-                           (Answerid, Answer, Iscorrect, Matchid) 
-                           VALUES (@AnswerId, @Answer, @IsCorrect, @MatchId);";
-                                    answer = await _connection.ExecuteAsync(insertAnsQuery, request.AnswerMultipleChoiceCategory);
+                                                            (Answerid, Answer, Iscorrect, Matchid) 
+                                                            VALUES (@AnswerId, @Answer, @IsCorrect, @MatchId);";
+                                    answer = await _connection.ExecuteAsync(insertAnsQuery, request.AnswerMultipleChoiceCategories);
 
                                 }
                             }
@@ -108,7 +117,9 @@ namespace Schools_API.Repository.Implementations
                                 string sql = @"INSERT INTO tblAnswersingleanswercategory 
                                              ( Answerid, Answer)
                                              VALUES ( @AnswerId, @Answer);";
-                                answer = await _connection.ExecuteAsync(sql, request.Answersingleanswercategory);
+                                if (request.Answersingleanswercategories != null)
+                                    request.Answersingleanswercategories.Answerid = Answerid;
+                                answer = await _connection.ExecuteAsync(sql, request.Answersingleanswercategories);
                             }
                         }
 
@@ -130,47 +141,69 @@ namespace Schools_API.Repository.Implementations
                 {
                     var question = new Question
                     {
-                        Status = request.Status,
-                        CreatedBy = request.CreatedBy,
-                        CreatedOn = request.CreatedOn,
-                        ModifiedBy = request.ModifiedBy,
-                        ModifiedOn = request.ModifiedOn,
+                        QuestionId = request.QuestionId,
                         QuestionDescription = request.QuestionDescription,
                         QuestionFormula = request.QuestionFormula,
-                        QuestionImage = imagePath,
+                        QuestionImage = FileUpload(request.QuestionImage),
                         DifficultyLevelId = request.DifficultyLevelId,
                         QuestionTypeId = request.QuestionTypeId,
                         SubjectIndexId = request.SubjectIndexId,
+                        Duration = request.Duration,
+                        Occurrence = request.Occurrence,
+                        ApprovedStatus = request.ApprovedStatus,
+                        ApprovedBy = request.ApprovedBy,
+                        ReasonNote = request.ReasonNote,
+                        ActualOption = request.ActualOption,
+                        Status = request.Status,
+                        ModifiedBy = request.ModifiedBy,
+                        ModifiedOn = DateTime.Now,
+                        Verified = request.Verified,
                         courseid = request.courseid,
                         boardid = request.boardid,
                         classid = request.classid,
-                        QuestionId = request.QuestionId
+                        subjectID = request.subjectID,
+                        userid = request.userid,
+                        Rejectedby = request.Rejectedby,
+                        RejectedReason = request.RejectedReason,
+                        APName = request.APName,
+                        BoardName = request.BoardName,
+                        ClassName = request.ClassName,
+                        CourseName = request.CourseName,
+                        SubjectName = request.SubjectName
                     };
 
-                    string updateQuery = @"UPDATE tblQuestion
-                           SET QuestionDescription = @QuestionDescription,
-                               QuestionFormula = @QuestionFormula,
-                               QuestionImage = @QuestionImage,
-                               DifficultyLevelId = @DifficultyLevelId,
-                               QuestionTypeId = @QuestionTypeId,
-                               SubjectIndexId = @SubjectIndexId,
-                               Duration = @Duration,
-                               Occurrence = @Occurrence,
-                               ComprehensiveId = @ComprehensiveId,
-                               ApprovedStatus = @ApprovedStatus,
-                               ApprovedBy = @ApprovedBy,
-                               ReasonNote = @ReasonNote,
-                               ActualOption = @ActualOption,
-                               Status = @Status,
-                               CreatedBy = @CreatedBy,
-                               CreatedOn = @CreatedOn,
-                               ModifiedBy = @ModifiedBy,
-                               ModifiedOn = @ModifiedOn,
-                               Verified = @Verified,
-                               courseid = @CourseId,
-                               boardid = @BoardId,
-                               classid = @ClassId
-                           WHERE QuestionId = @QuestionId";
+                    string updateQuery = @"
+                UPDATE Questions
+                SET
+                    QuestionDescription = @QuestionDescription,
+                    QuestionFormula = @QuestionFormula,
+                    QuestionImage = @QuestionImage,
+                    DifficultyLevelId = @DifficultyLevelId,
+                    QuestionTypeId = @QuestionTypeId,
+                    SubjectIndexId = @SubjectIndexId,
+                    Duration = @Duration,
+                    Occurrence = @Occurrence,
+                    ApprovedStatus = @ApprovedStatus,
+                    ApprovedBy = @ApprovedBy,
+                    ReasonNote = @ReasonNote,
+                    ActualOption = @ActualOption,
+                    Status = @Status,
+                    ModifiedBy = @ModifiedBy,
+                    ModifiedOn = @ModifiedOn,
+                    Verified = @Verified,
+                    CourseId = @CourseId,
+                    BoardId = @BoardId,
+                    ClassId = @ClassId,
+                    SubjectId = @SubjectId,
+                    UserId = @UserId,
+                    RejectedBy = @RejectedBy,
+                    RejectedReason = @RejectedReason,
+                    APName = @APName,
+                    BoardName = @BoardName,
+                    ClassName = @ClassName,
+                    CourseName = @CourseName,
+                    SubjectName = @SubjectName
+                WHERE QuestionId = @QuestionId";
 
                     int rowsAffected = await _connection.ExecuteAsync(updateQuery, question);
                     if (rowsAffected > 0)
@@ -179,9 +212,7 @@ namespace Schools_API.Repository.Implementations
                             "FROM tblQIDCourse WHERE QuestionId = @QuestionId", new { request.QuestionId });
                         if (count > 0)
                         {
-                            string deleteQuery = @"
-        DELETE FROM tblQIDCourse
-        WHERE QuestionId = @QuestionId";
+                            string deleteQuery = @"DELETE FROM tblQIDCourse WHERE QuestionId = @QuestionId";
                             int rowsAffected1 = await _connection.ExecuteAsync(deleteQuery, new { request.QuestionId });
                             if (rowsAffected1 > 0)
                             {
@@ -198,9 +229,59 @@ namespace Schools_API.Repository.Implementations
                         var rowsAffected2 = await AddUpdateReference(request.References, request.QuestionId);
 
                         //subject details
-                        var quesSub = await AddUpdateQuestionSubjectMap(request.QuestionSubjectMapping, request.QuestionId);
+                        var quesSub = await AddUpdateQuestionSubjectMap(request.QuestionSubjectMappings, request.QuestionId);
 
-                        if (rowsAffected2 > 0 && quesSub > 0)
+
+                        string getQuesType = @"select * from tblQBQuestionType where QuestionTypeID = @QuestionTypeID;";
+
+                        var questTypedata = await _connection.QuerySingleAsync<QuestionTypes>(getQuesType, new { QuestionTypeID = request.QuestionTypeId });
+                        var answer = 0;
+                        string selectQuery = @"SELECT * FROM AnswerMaster WHERE Questionid = @Questionid";
+
+                        var answerData = await _connection.QueryFirstOrDefaultAsync<AnswerMaster>(selectQuery, new { Questionid = request.QuestionId });
+
+                        string updateAnswerQuery = @"UPDATE tblAnswerMaster SET Questionid = @Questionid, QuestionTypeid = @QuestionTypeid
+                                             WHERE Answerid = @Answerid;";
+                        var Answerid = await _connection.ExecuteAsync(updateAnswerQuery, new
+                        {
+                            Questionid = request.QuestionId,
+                            QuestionTypeid = request.QuestionTypeId,
+                            Answerid = answerData != null ? answerData.Answerid : 0
+                        });
+
+                        if (questTypedata != null)
+                        {
+                            if (questTypedata.Code == "MCQ" || questTypedata.Code == "TF" || questTypedata.Code == "MT1" || questTypedata.Code == "MAQ"
+                                || questTypedata.Code == "MT2" || questTypedata.Code == "AR" || questTypedata.Code == "C")
+                            {
+                                if (request.AnswerMultipleChoiceCategories != null)
+                                {
+                                    string deleteQuery = "DELETE FROM tblAnswerMultipleChoiceCategory WHERE Answerid = @Answerid";
+                                    await _connection.ExecuteAsync(deleteQuery, new { answerData.Answerid });
+
+                                    foreach (var item in request.AnswerMultipleChoiceCategories)
+                                    {
+                                        item.Answerid = answerData.Answerid;
+                                    }
+
+                                    string insertAnsQuery = @"INSERT INTO tblAnswerMultipleChoiceCategory
+                                                            (Answerid, Answer, Iscorrect, Matchid) 
+                                                            VALUES (@AnswerId, @Answer, @IsCorrect, @MatchId);";
+                                    answer = await _connection.ExecuteAsync(insertAnsQuery, request.AnswerMultipleChoiceCategories);
+
+                                }
+                            }
+                            else
+                            {
+                                string updateSingleAnswerQuery = @"UPDATE tblAnswersingleanswercategory SET
+                                                                 Answer = @Answer WHERE Answerid = @Answerid";
+                                if (request.Answersingleanswercategories != null)
+                                    request.Answersingleanswercategories.Answerid = answerData.Answerid;
+                                answer = await _connection.ExecuteAsync(updateSingleAnswerQuery, request.Answersingleanswercategories);
+                            }
+                        }
+
+                        if (rowsAffected > 0 && quesSub > 0 && answer > 0)
                         {
                             return new ServiceResponse<string>(true, "Operation Successful", "Question Added Successfully", 200);
                         }
@@ -220,33 +301,70 @@ namespace Schools_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-        public async Task<ServiceResponse<List<Question>>> GetAllQuestionsList()
+        public async Task<ServiceResponse<List<QuestionDTO>>> GetAllQuestionsList()
         {
             try
             {
-                string sql = @"
-                SELECT QuestionId, QuestionDescription, QuestionFormula,
-                       DifficultyLevelId, QuestionTypeId, SubjectIndexId,
-                       Duration, Occurrence, ComprehensiveId, ApprovedStatus,
-                       ApprovedBy, ReasonNote, ActualOption, Status,
-                       CreatedBy, CreatedOn, ModifiedBy, ModifiedOn, Verified,
-                       courseid, boardid, classid
-                FROM tblQuestion";
-
-                
+                string sql = @"SELECT * FROM tblQuestion";
                 var data = await _connection.QueryAsync<Question>(sql);
-                if(data != null)
+                if (data != null)
                 {
-                    return new ServiceResponse<List<Question>>(true, "Operation Successful", data.AsList(), 200);
+                    var response = data.Select(item => new QuestionDTO
+                    {
+                        QuestionId = item.QuestionId,
+                        QuestionDescription = item.QuestionDescription,
+                        QuestionFormula = item.QuestionFormula,
+                        QuestionImage = GetFile(item.QuestionImage),
+                        DifficultyLevelId = item.DifficultyLevelId,
+                        QuestionTypeId = item.QuestionTypeId,
+                        SubjectIndexId = item.SubjectIndexId,
+                        Duration = item.Duration,
+                        Occurrence = item.Occurrence,
+                        ApprovedStatus = item.ApprovedStatus,
+                        ApprovedBy = item.ApprovedBy,
+                        ReasonNote = item.ReasonNote,
+                        ActualOption = item.ActualOption,
+                        Status = item.Status,
+                        CreatedBy = item.CreatedBy,
+                        CreatedOn = item.CreatedOn,
+                        ModifiedBy = item.ModifiedBy,
+                        ModifiedOn = item.ModifiedOn,
+                        Verified = item.Verified,
+                        courseid = item.courseid,
+                        boardid = item.boardid,
+                        classid = item.classid,
+                        subjectID = item.subjectID,
+                        userid = item.userid,
+                        Rejectedby = item.Rejectedby,
+                        RejectedReason = item.RejectedReason,
+                        APName = item.APName,
+                        BoardName = item.BoardName,
+                        ClassName = item.ClassName,
+                        CourseName = item.CourseName,
+                        SubjectName = item.SubjectName,
+                        QIDCourses = GetListOfQIDCourse(item.QuestionId),
+                        QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionId),
+                        References = GetQuestionReference(item.QuestionId),
+                        Answersingleanswercategories = GetSingleAnswer(item.QuestionId),
+                        AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionId)
+                    }).ToList();
+                    if (response.Count != 0)
+                    {
+                        return new ServiceResponse<List<QuestionDTO>>(true, "Operation Successful", response, 200);
+                    }
+                    else
+                    {
+                        return new ServiceResponse<List<QuestionDTO>>(false, "No records found", [], 404);
+                    }
                 }
                 else
                 {
-                    return new ServiceResponse<List<Question>>(false, "no records found", [], 500);
+                    return new ServiceResponse<List<QuestionDTO>>(false, "no records found", [], 500);
                 }
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                return new ServiceResponse<List<Question>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<QuestionDTO>>(false, ex.Message, [], 500);
             }
         }
         public async Task<ServiceResponse<QuestionDTO>> GetQuestionById(int questionId)
@@ -254,30 +372,51 @@ namespace Schools_API.Repository.Implementations
             try
             {
                 var response = new QuestionDTO();
-                string sql = @"
-                SELECT QuestionId, QuestionDescription, QuestionFormula,
-                       DifficultyLevelId, QuestionTypeId, SubjectIndexId,
-                       Duration, Occurrence, ComprehensiveId, ApprovedStatus,
-                       ApprovedBy, ReasonNote, ActualOption, Status,
-                       CreatedBy, CreatedOn, ModifiedBy, ModifiedOn, Verified,
-                       courseid, boardid, classid
-                FROM tblQuestion
-                WHERE QuestionId = @QuestionId";
+                string sql = @"SELECT * FROM tblQuestion WHERE QuestionId = @QuestionId";
 
-                var data = await _connection.QueryFirstOrDefaultAsync<QuestionDTO>(sql, new { QuestionId = questionId });
-                if (data != null)
+                var item = await _connection.QueryFirstOrDefaultAsync<Question>(sql, new { QuestionId = questionId });
+                if (item != null)
                 {
-                    var refData = await _connection.QueryFirstOrDefaultAsync<Reference>("SELECT * from tblReference where QuestionId = @QuestionId", new { QuestionId = questionId });
-                    if (refData != null)
+                    response = new QuestionDTO
                     {
-                        response.References = refData;
-                    }
-                    var diffCour = await _connection.QueryAsync<QIDCourseDTO>("SELECT * from tblQIDCourse where QuestionId = @QuestionId", new { QuestionId = questionId });
-                    if (diffCour != null)
-                    {
-                        response.QIDCourses = diffCour.AsList();
-                    }
-                    return new ServiceResponse<QuestionDTO>(true, "Operation Successful", data, 200);
+                        QuestionId = item.QuestionId,
+                        QuestionDescription = item.QuestionDescription,
+                        QuestionFormula = item.QuestionFormula,
+                        QuestionImage = GetFile(item.QuestionImage),
+                        DifficultyLevelId = item.DifficultyLevelId,
+                        QuestionTypeId = item.QuestionTypeId,
+                        SubjectIndexId = item.SubjectIndexId,
+                        Duration = item.Duration,
+                        Occurrence = item.Occurrence,
+                        ApprovedStatus = item.ApprovedStatus,
+                        ApprovedBy = item.ApprovedBy,
+                        ReasonNote = item.ReasonNote,
+                        ActualOption = item.ActualOption,
+                        Status = item.Status,
+                        CreatedBy = item.CreatedBy,
+                        CreatedOn = item.CreatedOn,
+                        ModifiedBy = item.ModifiedBy,
+                        ModifiedOn = item.ModifiedOn,
+                        Verified = item.Verified,
+                        courseid = item.courseid,
+                        boardid = item.boardid,
+                        classid = item.classid,
+                        subjectID = item.subjectID,
+                        userid = item.userid,
+                        Rejectedby = item.Rejectedby,
+                        RejectedReason = item.RejectedReason,
+                        APName = item.APName,
+                        BoardName = item.BoardName,
+                        ClassName = item.ClassName,
+                        CourseName = item.CourseName,
+                        SubjectName = item.SubjectName,
+                        QIDCourses = GetListOfQIDCourse(item.QuestionId),
+                        QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionId),
+                        References = GetQuestionReference(item.QuestionId),
+                        Answersingleanswercategories = GetSingleAnswer(item.QuestionId),
+                        AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionId)
+                    };
+                    return new ServiceResponse<QuestionDTO>(true, "Operation Successful", response, 200);
                 }
                 else
                 {
@@ -290,62 +429,7 @@ namespace Schools_API.Repository.Implementations
                 return new ServiceResponse<QuestionDTO>(false, ex.Message, new QuestionDTO(), 500);
             }
         }
-        public async Task<ServiceResponse<string>> UpdateQuestionImageFile(QuestionImageDTO request)
-        {
-            try
-            {
-                var questionData = await _connection.QueryFirstOrDefaultAsync<Question>(
-                    "SELECT QuestionImage FROM tblQuestion WHERE QuestionId = @QuestionId",
-                    new { request.QuestionId });
-
-                if (questionData == null)
-                {
-                    throw new Exception("Question not found");
-                }
-
-                var filePath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "QuestionImages", questionData.QuestionImage);
-                if (File.Exists(filePath) && !string.IsNullOrWhiteSpace(questionData.QuestionImage))
-                {
-                    File.Delete(filePath);
-                }
-
-                if (questionData.QuestionImage != null)
-                {
-                    var uploads = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "QuestionImages");
-                    if (!Directory.Exists(uploads))
-                    {
-                        Directory.CreateDirectory(uploads);
-                    }
-                    if(request.QuestionImage != null)
-                    {
-                        var fileName = Guid.NewGuid().ToString() + Path.GetExtension(request.QuestionImage.FileName);
-                        var newFilePath = Path.Combine(uploads, fileName);
-                        using (var fileStream = new FileStream(newFilePath, FileMode.Create, FileAccess.Write, FileShare.None))
-                        {
-                            await request.QuestionImage.CopyToAsync(fileStream);
-                        }
-                        questionData.QuestionImage = fileName;
-                    }
-                }
-
-                int rowsAffected = await _connection.ExecuteAsync(
-                    "UPDATE tblQuestion SET QuestionImage = @QuestionImage WHERE QuestionId = @QuestionId",
-                    new { questionData.QuestionImage, request.QuestionId });
-                if (rowsAffected > 0)
-                {
-                    return new ServiceResponse<string>(true, "Operation Successful", "Question Updated Successfully", 200);
-                }
-                else
-                {
-                    return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
-                }
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
-            }
-        }
-        private async Task<int> AddUpdateQIDCourses(List<QIDCourseDTO>? request, int questionId)
+        private async Task<int> AddUpdateQIDCourses(List<QIDCourse>? request, int questionId)
         {
             int rowsAffected = 0;
             if (request != null)
@@ -449,40 +533,147 @@ namespace Schools_API.Repository.Implementations
                 return 0;
             }
         }
-        private async Task<int> AddUpdateQuestionSubjectMap(QuestionSubjectMapping? request, int questionId)
+        private async Task<int> AddUpdateQuestionSubjectMap(List<QuestionSubjectMapping>? request, int questionId)
         {
             if (request != null)
             {
-                var newMapping = new QuestionSubjectMapping
+                foreach (var data in request)
                 {
-                    Indexid = request.Indexid,
-                    Levelid = request.Levelid,
-                    questionid = questionId,
-                    QuestionSubjectid = request.QuestionSubjectid,
-                    SubjectIndexId = request.Indexid
-                };
-                int rowsAffected;
-                if (request.QuestionSubjectid == 0)
+                    data.questionid = questionId;
+                }
+                string query = "SELECT COUNT(*) FROM [tblQuestionSubjectMapping] WHERE [questionid] = @questionId";
+                int count = await _connection.QueryFirstOrDefaultAsync<int>(query, new { questionId });
+                if (count > 0)
                 {
-                    string insertQuery = @"INSERT INTO tblQuestionSubjectMapping (SubjectIndexId, Indexid, questionid, Levelid) 
+                    var deleteDuery = @"DELETE FROM [tblQuestionSubjectMapping]
+                          WHERE [questionid] = @questionId;";
+                    var rowsAffected = await _connection.ExecuteAsync(deleteDuery, new { questionId });
+                    if (rowsAffected > 0)
+                    {
+                        string insertQuery = @"INSERT INTO tblQuestionSubjectMapping (SubjectIndexId, Indexid, questionid, Levelid) 
                            VALUES (@SubjectIndexId, @Indexid, @questionid, @Levelid)";
-                    rowsAffected = await _connection.ExecuteAsync(insertQuery, newMapping);
+                        var valuesInserted = await _connection.ExecuteAsync(insertQuery, request);
+                        return valuesInserted;
+                    }
+                    else
+                    {
+                        return 0;
+                    }
                 }
                 else
                 {
-                    string updateQuery = @"UPDATE tblQuestionSubjectMapping 
-                           SET SubjectIndexId = @SubjectIndexId,
-                               Indexid = @Indexid,
-                               questionid = @questionid,
-                               Levelid = @Levelid
-                           WHERE QuestionSubjectid = @QuestionSubjectid";
-                    rowsAffected = await _connection.ExecuteAsync(updateQuery, newMapping);
+                    string insertQuery = @"INSERT INTO tblQuestionSubjectMapping (SubjectIndexId, Indexid, questionid, Levelid) 
+                           VALUES (@SubjectIndexId, @Indexid, @questionid, @Levelid)";
+                    var valuesInserted = await _connection.ExecuteAsync(insertQuery, request);
+                    return valuesInserted;
                 }
-                return rowsAffected;
             }
             else
             {
                 return 0;
+            }
+        }
+        private List<QIDCourse> GetListOfQIDCourse(int questionId)
+        {
+            var boardquery = @"SELECT * FROM [tblQIDCourse] WHERE QID = @questionId;";
+
+            var data = _connection.Query<QIDCourse>(boardquery, new { questionId });
+            return data != null ? data.AsList() : [];
+        }
+        private Reference GetQuestionReference(int questionId)
+        {
+            var boardquery = @"SELECT * FROM [tblReference] WHERE QuestionId = @questionId;";
+
+            var data = _connection.QueryFirstOrDefault<Reference>(boardquery, new { questionId });
+            return data ?? new Reference();
+        }
+        private List<QuestionSubjectMapping> GetListOfQuestionSubjectMapping(int questionId)
+        {
+            var boardquery = @"SELECT * FROM [tblQuestionSubjectMapping] WHERE questionid = @questionId;";
+
+            var data = _connection.Query<QuestionSubjectMapping>(boardquery, new { questionId });
+            return data != null ? data.AsList() : [];
+        }
+        private string FileUpload(string base64String)
+        {
+            if (string.IsNullOrEmpty(base64String) || base64String == "string")
+            {
+                return string.Empty;
+            }
+            if (base64String == string.Empty)
+            {
+                return string.Empty;
+            }
+            byte[] data = Convert.FromBase64String(base64String);
+            string directoryPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "QuestionImages");
+
+            if (!Directory.Exists(directoryPath))
+            {
+                Directory.CreateDirectory(directoryPath);
+            }
+            string fileExtension = IsJpeg(data) == true ? ".jpg" : IsPng(data) == true ? ".png" : IsGif(data) == true ? ".gif" : string.Empty;
+
+            string fileName = Guid.NewGuid().ToString() + fileExtension;
+            string filePath = Path.Combine(directoryPath, fileName);
+
+            // Write the byte array to the image file
+            File.WriteAllBytes(filePath, data);
+            return filePath;
+        }
+        private string GetFile(string Filename)
+        {
+            var filePath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "QuestionImages", Filename);
+
+            if (!File.Exists(filePath))
+            {
+                return string.Empty;
+            }
+            byte[] fileBytes = File.ReadAllBytes(filePath);
+            string base64String = Convert.ToBase64String(fileBytes);
+            return base64String;
+        }
+        private bool IsJpeg(byte[] bytes)
+        {
+            // JPEG magic number: 0xFF, 0xD8
+            return bytes.Length > 1 && bytes[0] == 0xFF && bytes[1] == 0xD8;
+        }
+        private bool IsPng(byte[] bytes)
+        {
+            // PNG magic number: 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A
+            return bytes.Length > 7 && bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47
+                && bytes[4] == 0x0D && bytes[5] == 0x0A && bytes[6] == 0x1A && bytes[7] == 0x0A;
+        }
+        private bool IsGif(byte[] bytes)
+        {
+            // GIF magic number: "GIF"
+            return bytes.Length > 2 && bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46;
+        }
+        private Answersingleanswercategory GetSingleAnswer(int QuestionId)
+        {
+            var answerMaster = _connection.QueryFirstOrDefault<AnswerMaster>(@"Select * from tblAnswerMaster where Questionid = @Questionid", new { Questionid = QuestionId });
+            if (answerMaster != null)
+            {
+                string getQuery = @"Select * from [tblAnswersingleanswercategory] where [Answerid] = @Answerid;";
+                var response = _connection.QueryFirstOrDefault<Answersingleanswercategory>(getQuery, new { answerMaster.Answerid });
+                return response ?? new Answersingleanswercategory();
+            }
+            else
+            {
+                return new Answersingleanswercategory();
+            }
+        }
+        private List<AnswerMultipleChoiceCategory> GetMultipleAnswers (int QuestionId)
+        {
+            var answerMaster = _connection.QueryFirstOrDefault<AnswerMaster>(@"Select * from tblAnswerMaster where Questionid = @Questionid", new { Questionid = QuestionId });
+            if (answerMaster != null)
+            {
+                string getQuery = @"Select * from [tblAnswerMultipleChoiceCategory] where [Answerid] = @Answerid;";
+                var response = _connection.Query<AnswerMultipleChoiceCategory>(getQuery, new { answerMaster.Answerid });
+                return response.AsList() ?? [];
+            }
+            else
+            {
+                return [];
             }
         }
     }

@@ -27,7 +27,7 @@ namespace Schools_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<Question>>> GetAllQuestionsList()
+        public async Task<ServiceResponse<List<QuestionDTO>>> GetAllQuestionsList()
         {
             try
             {
@@ -35,7 +35,7 @@ namespace Schools_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<Question>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<QuestionDTO>>(false, ex.Message, [], 500);
             }
         }
 
@@ -48,18 +48,6 @@ namespace Schools_API.Services.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<QuestionDTO>(false, ex.Message, new QuestionDTO(), 500);
-            }
-        }
-
-        public async Task<ServiceResponse<string>> UpdateQuestionImageFile(QuestionImageDTO request)
-        {
-            try
-            {
-                return await _questionRepository.UpdateQuestionImageFile(request);
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
     }

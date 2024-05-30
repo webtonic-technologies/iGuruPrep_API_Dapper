@@ -1,3 +1,4 @@
+using Config_API.DTOs;
 using Config_API.Models;
 using Config_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -15,7 +16,7 @@ namespace Config_API.Controllers
             _notificationModServices = notificationModServices;
         }
         [HttpPost]
-        public async Task<IActionResult> AddUpdateNotification(NotificationTemplate request)
+        public async Task<IActionResult> AddUpdateNotification(NotificationDTO request)
         {
             try
             {
@@ -61,11 +62,11 @@ namespace Config_API.Controllers
 
         }
         [HttpGet("GetNotification/{Id}")]
-        public async Task<IActionResult> GetNotificationsByModuleId(int Id)
+        public async Task<IActionResult> GetNotificationsById(int Id)
         {
             try
             {
-                var data = await _notificationModServices.GetNotificationsByModuleId(Id);
+                var data = await _notificationModServices.GetNotificationsById(Id);
                 if (data != null)
                 {
                     return Ok(data);
@@ -112,6 +113,29 @@ namespace Config_API.Controllers
             try
             {
                 var data = await _notificationModServices.GetAllModuleList();
+                if (data != null)
+                {
+                    return Ok(data);
+
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+
+        }
+        [HttpGet("GetNotifications")]
+        public async Task<IActionResult> GetListOfNotifications()
+        {
+            try
+            {
+                var data = await _notificationModServices.GetListofNotifications();
                 if (data != null)
                 {
                     return Ok(data);

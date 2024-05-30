@@ -11,6 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 string connectionString = builder.Configuration.GetConnectionString("DefaultConnection")!;
 
 builder.Services.AddTransient<IDbConnection>(c => new SqlConnection(connectionString));
+
 builder.Services.AddTransient<IDesignationServices, DesignationServices>();
 builder.Services.AddTransient<IDesignationRepository, DesignationRepository>();
 builder.Services.AddTransient<IFeedbackServices, FeedbackServices>();

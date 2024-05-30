@@ -14,7 +14,7 @@ namespace Course_API.Services.Implementations
         {
             _syllabusRepository = syllabusRepository;
         }
-        public async Task<ServiceResponse<string>> AddUpdateSyllabus(Syllabus request)
+        public async Task<ServiceResponse<string>> AddUpdateSyllabus(SyllabusDTO request)
         {
             try
             {

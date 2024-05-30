@@ -17,7 +17,7 @@ namespace Course_API.Controllers
         }
 
         [HttpPost("Syllabus")]
-        public async Task<IActionResult> AddUpdateSyllabus([FromBody] Syllabus request)
+        public async Task<IActionResult> AddUpdateSyllabus([FromBody] SyllabusDTO request)
         {
             try
             {

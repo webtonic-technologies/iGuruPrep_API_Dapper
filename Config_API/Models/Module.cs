@@ -1,6 +1,6 @@
 ﻿namespace Config_API.Models
 {
-    public class Module
+    public class NotificationModule
     {
         public int ModuleID { get; set; }
         public string ModuleName { get; set; } = string.Empty;

@@ -1,7 +1,6 @@
 ﻿using Config_API.DTOs;
 using Config_API.DTOs.ServiceResponse;
 using Config_API.Models;
-using Config_API.Repository.Implementations;
 using Config_API.Repository.Interfaces;
 using Config_API.Services.Interfaces;
 
@@ -15,7 +14,7 @@ namespace Config_API.Services.Implementations
         {
             _notificationModRepository = notificationModRepository;
         }
-        public async Task<ServiceResponse<string>> AddUpdateNotification(NotificationTemplate request)
+        public async Task<ServiceResponse<string>> AddUpdateNotification(NotificationDTO request)
         {
             try
             {
@@ -27,7 +26,7 @@ namespace Config_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<Module>>> GetAllModuleList()
+        public async Task<ServiceResponse<List<NotificationModule>>> GetAllModuleList()
         {
             try
             {
@@ -35,7 +34,7 @@ namespace Config_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<Module>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<NotificationModule>>(false, ex.Message, [], 500);
             }
         }
 
@@ -51,15 +50,27 @@ namespace Config_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<NotificationModuleDTO>> GetNotificationsByModuleId(int id)
+        public async Task<ServiceResponse<List<NotificationResponseDTO>>> GetListofNotifications()
         {
             try
             {
-                return await _notificationModRepository.GetNotificationsByModuleId(id);
+                return await _notificationModRepository.GetListofNotifications();
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<NotificationModuleDTO>(false, ex.Message, new NotificationModuleDTO(), 500);
+                return new ServiceResponse<List<NotificationResponseDTO>>(false, ex.Message, [], 500);
+            }
+        }
+
+        public async Task<ServiceResponse<NotificationResponseDTO>> GetNotificationsById(int id)
+        {
+            try
+            {
+                return await _notificationModRepository.GetNotificationsById(id);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<NotificationResponseDTO>(false, ex.Message, new NotificationResponseDTO(), 500);
             }
         }
 

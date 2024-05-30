@@ -6,7 +6,7 @@ namespace Course_API.Services.Interfaces
 {
     public interface ISyllabusServices
     {
-        Task<ServiceResponse<string>> AddUpdateSyllabus(Syllabus request);
+        Task<ServiceResponse<string>> AddUpdateSyllabus(SyllabusDTO request);
         Task<ServiceResponse<string>> AddUpdateSyllabusDetails(SyllabusDetailsDTO request);
     }
 }

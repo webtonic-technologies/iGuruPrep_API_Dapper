@@ -41,23 +41,6 @@ namespace Schools_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
-        [HttpPatch("UpdateFile")]
-        public async Task<IActionResult> UpdateQuestionImageFile([FromForm] QuestionImageDTO request)
-        {
-            if (request.QuestionImage == null)
-            {
-                return BadRequest("The File field is required");
-            }
-            try
-            {
-                var data = await _questionServices.UpdateQuestionImageFile(request);
-                return Ok(data);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
         [HttpGet("GetAllQuestions")]
         public async Task<IActionResult> GetAllQuestionsList()
         {
