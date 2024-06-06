@@ -22,14 +22,16 @@ builder.Services.AddTransient<IRolesServices, RolesServices>();
 builder.Services.AddTransient<IRolesRepository, RolesRepository>();
 builder.Services.AddTransient<IStoryOfTheDayServices, StoryOfTheDayServices>();
 builder.Services.AddTransient<IStoryOfTheDayRepository, StoryOfTheDayRepository>();
-builder.Services.AddTransient<ITicketServices, TicketServices>();
-builder.Services.AddTransient<ITicketRepository, TicketRepository>();
+builder.Services.AddTransient<IContactUsServices, ContactUsServices>();
+builder.Services.AddTransient<IContactUsRepository, ContactUsRepository>();
 builder.Services.AddTransient<INotificationRepository, NotificationRepository>();
 builder.Services.AddTransient<INotificationServices, NotificationServices>();
 builder.Services.AddTransient<IEmployeeRepository, EmployeeRepository>();
 builder.Services.AddTransient<IEmployeeServices, EmployeeServices>();
 builder.Services.AddTransient<IHelpFAQRepository, HelpFAQRepository>();
 builder.Services.AddTransient<IHelpFAQServices, HelpFAQServices>();
+builder.Services.AddTransient<IRoleAssignmentRepository, RoleAssignmentRepository>();
+builder.Services.AddTransient<IRoleAssignmentServices, RoleAssignmentServices>();
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

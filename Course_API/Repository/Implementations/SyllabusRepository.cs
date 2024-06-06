@@ -21,7 +21,7 @@ namespace Course_API.Repository.Implementations
                 if (request.SyllabusId == 0)
                 {
                     string insertQuery = @"
-                INSERT INTO Syllabus (BoardID, CourseId, ClassId, SyllabusName, Status, createdby, createdon, modifiedby, modifiedon, SubjectId, APID, empid, villagename, DesignationName, RoleName, boardname, classname, coursename, subjectname, APname, EmployeeID, EmpFirstName)
+                INSERT INTO tblSyllabus (BoardID, CourseId, ClassId, SyllabusName, Status, createdby, createdon, modifiedby, modifiedon, SubjectId, APID, empid, villagename, DesignationName, RoleName, boardname, classname, coursename, subjectname, APname, EmployeeID, EmpFirstName)
                 VALUES (@BoardID, @CourseId, @ClassId, @SyllabusName, @Status, @createdby, @createdon, @modifiedby, @modifiedon, @SubjectId, @APID, @empid, @villagename, @DesignationName, @RoleName, @boardname, @classname, @coursename, @subjectname, @APname, @EmployeeID, @EmpFirstName);
                 SELECT CAST(SCOPE_IDENTITY() as int);";
 
@@ -46,7 +46,7 @@ namespace Course_API.Repository.Implementations
                 else
                 {
                     string updateQuery = @"
-                UPDATE Syllabus
+                UPDATE tblSyllabus
                 SET 
                     BoardID = @BoardID,
                     CourseId = @CourseId,

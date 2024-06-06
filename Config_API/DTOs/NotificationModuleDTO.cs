@@ -5,7 +5,7 @@ namespace Config_API.DTOs
     public class NotificationDTO
     {
         public int NotificationTemplateID { get; set; }
-        public int? Status { get; set; }
+        public bool Status { get; set; }
         public string createdby { get; set; } = string.Empty;
         public DateTime? createdon { get; set; }
         public int? moduleID { get; set; }
@@ -20,7 +20,7 @@ namespace Config_API.DTOs
     public class NotificationResponseDTO
     {
         public int NotificationTemplateID { get; set; }
-        public int? Status { get; set; }
+        public bool Status { get; set; }
         public string createdby { get; set; } = string.Empty;
         public DateTime? createdon { get; set; }
         public int? moduleID { get; set; }
@@ -38,7 +38,7 @@ namespace Config_API.DTOs
     {
         public int TemplateMappingId { get; set; }
         public int NotificationTemplateID { get; set; }
-        public IEnumerable<Platform>? PlatformDatas { get; set; }
+        public List<Platform>? PlatformDatas { get; set; }
         public string Role { get; set; } = string.Empty;
         public string Message { get; set; } = string.Empty;
         public bool? isStudent { get; set; }
