@@ -38,7 +38,6 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-
         public async Task<ServiceResponse<string>> UpdateFeedback(Feedback request)
         {
             try
@@ -81,143 +80,58 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-        public async Task<ServiceResponse<string>> AddSyllabus(Syllabus request)
-        {
-            try
-            {
-                // Construct the SQL insert query
-                string sql = @"INSERT INTO tblSyllabus (CreatedOn, BoardID, ClassId, CourseId, CreatedBy, Description, ModifiedBy, ModifiedOn, Status, SyllabusName, YearID) 
-                       VALUES (@CreatedOn, @BoardID, @ClassId, @CourseId, @CreatedBy, @Description, @ModifiedBy, @ModifiedOn, @Status, @SyllabusName, @YearID)";
-
-
-                int rowsAffected = await _connection.ExecuteAsync(sql, new
-                {
-                    request.CreatedOn,
-                    request.BoardID,
-                    request.ClassId,
-                    request.CourseId,
-                    request.CreatedBy,
-                    request.Description,
-                    request.ModifiedBy,
-                    request.ModifiedOn,
-                    //request.SyllabusId,
-                    request.Status,
-                    request.SyllabusName,
-                    request.YearID
-                });
-
-                if (rowsAffected > 0)
-                {
-                    return new ServiceResponse<string>(true, "Operation Successful", "Syllabus Added Successfully", 200);
-                }
-                else
-                {
-                    return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
-                }
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
-            }
-        }
 
         public async Task<ServiceResponse<List<GetAllFeedbackResponse>>> GetAllFeedBackList(GetAllFeedbackRequest request)
         {
             try
             {
-                var list = new List<GetAllFeedbackResponse>();
+                string sql = @"
+    SELECT 
+        fb.FeedBackId, 
+        fb.FirstName AS Name,
+        fb.FeedbackDescription AS FeedBackDesc,
+        fb.Rating AS Rating,
+        fb.Date AS Date,
+        fb.phonenumber AS PhoneNumber,
+        fb.Email AS Email,
+        b.BoardName AS Board,
+        c.ClassName AS Class,
+        cr.CourseName AS Course
+    FROM 
+        [tblUserFeedBack] fb
+    LEFT JOIN 
+        [dbo].[tblBoard] b ON b.BoardId = fb.BoardId
+    LEFT JOIN 
+        [dbo].[tblClass] c ON c.ClassId = fb.ClassId
+    LEFT JOIN 
+        [dbo].[tblCourse] cr ON cr.CourseId = fb.CourseId
+    WHERE 
+        (fb.BoardId = @BoardId OR @BoardId = 0)
+        AND (fb.CourseId = @CourseId OR @CourseId = 0)
+        AND (fb.ClassId = @ClassId OR @ClassId = 0)
+        AND (fb.APID = @APID OR @APID = 0)
+        AND (@StartDate IS NULL OR fb.Date >= @StartDate)
+        AND (@EndDate IS NULL OR fb.Date <= @EndDate)
+        AND (@Today IS NULL OR fb.Date = @Today);";
 
-                string sql = @"SELECT * FROM tblSyllabus WHERE (BoardID = @BoardID OR @BoardID = 0)
-                            AND (CourseId = @CourseId OR @CourseId = 0)
-                            AND (ClassId = @ClassId OR @ClassId = 0)";
-
-                // Execute the SQL query and retrieve syllabi asynchronously using Dapper
-                IEnumerable<Syllabus> syllabi = await _connection.QueryAsync<Syllabus>(sql, new
-                {
-                    request.BoardID,
-                    request.ClassId,
-                    request.CourseId
+                var list = await _connection.QueryAsync<GetAllFeedbackResponse>(sql, new { request.BoardID, request.ClassId, request.CourseId, request.APID, request.StartDate
+                ,request.EndDate, request.Today
                 });
-
-                foreach (var syllabus in syllabi)
+                var paginatedList = list.Skip((request.PageNumber - 1) * request.PageSize)
+                              .Take(request.PageSize)
+                              .ToList();
+                if (paginatedList.Count != 0)
                 {
-                    string feedbackSql = "SELECT * FROM tblUserFeedback WHERE SyllabusID = @SyllabusID";
-
-                    var feedback = _connection.QueryFirstOrDefault<Feedback>(feedbackSql, new { SyllabusID = syllabus.SyllabusId });
-
-                    if (feedback != null)
-                    {
-                        // Map the retrieved feedback and syllabus details to the desired response object
-                        var feedbackResponse = new GetAllFeedbackResponse
-                        {
-                            Rating = feedback.Rating,
-                            Date = feedback.CreatedDate,
-                            FeedBackDesc = feedback.FeedbackDesc,
-                            Board = GetBoardNameById(syllabus.BoardID),
-                            Class = GetClassNameById(syllabus.ClassId),
-                            Course = GetCourseNameById(syllabus.CourseId),
-                        };
-                        list.Add(feedbackResponse);
-                    }
-                }
-
-
-                if (list != null)
-                {
-                    return new ServiceResponse<List<GetAllFeedbackResponse>>(true, "Records Found", list, 200);
+                    return new ServiceResponse<List<GetAllFeedbackResponse>>(true, "Records Found", paginatedList.AsList(), 200);
                 }
                 else
                 {
-                    return new ServiceResponse<List<GetAllFeedbackResponse>>(false, "Records Not Found", new List<GetAllFeedbackResponse>(), 204);
+                    return new ServiceResponse<List<GetAllFeedbackResponse>>(false, "Records Not Found", [], 204);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<GetAllFeedbackResponse>>(false, ex.Message, new List<GetAllFeedbackResponse>(), 500);
-            }
-        }
-
-        private string GetBoardNameById(int? boardId)
-        {
-            string sql = "SELECT BoardName FROM tblBoard WHERE BoardId = @BoardId";
-            var data = _connection.QueryFirstOrDefault<string>(sql, new { BoardId = boardId });
-            if (data != null)
-            {
-                return data;
-            }
-            else
-            {
-                return string.Empty;
-            }
-        }
-
-        // Helper method to get class name by ID
-        private string GetClassNameById(int? classId)
-        {
-            string sql = "SELECT ClassName FROM tblClass WHERE ClassId = @ClassId";
-            var data = _connection.QueryFirstOrDefault<string>(sql, new { ClassId = classId });
-            if (data != null)
-            {
-                return data;
-            }
-            else
-            {
-                return string.Empty;
-            }
-        }
-
-        // Helper method to get course name by ID
-        private string GetCourseNameById(int? courseId)
-        {
-            string sql = "SELECT CourseName FROM tblCourse WHERE CourseId = @CourseId";
-            var data = _connection.QueryFirstOrDefault<string>(sql, new { CourseId = courseId });
-            if (data != null)
-            {
-                return data;
-            }
-            else
-            {
-                return string.Empty;
+                return new ServiceResponse<List<GetAllFeedbackResponse>>(false, ex.Message, [], 500);
             }
         }
     }

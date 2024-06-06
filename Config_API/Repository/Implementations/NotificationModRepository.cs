@@ -21,11 +21,9 @@ namespace Config_API.Repository.Implementations
                 if (request.NotificationTemplateID == 0)
                 {
                     string insertQuery = @"
-                    INSERT INTO [tblNotificationTemplate] (NotificationTemplateID, Status, CreatedOn, CreatedBy, EmployeeID, EmpFirstName, SubModuleId)
+                    INSERT INTO [tblNotificationTemplate] ( Status, CreatedOn, CreatedBy, EmployeeID, EmpFirstName, moduleID, SubModuleId)
                     OUTPUT Inserted.NotificationTemplateID
-                    VALUES (@NotificationTemplateID, @Status, @CreatedOn, @CreatedBy, @EmployeeID, @EmpFirstName, @SubModuleId);";
-
-                    using var transaction = _connection.BeginTransaction();
+                    VALUES ( @Status, @CreatedOn, @CreatedBy, @EmployeeID, @EmpFirstName, @moduleID, @SubModuleId);";
                     int insertedValue = await _connection.QuerySingleAsync<int>(insertQuery, new
                     {
                         Status = true,
@@ -35,9 +33,7 @@ namespace Config_API.Repository.Implementations
                         request.EmployeeID,
                         request.EmpFirstName,
                         request.subModuleId
-                    }, transaction);
-                    transaction.Commit();
-
+                    });
                     if (insertedValue > 0)
                     {
                         int mapping = NotificationTemplateMapping(request.NotificationTemplateMappings ??= ([]), insertedValue);
@@ -47,7 +43,6 @@ namespace Config_API.Repository.Implementations
                         }
                         else
                         {
-                            transaction.Rollback();
                             return new ServiceResponse<string>(false, "Opertion Failed", "No Record Found", 204);
                         }
                     }
@@ -58,7 +53,6 @@ namespace Config_API.Repository.Implementations
                 }
                 else
                 {
-                    using var transaction = _connection.BeginTransaction();
                     string updateQuery = @"
             UPDATE [tblNotificationTemplate]
             SET 
@@ -81,8 +75,7 @@ namespace Config_API.Repository.Implementations
                         request.EmpFirstName,
                         request.subModuleId,
                         request.NotificationTemplateID
-                    }, transaction);
-                    transaction.Commit();
+                    });
                     if (rowsAffected > 0)
                     {
                         int mapping = NotificationTemplateMapping(request.NotificationTemplateMappings ??= ([]), request.NotificationTemplateID);
@@ -92,7 +85,6 @@ namespace Config_API.Repository.Implementations
                         }
                         else
                         {
-                            transaction.Rollback();
                             return new ServiceResponse<string>(false, "Opertion Failed", "No Record Found", 204);
                         }
                     }
@@ -111,7 +103,7 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
-                string sql = "SELECT * FROM tblModule_new";
+                string sql = "SELECT * FROM tblModule";
                 var modules = await _connection.QueryAsync<NotificationModule>(sql);
                 if (modules.Any())
                 {
@@ -197,14 +189,7 @@ namespace Config_API.Repository.Implementations
 
                 if (data != null)
                 {
-                    if (data.Status == 0)
-                    {
-                        data.Status = 1;
-                    }
-                    else
-                    {
-                        data.Status = 0;
-                    }
+                    data.Status = !data.Status;
                     string updateQuery = @"UPDATE tblNotificationTemplate SET Status = @Status WHERE NotificationTemplateID = @Id";
                     int rowsAffected = await _connection.ExecuteAsync(updateQuery, new { data.Status, Id = id });
 
@@ -270,16 +255,21 @@ namespace Config_API.Repository.Implementations
             foreach (var item in data)
             {
                 List<int> ids = item.PlatformID
-       .Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
-       .Select(id => int.Parse(id.Trim()))
-       .ToList();
-                var platformQuery = @"select * from tblPlatform WHERE platformid IN @ids;";
-                var platforms = await _connection.QueryAsync<Platform>(platformQuery, ids);
+               .Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+               .Select(id => int.Parse(id.Trim()))
+               .ToList();
+                var platformData = new List<Platform>();
+                foreach(var platform in ids)
+                {
+                    var platformQuery = @"select * from tblPlatform WHERE platformid = @platform;";
+                    var platforms = await _connection.QueryFirstOrDefaultAsync<Platform>(platformQuery, new { platform });
+                    platformData.Add(platforms);
+                }
                 var mapping = new NotificationTemplateMappingResponse
                 {
                     TemplateMappingId = item.TemplateMappingId,
                     NotificationTemplateID = item.NotificationTemplateID,
-                    PlatformDatas = platforms,
+                    PlatformDatas = platformData,
                     Role = item.isEmployee == true ? "Employee" : item.isStudent == true ? "Student" : string.Empty,
                     Message = item.Message,
                     isStudent = item.isStudent,

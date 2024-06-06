@@ -1,6 +1,6 @@
 ﻿namespace ControlPanel_API.DTOs
 {
-    public class GetAllFeedbackRequest
+    public class GeAllContactUsRequest
     {
         public int? BoardID { get; set; }
         public int? CourseId { get; set; }
@@ -8,8 +8,8 @@
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
         public DateTime? Today { get; set; }
-        public int APID {  get; set; }
+        public int APID { get; set; }
         public int PageNumber { get; set; }
-        public int PageSize { get; set; } 
+        public int PageSize { get; set; }
     }
 }

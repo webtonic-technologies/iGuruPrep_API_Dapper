@@ -103,7 +103,6 @@ namespace ControlPanel_API.Repository.Implementations
             {
                 var sql = "SELECT * FROM tblHelpFAQ;";
                 var data = await _connection.QueryAsync<HelpFAQ>(sql);
-
                 if (data.Any())
                 {
                     return new ServiceResponse<List<HelpFAQ>>(true, "Records Found", data.AsList(), 200);
