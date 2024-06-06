@@ -8,7 +8,6 @@ namespace ControlPanel_API.Services.Interfaces
     {
         Task<ServiceResponse<string>> AddFeedBack(Feedback request);
         Task<ServiceResponse<string>> UpdateFeedback(Feedback request);
-        Task<ServiceResponse<string>> AddSyllabus(Syllabus request);
         Task<ServiceResponse<List<GetAllFeedbackResponse>>> GetAllFeedBackList(GetAllFeedbackRequest request);
     }
 }

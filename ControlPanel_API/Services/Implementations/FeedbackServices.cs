@@ -25,19 +25,6 @@ namespace ControlPanel_API.Services.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-
-        public async Task<ServiceResponse<string>> AddSyllabus(Syllabus request)
-        {
-            try
-            {
-                return await _feedbackRepository.AddSyllabus(request);
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
-            }
-        }
-
         public async Task<ServiceResponse<List<GetAllFeedbackResponse>>> GetAllFeedBackList(GetAllFeedbackRequest request)
         {
             try

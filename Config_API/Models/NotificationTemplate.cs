@@ -3,7 +3,7 @@
     public class NotificationTemplate
     {
         public int NotificationTemplateID { get; set; }
-        public int? Status { get; set; }
+        public bool Status { get; set; }
         public string createdby { get; set; } = string.Empty;
         public DateTime? createdon { get; set; }
         public int? moduleID { get; set; }

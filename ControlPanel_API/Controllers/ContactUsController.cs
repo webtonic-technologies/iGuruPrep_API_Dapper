@@ -7,23 +7,23 @@ namespace ControlPanel_API.Controllers
 {
     [Route("iGuru/[controller]")]
     [ApiController]
-    public class TicketController : ControllerBase
+    public class ContactUsController : ControllerBase
     {
 
-        private readonly ITicketServices _ticketService;
+        private readonly IContactUsServices _contactUsServices;
 
-        public TicketController(ITicketServices ticketServices)
+        public ContactUsController(IContactUsServices contactUsServices)
         {
-            _ticketService = ticketServices;
+            _contactUsServices = contactUsServices;
         }
 
 
         [HttpPost("AddTicket")]
-        public async Task<IActionResult> AddTicket(Ticket request)
+        public async Task<IActionResult> AddTicket(ContactUs request)
         {
             try
             {
-                var data = await _ticketService.AddTicket(request);
+                var data = await _contactUsServices.AddTicket(request);
                 if (data != null)
                 {
                     return Ok(data);
@@ -41,12 +41,12 @@ namespace ControlPanel_API.Controllers
             }
 
         }
-        [HttpPost("GetAllTickets")]
-        public async Task<IActionResult> GetAllTickets(GeAllTicketsRequest request)
+        [HttpPost("GetAllContactUs")]
+        public async Task<IActionResult> GetAllContactUs(GeAllContactUsRequest request)
         {
             try
             {
-                var data = await _ticketService.GetAllTicketsList(request);
+                var data = await _contactUsServices.GetAllContactUs(request);
                 if (data != null)
                 {
                     return Ok(data);

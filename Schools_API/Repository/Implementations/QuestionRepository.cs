@@ -86,7 +86,7 @@ namespace Schools_API.Repository.Implementations
 
                         string getQuesType = @"select * from tblQBQuestionType where QuestionTypeID = @QuestionTypeID;";
 
-                        var questTypedata = await _connection.QuerySingleAsync<QuestionTypes>(getQuesType, new { QuestionTypeID = request.QuestionTypeId });
+                        var questTypedata = await _connection.QueryFirstOrDefaultAsync<QuestionTypes>(getQuesType, new { QuestionTypeID = request.QuestionTypeId });
                         var answer = 0;
                         string insertAnswerQuery = @"INSERT INTO [tblAnswerMaster] (Questionid, QuestionTypeid) VALUES (@Questionid, @QuestionTypeid);
                                                    SELECT CAST(SCOPE_IDENTITY() as int)";
@@ -305,7 +305,7 @@ namespace Schools_API.Repository.Implementations
         {
             try
             {
-                string sql = @"SELECT * FROM tblQuestion";
+                string sql = @"SELECT TOP (100) * FROM tblQuestion";
                 var data = await _connection.QueryAsync<Question>(sql);
                 if (data != null)
                 {
