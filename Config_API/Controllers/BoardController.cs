@@ -1,3 +1,4 @@
+using Config_API.DTOs;
 using Config_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -36,12 +37,12 @@ namespace Config_API.Controllers
             }
 
         }
-        [HttpGet("GetAllBoards")]
-        public async Task<IActionResult> GetAllBoardsList()
+        [HttpPost("GetAllBoards")]
+        public async Task<IActionResult> GetAllBoardsList(GetAllBoardsRequest request)
         {
             try
             {
-                var data = await _boardService.GetAllBoards();
+                var data = await _boardService.GetAllBoards(request);
                 if (data != null)
                 {
                     return Ok(data);

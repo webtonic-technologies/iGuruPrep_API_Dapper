@@ -1,4 +1,5 @@
-﻿using Config_API.DTOs.ServiceResponse;
+﻿using Config_API.DTOs;
+using Config_API.DTOs.ServiceResponse;
 using Config_API.Repository.Interfaces;
 using Dapper;
 using System.Data;
@@ -85,7 +86,7 @@ namespace Config_API.Repository.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<Board>>> GetAllBoards()
+        public async Task<ServiceResponse<List<Board>>> GetAllBoards(GetAllBoardsRequest request)
         {
             try
             {
@@ -103,10 +104,12 @@ namespace Config_API.Repository.Implementations
                             FROM tblBoard";
 
                 var boards = await _connection.QueryAsync<Board>(sql);
-
-                if (boards.Any())
+                var paginatedList = boards.Skip((request.PageNumber - 1) * request.PageSize)
+                           .Take(request.PageSize)
+                           .ToList();
+                if (paginatedList.Count != 0)
                 {
-                    return new ServiceResponse<List<Board>>(true, "Records Found", boards.AsList(), StatusCodes.Status302Found);
+                    return new ServiceResponse<List<Board>>(true, "Records Found", paginatedList.AsList(), StatusCodes.Status302Found);
                 }
                 else
                 {

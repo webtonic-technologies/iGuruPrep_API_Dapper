@@ -1,4 +1,5 @@
-﻿using Config_API.DTOs.ServiceResponse;
+﻿using Config_API.DTOs;
+using Config_API.DTOs.ServiceResponse;
 using Config_API.Repository.Interfaces;
 using Config_API.Services.Interfaces;
 
@@ -24,12 +25,12 @@ namespace Config_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<Board>>> GetAllBoards()
+        public async Task<ServiceResponse<List<Board>>> GetAllBoards(GetAllBoardsRequest request)
         {
 
             try
             {
-                return await _boardRepository.GetAllBoards();
+                return await _boardRepository.GetAllBoards(request);
             }
             catch (Exception ex)
             {
