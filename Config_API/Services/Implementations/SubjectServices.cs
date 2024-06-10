@@ -1,6 +1,5 @@
-﻿using Config_API.DTOs.ServiceResponse;
-using Config_API.Models;
-using Config_API.Repository.Implementations;
+﻿using Config_API.DTOs.Requests;
+using Config_API.DTOs.ServiceResponse;
 using Config_API.Repository.Interfaces;
 using Config_API.Services.Interfaces;
 using iGuruPrep.Models;
@@ -27,15 +26,27 @@ namespace Config_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<Subject>>> GetAllSubjects()
+        public async Task<ServiceResponse<List<Subject>>> GetAllSubjects(GetAllSubjectsRequest request)
         {
             try
             {
-                return await _subjectRepository.GetAllSubjects();
+                return await _subjectRepository.GetAllSubjects(request);
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<Subject>>(false, ex.Message, new List<Subject>(), 500);
+                return new ServiceResponse<List<Subject>>(false, ex.Message, [], 500);
+            }
+        }
+
+        public async Task<ServiceResponse<List<Subject>>> GetAllSubjectsMAsters()
+        {
+            try
+            {
+                return await _subjectRepository.GetAllSubjectsMAsters();
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<Subject>>(false, ex.Message, [], 500);
             }
         }
 

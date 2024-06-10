@@ -1,5 +1,4 @@
-using Config_API.DTOs;
-using Config_API.Models;
+using Config_API.DTOs.Requests;
 using Config_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -38,12 +37,12 @@ namespace Config_API.Controllers
             }
 
         }
-        [HttpGet("GetAllClassCourseMappings")]
-        public async Task<IActionResult> GetAllClassCourseMappingsList()
+        [HttpPost("GetAllClassCourseMappings")]
+        public async Task<IActionResult> GetAllClassCourseMappingsList(GetAllClassCourseRequest request)
         {
             try
             {
-                var data = await _classCourseMappingServices.GetAllClassCoursesMappings();
+                var data = await _classCourseMappingServices.GetAllClassCoursesMappings(request);
                 if (data != null)
                 {
                     return Ok(data);

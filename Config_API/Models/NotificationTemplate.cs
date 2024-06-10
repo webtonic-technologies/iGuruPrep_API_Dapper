@@ -10,7 +10,7 @@
         public DateTime? modifiedon {  get; set; }
         public string modifiedby { get; set; } = string.Empty;
         public int EmployeeID {  get; set; }
-        public string EmpFirstName { get; set; } = string.Empty;
+       // public string EmpFirstName { get; set; } = string.Empty;
         public int subModuleId {  get; set; }
     }
 }

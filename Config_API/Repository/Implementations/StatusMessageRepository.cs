@@ -1,4 +1,5 @@
-﻿using Config_API.DTOs.ServiceResponse;
+﻿using Config_API.DTOs.Requests;
+using Config_API.DTOs.ServiceResponse;
 using Config_API.Models;
 using Config_API.Repository.Interfaces;
 using Dapper;
@@ -22,8 +23,8 @@ namespace Config_API.Repository.Implementations
                 if (request.StatusId == 0)
                 {
                     // Insert new status message
-                    string query = @"INSERT INTO [tblStatusMessage] (StatusCode, StatusMessage, createdon, createdby, EmployeeID, EmpFirstName)
-                             VALUES (@StatusCode, @StatusMessage, GETDATE(), @CreatedBy, @EmployeeID, @EmpFirstName)";
+                    string query = @"INSERT INTO [tblStatusMessage] (StatusCode, StatusMessage, createdon, createdby, EmployeeID)
+                             VALUES (@StatusCode, @StatusMessage, GETDATE(), @CreatedBy, @EmployeeID)";
 
                     int rowsAffected = await _connection.ExecuteAsync(query, new
                     {
@@ -31,8 +32,7 @@ namespace Config_API.Repository.Implementations
                         request.StatusMessage,
                         createdon = DateTime.Now,
                         request.createdby,
-                        request.EmployeeID,
-                        request.EmpFirstName,
+                        request.EmployeeID
                     });
                     if (rowsAffected > 0)
                     {
@@ -50,8 +50,7 @@ namespace Config_API.Repository.Implementations
                              SET StatusCode = @StatusCode, 
                                  StatusMessage = @StatusMessage,
                                  modifiedon = GETDATE(),
-                                 modifiedby = @ModifiedBy,
-                                EmpFirstName = @EmpFirstName
+                                 modifiedby = @ModifiedBy
                              WHERE StatusId = @StatusId";
                     int rowsAffected = await _connection.ExecuteAsync(query, new
                     {
@@ -59,7 +58,6 @@ namespace Config_API.Repository.Implementations
                         request.StatusMessage,
                         request.StatusId,
                         request.modifiedby,
-                        request.EmpFirstName,
                         modifiedon = DateTime.Now
                     });
                     if (rowsAffected > 0)
@@ -101,7 +99,7 @@ namespace Config_API.Repository.Implementations
                 return new ServiceResponse<StatusMessages>(false, ex.Message, new StatusMessages(), 500);
             }
         }
-        public async Task<ServiceResponse<List<StatusMessages>>> GetStatusMessageList()
+        public async Task<ServiceResponse<List<StatusMessages>>> GetStatusMessageList(GetAllStatusMessagesRequest request)
         {
             try
             {
@@ -109,10 +107,12 @@ namespace Config_API.Repository.Implementations
                              FROM [tblStatusMessage]";
 
                 var data = await _connection.QueryAsync<StatusMessages>(query);
-
-                if (data.Any())
+                var paginatedList = data.Skip((request.PageNumber - 1) * request.PageSize)
+          .Take(request.PageSize)
+          .ToList();
+                if (paginatedList.Count != 0)
                 {
-                    return new ServiceResponse<List<StatusMessages>>(true, "Record Found", data.AsList(), 200);
+                    return new ServiceResponse<List<StatusMessages>>(true, "Record Found", paginatedList.AsList(), 200);
                 }
                 else
                 {

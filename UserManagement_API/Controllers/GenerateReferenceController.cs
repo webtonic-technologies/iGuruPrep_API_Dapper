@@ -55,12 +55,12 @@ namespace UserManagement_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
-        [HttpGet]
-        public async Task<IActionResult> GetGenerateReferenceList()
+        [HttpPost]
+        public async Task<IActionResult> GetGenerateReferenceList(GetAllReferralsRequest request)
         {
             try
             {
-                var data = await _generateReferenceServices.GetGenerateReferenceList();
+                var data = await _generateReferenceServices.GetGenerateReferenceList(request);
                 if (data != null)
                 {
                     return Ok(data);

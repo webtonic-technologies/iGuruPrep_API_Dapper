@@ -1,3 +1,4 @@
+using Config_API.DTOs.Requests;
 using Config_API.Models;
 using Config_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -37,12 +38,12 @@ namespace Config_API.Controllers
             }
 
         }
-        [HttpGet("GetAllDifficultyLevels")]
-        public async Task<IActionResult> GetAllDifficultyLevelsList()
+        [HttpPost("GetAllDifficultyLevels")]
+        public async Task<IActionResult> GetAllDifficultyLevelsList(GetAllDifficultyLevelRequest request)
         {
             try
             {
-                var data = await _questionLevelService.GetAllQuestionLevel();
+                var data = await _questionLevelService.GetAllQuestionLevel(request);
                 if (data != null)
                 {
                     return Ok(data);
@@ -105,6 +106,26 @@ namespace Config_API.Controllers
                 return this.BadRequest(e.Message);
             }
 
+        }
+        [HttpGet("GetAllDifficultyLevelsMasters")]
+        public async Task<IActionResult> GetAllDifficultyLevelsListMasters()
+        {
+            try
+            {
+                var data = await _questionLevelService.GetAllQuestionLevelMasters();
+                if (data != null)
+                {
+                    return Ok(data);
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
         }
     }
 }

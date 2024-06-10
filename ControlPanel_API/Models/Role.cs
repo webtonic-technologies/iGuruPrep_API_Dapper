@@ -8,13 +8,11 @@ namespace ControlPanel_API.Models
         [Key, DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         [Required]
         public int RoleId { get; set; }
-        [Required]
         public int? RoleNumber { get; set; }
-        [Required]
+        [Required(ErrorMessage = "Role name cannot be empty")]
         public string RoleName { get; set; } = string.Empty;
-        [Required]
+        [Required(ErrorMessage = "Role code cannot be empty")]
         public string RoleCode { get; set; } = string.Empty;
-        [Required]
         public bool? Status { get; set; }
         public DateTime? createdon {  get; set; }
         public DateTime? modifiedon {  get; set; }

@@ -1,4 +1,5 @@
-﻿using Config_API.DTOs.ServiceResponse;
+﻿using Config_API.DTOs.Requests;
+using Config_API.DTOs.ServiceResponse;
 using Config_API.Models;
 
 namespace Config_API.Repository.Interfaces
@@ -7,6 +8,6 @@ namespace Config_API.Repository.Interfaces
     {
         Task<ServiceResponse<StatusMessages>> GetStatusMessageById(int id);
         Task<ServiceResponse<string>> AddUpdateStatusMessage(StatusMessages request);
-        Task<ServiceResponse<List<StatusMessages>>> GetStatusMessageList();
+        Task<ServiceResponse<List<StatusMessages>>> GetStatusMessageList(GetAllStatusMessagesRequest request);
     }
 }

@@ -1,4 +1,4 @@
-﻿using Config_API.DTOs;
+﻿using Config_API.DTOs.Requests;
 using Config_API.DTOs.ServiceResponse;
 using Config_API.Repository.Interfaces;
 using Dapper;
@@ -21,19 +21,17 @@ namespace Config_API.Repository.Implementations
                 if (request.BoardId == 0)
                 {
                     // Insert new board
-                    string query = @"INSERT INTO [tblBoard] (BoardName, BoardCode, Status, showcourse, createdon, createdby, EmployeeID, EmpFirstName) 
-                             VALUES (@BoardName, @BoardCode, @Status, @showcourse, @createdon, @createdby, @EmployeeID, @EmpFirstName)";
+                    string query = @"INSERT INTO [tblBoard] (BoardName, BoardCode, Status, createdon, createdby, EmployeeID) 
+                             VALUES (@BoardName, @BoardCode, @Status, @createdon, @createdby, @EmployeeID)";
                     int insertedValue = await _connection.ExecuteAsync(query, new
                     {
                         request.BoardId,
                         request.BoardCode,
                         request.BoardName,
-                        request.showcourse,
                         Status = true,
                         createdon = DateTime.Now,
                         request.createdby,
                         request.EmployeeID,
-                        request.EmpFirstName
                     });
                     if (insertedValue > 0)
                     {
@@ -50,24 +48,20 @@ namespace Config_API.Repository.Implementations
                     string query = @"UPDATE tblBoard 
                          SET BoardName = @BoardName, 
                              BoardCode = @BoardCode, 
-                             Status = @Status, 
-                             showcourse = @showcourse, 
+                             Status = @Status,  
                              modifiedon = @modifiedon, 
                              modifiedby = @modifiedby, 
                              EmployeeID = @EmployeeID,
-                             EmpFirstName = @EmpFirstName
                          WHERE BoardId = @BoardId";
                     int rowsAffected = await _connection.ExecuteAsync(query, new
                     {
                         request.BoardId,
                         request.BoardCode,
                         request.BoardName,
-                        request.showcourse,
                         request.Status,
                         ModifiedOn = DateTime.Now,
                         request.modifiedby,
-                        request.EmployeeID,
-                        request.EmpFirstName
+                        request.EmployeeID
                     });
                     if (rowsAffected > 0)
                     {
@@ -85,7 +79,6 @@ namespace Config_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, StatusCodes.Status500InternalServerError);
             }
         }
-
         public async Task<ServiceResponse<List<Board>>> GetAllBoards(GetAllBoardsRequest request)
         {
             try
@@ -121,7 +114,38 @@ namespace Config_API.Repository.Implementations
                 return new ServiceResponse<List<Board>>(false, ex.Message, [], StatusCodes.Status500InternalServerError);
             }
         }
+        public async Task<ServiceResponse<List<Board>>> GetAllBoardsMaster()
+        {
+            try
+            {
+                string sql = @"SELECT [BoardId]
+                                  ,[BoardName]
+                                  ,[BoardCode]
+                                  ,[Status]
+                                  ,[showcourse]
+                                  ,[createdon]
+                                  ,[createdby]
+                                  ,[modifiedon]
+                                  ,[modifiedby]
+                                  ,[EmployeeID]
+                                  ,[EmpFirstName]
+                            FROM tblBoard";
 
+                var boards = await _connection.QueryAsync<Board>(sql);
+                if (boards.Any())
+                {
+                    return new ServiceResponse<List<Board>>(true, "Records Found", boards.AsList(), StatusCodes.Status302Found);
+                }
+                else
+                {
+                    return new ServiceResponse<List<Board>>(false, "Records Not Found", [], StatusCodes.Status204NoContent);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<Board>>(false, ex.Message, [], StatusCodes.Status500InternalServerError);
+            }
+        }
         public async Task<ServiceResponse<Board>> GetBoardById(int id)
         {
             try
@@ -155,7 +179,6 @@ namespace Config_API.Repository.Implementations
                 return new ServiceResponse<Board>(false, ex.Message, new Board(), StatusCodes.Status500InternalServerError);
             }
         }
-
         public async Task<ServiceResponse<bool>> StatusActiveInactive(int id)
         {
             try

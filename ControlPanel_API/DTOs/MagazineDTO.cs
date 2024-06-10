@@ -1,12 +1,19 @@
-﻿namespace ControlPanel_API.DTOs
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace ControlPanel_API.DTOs
 {
     public class MagazineDTO
     {
         public int MagazineId { get; set; }
+        [Required(ErrorMessage = "Date cannot be empty")]
         public DateTime? Date { get; set; }
+        [Required(ErrorMessage = "Time cannot be empty")]
         public string Time { get; set; } = string.Empty;
+        [Required(ErrorMessage = "url cannot be empty")]
         public string PathURL { get; set; } = string.Empty;
+        [Required(ErrorMessage = "file cannot be empty")]
         public string Link { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Title cannot be empty")]
         public string MagazineTitle { get; set; } = string.Empty;
         public bool? Status { get; set; }
         public DateTime? modifiedon { get; set; }
@@ -63,5 +70,7 @@
         public int ClassID { get; set; }
         public int CourseID { get; set; }
         public int ExamTypeID { get; set; }
+        public int PageNumber { get; set; }
+        public int PageSize { get; set; }
     }
 }

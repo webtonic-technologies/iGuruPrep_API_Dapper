@@ -15,12 +15,12 @@ namespace Course_API.Controllers
         {
             _contentMasterServices = contentMasterServices;
         }
-        [HttpGet]
-        public async Task<IActionResult> GetAllContentMasters()
+        [HttpPost]
+        public async Task<IActionResult> GetAllContent(GetAllContentListRequest request)
         {
             try
             {
-                var data = await _contentMasterServices.GetContentList();
+                var data = await _contentMasterServices.GetContentList(request);
                 if (data != null)
                 {
                     return Ok(data);

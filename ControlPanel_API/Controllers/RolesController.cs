@@ -1,3 +1,4 @@
+using ControlPanel_API.DTOs;
 using ControlPanel_API.Models;
 using ControlPanel_API.Services.Implementations;
 using ControlPanel_API.Services.Interfaces;
@@ -18,12 +19,25 @@ namespace ControlPanel_API.Controllers
             _rolesService = rolesServices;
         }
 
-        [HttpGet("GetRoles")]
-        public async Task<IActionResult> GetRoles()
+        [HttpPost("GetRoles")]
+        public async Task<IActionResult> GetRoles(GetAllRolesRequest request)
         {
             try
             {
-                return new OkObjectResult(new { data = await _rolesService.GetRoles() });
+                return new OkObjectResult(new { data = await _rolesService.GetRoles(request) });
+            }
+            catch (Exception ex)
+            {
+                return NotFound(ex.Message);
+            }
+
+        }
+        [HttpGet("GetRolesMasters")]
+        public async Task<IActionResult> GetRolesMasters()
+        {
+            try
+            {
+                return new OkObjectResult(new { data = await _rolesService.GetRolesMasters() });
             }
             catch (Exception ex)
             {

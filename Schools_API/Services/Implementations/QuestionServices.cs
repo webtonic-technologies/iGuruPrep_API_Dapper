@@ -27,11 +27,11 @@ namespace Schools_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<QuestionDTO>>> GetAllQuestionsList()
+        public async Task<ServiceResponse<List<QuestionDTO>>> GetAllQuestionsList(GetAllQuestionListRequest request)
         {
             try
             {
-                return await _questionRepository.GetAllQuestionsList();
+                return await _questionRepository.GetAllQuestionsList(request);
             }
             catch (Exception ex)
             {

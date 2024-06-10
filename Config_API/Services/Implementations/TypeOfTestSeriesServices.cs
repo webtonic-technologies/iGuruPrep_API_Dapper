@@ -1,4 +1,5 @@
-﻿using Config_API.DTOs.ServiceResponse;
+﻿using Config_API.DTOs.Requests;
+using Config_API.DTOs.ServiceResponse;
 using Config_API.Models;
 using Config_API.Repository.Interfaces;
 using Config_API.Services.Interfaces;
@@ -25,11 +26,23 @@ namespace Config_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<TypeOfTestSeries>>> GetListOfTestSeries()
+        public async Task<ServiceResponse<List<TypeOfTestSeries>>> GetListOfTestSeries(GetAllTestSeriesTypesRequest request)
         {
             try
             {
-                return await _typeOfTestSeriesRepository.GetListOfTestSeries();
+                return await _typeOfTestSeriesRepository.GetListOfTestSeries(request);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<TypeOfTestSeries>>(false, ex.Message, [], 500);
+            }
+        }
+
+        public async Task<ServiceResponse<List<TypeOfTestSeries>>> GetListOfTestSeriesMasters()
+        {
+            try
+            {
+                return await _typeOfTestSeriesRepository.GetListOfTestSeriesMasters();
             }
             catch (Exception ex)
             {

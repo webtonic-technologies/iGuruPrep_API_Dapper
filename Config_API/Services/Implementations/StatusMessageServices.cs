@@ -1,4 +1,5 @@
-﻿using Config_API.DTOs.ServiceResponse;
+﻿using Config_API.DTOs.Requests;
+using Config_API.DTOs.ServiceResponse;
 using Config_API.Models;
 using Config_API.Repository.Interfaces;
 using Config_API.Services.Interfaces;
@@ -36,11 +37,11 @@ namespace Config_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<StatusMessages>>> GetStatusMessageList()
+        public async Task<ServiceResponse<List<StatusMessages>>> GetStatusMessageList(GetAllStatusMessagesRequest request)
         {
             try
             {
-                return await _statusMessageRepository.GetStatusMessageList();
+                return await _statusMessageRepository.GetStatusMessageList(request);
             }
             catch (Exception ex)
             {

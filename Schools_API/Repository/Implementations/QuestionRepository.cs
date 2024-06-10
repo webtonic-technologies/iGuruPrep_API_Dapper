@@ -92,7 +92,7 @@ namespace Schools_API.Repository.Implementations
                                                    SELECT CAST(SCOPE_IDENTITY() as int)";
 
                         var Answerid = await _connection.QuerySingleAsync<int>(insertAnswerQuery, new
-                        { Questionid = questionId, QuestionTypeid = questTypedata.QuestionTypeID });
+                        { Questionid = questionId, QuestionTypeid = questTypedata?.QuestionTypeID });
 
                         if (questTypedata != null)
                         {
@@ -257,11 +257,11 @@ namespace Schools_API.Repository.Implementations
                                 if (request.AnswerMultipleChoiceCategories != null)
                                 {
                                     string deleteQuery = "DELETE FROM tblAnswerMultipleChoiceCategory WHERE Answerid = @Answerid";
-                                    await _connection.ExecuteAsync(deleteQuery, new { answerData.Answerid });
+                                    await _connection.ExecuteAsync(deleteQuery, new { answerData?.Answerid });
 
                                     foreach (var item in request.AnswerMultipleChoiceCategories)
                                     {
-                                        item.Answerid = answerData.Answerid;
+                                        item.Answerid = answerData?.Answerid;
                                     }
 
                                     string insertAnsQuery = @"INSERT INTO tblAnswerMultipleChoiceCategory
@@ -276,7 +276,7 @@ namespace Schools_API.Repository.Implementations
                                 string updateSingleAnswerQuery = @"UPDATE tblAnswersingleanswercategory SET
                                                                  Answer = @Answer WHERE Answerid = @Answerid";
                                 if (request.Answersingleanswercategories != null)
-                                    request.Answersingleanswercategories.Answerid = answerData.Answerid;
+                                    request.Answersingleanswercategories.Answerid = answerData?.Answerid;
                                 answer = await _connection.ExecuteAsync(updateSingleAnswerQuery, request.Answersingleanswercategories);
                             }
                         }
@@ -301,7 +301,7 @@ namespace Schools_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-        public async Task<ServiceResponse<List<QuestionDTO>>> GetAllQuestionsList()
+        public async Task<ServiceResponse<List<QuestionDTO>>> GetAllQuestionsList(GetAllQuestionListRequest request)
         {
             try
             {
@@ -348,9 +348,12 @@ namespace Schools_API.Repository.Implementations
                         Answersingleanswercategories = GetSingleAnswer(item.QuestionId),
                         AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionId)
                     }).ToList();
-                    if (response.Count != 0)
+                    var paginatedList = response.Skip((request.PageNumber - 1) * request.PageSize)
+                     .Take(request.PageSize)
+                     .ToList();
+                    if (paginatedList.Count != 0)
                     {
-                        return new ServiceResponse<List<QuestionDTO>>(true, "Operation Successful", response, 200);
+                        return new ServiceResponse<List<QuestionDTO>>(true, "Operation Successful", paginatedList, 200);
                     }
                     else
                     {

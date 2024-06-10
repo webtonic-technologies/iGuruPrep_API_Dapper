@@ -1,10 +1,10 @@
-﻿ using Config_API.DTOs;
+﻿using Config_API.DTOs.Requests;
+using Config_API.DTOs.Response;
 using Config_API.DTOs.ServiceResponse;
 using Config_API.Models;
 using Config_API.Repository.Interfaces;
 using Dapper;
 using iGuruPrep.Models;
-using Microsoft.AspNetCore.Http.HttpResults;
 using System.Data;
 
 namespace Config_API.Repository.Implementations
@@ -17,188 +17,123 @@ namespace Config_API.Repository.Implementations
         {
             _connection = connection;
         }
-        public async Task<ServiceResponse<string>> AddUpdateClassCourseMapping(ClassCourseMappingDTO request)
+        public async Task<ServiceResponse<List<ClassCourseMappingResponse>>> GetAllClassCoursesMappings(GetAllClassCourseRequest request)
         {
             try
             {
-                var classData = await _connection.QueryAsync<Class>("SELECT * FROM tblClass WHERE ClassId = @ClassId", new { ClassId = request.ClassID });
-                //var courseData = await _connection.QueryAsync<Course>("SELECT * FROM tblCourse WHERE CourseId = @CourseId", new { CourseId = request.CourseID });
-                if (classData != null)
-                {
-                    if (request.CourseClassMappingID == 0)
-                    {
+                string query = @"
+        SELECT 
+            cc.CourseClassMappingID,
+            cc.CourseID,
+            cc.ClassID,
+            cc.Status,
+            cc.createdon,
+            cc.EmployeeID,
+            e.EmpFirstName,
+            cc.modifiedon,
+            cc.modifiedby,
+            cl.classname,
+            c.coursename
+        FROM 
+            tblClassCourses cc
+        INNER JOIN tblClasses cl ON cc.ClassID = cl.ClassID
+        INNER JOIN tblCourses c ON cc.CourseID = c.CourseID
+        LEFT JOIN tblEmployees e ON cc.EmployeeID = e.EmployeeID";
 
-                        foreach (var courseId in request.CourseID ??= ([]))
-                        {
-                            string query = @"INSERT INTO tblClassCourses (CourseID, ClassID, Status, createdon, EmployeeID, EmpFirstName, classname, coursename) 
-                                 VALUES (@CourseID, @ClassID, @Status, @createdon, @EmployeeID, @EmpFirstName, @classname, @coursename)";
-
-                            int rowsAffected = await _connection.ExecuteAsync(query, new
-                            {
-                                CourseID = courseId,
-                                request.ClassID,
-                                Status = true,
-                                createdon = DateTime.Now,
-                                request.EmployeeID,
-                                request.EmpFirstName,
-                                request.classname,
-                                request.coursename
-                            });
-                            if (rowsAffected == 0)
-                            {
-                                return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, StatusCodes.Status400BadRequest);
-                            }
-                        }
-                        return new ServiceResponse<string>(true, "Operation Successful", "Record added successfully", StatusCodes.Status200OK);
-                    }
-                    else
-                    {
-                        string delete = "DELETE FROM tblClassCourses WHERE ClassID = @ClassID";
-                        int deletedRows = await _connection.ExecuteAsync(delete, new { request.ClassID });
-
-                        foreach (var courseId in request.CourseID ??= ([]))
-                        {
-                            string query = @"INSERT INTO tblClassCourses (CourseID, ClassID, Status, createdon, EmployeeID,EmpFirstName, modifiedon, modifiedby, classname, coursename) 
-                                 VALUES (@CourseID, @ClassID, @Status, @createdon, @EmployeeID,@EmpFirstName, @modifiedon, @modifiedby, @classname, @coursename)";
-                            int rowsAffected = await _connection.ExecuteAsync(query, new
-                            {
-                                request.ClassID,
-                                request.Status,
-                                createdon = DateTime.Now,
-                                modifiedon = DateTime.UtcNow,
-                                request.modifiedby,
-                                CourseID = courseId,
-                                request.CourseClassMappingID,
-                                request.EmployeeID,
-                                request.EmpFirstName,
-                                request.classname,
-                                request.coursename,
-                            });
-                            if (rowsAffected == 0)
-                            {
-                                return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, StatusCodes.Status400BadRequest);
-                            }
-                        }
-                        return new ServiceResponse<string>(true, "Operation Successful", "Record Updated successfully", StatusCodes.Status200OK);
-                    }
-                }
-                else
-                {
-                    return new ServiceResponse<string>(false, "Opertion Failed", "No record found for class or course", 204);
-                }
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
-            }
-        }
-        public async Task<ServiceResponse<List<ClassCourseMappingDTO>>> GetAllClassCoursesMappings()
-        {
-            try
-            {
-                string query = "SELECT CourseClassMappingID, ClassID, CourseID, Status, createdon, EmployeeID,EmpFirstName, modifiedon, modifiedby, classname, coursename FROM tblClassCourses";
-                var classCourseMappings = await _connection.QueryAsync<ClassCourseMapping>(query);
+                var classCourseMappings = await _connection.QueryAsync<dynamic>(query);
 
                 var groupedMappings = classCourseMappings
-                .GroupBy(m => m.ClassID)
-                .Select(g => new ClassCourseMappingDTO
+                    .GroupBy(m => m.ClassID)
+                    .Select(g => new ClassCourseMappingResponse
+                    {
+                        CourseClassMappingID = g.First().CourseClassMappingID,
+                        ClassID = g.Key,
+                        Status = g.First().Status,
+                        createdon = g.First().createdon,
+                        EmployeeID = g.First().EmployeeID,
+                        modifiedon = g.First().modifiedon,
+                        modifiedby = g.First().modifiedby,
+                        classname = g.First().classname,
+                        Courses = g.Select(m => new CourseData
+                        {
+                            CourseID = m.CourseID,
+                            Coursename = m.coursename
+                        }).ToList()
+                    }).ToList();
+
+                var paginatedList = groupedMappings
+                    .Skip((request.PageNumber - 1) * request.PageSize)
+                    .Take(request.PageSize)
+                    .ToList();
+
+                if (paginatedList.Any())
                 {
-                    ClassID = g.Key,
-                    CourseID = g.Select(m => m.CourseID).ToList(),
-                    Status = g.First().Status,
-                    createdon = g.First().createdon,
-                    EmployeeID = g.First().EmployeeID,
-                    EmpFirstName = g.First().EmpFirstName,
-                    classname = g.First().classname,    
-                    coursename = g.First().coursename,  
-                    modifiedon = g.First().modifiedon,
-                    modifiedby = g.First().modifiedby,
-                    CourseClassMappingID = g.First().CourseClassMappingID
-                }).ToList();
-                if (groupedMappings.Any())
-                {
-                    return new ServiceResponse<List<ClassCourseMappingDTO>>(true, "Records Found", groupedMappings, 200);
+                    return new ServiceResponse<List<ClassCourseMappingResponse>>(true, "Records Found", paginatedList, 200);
                 }
                 else
                 {
-                    return new ServiceResponse<List<ClassCourseMappingDTO>>(false, "Records Not Found", [], 204);
+                    return new ServiceResponse<List<ClassCourseMappingResponse>>(false, "Records Not Found", new List<ClassCourseMappingResponse>(), 204);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<ClassCourseMappingDTO>>(false, ex.Message, [], 200);
+                return new ServiceResponse<List<ClassCourseMappingResponse>>(false, ex.Message, new List<ClassCourseMappingResponse>(), 500);
             }
-
         }
-
-        public async Task<ServiceResponse<ClassCourseMappingDTO>> GetClassCourseMappingById(int id)
+        public async Task<ServiceResponse<ClassCourseMappingResponse>> GetClassCourseMappingById(int id)
         {
             try
             {
-                var response = new ClassCourseMappingDTO();
-                string getClassIdQuery = @"
-                SELECT CourseClassMappingID, ClassID, Status, createdon, EmployeeID,EmpFirstName,classname,coursename, modifiedon, modifiedby, classname, coursename
-                FROM [tblClassCourses]
-                WHERE CourseClassMappingID = @CourseClassMappingID";
-
-                var classId = await _connection.QueryFirstOrDefaultAsync<ClassCourseMapping?>(getClassIdQuery, new { CourseClassMappingID = id });
-                if (classId == null)
-                {
-                    // Handle the case where no class ID is found for the given courseClassMappingId
-                     return new ServiceResponse<ClassCourseMappingDTO>(false, "Record not Found", new ClassCourseMappingDTO(), 500);
-                }
+                var response = new ClassCourseMappingResponse();
                 string query = @"
-                SELECT 
-                    CourseClassMappingID, 
-                    CourseID, 
-                    ClassID, 
-                    Status, 
-                    createdon, 
-                    EmployeeID,
-                    EmpFirstName,
-                    coursename,
-                    classname,
-                    modifiedon, 
-                    modifiedby 
-                FROM 
-                    [tblClassCourses]
-                WHERE 
-                    ClassID = @ClassID";
-                var data = await _connection.QueryAsync<ClassCourseMapping>(query, new { classId.ClassID });
-                List<int> courses = [];
+        SELECT 
+            cc.CourseClassMappingID,
+            cc.CourseID,
+            cc.ClassID,
+            cc.Status,
+            cc.createdon,
+            cc.EmployeeID,
+            cc.modifiedon,
+            cc.modifiedby,
+            cl.classname,
+            c.coursename
+        FROM 
+            tblClassCourses cc
+        INNER JOIN tblClasses cl ON cc.ClassID = cl.ClassID
+        INNER JOIN tblCourses c ON cc.CourseID = c.CourseID
+        WHERE 
+            cc.CourseClassMappingID = @CourseClassMappingID";
 
-                foreach(var item in data)
-                {
-                    courses.Add((int)item.CourseID);
-                }
-                response.CourseID = courses;
-                response.CourseClassMappingID = classId.CourseClassMappingID;
-                response.ClassID = classId.ClassID;
-                response.Status = classId.Status;
-                response.createdon = classId.createdon;
-                response.EmployeeID = classId.EmployeeID;
-                response.EmpFirstName = classId.EmpFirstName;
-                response.modifiedby = classId.modifiedby;
-                response.modifiedon = classId.modifiedon;
-                response.coursename = classId.coursename;
-                response.classname = classId.classname; 
+                var data = await _connection.QueryAsync<dynamic>(query, new { CourseClassMappingID = id });
 
-                if (response != null)
+                if (data == null || !data.Any())
                 {
-                    return new ServiceResponse<ClassCourseMappingDTO>(true, "Record Found", response, 200);
+                    return new ServiceResponse<ClassCourseMappingResponse>(false, "Record not Found", new ClassCourseMappingResponse(), 500);
                 }
-                else
+
+                var firstRecord = data.First();
+                response.CourseClassMappingID = firstRecord.CourseClassMappingID;
+                response.ClassID = firstRecord.ClassID;
+                response.Status = firstRecord.Status;
+                response.createdon = firstRecord.createdon;
+                response.EmployeeID = firstRecord.EmployeeID;
+                response.classname = firstRecord.classname;
+                response.modifiedby = firstRecord.modifiedby;
+                response.modifiedon = firstRecord.modifiedon;
+
+                response.Courses = data.Select(item => new CourseData
                 {
-                    return new ServiceResponse<ClassCourseMappingDTO>(false, "Record not Found", new ClassCourseMappingDTO(), 500);
-                }
+                    CourseID = item.CourseID,
+                    Coursename = item.coursename
+                }).ToList();
+
+                return new ServiceResponse<ClassCourseMappingResponse>(true, "Record Found", response, 200);
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<ClassCourseMappingDTO>(false, ex.Message, new ClassCourseMappingDTO(), 500);
+                return new ServiceResponse<ClassCourseMappingResponse>(false, ex.Message, new ClassCourseMappingResponse(), 500);
             }
-
         }
-
         public async Task<ServiceResponse<bool>> StatusActiveInactive(int id)
         {
             try
@@ -232,6 +167,94 @@ namespace Config_API.Repository.Implementations
                 return new ServiceResponse<bool>(false, ex.Message, false, StatusCodes.Status500InternalServerError);
             }
 
+        }
+        public async Task<ServiceResponse<string>> AddUpdateClassCourseMapping(ClassCourseMappingDTO request)
+        {
+            try
+            {
+                var classData = await _connection.QueryAsync<Class>("SELECT * FROM tblClass WHERE ClassId = @ClassId", new { ClassId = request.ClassID });
+                if (classData != null)
+                {
+                    // Check for existing course mappings
+                    var existingMappings = await _connection.QueryAsync<int>(
+                        "SELECT CourseID FROM tblClassCourses WHERE ClassID = @ClassID",
+                        new { request.ClassID });
+
+                    var existingCourseIDs = existingMappings.ToList();
+
+                    if (request.CourseClassMappingID == 0)
+                    {
+                        foreach (var courseId in request.CourseID ??= [])
+                        {
+                            if (existingCourseIDs.Contains(courseId))
+                            {
+                                return new ServiceResponse<string>(false, $"Course ID {courseId} already exists for Class ID {request.ClassID}", string.Empty, StatusCodes.Status400BadRequest);
+                            }
+
+                            string query = @"INSERT INTO tblClassCourses (CourseID, ClassID, Status, createdon, EmployeeID) 
+                                     VALUES (@CourseID, @ClassID, @Status, @createdon, @EmployeeID)";
+
+                            int rowsAffected = await _connection.ExecuteAsync(query, new
+                            {
+                                CourseID = courseId,
+                                request.ClassID,
+                                Status = true,
+                                createdon = DateTime.Now,
+                                request.EmployeeID
+                            });
+
+                            if (rowsAffected == 0)
+                            {
+                                return new ServiceResponse<string>(false, "Operation Failed", string.Empty, StatusCodes.Status400BadRequest);
+                            }
+                        }
+                        return new ServiceResponse<string>(true, "Operation Successful", "Record added successfully", StatusCodes.Status200OK);
+                    }
+                    else
+                    {
+                        // Delete existing mappings for the class
+                        string delete = "DELETE FROM tblClassCourses WHERE ClassID = @ClassID";
+                        int deletedRows = await _connection.ExecuteAsync(delete, new { request.ClassID });
+
+                        foreach (var courseId in request.CourseID ??= [])
+                        {
+                            if (existingCourseIDs.Contains(courseId))
+                            {
+                                return new ServiceResponse<string>(false, $"Course ID {courseId} already exists for Class ID {request.ClassID}", string.Empty, StatusCodes.Status400BadRequest);
+                            }
+
+                            string query = @"INSERT INTO tblClassCourses (CourseID, ClassID, Status, createdon, EmployeeID, modifiedon, modifiedby) 
+                                     VALUES (@CourseID, @ClassID, @Status, @createdon, @EmployeeID, @modifiedon, @modifiedby)";
+
+                            int rowsAffected = await _connection.ExecuteAsync(query, new
+                            {
+                                request.ClassID,
+                                request.Status,
+                                createdon = DateTime.Now,
+                                modifiedon = DateTime.UtcNow,
+                                request.modifiedby,
+                                CourseID = courseId,
+                                request.CourseClassMappingID,
+                                request.EmployeeID
+                            });
+
+                            if (rowsAffected == 0)
+                            {
+                                return new ServiceResponse<string>(false, "Operation Failed", string.Empty, StatusCodes.Status400BadRequest);
+                            }
+                        }
+                        return new ServiceResponse<string>(true, "Operation Successful", "Record updated successfully", StatusCodes.Status200OK);
+                    }
+                }
+                else
+                {
+                    return new ServiceResponse<string>(false, "Operation Failed", "No record found for class or course", 204);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+            }
         }
     }
 }

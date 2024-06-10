@@ -1,9 +1,13 @@
-﻿namespace Schools_API.DTOs
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace Schools_API.DTOs
 {
     public class ProjectDTO
     {
         public int ProjectId { get; set; }
+        [Required(ErrorMessage = "Project Title cannot be empty")]
         public string ProjectName { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Project Description cannot be empty")]
         public string ProjectDescription { get; set; } = string.Empty;
         public string? PathURL { get; set; }
         public string createdby { get; set; } = string.Empty;
@@ -57,6 +61,7 @@
     {
         public int ProjectSubjectID { get; set; }
         public int ProjectID { get; set; }
+        [Required(ErrorMessage = "Subject name cannot be empty")]
         public int SubjectID { get; set; }
     }
 }

@@ -1,9 +1,9 @@
-﻿using Config_API.DTOs.ServiceResponse;
+﻿using Config_API.DTOs.Requests;
+using Config_API.DTOs.ServiceResponse;
 using Config_API.Models;
 using Config_API.Repository.Interfaces;
-using System.Data;
 using Dapper;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+using System.Data;
 
 namespace Config_API.Repository.Implementations
 {
@@ -23,9 +23,9 @@ namespace Config_API.Repository.Implementations
                 {
                     var query = @"
                 INSERT INTO [tblTypeOfTestSeries] 
-                (TestSeriesName, TestSeriesCode, Status, createdon, createdby, EmployeeID, EmpFirstName)
+                (TestSeriesName, TestSeriesCode, Status, createdon, createdby, EmployeeID)
                 VALUES 
-                (@TestSeriesName, @TestSeriesCode, @Status, @createdon, @createdby, @EmployeeID, @EmpFirstName)";
+                (@TestSeriesName, @TestSeriesCode, @Status, @createdon, @createdby, @EmployeeID)";
 
                     int insertedValue = await _connection.ExecuteAsync(query, new
                     {
@@ -34,8 +34,7 @@ namespace Config_API.Repository.Implementations
                         Status = true,
                         createdon = DateTime.Now,
                         request.createdby,
-                        request.EmployeeID,
-                        request.EmpFirstName
+                        request.EmployeeID
                     });
                     if (insertedValue > 0)
                     {
@@ -57,8 +56,7 @@ namespace Config_API.Repository.Implementations
                     Status = @Status,
                     modifiedon = @modifiedon,
                     modifiedby = @modifiedby,
-                    EmployeeID = @EmployeeID,
-                    EmpFirstName = @EmpFirstName
+                    EmployeeID = @EmployeeID
                 WHERE 
                     TTSId = @TTSId";
 
@@ -70,8 +68,7 @@ namespace Config_API.Repository.Implementations
                         request.Status,
                         modifiedon = DateTime.Now,
                         request.modifiedby,
-                        request.EmployeeID,
-                        request.EmpFirstName
+                        request.EmployeeID
                     });
                     if (rowsAffected > 0)
                     {
@@ -89,13 +86,35 @@ namespace Config_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, StatusCodes.Status500InternalServerError);
             }
         }
-
-        public async Task<ServiceResponse<List<TypeOfTestSeries>>> GetListOfTestSeries()
+        public async Task<ServiceResponse<List<TypeOfTestSeries>>> GetListOfTestSeries(GetAllTestSeriesTypesRequest request)
         {
             try
             {
-                string sql = @"SELECT *
-                            FROM tblTypeOfTestSeries";
+                string sql = @"SELECT * FROM tblTypeOfTestSeries";
+
+                var data = await _connection.QueryAsync<TypeOfTestSeries>(sql);
+                var paginatedList = data.Skip((request.PageNumber - 1) * request.PageSize)
+       .Take(request.PageSize)
+       .ToList();
+                if (paginatedList.Count != 0)
+                {
+                    return new ServiceResponse<List<TypeOfTestSeries>>(true, "Records Found", paginatedList.AsList(), StatusCodes.Status302Found);
+                }
+                else
+                {
+                    return new ServiceResponse<List<TypeOfTestSeries>>(false, "Records Not Found", [], StatusCodes.Status204NoContent);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<TypeOfTestSeries>>(false, ex.Message, [], StatusCodes.Status500InternalServerError);
+            }
+        }
+        public async Task<ServiceResponse<List<TypeOfTestSeries>>> GetListOfTestSeriesMasters()
+        {
+            try
+            {
+                string sql = @"SELECT * FROM tblTypeOfTestSeries";
 
                 var data = await _connection.QueryAsync<TypeOfTestSeries>(sql);
 
@@ -113,7 +132,6 @@ namespace Config_API.Repository.Implementations
                 return new ServiceResponse<List<TypeOfTestSeries>>(false, ex.Message, [], StatusCodes.Status500InternalServerError);
             }
         }
-
         public async Task<ServiceResponse<TypeOfTestSeries>> GetTestSeriesById(int id)
         {
             try
@@ -151,7 +169,6 @@ namespace Config_API.Repository.Implementations
                 return new ServiceResponse<TypeOfTestSeries>(false, ex.Message, new TypeOfTestSeries(), StatusCodes.Status500InternalServerError);
             }
         }
-
         public async Task<ServiceResponse<bool>> StatusActiveInactive(int id)
         {
             try

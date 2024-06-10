@@ -1,12 +1,10 @@
 ﻿using Dapper;
-using Microsoft.Extensions.Configuration;
 using Schools_API.DTOs;
 using Schools_API.DTOs.ServiceResponse;
 using Schools_API.Models;
 using Schools_API.Repository.Interfaces;
 using System.Data;
 using System.Data.SqlClient;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Schools_API.Repository.Implementations
 {
@@ -14,7 +12,7 @@ namespace Schools_API.Repository.Implementations
     {
         private readonly IDbConnection _connection;
         private readonly IWebHostEnvironment _hostingEnvironment;
-        private readonly string _connectionString;
+        private readonly string? _connectionString;
 
         public ProjectRepository(IDbConnection connection, IWebHostEnvironment hostingEnvironment, IConfiguration configuration)
         {
@@ -238,8 +236,10 @@ namespace Schools_API.Repository.Implementations
                     ProjectExamTypes = GetListOfProjectExamType(item.ProjectId),
                     ProjectSubjects = GetListOfProjectSubject(item.ProjectId)
                 }).ToList();
-
-                return new ServiceResponse<List<ProjectDTO>>(true, "Records found", response, 200);
+                var paginatedList = response.Skip((request.PageNumber - 1) * request.PageSize)
+                     .Take(request.PageSize)
+                     .ToList();
+                return new ServiceResponse<List<ProjectDTO>>(true, "Records found", paginatedList, 200);
             }
             catch (Exception ex)
             {

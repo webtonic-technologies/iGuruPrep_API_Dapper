@@ -1,4 +1,5 @@
 ﻿using Course_API.Models;
+using System.ComponentModel.DataAnnotations;
 
 namespace Course_API.DTOs
 {
@@ -13,24 +14,32 @@ namespace Course_API.DTOs
         public string createdby { get; set; } = string.Empty;
         public DateTime? modifiedon { get; set; }
         public string modifiedby { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Pattern name cannot be empty")]
         public string TestPatternName { get; set; } = string.Empty;
         public string BoardName { get; set; } = string.Empty;
         public string ClassName { get; set; } = string.Empty;
         public string CourseName { get; set; } = string.Empty;
         public string ExamTypeName { get; set; } = string.Empty;
         public string FirstName { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Duration cannot be empty")]
         public string Duration { get; set; } = string.Empty;
         public bool Status { get; set; }
         public int APID { get; set; }
         public string APName { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Total number of questions cannot be empty")]
         public int TotalNoOfQuestions { get; set; }
         public bool MethodofAddingType { get; set; }
+        [Required(ErrorMessage = "Start Date cannot be empty")]
         public DateTime? StartDate { get; set; }
+        [Required(ErrorMessage = "Start time cannot be empty")]
         public string StartTime { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Result date cannot be empty")]
         public DateTime? ResultDate { get; set; }
+        [Required(ErrorMessage = "Result time cannot be empty")]
         public string ResultTime { get; set; } = string.Empty;
         public int EmployeeID { get; set; }
         public string EmpFirstName { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Exam name cannot be empty")]
         public string NameOfExam { get; set; } = string.Empty;
         public bool RepeatedExams { get; set; }
         public List<TestSeriesBoards>? TestSeriesBoard { get; set;}

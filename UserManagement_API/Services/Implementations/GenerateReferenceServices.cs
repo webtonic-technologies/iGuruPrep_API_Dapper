@@ -37,11 +37,11 @@ namespace UserManagement_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<GenerateReferenceDTO>>> GetGenerateReferenceList()
+        public async Task<ServiceResponse<List<GenerateReferenceDTO>>> GetGenerateReferenceList(GetAllReferralsRequest request)
         {
             try
             {
-                return await _generateReferenceRepository.GetGenerateReferenceList();
+                return await _generateReferenceRepository.GetGenerateReferenceList(request);
             }
             catch (Exception ex)
             {

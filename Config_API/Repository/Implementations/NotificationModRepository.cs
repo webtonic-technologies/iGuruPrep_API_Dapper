@@ -1,4 +1,5 @@
-﻿using Config_API.DTOs;
+﻿using Config_API.DTOs.Requests;
+using Config_API.DTOs.Response;
 using Config_API.DTOs.ServiceResponse;
 using Config_API.Models;
 using Config_API.Repository.Interfaces;
@@ -21,9 +22,9 @@ namespace Config_API.Repository.Implementations
                 if (request.NotificationTemplateID == 0)
                 {
                     string insertQuery = @"
-                    INSERT INTO [tblNotificationTemplate] ( Status, CreatedOn, CreatedBy, EmployeeID, EmpFirstName, moduleID, SubModuleId)
+                    INSERT INTO [tblNotificationTemplate] ( Status, CreatedOn, CreatedBy, EmployeeID, moduleID, SubModuleId)
                     OUTPUT Inserted.NotificationTemplateID
-                    VALUES ( @Status, @CreatedOn, @CreatedBy, @EmployeeID, @EmpFirstName, @moduleID, @SubModuleId);";
+                    VALUES ( @Status, @CreatedOn, @CreatedBy, @EmployeeID, @moduleID, @SubModuleId);";
                     int insertedValue = await _connection.QuerySingleAsync<int>(insertQuery, new
                     {
                         Status = true,
@@ -31,7 +32,6 @@ namespace Config_API.Repository.Implementations
                         createdon = DateTime.Now,
                         request.createdby,
                         request.EmployeeID,
-                        request.EmpFirstName,
                         request.subModuleId
                     });
                     if (insertedValue > 0)
@@ -61,7 +61,6 @@ namespace Config_API.Repository.Implementations
                 ModifiedOn = @ModifiedOn,
                 ModifiedBy = @ModifiedBy,
                 EmployeeID = @EmployeeID,
-                EmpFirstName = @EmpFirstName,
                 SubModuleId = @SubModuleId
             WHERE 
                 NotificationTemplateID = @NotificationTemplateID;";
@@ -72,7 +71,6 @@ namespace Config_API.Repository.Implementations
                         modifiedon = DateTime.Now,
                         request.modifiedby,
                         request.EmployeeID,
-                        request.EmpFirstName,
                         request.subModuleId,
                         request.NotificationTemplateID
                     });
@@ -139,48 +137,48 @@ namespace Config_API.Repository.Implementations
                 return new ServiceResponse<List<Platform>>(false, ex.Message, [], 500);
             }
         }
-        public async Task<ServiceResponse<NotificationResponseDTO>> GetNotificationsById(int id)
-        {
-            try
-            {
-                NotificationResponseDTO response = new();
-                var notificationQuery = @"Select * from tblNotificationTemplate where [NotificationTemplateID] = @id;";
-                var data = _connection.QueryFirstOrDefault<NotificationTemplate>(notificationQuery, new { id });
-                if (data != null)
-                {
-                    response.NotificationTemplateID = data.NotificationTemplateID;
-                    response.Status = data.Status;
-                    response.createdby = data.createdby;
-                    response.createdon = data.createdon;
-                    response.moduleID = data.moduleID;
-                    response.modifiedon = data.modifiedon;
-                    response.modifiedby = data.modifiedby;
-                    response.EmployeeID = data.EmployeeID;
-                    response.EmpFirstName = data.EmpFirstName;
-                    response.subModuleId = data.subModuleId;
+        //public async Task<ServiceResponse<NotificationResponseDTO>> GetNotificationsById(int id)
+        //{
+        //    try
+        //    {
+        //        NotificationResponseDTO response = new();
+        //        var notificationQuery = @"Select * from tblNotificationTemplate where [NotificationTemplateID] = @id;";
+        //        var data = _connection.QueryFirstOrDefault<NotificationTemplate>(notificationQuery, new { id });
+        //        if (data != null)
+        //        {
+        //            response.NotificationTemplateID = data.NotificationTemplateID;
+        //            response.Status = data.Status;
+        //            response.createdby = data.createdby;
+        //            response.createdon = data.createdon;
+        //            response.moduleID = data.moduleID;
+        //            response.modifiedon = data.modifiedon;
+        //            response.modifiedby = data.modifiedby;
+        //            response.EmployeeID = data.EmployeeID;
+        //            response.EmpFirstName = data.EmpFirstName;
+        //            response.subModuleId = data.subModuleId;
 
-                    var moduleQuery = @"Select * from tblModule where ModuleID = @moduleId;";
-                    var moduledata = _connection.QueryFirstOrDefault<NotificationModule>(moduleQuery, new { moduleId = data.moduleID });
-                    response.ModuleName = moduledata != null ? moduledata.ModuleName : string.Empty;
+        //            var moduleQuery = @"Select * from tblModule where ModuleID = @moduleId;";
+        //            var moduledata = _connection.QueryFirstOrDefault<NotificationModule>(moduleQuery, new { moduleId = data.moduleID });
+        //            response.ModuleName = moduledata != null ? moduledata.ModuleName : string.Empty;
 
-                    var submoduleQuery = @"Select * from tblModule where ModuleID = @moduleId;";
-                    var submoduledata = _connection.QueryFirstOrDefault<NotificationModule>(submoduleQuery, new { moduleId = data.subModuleId });
-                    response.SubModuleName = submoduledata != null ? submoduledata.ModuleName : string.Empty;
+        //            var submoduleQuery = @"Select * from tblModule where ModuleID = @moduleId;";
+        //            var submoduledata = _connection.QueryFirstOrDefault<NotificationModule>(submoduleQuery, new { moduleId = data.subModuleId });
+        //            response.SubModuleName = submoduledata != null ? submoduledata.ModuleName : string.Empty;
 
-                    response.NotificationTemplateMappings = await GetListOfNotificationMappings(data.NotificationTemplateID);
+        //            response.NotificationTemplateMappings = await GetListOfNotificationMappings(data.NotificationTemplateID);
 
-                    return new ServiceResponse<NotificationResponseDTO>(true, "Record found", response, 200);
-                }
-                else
-                {
-                    return new ServiceResponse<NotificationResponseDTO>(false, "Record not found", new NotificationResponseDTO(), 500);
-                }
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<NotificationResponseDTO>(false, ex.Message, new NotificationResponseDTO(), 500);
-            }
-        }
+        //            return new ServiceResponse<NotificationResponseDTO>(true, "Record found", response, 200);
+        //        }
+        //        else
+        //        {
+        //            return new ServiceResponse<NotificationResponseDTO>(false, "Record not found", new NotificationResponseDTO(), 500);
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new ServiceResponse<NotificationResponseDTO>(false, ex.Message, new NotificationResponseDTO(), 500);
+        //    }
+        //}
         public async Task<ServiceResponse<bool>> StatusActiveInactive(int id)
         {
             try
@@ -247,84 +245,291 @@ namespace Config_API.Repository.Implementations
                 return valuesInserted;
             }
         }
-        private async Task<List<NotificationTemplateMappingResponse>> GetListOfNotificationMappings(int NotificationTemplateID)
+        //private async Task<List<NotificationTemplateMappingResponse>> GetListOfNotificationMappings(int NotificationTemplateID)
+        //{
+        //    var response = new List<NotificationTemplateMappingResponse>();
+        //    var query = @"SELECT * FROM [tblNotificationTemplateMapping] WHERE [NotificationTemplateID] = @NotificationTemplateID;";
+        //    var data = _connection.Query<NotificationTemplateMapping>(query, new { NotificationTemplateID });
+        //    foreach (var item in data)
+        //    {
+        //        List<int> ids = item.PlatformID
+        //       .Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+        //       .Select(id => int.Parse(id.Trim()))
+        //       .ToList();
+        //        var platformData = new List<Platform>();
+        //        foreach (var platform in ids)
+        //        {
+        //            var platformQuery = @"select * from tblPlatform WHERE platformid = @platform;";
+        //            var platforms = await _connection.QueryFirstOrDefaultAsync<Platform>(platformQuery, new { platform });
+        //            platformData.Add(platforms);
+        //        }
+        //        var mapping = new NotificationTemplateMappingResponse
+        //        {
+        //            TemplateMappingId = item.TemplateMappingId,
+        //            NotificationTemplateID = item.NotificationTemplateID,
+        //            PlatformDatas = platformData,
+        //            Role = item.isEmployee == true ? "Employee" : item.isStudent == true ? "Student" : string.Empty,
+        //            Message = item.Message,
+        //            isStudent = item.isStudent,
+        //            isEmployee = item.isEmployee
+        //        };
+        //        response.Add(mapping);
+        //    }
+        //    return response != null ? response.AsList() : [];
+        //}
+        //public async Task<ServiceResponse<List<NotificationResponseDTO>>> GetListofNotifications(GetAllNotificationModRequest request)
+        //{
+        //    try
+        //    {
+        //        List<NotificationResponseDTO> response = [];
+        //        var notificationQuery = @"Select * from tblNotificationTemplate;";
+        //        var data = await _connection.QueryAsync<NotificationTemplate>(notificationQuery);
+        //        if (data.Any())
+        //        {
+        //            response = data.Select(item => new NotificationResponseDTO
+        //            {
+        //                NotificationTemplateID = item.NotificationTemplateID,
+        //                Status = item.Status,
+        //                createdby = item.createdby,
+        //                createdon = item.createdon,
+        //                moduleID = item.moduleID,
+        //                modifiedon = item.modifiedon,
+        //                modifiedby = item.modifiedby,
+        //                EmployeeID = item.EmployeeID,
+        //                EmpFirstName = item.EmpFirstName,
+        //                subModuleId = item.subModuleId
+        //            }).ToList();
+
+        //            foreach (var record in response)
+        //            {
+        //                record.NotificationTemplateMappings = await GetListOfNotificationMappings(record.NotificationTemplateID);
+
+        //                var moduleQuery = @"Select * from tblModule where ModuleID = @moduleId;";
+        //                var moduledata = _connection.QueryFirstOrDefault<NotificationModule>(moduleQuery, new { moduleId = record.moduleID });
+        //                record.ModuleName = moduledata != null ? moduledata.ModuleName : string.Empty;
+
+        //                var submoduleQuery = @"Select * from tblModule where ModuleID = @moduleId;";
+        //                var submoduledata = _connection.QueryFirstOrDefault<NotificationModule>(submoduleQuery, new { moduleId = record.subModuleId });
+        //                record.SubModuleName = submoduledata != null ? submoduledata.ModuleName : string.Empty;
+        //            }
+        //            var paginatedList = response.Skip((request.PageNumber - 1) * request.PageSize)
+        //       .Take(request.PageSize)
+        //       .ToList();
+        //            return new ServiceResponse<List<NotificationResponseDTO>>(true, "Record found", paginatedList, 200);
+        //        }
+        //        else
+        //        {
+        //            return new ServiceResponse<List<NotificationResponseDTO>>(false, "Record not found", [], 500);
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new ServiceResponse<List<NotificationResponseDTO>>(false, ex.Message, [], 500);
+        //    }
+        //}
+        private async Task<List<NotificationTemplateMappingResponse>> GetListOfNotificationMappings(int notificationTemplateID)
         {
+            var query = @"
+    SELECT 
+        ntm.TemplateMappingId,
+        ntm.NotificationTemplateID,
+        ntm.PlatformID,
+        ntm.isStudent,
+        ntm.isEmployee,
+        ntm.Message,
+        p.platformid,
+        p.Platformname
+    FROM 
+        tblNotificationTemplateMapping ntm
+    LEFT JOIN 
+        tblPlatform p ON CHARINDEX(',' + CAST(p.platformid AS VARCHAR) + ',', ',' + ntm.PlatformID + ',') > 0
+    WHERE 
+        ntm.NotificationTemplateID = @NotificationTemplateID;";
             var response = new List<NotificationTemplateMappingResponse>();
-            var query = @"SELECT * FROM [tblNotificationTemplateMapping] WHERE [NotificationTemplateID] = @NotificationTemplateID;";
-            var data = _connection.Query<NotificationTemplateMapping>(query, new { NotificationTemplateID });
-            foreach (var item in data)
-            {
-                List<int> ids = item.PlatformID
-               .Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
-               .Select(id => int.Parse(id.Trim()))
-               .ToList();
-                var platformData = new List<Platform>();
-                foreach(var platform in ids)
+            var data = await _connection.QueryAsync<NotificationTemplateMapping, Platform, NotificationTemplateMappingResponse>(
+                query,
+                (mapping, platform) =>
                 {
-                    var platformQuery = @"select * from tblPlatform WHERE platformid = @platform;";
-                    var platforms = await _connection.QueryFirstOrDefaultAsync<Platform>(platformQuery, new { platform });
-                    platformData.Add(platforms);
-                }
-                var mapping = new NotificationTemplateMappingResponse
-                {
-                    TemplateMappingId = item.TemplateMappingId,
-                    NotificationTemplateID = item.NotificationTemplateID,
-                    PlatformDatas = platformData,
-                    Role = item.isEmployee == true ? "Employee" : item.isStudent == true ? "Student" : string.Empty,
-                    Message = item.Message,
-                    isStudent = item.isStudent,
-                    isEmployee = item.isEmployee
-                };
-                response.Add(mapping);
-            }
-            return response != null ? response.AsList() : [];
+                    var existingMapping = response.FirstOrDefault(r => r.TemplateMappingId == mapping.TemplateMappingId);
+                    if (existingMapping == null)
+                    {
+                        existingMapping = new NotificationTemplateMappingResponse
+                        {
+                            TemplateMappingId = mapping.TemplateMappingId,
+                            NotificationTemplateID = mapping.NotificationTemplateID,
+                            PlatformDatas = new List<Platform>(),
+                            Role = mapping.isEmployee == true ? "Employee" : mapping.isStudent == true ? "Student" : string.Empty,
+                            Message = mapping.Message,
+                            isStudent = mapping.isStudent,
+                            isEmployee = mapping.isEmployee
+                        };
+                        response.Add(existingMapping);
+                    }
+                    if (platform != null)
+                    {
+                        existingMapping.PlatformDatas?.Add(platform);
+                    }
+                    return existingMapping;
+                },
+                new { NotificationTemplateID = notificationTemplateID },
+                splitOn: "platformid"
+            );
+
+            return response;
         }
-        public async Task<ServiceResponse<List<NotificationResponseDTO>>> GetListofNotifications()
+        public async Task<ServiceResponse<List<NotificationResponseDTO>>> GetListofNotifications(GetAllNotificationModRequest request)
         {
             try
             {
-                List<NotificationResponseDTO> response = [];
-                var notificationQuery = @"Select * from tblNotificationTemplate;";
-                var data = await _connection.QueryAsync<NotificationTemplate>(notificationQuery);
-                if (data.Any())
-                {
-                    response = data.Select(item => new NotificationResponseDTO
+                string notificationQuery = @"
+        SELECT 
+            nt.NotificationTemplateID,
+            nt.Status,
+            nt.createdby,
+            nt.createdon,
+            nt.moduleID,
+            nt.modifiedon,
+            nt.modifiedby,
+            nt.EmployeeID,
+            e.EmpFirstName,
+            nt.subModuleId,
+            m.ModuleName AS ModuleName,
+            sm.ModuleName AS SubModuleName,
+            ntm.TemplateMappingId,
+            ntm.PlatformID,
+            ntm.isStudent,
+            ntm.isEmployee,
+            ntm.Message,
+            p.platformid,
+            p.Platformname
+        FROM 
+            tblNotificationTemplate nt
+        LEFT JOIN 
+            tblEmployees e ON nt.EmployeeID = e.EmployeeID
+        LEFT JOIN 
+            tblModule m ON nt.moduleID = m.ModuleID
+        LEFT JOIN 
+            tblModule sm ON nt.subModuleId = sm.ModuleID
+        LEFT JOIN 
+            tblNotificationTemplateMapping ntm ON nt.NotificationTemplateID = ntm.NotificationTemplateID
+        LEFT JOIN 
+            tblPlatform p ON CHARINDEX(',' + CAST(p.platformid AS VARCHAR) + ',', ',' + ntm.PlatformID + ',') > 0;";
+
+                var data = await _connection.QueryAsync<dynamic>(notificationQuery);
+
+                var groupedNotifications = data.GroupBy(n => n.NotificationTemplateID)
+                    .Select(g => new NotificationResponseDTO
                     {
-                        NotificationTemplateID = item.NotificationTemplateID,
-                        Status = item.Status,
-                        createdby = item.createdby,
-                        createdon = item.createdon,
-                        moduleID = item.moduleID,
-                        modifiedon = item.modifiedon,
-                        modifiedby = item.modifiedby,
-                        EmployeeID = item.EmployeeID,
-                        EmpFirstName = item.EmpFirstName,
-                        subModuleId = item.subModuleId
+                        NotificationTemplateID = g.Key,
+                        Status = g.First().Status,
+                        createdby = g.First().createdby,
+                        createdon = g.First().createdon,
+                        moduleID = g.First().moduleID,
+                        modifiedon = g.First().modifiedon,
+                        modifiedby = g.First().modifiedby,
+                        EmployeeID = g.First().EmployeeID,
+                        EmpFirstName = g.First().EmpFirstName ?? string.Empty,
+                        subModuleId = g.First().subModuleId,
+                        ModuleName = g.First().ModuleName ?? string.Empty,
+                        SubModuleName = g.First().SubModuleName ?? string.Empty,
+                        NotificationTemplateMappings = g.GroupBy(x => x.TemplateMappingId)
+                            .Select(mg => new NotificationTemplateMappingResponse
+                            {
+                                TemplateMappingId = mg.Key,
+                                NotificationTemplateID = mg.First().NotificationTemplateID,
+                                PlatformDatas = mg.Where(p => p.platformid != null).Select(p => new Platform
+                                {
+                                    platformid = p.platformid,
+                                    Platformname = p.Platformname
+                                }).ToList(),
+                                Role = mg.First().isEmployee ? "Employee" : mg.First().isStudent ? "Student" : string.Empty,
+                                Message = mg.First().Message,
+                                isStudent = mg.First().isStudent,
+                                isEmployee = mg.First().isEmployee
+                            }).ToList()
                     }).ToList();
 
-                    foreach (var record in response)
-                    {
-                        record.NotificationTemplateMappings = await GetListOfNotificationMappings(record.NotificationTemplateID);
+                var paginatedList = groupedNotifications
+                    .Skip((request.PageNumber - 1) * request.PageSize)
+                    .Take(request.PageSize)
+                    .ToList();
 
-                        var moduleQuery = @"Select * from tblModule where ModuleID = @moduleId;";
-                        var moduledata = _connection.QueryFirstOrDefault<NotificationModule>(moduleQuery, new { moduleId = record.moduleID });
-                        record.ModuleName = moduledata != null ? moduledata.ModuleName : string.Empty;
-
-                        var submoduleQuery = @"Select * from tblModule where ModuleID = @moduleId;";
-                        var submoduledata = _connection.QueryFirstOrDefault<NotificationModule>(submoduleQuery, new { moduleId = record.subModuleId });
-                        record.SubModuleName = submoduledata != null ? submoduledata.ModuleName : string.Empty;
-                    }
-                    return new ServiceResponse<List<NotificationResponseDTO>>(true, "Record found", response, 200);
+                if (paginatedList.Any())
+                {
+                    return new ServiceResponse<List<NotificationResponseDTO>>(true, "Records found", paginatedList, 200);
                 }
                 else
                 {
-                    return new ServiceResponse<List<NotificationResponseDTO>>(false, "Record not found", [], 500);
+                    return new ServiceResponse<List<NotificationResponseDTO>>(false, "Records not found", new List<NotificationResponseDTO>(), 500);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<NotificationResponseDTO>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<NotificationResponseDTO>>(false, ex.Message, new List<NotificationResponseDTO>(), 500);
             }
         }
+        public async Task<ServiceResponse<NotificationResponseDTO>> GetNotificationsById(int id)
+        {
+            try
+            {
+                NotificationResponseDTO response = new();
+
+                var notificationQuery = @"
+        SELECT 
+            nt.NotificationTemplateID,
+            nt.Status,
+            nt.createdby,
+            nt.createdon,
+            nt.moduleID,
+            nt.modifiedon,
+            nt.modifiedby,
+            nt.EmployeeID,
+            e.EmpFirstName,
+            nt.subModuleId,
+            m.ModuleName AS ModuleName,
+            sm.ModuleName AS SubModuleName
+        FROM 
+            tblNotificationTemplate nt
+        LEFT JOIN 
+            tblEmployees e ON nt.EmployeeID = e.EmployeeID
+        LEFT JOIN 
+            tblModule m ON nt.moduleID = m.ModuleID
+        LEFT JOIN 
+            tblModule sm ON nt.subModuleId = sm.ModuleID
+        WHERE 
+            nt.NotificationTemplateID = @id;";
+
+                var data = await _connection.QueryFirstOrDefaultAsync<dynamic>(notificationQuery, new { id });
+
+                if (data != null)
+                {
+                    response.NotificationTemplateID = data.NotificationTemplateID;
+                    response.Status = data.Status;
+                    response.createdby = data.createdby;
+                    response.createdon = data.createdon;
+                    response.moduleID = data.moduleID;
+                    response.ModuleName = data.ModuleName ?? string.Empty;
+                    response.modifiedon = data.modifiedon;
+                    response.modifiedby = data.modifiedby;
+                    response.EmployeeID = data.EmployeeID;
+                    response.EmpFirstName = data.EmpFirstName ?? string.Empty;
+                    response.subModuleId = data.subModuleId;
+                    response.SubModuleName = data.SubModuleName ?? string.Empty;
+
+                    response.NotificationTemplateMappings = await GetListOfNotificationMappings(data.NotificationTemplateID);
+
+                    return new ServiceResponse<NotificationResponseDTO>(true, "Record found", response, 200);
+                }
+                else
+                {
+                    return new ServiceResponse<NotificationResponseDTO>(false, "Record not found", new NotificationResponseDTO(), 500);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<NotificationResponseDTO>(false, ex.Message, new NotificationResponseDTO(), 500);
+            }
+        }
+
     }
 }

@@ -1,8 +1,8 @@
-﻿using ControlPanel_API.DTOs.ServiceResponse;
+﻿using ControlPanel_API.DTOs;
+using ControlPanel_API.DTOs.ServiceResponse;
 using ControlPanel_API.Models;
 using ControlPanel_API.Repository.Interfaces;
 using ControlPanel_API.Services.Interfaces;
-using System.Data;
 
 namespace ControlPanel_API.Services.Implementations
 {
@@ -38,15 +38,27 @@ namespace ControlPanel_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<Role>>> GetRoles()
+        public async Task<ServiceResponse<List<Role>>> GetRoles(GetAllRolesRequest request)
         {
             try
             {
-                return await _rolesRepository.GetRoles();
+                return await _rolesRepository.GetRoles(request);
             }
             catch (Exception ex)
             {
                 return new ServiceResponse<List<Role>>(false, ex.Message, new List<Role>(), 500);
+            }
+        }
+
+        public async Task<ServiceResponse<List<Role>>> GetRolesMasters()
+        {
+            try
+            {
+                return await _rolesRepository.GetRolesMasters();
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<Role>>(false, ex.Message, [], 500);
             }
         }
 

@@ -1,4 +1,5 @@
-﻿using Config_API.DTOs;
+﻿using Config_API.DTOs.Requests;
+using Config_API.DTOs.Response;
 using Config_API.DTOs.ServiceResponse;
 using Config_API.Models;
 using Config_API.Repository.Interfaces;
@@ -50,11 +51,11 @@ namespace Config_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<NotificationResponseDTO>>> GetListofNotifications()
+        public async Task<ServiceResponse<List<NotificationResponseDTO>>> GetListofNotifications(GetAllNotificationModRequest request)
         {
             try
             {
-                return await _notificationModRepository.GetListofNotifications();
+                return await _notificationModRepository.GetListofNotifications(request);
             }
             catch (Exception ex)
             {

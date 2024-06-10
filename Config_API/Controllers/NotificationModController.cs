@@ -1,4 +1,4 @@
-using Config_API.DTOs;
+using Config_API.DTOs.Requests;
 using Config_API.Models;
 using Config_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -130,12 +130,12 @@ namespace Config_API.Controllers
             }
 
         }
-        [HttpGet("GetNotifications")]
-        public async Task<IActionResult> GetListOfNotifications()
+        [HttpPost("GetNotifications")]
+        public async Task<IActionResult> GetListOfNotifications(GetAllNotificationModRequest request)
         {
             try
             {
-                var data = await _notificationModServices.GetListofNotifications();
+                var data = await _notificationModServices.GetListofNotifications(request);
                 if (data != null)
                 {
                     return Ok(data);

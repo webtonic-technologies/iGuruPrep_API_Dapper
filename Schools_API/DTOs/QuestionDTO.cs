@@ -39,4 +39,9 @@
         public Answersingleanswercategory? Answersingleanswercategories { get; set; }
         public Reference? References { get; set; }
     }
+    public class GetAllQuestionListRequest
+    {
+        public int PageNumber { get; set; }
+        public int PageSize { get; set; }
+    }
 }

@@ -1,4 +1,5 @@
-﻿using ControlPanel_API.DTOs.ServiceResponse;
+﻿using ControlPanel_API.DTOs;
+using ControlPanel_API.DTOs.ServiceResponse;
 using ControlPanel_API.Models;
 using ControlPanel_API.Repository.Interfaces;
 using ControlPanel_API.Services.Interfaces;
@@ -36,11 +37,11 @@ namespace ControlPanel_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<HelpFAQ>>> GetFAQList()
+        public async Task<ServiceResponse<List<HelpFAQ>>> GetFAQList(GetAllFAQRequest request)
         {
             try
             {
-                return await _helpFAQRepository.GetFAQList();
+                return await _helpFAQRepository.GetFAQList(request);
             }
             catch (Exception ex)
             {
