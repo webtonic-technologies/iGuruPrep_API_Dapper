@@ -1,7 +1,5 @@
-﻿using Config_API.DTOs;
+﻿using Config_API.DTOs.Requests;
 using Config_API.DTOs.ServiceResponse;
-using Config_API.Models;
-using Config_API.Repository.Implementations;
 using Config_API.Repository.Interfaces;
 using Config_API.Services.Interfaces;
 
@@ -15,7 +13,7 @@ namespace Config_API.Services.Implementations
         {
             _contentIndexRepository = contentIndexRepository;
         }
-        public async Task<ServiceResponse<string>> AddUpdateContentIndex(ContentIndex request)
+        public async Task<ServiceResponse<string>> AddUpdateContentIndex(ContentIndexRequest request)
         {
             try
             {
@@ -27,7 +25,7 @@ namespace Config_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<ContentIndex>>> GetAllContentIndexList(ContentIndexListDTO request)
+        public async Task<ServiceResponse<List<ContentIndexRequest>>> GetAllContentIndexList(ContentIndexListDTO request)
         {
             try
             {
@@ -35,11 +33,11 @@ namespace Config_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<ContentIndex>> (false, ex.Message, [], 500);
+                return new ServiceResponse<List<ContentIndexRequest>> (false, ex.Message, [], 500);
             }
         }
 
-        public async Task<ServiceResponse<ContentIndex>> GetContentIndexById(int id)
+        public async Task<ServiceResponse<ContentIndexRequest>> GetContentIndexById(int id)
         {
             try
             {
@@ -47,7 +45,7 @@ namespace Config_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<ContentIndex>(false, ex.Message, new ContentIndex(), 500);
+                return new ServiceResponse<ContentIndexRequest>(false, ex.Message, new ContentIndexRequest(), 500);
             }
         }
 

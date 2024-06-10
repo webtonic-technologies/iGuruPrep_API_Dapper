@@ -1,4 +1,4 @@
-using Config_API.DTOs;
+using Config_API.DTOs.Requests;
 using Config_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -89,6 +89,29 @@ namespace Config_API.Controllers
             try
             {
                 var data = await _boardService.StatusActiveInactive(BoardId);
+                if (data != null)
+                {
+                    return Ok(data);
+
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+
+        }
+        [HttpGet("GetAllBoardsMasters")]
+        public async Task<IActionResult> GetAllBoardsMasters()
+        {
+            try
+            {
+                var data = await _boardService.GetAllBoardsMaster();
                 if (data != null)
                 {
                     return Ok(data);

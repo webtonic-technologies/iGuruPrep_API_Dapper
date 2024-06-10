@@ -1,4 +1,5 @@
-﻿using ControlPanel_API.DTOs.ServiceResponse;
+﻿using ControlPanel_API.DTOs;
+using ControlPanel_API.DTOs.ServiceResponse;
 using ControlPanel_API.Models;
 using ControlPanel_API.Repository.Interfaces;
 using Dapper;
@@ -60,7 +61,7 @@ namespace ControlPanel_API.Repository.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<Role>>> GetRoles()
+        public async Task<ServiceResponse<List<Role>>> GetRolesMasters()
         {
             try
             {
@@ -81,7 +82,29 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<List<Role>>(false, ex.Message, [], 500);
             }
         }
-
+        public async Task<ServiceResponse<List<Role>>> GetRoles(GetAllRolesRequest request)
+        {
+            try
+            {
+                var sql = "SELECT * FROM tblRole;";
+                var roles = await _connection.QueryAsync<Role>(sql);
+                var paginatedList = roles.Skip((request.PageNumber - 1) * request.PageSize)
+           .Take(request.PageSize)
+           .ToList();
+                if (paginatedList.Count != 0)
+                {
+                    return new ServiceResponse<List<Role>>(true, "Records Found", paginatedList.AsList(), 200);
+                }
+                else
+                {
+                    return new ServiceResponse<List<Role>>(false, "Records Not Found", [], 204);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<Role>>(false, ex.Message, [], 500);
+            }
+        }
         public async Task<ServiceResponse<string>> UpdateRole(Role role)
         {
             try

@@ -1,3 +1,4 @@
+using Config_API.DTOs.Requests;
 using Config_API.Models;
 using Config_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -36,12 +37,12 @@ namespace Config_API.Controllers
             }
 
         }
-        [HttpGet("GetAllQuestionTypeList")]
-        public async Task<IActionResult> GetAllQuestionTypeList()
+        [HttpPost("GetAllQuestionTypeList")]
+        public async Task<IActionResult> GetAllQuestionTypeList(GetAllQuestionTypeRequest request)
         {
             try
             {
-                var data = await _questionTypeService.GetQuestionTypeList();
+                var data = await _questionTypeService.GetQuestionTypeList(request);
                 if (data != null)
                 {
                     return Ok(data);
@@ -130,6 +131,28 @@ namespace Config_API.Controllers
             try
             {
                 var data = await _questionTypeService.NoOfOptionsList();
+                if (data != null)
+                {
+                    return Ok(data);
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+
+        }
+        [HttpGet("GetAllQuestionTypeListMasters")]
+        public async Task<IActionResult> GetAllQuestionTypeListMasters()
+        {
+            try
+            {
+                var data = await _questionTypeService.GetQuestionTypeListMasters();
                 if (data != null)
                 {
                     return Ok(data);

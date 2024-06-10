@@ -1,8 +1,8 @@
-﻿using ControlPanel_API.DTOs.ServiceResponse;
+﻿using ControlPanel_API.DTOs;
+using ControlPanel_API.DTOs.ServiceResponse;
 using ControlPanel_API.Models;
 using ControlPanel_API.Repository.Interfaces;
 using Dapper;
-using Microsoft.AspNetCore.Http.HttpResults;
 using System.Data;
 
 namespace ControlPanel_API.Repository.Implementations
@@ -97,15 +97,18 @@ namespace ControlPanel_API.Repository.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<HelpFAQ>>> GetFAQList()
+        public async Task<ServiceResponse<List<HelpFAQ>>> GetFAQList(GetAllFAQRequest request)
         {
             try
             {
                 var sql = "SELECT * FROM tblHelpFAQ;";
                 var data = await _connection.QueryAsync<HelpFAQ>(sql);
-                if (data.Any())
+                var paginatedList = data.Skip((request.PageNumber - 1) * request.PageSize)
+                    .Take(request.PageSize)
+                    .ToList();
+                if (paginatedList.Count != 0)
                 {
-                    return new ServiceResponse<List<HelpFAQ>>(true, "Records Found", data.AsList(), 200);
+                    return new ServiceResponse<List<HelpFAQ>>(true, "Records Found", paginatedList.AsList(), 200);
                 }
                 else
                 {

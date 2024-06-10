@@ -12,7 +12,7 @@ namespace ControlPanel_API.Repository.Implementations
     {
         private readonly IDbConnection _connection;
         private readonly IWebHostEnvironment _hostingEnvironment;
-        private readonly string _connectionString;
+        private readonly string? _connectionString;
 
         public NotificationRepository(IDbConnection connection, IWebHostEnvironment hostingEnvironment, IConfiguration configuration)
         {
@@ -131,7 +131,7 @@ namespace ControlPanel_API.Repository.Implementations
                 string classesQuery = @"SELECT [NBNotificationID] FROM [tblNbNotificationClass] WHERE [ClassID] = @ClassID";
                 string coursesQuery = @"SELECT [NBNotificationID] FROM [tblNbNotificationCourse] WHERE [CourseID] = @CourseID";
                 string examsQuery = @"SELECT [NBNotificationID] FROM [tblNbNotificationExamType] WHERE [ExamTypeID] = @ExamTypeID";
-               // string subjectQuery = @"SELECT [bookID] FROM [tbllibrarySubject] WHERE [SubjectID] = @SubjectID";
+                // string subjectQuery = @"SELECT [bookID] FROM [tbllibrarySubject] WHERE [SubjectID] = @SubjectID";
 
                 var categoryTask = Task.Run(async () =>
                 {
@@ -208,16 +208,17 @@ namespace ControlPanel_API.Repository.Implementations
                     NotificationDetails = GetListOfNotificationDetails(item.NBNotificationID),
                     NotificationLinkMasters = GetListOfNotificationLink(item.NBNotificationID)
                 }).ToList();
-
-                if(response.Count != 0)
+                var paginatedList = response.Skip((request.PageNumber - 1) * request.PageSize)
+              .Take(request.PageSize)
+              .ToList();
+                if (paginatedList.Count != 0)
                 {
-                    return new ServiceResponse<List<NotificationDTO>>(true, "Records found", response, 200);
+                    return new ServiceResponse<List<NotificationDTO>>(true, "Records found", paginatedList, 200);
                 }
                 else
                 {
                     return new ServiceResponse<List<NotificationDTO>>(false, "Records not found", [], 404);
                 }
-          
             }
             catch (Exception ex)
             {

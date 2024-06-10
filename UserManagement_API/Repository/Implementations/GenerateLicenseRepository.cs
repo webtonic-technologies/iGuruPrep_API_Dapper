@@ -250,7 +250,7 @@ namespace UserManagement_API.Repository.Implementations
                 return new ServiceResponse<GenerateLicenseDTO>(false, ex.Message, new GenerateLicenseDTO(), 500);
             }
         }
-        public async Task<ServiceResponse<List<GenerateLicenseDTO>>> GetGenerateLicenseList()
+        public async Task<ServiceResponse<List<GenerateLicenseDTO>>> GetGenerateLicenseList(GetAllLicensesListRequest request)
         {
             try
             {
@@ -293,7 +293,10 @@ namespace UserManagement_API.Repository.Implementations
                         };
                         resposne.Add(record);
                     }
-                    return new ServiceResponse<List<GenerateLicenseDTO>>(true, "Records found", resposne, 500);
+                    var paginatedList = resposne.Skip((request.PageNumber - 1) * request.PageSize)
+                     .Take(request.PageSize)
+                     .ToList();
+                    return new ServiceResponse<List<GenerateLicenseDTO>>(true, "Records found", paginatedList, 500);
                 }
                 else
                 {

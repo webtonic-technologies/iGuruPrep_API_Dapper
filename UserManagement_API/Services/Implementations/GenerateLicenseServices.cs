@@ -36,11 +36,11 @@ namespace UserManagement_API.Services.Implementations
                 return new ServiceResponse<GenerateLicenseDTO>(false, ex.Message, new GenerateLicenseDTO(), 500);
             }
         }
-        public async Task<ServiceResponse<List<GenerateLicenseDTO>>> GetGenerateLicenseList()
+        public async Task<ServiceResponse<List<GenerateLicenseDTO>>> GetGenerateLicenseList(GetAllLicensesListRequest request)
         {
             try
             {
-                return await _generateLicenseRepository.GetGenerateLicenseList();
+                return await _generateLicenseRepository.GetGenerateLicenseList(request);
             }
             catch (Exception ex)
             {

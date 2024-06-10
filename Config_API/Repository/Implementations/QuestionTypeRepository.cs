@@ -1,4 +1,5 @@
-﻿using Config_API.DTOs.ServiceResponse;
+﻿using Config_API.DTOs.Requests;
+using Config_API.DTOs.ServiceResponse;
 using Config_API.Models;
 using Config_API.Repository.Interfaces;
 using Dapper;
@@ -21,8 +22,8 @@ namespace Config_API.Repository.Implementations
                 if (request.QuestionTypeID == 0)
                 {
                     string query = @"
-        INSERT INTO [tblQBQuestionType] (QuestionType, Code, Status, MinNoOfOptions, createdon, createdby, EmployeeID, TypeOfOption, EmpFirstName)
-        VALUES (@QuestionType, @Code, @Status, @MinNoOfOptions, @createdon, @createdby, @EmployeeID, @TypeOfOption, @EmpFirstName);";
+        INSERT INTO [tblQBQuestionType] (QuestionType, Code, Status, MinNoOfOptions, createdon, createdby, EmployeeID, TypeOfOption)
+        VALUES (@QuestionType, @Code, @Status, @MinNoOfOptions, @createdon, @createdby, @EmployeeID, @TypeOfOption);";
                     int insertedValue = await _connection.ExecuteAsync(query, new
                     {
                         request.MinNoOfOptions,
@@ -32,8 +33,7 @@ namespace Config_API.Repository.Implementations
                         Status = true,
                         createdon = DateTime.Now,
                         request.createdby,
-                        request.EmployeeID,
-                        request.EmpFirstName
+                        request.EmployeeID
                     });
                     if (insertedValue > 0)
                     {
@@ -57,8 +57,7 @@ namespace Config_API.Repository.Implementations
             modifiedon = @modifiedon,
             modifiedby = @modifiedby,
             EmployeeID = @EmployeeID,
-            TypeOfOption = @TypeOfOption,
-            EmpFirstName = @EmpFirstName
+            TypeOfOption = @TypeOfOption
         WHERE QuestionTypeID = @QuestionTypeID;";
                     int rowsAffected = await _connection.ExecuteAsync(query, new
                     {
@@ -70,7 +69,6 @@ namespace Config_API.Repository.Implementations
                         modifiedon = DateTime.Now,
                         request.modifiedby,
                         request.EmployeeID,
-                        request.EmpFirstName,
                         request.QuestionTypeID
                     });
                     if (rowsAffected > 0)
@@ -128,7 +126,33 @@ namespace Config_API.Repository.Implementations
                 return new ServiceResponse<Questiontype>(false, ex.Message, new Questiontype(), StatusCodes.Status500InternalServerError);
             }
         }
-        public async Task<ServiceResponse<List<Questiontype>>> GetQuestionTypeList()
+        public async Task<ServiceResponse<List<Questiontype>>> GetQuestionTypeList(GetAllQuestionTypeRequest request)
+        {
+            try
+            {
+                string query = @"SELECT [QuestionTypeID],[QuestionType],[Code],[Status],[MinNoOfOptions]
+                                    ,[modifiedon],[modifiedby],[createdon],[createdby],[EmployeeID],[TypeOfOption], EmpFirstName
+                                    FROM [tblQBQuestionType];";
+
+                var data = await _connection.QueryAsync<Questiontype>(query);
+                var paginatedList = data.Skip((request.PageNumber - 1) * request.PageSize)
+             .Take(request.PageSize)
+             .ToList();
+                if (paginatedList.Count != 0)
+                {
+                    return new ServiceResponse<List<Questiontype>>(true, "Records Found", paginatedList.AsList(), StatusCodes.Status302Found);
+                }
+                else
+                {
+                    return new ServiceResponse<List<Questiontype>>(false, "Records Not Found", [], StatusCodes.Status204NoContent);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<Questiontype>>(false, ex.Message, [], StatusCodes.Status500InternalServerError);
+            }
+        }
+        public async Task<ServiceResponse<List<Questiontype>>> GetQuestionTypeListMasters()
         {
             try
             {

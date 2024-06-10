@@ -8,7 +8,7 @@ namespace Course_API.Repository.Interfaces
     {
         Task<ServiceResponse<string>> AddUpdateContent(ContentMaster request);
         Task<ServiceResponse<ContentMaster>> GetContentById(int ContentId);
-        Task<ServiceResponse<List<ContentMaster>>> GetContentList();
+        Task<ServiceResponse<List<ContentMaster>>> GetContentList(GetAllContentListRequest request);
         Task<ServiceResponse<List<SubjectContentIndexDTO>>> GetListOfSubjectContent(SubjectContentIndexRequestDTO request);
     }
 }

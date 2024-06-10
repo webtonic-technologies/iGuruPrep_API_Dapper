@@ -3,6 +3,7 @@ using Course_API.DTOs.ServiceResponse;
 using Course_API.Models;
 using Course_API.Repository.Interfaces;
 using Dapper;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 
@@ -12,7 +13,7 @@ namespace Course_API.Repository.Implementations
     {
         private readonly IDbConnection _connection;
         private readonly IWebHostEnvironment _hostingEnvironment;
-        private readonly string _connectionString;
+        private readonly string? _connectionString;
 
         public BookRepository(IDbConnection connection, IWebHostEnvironment hostingEnvironment, IConfiguration configuration)
         {
@@ -310,8 +311,10 @@ namespace Course_API.Repository.Implementations
                     BookExamTypes = GetListOfBookExamType(item.BookId),
                     BookSubjects = GetListOfBookSubject(item.BookId)
                 }).ToList();
-
-                return new ServiceResponse<List<BookDTO>>(true, "Records found", response, 200);
+                var paginatedList = response.Skip((request.PageNumber - 1) * request.PageSize)
+                        .Take(request.PageSize)
+                        .ToList();
+                return new ServiceResponse<List<BookDTO>>(true, "Records found", paginatedList, 200);
             }
             catch (Exception ex)
             {

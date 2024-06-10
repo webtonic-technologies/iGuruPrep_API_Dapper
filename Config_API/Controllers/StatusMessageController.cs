@@ -1,3 +1,4 @@
+using Config_API.DTOs.Requests;
 using Config_API.Models;
 using Config_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -61,12 +62,12 @@ namespace Config_API.Controllers
             }
 
         }
-        [HttpGet("GetAllStatusMessages")]
-        public async Task<IActionResult> GetStatusMessageList()
+        [HttpPost("GetAllStatusMessages")]
+        public async Task<IActionResult> GetStatusMessageList(GetAllStatusMessagesRequest request)
         {
             try
             {
-                var data = await _statusMessageService.GetStatusMessageList();
+                var data = await _statusMessageService.GetStatusMessageList(request);
                 if (data != null)
                 {
                     return Ok(data);

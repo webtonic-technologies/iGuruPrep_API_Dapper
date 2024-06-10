@@ -1,4 +1,5 @@
-﻿using Config_API.DTOs.ServiceResponse;
+﻿using Config_API.DTOs.Requests;
+using Config_API.DTOs.ServiceResponse;
 using Config_API.Repository.Interfaces;
 using Dapper;
 using iGuruPrep.Models;
@@ -27,15 +28,13 @@ namespace Config_API.Repository.Implementations
                         CourseName = request.CourseName,
                         createdby = request.createdby,
                         createdon = DateTime.Now,
-                        displayorder = request.displayorder,
                         EmployeeID = request.EmployeeID,
-                        EmpFirstName = request.EmpFirstName,
                         Status = true
                     };
 
                     string insertQuery = @"INSERT INTO [tblCourse] 
-                           ([CourseName], [CourseCode], [Status], [createdby], [createdon], [displayorder], [EmployeeID], [EmpFirstName])
-                           VALUES (@CourseName, @CourseCode, @Status, @CreatedBy, GETDATE(), @DisplayOrder, @EmployeeID, @EmpFirstName)";
+                           ([CourseName], [CourseCode], [Status], [createdby], [createdon], [EmployeeID])
+                           VALUES (@CourseName, @CourseCode, @Status, @CreatedBy, GETDATE(), @EmployeeID)";
                     
                     int rowsAffected = await _connection.ExecuteAsync(insertQuery, newCourse);
 
@@ -54,22 +53,18 @@ namespace Config_API.Repository.Implementations
                            [CourseName] = @CourseName, 
                            [CourseCode] = @CourseCode, 
                            [Status] = @Status, 
-                           [displayorder] = @DisplayOrder, 
                            [modifiedby] = @ModifiedBy, 
                            [modifiedon] = GETDATE(), 
                            [EmployeeID] = @EmployeeID,
-                          [EmpFirstName] = @EmpFirstName
                            WHERE [CourseId] = @CourseId";
                     int rowsAffected = await _connection.ExecuteAsync(updateQuery, new
                     {
                         request.CourseName,
                         request.CourseCode,
                         request.Status,
-                        request.displayorder,
                         request.modifiedby,
                         modifiedon = DateTime.Now,
                         request.EmployeeID,
-                        request.EmpFirstName,
                         request.CourseId
                     });
                     if (rowsAffected > 0)
@@ -88,8 +83,31 @@ namespace Config_API.Repository.Implementations
             }
 
         }
-
-        public async Task<ServiceResponse<List<Course>>> GetAllCourses()
+        public async Task<ServiceResponse<List<Course>>> GetAllCourses(GetAllCoursesRequest request)
+        {
+            try
+            {
+                string query = @"SELECT [CourseId], [CourseName], [CourseCode], [Status], [createdby], [createdon], [displayorder], [modifiedby], [modifiedon], [EmployeeID], [EmpFirstName]
+                           FROM [tblCourse]";
+                var data = await _connection.QueryAsync<Course>(query);
+                var paginatedList = data.Skip((request.PageNumber - 1) * request.PageSize)
+                    .Take(request.PageSize)
+                    .ToList();
+                if (paginatedList.Count != 0)
+                {
+                    return new ServiceResponse<List<Course>>(true, "Records Found", paginatedList.AsList(), StatusCodes.Status302Found);
+                }
+                else
+                {
+                    return new ServiceResponse<List<Course>>(false, "Records Not Found", [], StatusCodes.Status204NoContent);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<Course>>(false, ex.Message, [], StatusCodes.Status500InternalServerError);
+            }
+        }
+        public async Task<ServiceResponse<List<Course>>> GetAllCoursesMasters()
         {
             try
             {
@@ -110,9 +128,7 @@ namespace Config_API.Repository.Implementations
             {
                 return new ServiceResponse<List<Course>>(false, ex.Message, [], StatusCodes.Status500InternalServerError);
             }
-
         }
-
         public async Task<ServiceResponse<Course>> GetCourseById(int id)
         {
             try
@@ -137,7 +153,6 @@ namespace Config_API.Repository.Implementations
             }
 
         }
-
         public async Task<ServiceResponse<bool>> StatusActiveInactive(int id)
         {
             try

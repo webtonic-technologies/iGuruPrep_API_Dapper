@@ -1,8 +1,10 @@
-﻿using ControlPanel_API.DTOs.ServiceResponse;
+﻿using ControlPanel_API.DTOs;
+using ControlPanel_API.DTOs.ServiceResponse;
 using ControlPanel_API.Models;
 using ControlPanel_API.Repository.Interfaces;
 using Dapper;
 using System.Data;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace ControlPanel_API.Repository.Implementations
 {
@@ -63,7 +65,7 @@ namespace ControlPanel_API.Repository.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<Designation>>> GetDesignationList()
+        public async Task<ServiceResponse<List<Designation>>> GetDesignationListMasters()
         {
             try
             {
@@ -74,6 +76,30 @@ namespace ControlPanel_API.Repository.Implementations
                 if (designations.Any())
                 {
                     return new ServiceResponse<List<Designation>>(true, "Records Found", designations.AsList(), 200);
+                }
+                else
+                {
+                    return new ServiceResponse<List<Designation>>(false, "Records Not Found", [], 204);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<Designation>>(false, ex.Message, [], 500);
+            }
+        }
+        public async Task<ServiceResponse<List<Designation>>> GetDesignationList(GetAllDesignationsRequest request)
+        {
+            try
+            {
+                string sql = "SELECT * FROM tblDesignation";
+
+                var designations = await _connection.QueryAsync<Designation>(sql);
+                var paginatedList = designations.Skip((request.PageNumber - 1) * request.PageSize)
+                    .Take(request.PageSize)
+                    .ToList();
+                if (paginatedList.Any())
+                {
+                    return new ServiceResponse<List<Designation>>(true, "Records Found", paginatedList.AsList(), 200);
                 }
                 else
                 {

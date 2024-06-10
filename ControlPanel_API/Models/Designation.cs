@@ -8,11 +8,10 @@ namespace ControlPanel_API.Models
         [Key, DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         [Required]      
         public int DesgnID { get; set; }
-        [Required]
+        [Required(ErrorMessage = "Designation name cannot be empty")]
         public string DesignationName { get; set; } = string.Empty;
-        [Required]
+        [Required(ErrorMessage = "Designation code cannot be empty")]
         public string DesgnCode { get; set; } = string.Empty;
-        [Required]
         public bool? Status { get; set; }
         public DateTime? createdon { get; set; }
         public DateTime? modifiedon { get; set; }

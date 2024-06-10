@@ -1,3 +1,4 @@
+using Config_API.DTOs.Requests;
 using Config_API.Services.Interfaces;
 using iGuruPrep.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -37,12 +38,12 @@ namespace Config_API.Controllers
             }
 
         }
-        [HttpGet("GetAllCourses")]
-        public async Task<IActionResult> GetAllCoursesList()
+        [HttpPost("GetAllCourses")]
+        public async Task<IActionResult> GetAllCoursesList(GetAllCoursesRequest request)
         {
             try
             {
-                var data = await _courseService.GetAllCourses();
+                var data = await _courseService.GetAllCourses(request);
                 if (data != null)
                 {
                     return Ok(data);
@@ -89,6 +90,29 @@ namespace Config_API.Controllers
             try
             {
                 var data = await _courseService.StatusActiveInactive(CourseId);
+                if (data != null)
+                {
+                    return Ok(data);
+
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+
+        }
+        [HttpGet("GetAllCoursesMasters")]
+        public async Task<IActionResult> GetAllCoursesListMasters()
+        {
+            try
+            {
+                var data = await _courseService.GetAllCoursesMasters();
                 if (data != null)
                 {
                     return Ok(data);

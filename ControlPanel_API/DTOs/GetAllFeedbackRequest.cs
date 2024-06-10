@@ -12,4 +12,9 @@
         public int PageNumber { get; set; }
         public int PageSize { get; set; } 
     }
+    public class GetAllFAQRequest
+    {
+        public int PageNumber { get; set; }
+        public int PageSize { get; set; }
+    }
 }

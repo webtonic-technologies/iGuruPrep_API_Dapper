@@ -1,4 +1,5 @@
-﻿using Config_API.DTOs.ServiceResponse;
+﻿using Config_API.DTOs.Requests;
+using Config_API.DTOs.ServiceResponse;
 using Config_API.Models;
 using Config_API.Repository.Interfaces;
 using Config_API.Services.Interfaces;
@@ -25,15 +26,27 @@ namespace Config_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<DifficultyLevel>>> GetAllQuestionLevel()
+        public async Task<ServiceResponse<List<DifficultyLevel>>> GetAllQuestionLevel(GetAllDifficultyLevelRequest request)
         {
             try
             {
-                return await _questionLevelRepository.GetAllQuestionLevel();
+                return await _questionLevelRepository.GetAllQuestionLevel(request);
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<DifficultyLevel>>(false, ex.Message, new List<DifficultyLevel>(), 500);
+                return new ServiceResponse<List<DifficultyLevel>>(false, ex.Message, [], 500);
+            }
+        }
+
+        public async Task<ServiceResponse<List<DifficultyLevel>>> GetAllQuestionLevelMasters()
+        {
+            try
+            {
+                return await _questionLevelRepository.GetAllQuestionLevelMasters();
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<DifficultyLevel>>(false, ex.Message, [], 500);
             }
         }
 

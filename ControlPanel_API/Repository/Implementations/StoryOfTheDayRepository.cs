@@ -12,7 +12,7 @@ namespace ControlPanel_API.Repository.Implementations
     {
         private readonly IDbConnection _connection;
         private readonly IWebHostEnvironment _hostingEnvironment;
-        private readonly string _connectionString;
+        private readonly string? _connectionString;
         public StoryOfTheDayRepository(IDbConnection connection, IWebHostEnvironment hostingEnvironment, IConfiguration configuration)
         {
             _connection = connection;
@@ -331,10 +331,12 @@ namespace ControlPanel_API.Repository.Implementations
                     SOTDCourses = GetListOfSOTDCourse(item.StoryId),
                     SOTDExamTypes = GetListOfSOTDExamType(item.StoryId)
                 }).ToList();
-
-                if (response.Count != 0)
+                var paginatedList = response.Skip((request.PageNumber - 1) * request.PageSize)
+               .Take(request.PageSize)
+               .ToList();
+                if (paginatedList.Count != 0)
                 {
-                    return new ServiceResponse<List<StoryOfTheDayDTO>>(true, "Records found", response, 200);
+                    return new ServiceResponse<List<StoryOfTheDayDTO>>(true, "Records found", paginatedList, 200);
                 }
                 else
                 {

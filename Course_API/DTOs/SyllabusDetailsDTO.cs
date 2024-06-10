@@ -1,4 +1,5 @@
 ﻿using Course_API.Models;
+using System.ComponentModel.DataAnnotations;
 
 namespace Course_API.DTOs
 {
@@ -13,6 +14,7 @@ namespace Course_API.DTOs
         public int BoardID { get; set; }
         public int CourseId { get; set; }
         public int ClassId { get; set; }
+        [Required(ErrorMessage = "Syllabus name cannot be empty")]
         public string SyllabusName { get; set; } = string.Empty;
         public bool? Status { get; set; }
         public string? createdby { get; set; }

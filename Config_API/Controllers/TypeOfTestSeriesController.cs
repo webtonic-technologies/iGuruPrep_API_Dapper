@@ -1,3 +1,4 @@
+using Config_API.DTOs.Requests;
 using Config_API.Models;
 using Config_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -37,16 +38,38 @@ namespace Config_API.Controllers
             }
 
         }
-        [HttpGet("GetListOfTestSeries")]
-        public async Task<IActionResult> GetListOfTestSeries()
+        [HttpPost("GetListOfTestSeries")]
+        public async Task<IActionResult> GetListOfTestSeries(GetAllTestSeriesTypesRequest request)
         {
             try
             {
-                var data = await _typeOfTestSeriesServices.GetListOfTestSeries();
+                var data = await _typeOfTestSeriesServices.GetListOfTestSeries(request);
                 if (data != null)
                 {
                     return Ok(data);
 
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+
+        }
+        [HttpGet("GetListOfTestSeriesMasters")]
+        public async Task<IActionResult> GetListOfTestSeriesMasters()
+        {
+            try
+            {
+                var data = await _typeOfTestSeriesServices.GetListOfTestSeriesMasters();
+                if (data != null)
+                {
+                    return Ok(data);
                 }
                 else
                 {

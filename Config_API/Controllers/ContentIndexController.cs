@@ -1,4 +1,4 @@
-using Config_API.DTOs;
+using Config_API.DTOs.Requests;
 using Config_API.Models;
 using Config_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -16,7 +16,7 @@ namespace Config_API.Controllers
             _contentIndexServices = contentIndexServices;
         }
         [HttpPost]
-        public async Task<IActionResult> AddUpdateContentIndex(ContentIndex request)
+        public async Task<IActionResult> AddUpdateContentIndex(ContentIndexRequest request)
         {
             try
             {

@@ -1,4 +1,5 @@
-﻿using ControlPanel_API.DTOs.ServiceResponse;
+﻿using ControlPanel_API.DTOs;
+using ControlPanel_API.DTOs.ServiceResponse;
 using ControlPanel_API.Models;
 using ControlPanel_API.Repository.Interfaces;
 using ControlPanel_API.Services.Interfaces;
@@ -38,15 +39,27 @@ namespace ControlPanel_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<Designation>>> GetDesignationList()
+        public async Task<ServiceResponse<List<Designation>>> GetDesignationList(GetAllDesignationsRequest request)
         {
             try
             {
-                return await _designationRepository.GetDesignationList();
+                return await _designationRepository.GetDesignationList(request);
             }
             catch (Exception ex)
             {
                 return new ServiceResponse<List<Designation>>(false, ex.Message, new List<Designation>(), 500);
+            }
+        }
+
+        public async Task<ServiceResponse<List<Designation>>> GetDesignationListMasters()
+        {
+            try
+            {
+                return await _designationRepository.GetDesignationListMasters();
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<Designation>>(false, ex.Message, [], 500);
             }
         }
 
