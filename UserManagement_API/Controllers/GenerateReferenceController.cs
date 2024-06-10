@@ -55,7 +55,7 @@ namespace UserManagement_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
-        [HttpPost]
+        [HttpPost("GetAllReferrals")]
         public async Task<IActionResult> GetGenerateReferenceList(GetAllReferralsRequest request)
         {
             try

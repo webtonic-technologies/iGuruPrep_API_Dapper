@@ -55,7 +55,7 @@ namespace UserManagement_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
-        [HttpPost]
+        [HttpPost("GetAllLicenses")]
         public async Task<IActionResult> GetGenerateLicenseList(GetAllLicensesListRequest request)
         {
             try

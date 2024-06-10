@@ -15,7 +15,7 @@ namespace Course_API.Controllers
         {
             _contentMasterServices = contentMasterServices;
         }
-        [HttpPost]
+        [HttpPost("GetAllContentMaster")]
         public async Task<IActionResult> GetAllContent(GetAllContentListRequest request)
         {
             try
