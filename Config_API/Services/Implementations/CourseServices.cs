@@ -1,4 +1,5 @@
-﻿using Config_API.DTOs.ServiceResponse;
+﻿using Config_API.DTOs.Requests;
+using Config_API.DTOs.ServiceResponse;
 using Config_API.Repository.Interfaces;
 using Config_API.Services.Interfaces;
 using iGuruPrep.Models;
@@ -25,15 +26,27 @@ namespace Config_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<Course>>> GetAllCourses()
+        public async Task<ServiceResponse<List<Course>>> GetAllCourses(GetAllCoursesRequest request)
         {
             try
             {
-                return await _courseRepository.GetAllCourses();
+                return await _courseRepository.GetAllCourses(request);
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<Course>>(false, ex.Message, new List<Course>(), 500);
+                return new ServiceResponse<List<Course>>(false, ex.Message, [], 500);
+            }
+        }
+
+        public async Task<ServiceResponse<List<Course>>> GetAllCoursesMasters()
+        {
+            try
+            {
+                return await _courseRepository.GetAllCoursesMasters();
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<Course>>(false, ex.Message, [], 500);
             }
         }
 

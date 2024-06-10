@@ -1,9 +1,9 @@
-﻿using Config_API.DTOs.ServiceResponse;
+﻿using Config_API.DTOs.Requests;
+using Config_API.DTOs.ServiceResponse;
 using Config_API.Models;
 using Config_API.Repository.Interfaces;
 using Dapper;
 using System.Data;
-using System.Reflection.Emit;
 
 namespace Config_API.Repository.Implementations
 {
@@ -30,15 +30,13 @@ namespace Config_API.Repository.Implementations
                         LevelCode = request.LevelCode,
                         LevelName = request.LevelName,
                         NoofQperLevel = request.NoofQperLevel,
-                        patterncode = request.patterncode,
                         Status = true,
-                        SuccessRate = request.SuccessRate,
-                        EmpFirstName = request.EmpFirstName
+                        SuccessRate = request.SuccessRate
                     };
 
                     string insertQuery = @"INSERT INTO [tbldifficultylevel] 
-                             ([LevelName], [LevelCode], [Status], [NoofQperLevel], [SuccessRate], [createdon], [patterncode], [createdby], [EmployeeID], EmpFirstName)
-                             VALUES (@LevelName, @LevelCode, @Status, @NoofQperLevel, @SuccessRate, @createdon, @patterncode, @createdby, @EmployeeID, @EmpFirstName)";
+                             ([LevelName], [LevelCode], [Status], [NoofQperLevel], [SuccessRate], [createdon], [createdby], [EmployeeID])
+                             VALUES (@LevelName, @LevelCode, @Status, @NoofQperLevel, @SuccessRate, @createdon, @createdby, @EmployeeID)";
 
                     int rowsAffected = await _connection.ExecuteAsync(insertQuery, newQuestionLevel);
 
@@ -56,8 +54,8 @@ namespace Config_API.Repository.Implementations
                 {
                     string updateQuery = @"UPDATE [tbldifficultylevel] SET 
                              [LevelName] = @LevelName, [LevelCode] = @LevelCode, [Status] = @Status, [NoofQperLevel] = @NoofQperLevel, 
-                             [SuccessRate] = @SuccessRate, [patterncode] = @patterncode, [modifiedon] = @modifiedon, 
-                             [modifiedby] = @modifiedby, [EmployeeID] = @EmployeeID, EmpFirstName = @EmpFirstName
+                             [SuccessRate] = @SuccessRate, [modifiedon] = @modifiedon, 
+                             [modifiedby] = @modifiedby, [EmployeeID] = @EmployeeID
                              WHERE [LevelId] = @LevelId";
 
                     var parameters = new
@@ -67,12 +65,10 @@ namespace Config_API.Repository.Implementations
                         request.LevelCode,
                         request.LevelName,
                         request.NoofQperLevel,
-                        request.patterncode,
                         request.Status,
                         request.SuccessRate,
                         modifiedon = DateTime.Now,
-                        request.modifiedby,
-                        request.EmpFirstName
+                        request.modifiedby
                     };
 
                     int rowsAffected = await _connection.ExecuteAsync(updateQuery, parameters);
@@ -93,7 +89,7 @@ namespace Config_API.Repository.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<DifficultyLevel>>> GetAllQuestionLevel()
+        public async Task<ServiceResponse<List<DifficultyLevel>>> GetAllQuestionLevel(GetAllDifficultyLevelRequest request)
         {
             try
             {
@@ -102,7 +98,34 @@ namespace Config_API.Repository.Implementations
                              FROM [tbldifficultylevel]";
 
                 var data = await _connection.QueryAsync<DifficultyLevel>(query);
+                var paginatedList = data.Skip((request.PageNumber - 1) * request.PageSize)
+                  .Take(request.PageSize)
+                  .ToList();
+                if (paginatedList.Count != 0)
+                {
+                    return new ServiceResponse<List<DifficultyLevel>>(true, "Records Found", paginatedList.AsList(), StatusCodes.Status302Found);
+                }
+                else
+                {
+                    return new ServiceResponse<List<DifficultyLevel>>(false, "Records Not Found", [], StatusCodes.Status204NoContent);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<DifficultyLevel>>(false, ex.Message, [], StatusCodes.Status500InternalServerError);
+            }
 
+        }
+        public async Task<ServiceResponse<List<DifficultyLevel>>> GetAllQuestionLevelMasters()
+        {
+            try
+            {
+                string query = @"SELECT [LevelId], [LevelName], [LevelCode], [Status], [NoofQperLevel], [SuccessRate], 
+                             [createdon], [patterncode], [modifiedon], [modifiedby], [createdby], [EmployeeID], EmpFirstName
+                             FROM [tbldifficultylevel]";
+
+                var data = await _connection.QueryAsync<DifficultyLevel>(query);
+             
                 if (data.Any())
                 {
                     return new ServiceResponse<List<DifficultyLevel>>(true, "Records Found", data.AsList(), StatusCodes.Status302Found);

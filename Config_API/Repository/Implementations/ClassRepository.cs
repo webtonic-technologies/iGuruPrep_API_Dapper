@@ -1,4 +1,5 @@
-﻿using Config_API.DTOs.ServiceResponse;
+﻿using Config_API.DTOs.Requests;
+using Config_API.DTOs.ServiceResponse;
 using Config_API.Repository.Interfaces;
 using Dapper;
 using iGuruPrep.Models;
@@ -28,13 +29,11 @@ namespace Config_API.Repository.Implementations
                         createdby = request.createdby,
                         createdon = DateTime.Now,
                         EmployeeID = request.EmployeeID,
-                        EmpFirstName = request.EmpFirstName,
-                        showcourse = request.showcourse,
                         Status = true
                     };
                     string insertQuery = @"INSERT INTO [tblClass] 
-                           ([ClassName], [ClassCode], [Status], [createdby], [createdon], [showcourse], [EmployeeID], [EmpFirstName])
-                           VALUES (@ClassName, @ClassCode, @Status, @CreatedBy, @CreatedOn, @ShowCourse, @EmployeeID, @EmpFirstName)";
+                           ([ClassName], [ClassCode], [Status], [createdby], [createdon], [EmployeeID])
+                           VALUES (@ClassName, @ClassCode, @Status, @CreatedBy, @CreatedOn, @EmployeeID)";
                     int rowsAffected = await _connection.ExecuteAsync(insertQuery, newClass);
 
                     if (rowsAffected > 0)
@@ -50,7 +49,7 @@ namespace Config_API.Repository.Implementations
                 {
                     string updateQuery = @"UPDATE [tblClass] 
                            SET [ClassName] = @ClassName, [ClassCode] = @ClassCode, [Status] = @Status, 
-                               [modifiedby] = @ModifiedBy, [modifiedon] = @ModifiedOn, [showcourse] = @ShowCourse, [EmployeeID] = @EmployeeID, [EmpFirstName] = @EmpFirstName
+                               [modifiedby] = @ModifiedBy, [modifiedon] = @ModifiedOn, [EmployeeID] = @EmployeeID
                            WHERE [ClassId] = @ClassId";
                     int rowsAffected = await _connection.ExecuteAsync(updateQuery, new
                     {
@@ -58,8 +57,6 @@ namespace Config_API.Repository.Implementations
                         request.ClassCode,
                         request.Status,
                         request.EmployeeID,
-                        request.EmpFirstName,
-                        request.showcourse,
                         request.modifiedby,
                         modifiedon = DateTime.Now,
                         request.ClassId
@@ -81,7 +78,41 @@ namespace Config_API.Repository.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<Class>>> GetAllClasses()
+        public async Task<ServiceResponse<List<Class>>> GetAllClasses(GetAllClassesRequest request)
+        {
+            try
+            {
+                string query = @"SELECT [ClassId]
+                                  ,[ClassName]
+                                  ,[ClassCode]
+                                  ,[Status]
+                                  ,[createdby]
+                                  ,[createdon]
+                                  ,[modifiedby]
+                                  ,[modifiedon]
+                                  ,[showcourse]
+                                  ,[EmployeeID]
+                                  ,[EmpFirstName]
+                           FROM [tblClass]";
+                var classes = await _connection.QueryAsync<Class>(query);
+                var paginatedList = classes.Skip((request.PageNumber - 1) * request.PageSize)
+                         .Take(request.PageSize)
+                         .ToList();
+                if (paginatedList.Count != 0)
+                {
+                    return new ServiceResponse<List<Class>>(true, "Records Found", paginatedList.AsList(), StatusCodes.Status302Found);
+                }
+                else
+                {
+                    return new ServiceResponse<List<Class>>(false, "Records Not Found", [], StatusCodes.Status204NoContent);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<Class>>(false, ex.Message, [], StatusCodes.Status500InternalServerError);
+            }
+        }
+        public async Task<ServiceResponse<List<Class>>> GetAllClassesMaster()
         {
             try
             {
@@ -113,7 +144,6 @@ namespace Config_API.Repository.Implementations
                 return new ServiceResponse<List<Class>>(false, ex.Message, [], StatusCodes.Status500InternalServerError);
             }
         }
-
         public async Task<ServiceResponse<Class>> GetClassById(int id)
         {
             try

@@ -1,6 +1,6 @@
-﻿using Config_API.DTOs.ServiceResponse;
+﻿using Config_API.DTOs.Requests;
+using Config_API.DTOs.ServiceResponse;
 using Config_API.Models;
-using Config_API.Repository.Implementations;
 using Config_API.Repository.Interfaces;
 using Config_API.Services.Interfaces;
 
@@ -38,11 +38,23 @@ namespace Config_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<Questiontype>>> GetQuestionTypeList()
+        public async Task<ServiceResponse<List<Questiontype>>> GetQuestionTypeList(GetAllQuestionTypeRequest request)
         {
             try
             {
-                return await _questionTypeRepository.GetQuestionTypeList();
+                return await _questionTypeRepository.GetQuestionTypeList(request);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<Questiontype>>(false, ex.Message, [], 500);
+            }
+        }
+
+        public async Task<ServiceResponse<List<Questiontype>>> GetQuestionTypeListMasters()
+        {
+            try
+            {
+                return await _questionTypeRepository.GetQuestionTypeListMasters();
             }
             catch (Exception ex)
             {

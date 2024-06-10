@@ -1,4 +1,4 @@
-﻿using Config_API.DTOs;
+﻿using Config_API.DTOs.Requests;
 using Config_API.DTOs.ServiceResponse;
 
 namespace Config_API.Repository.Interfaces
@@ -9,5 +9,6 @@ namespace Config_API.Repository.Interfaces
         Task<ServiceResponse<Board>> GetBoardById(int id);
         Task<ServiceResponse<string>> AddUpdateBoard(Board request);
         Task<ServiceResponse<bool>> StatusActiveInactive(int id);
+        Task<ServiceResponse<List<Board>>> GetAllBoardsMaster();
     }
 }

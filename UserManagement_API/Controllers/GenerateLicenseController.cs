@@ -55,12 +55,12 @@ namespace UserManagement_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
-        [HttpGet]
-        public async Task<IActionResult> GetGenerateLicenseList()
+        [HttpPost]
+        public async Task<IActionResult> GetGenerateLicenseList(GetAllLicensesListRequest request)
         {
             try
             {
-                var data = await _generateLicenseServices.GetGenerateLicenseList();
+                var data = await _generateLicenseServices.GetGenerateLicenseList(request);
                 if (data != null)
                 {
                     return Ok(data);

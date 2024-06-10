@@ -3,6 +3,7 @@ using ControlPanel_API.DTOs.ServiceResponse;
 using ControlPanel_API.Models;
 using ControlPanel_API.Repository.Interfaces;
 using Dapper;
+using System.Collections.Generic;
 using System.Data;
 
 namespace ControlPanel_API.Repository.Implementations
@@ -193,9 +194,12 @@ namespace ControlPanel_API.Repository.Implementations
                     request.SearchText = "%" + request.SearchText + "%";
                 }
                 var data = await _connection.QueryAsync<Employee>(query, request);
-                if (data.Any())
+                var paginatedList = data.Skip((request.PageNumber - 1) * request.PageSize)
+                      .Take(request.PageSize)
+                      .ToList();
+                if (paginatedList.Count != 0)
                 {
-                    return new ServiceResponse<List<Employee>>(true, "Records found", data.AsList(), StatusCodes.Status302Found);
+                    return new ServiceResponse<List<Employee>>(true, "Records found", paginatedList.AsList(), StatusCodes.Status302Found);
                 }
                 else
                 {

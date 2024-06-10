@@ -114,7 +114,7 @@ namespace Course_API.Repository.Implementations
                 return new ServiceResponse<ContentMaster>(false, ex.Message, new ContentMaster(), 500);
             }
         }
-        public async Task<ServiceResponse<List<ContentMaster>>> GetContentList()
+        public async Task<ServiceResponse<List<ContentMaster>>> GetContentList(GetAllContentListRequest request)
         {
             try
             {
@@ -129,7 +129,10 @@ namespace Course_API.Repository.Implementations
                         item.fileName = GetPDF(item.fileName);
                         item.PathURL = GetVideo(item.PathURL);
                     }
-                    return new ServiceResponse<List<ContentMaster>>(true, "Operation Successful", data.AsList(), 200);
+                    var paginatedList = data.Skip((request.PageNumber - 1) * request.PageSize)
+                     .Take(request.PageSize)
+                     .ToList();
+                    return new ServiceResponse<List<ContentMaster>>(true, "Operation Successful", paginatedList.AsList(), 200);
                 }
                 else
                 {

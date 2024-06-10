@@ -1,3 +1,4 @@
+using ControlPanel_API.DTOs;
 using ControlPanel_API.Models;
 using ControlPanel_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -16,13 +17,29 @@ namespace ControlPanel_API.Controllers
         {
             _designationService = designationServices;
         }
-
-        [HttpGet("GetDesignation")]
-        public async Task<IActionResult> GetDesignation()
+        [HttpGet("GetDesignationMasters")]
+        public async Task<IActionResult> GetDesignationMasters()
         {
             try
             {
-                return new OkObjectResult(await _designationService.GetDesignationList() );
+                return new OkObjectResult(await _designationService.GetDesignationListMasters());
+            }
+            catch (Exception ex)
+            {
+                return new JsonResult(ex.Message)
+                {
+                    StatusCode = (int)HttpStatusCode.NotFound
+                };
+            }
+
+        }
+
+        [HttpPost("GetDesignation")]
+        public async Task<IActionResult> GetDesignation(GetAllDesignationsRequest request)
+        {
+            try
+            {
+                return new OkObjectResult(await _designationService.GetDesignationList(request) );
             }
             catch (Exception ex)
             {

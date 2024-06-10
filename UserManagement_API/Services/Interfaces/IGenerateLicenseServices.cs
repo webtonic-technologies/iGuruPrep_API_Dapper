@@ -7,6 +7,6 @@ namespace UserManagement_API.Services.Interfaces
     {
         Task<ServiceResponse<string>> AddUpdateGenerateLicense(GenerateLicenseDTO request);
         Task<ServiceResponse<GenerateLicenseDTO>> GetGenerateLicenseById(int GenerateLicenseID);
-        Task<ServiceResponse<List<GenerateLicenseDTO>>> GetGenerateLicenseList();
+        Task<ServiceResponse<List<GenerateLicenseDTO>>> GetGenerateLicenseList(GetAllLicensesListRequest request);
     }
 }

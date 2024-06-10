@@ -1,4 +1,5 @@
-﻿using Config_API.DTOs.ServiceResponse;
+﻿using Config_API.DTOs.Requests;
+using Config_API.DTOs.ServiceResponse;
 using Config_API.Repository.Interfaces;
 using Dapper;
 using iGuruPrep.Models;
@@ -21,8 +22,8 @@ namespace Config_API.Repository.Implementations
             {
                 if (request.SubjectId == 0)
                 {
-                    string insertSql = @"INSERT INTO tblSubject ([SubjectName], [SubjectCode], [Status], [createdby], [createdon], [displayorder], [groupname], [icon], [colorcode], [subjecttype], [EmployeeID], EmpFirstName)
-                           VALUES (@SubjectName, @SubjectCode, @Status, @CreatedBy, GETDATE(), @DisplayOrder, @GroupName, @Icon, @ColorCode, @SubjectType, @EmployeeID, @EmpFirstName)";
+                    string insertSql = @"INSERT INTO tblSubject ([SubjectName], [SubjectCode], [Status], [createdby], [createdon], [EmployeeID])
+                           VALUES (@SubjectName, @SubjectCode, @Status, @CreatedBy, GETDATE(), @EmployeeID)";
                     
                     int rowsAffected = await _connection.ExecuteAsync(insertSql, new
                     {
@@ -31,13 +32,7 @@ namespace Config_API.Repository.Implementations
                         Status = true,
                         request.createdby,
                         createdon = DateTime.Now,
-                        request.displayorder,
-                        request.groupname,
-                        request.icon,
-                        request.colorcode,
-                        request.subjecttype,
                         request.EmployeeID,
-                        request.EmpFirstName
                     });
 
                     if (rowsAffected > 0)
@@ -52,7 +47,7 @@ namespace Config_API.Repository.Implementations
                 else
                 {
                     string updateSql = @"UPDATE [tblSubject]
-                           SET [SubjectName] = @SubjectName, [SubjectCode] = @SubjectCode, [Status] = @Status, [modifiedby] = @ModifiedBy, [modifiedon] = GETDATE(), [groupname] = @GroupName, [icon] = @Icon, [colorcode] = @ColorCode, [subjecttype] = @SubjectType, EmpFirstName = @EmpFirstName
+                           SET [SubjectName] = @SubjectName, [SubjectCode] = @SubjectCode, [Status] = @Status, [modifiedby] = @ModifiedBy, [modifiedon] = GETDATE(), EmployeeID = @EmployeeID
                            WHERE [SubjectId] = @SubjectId";
 
                     int rowsAffected = await _connection.ExecuteAsync(updateSql, new
@@ -63,13 +58,7 @@ namespace Config_API.Repository.Implementations
                         request.Status,
                         request.modifiedby,
                         modifiedon = DateTime.Now,
-                        request.displayorder,
-                        request.groupname,
-                        request.icon,
-                        request.colorcode,
-                        request.subjecttype,
-                        request.EmployeeID,
-                        request.EmpFirstName
+                        request.EmployeeID
                     });
 
                     if (rowsAffected > 0)
@@ -87,8 +76,33 @@ namespace Config_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, StatusCodes.Status500InternalServerError);
             }
         }
+        public async Task<ServiceResponse<List<Subject>>> GetAllSubjects(GetAllSubjectsRequest request)
+        {
+            try
+            {
+                // Construct the SQL query to select all subjects
+                string query = "SELECT [SubjectId], [SubjectName], [SubjectCode], [Status], [createdby], [createdon], [displayorder], [modifiedby], [modifiedon], [groupname], [icon], [colorcode], [subjecttype], [EmployeeID], EmpFirstName FROM [tblSubject]";
 
-        public async Task<ServiceResponse<List<Subject>>> GetAllSubjects()
+                // Execute the select query asynchronously
+                var data = await _connection.QueryAsync<Subject>(query);
+                var paginatedList = data.Skip((request.PageNumber - 1) * request.PageSize)
+        .Take(request.PageSize)
+        .ToList();
+                if (paginatedList.Count != 0)
+                {
+                    return new ServiceResponse<List<Subject>>(true, "Records Found", paginatedList.AsList(), StatusCodes.Status302Found);
+                }
+                else
+                {
+                    return new ServiceResponse<List<Subject>>(false, "Records Not Found", [], StatusCodes.Status204NoContent);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<Subject>>(false, ex.Message, [], StatusCodes.Status500InternalServerError);
+            }
+        }
+        public async Task<ServiceResponse<List<Subject>>> GetAllSubjectsMAsters()
         {
             try
             {
@@ -112,7 +126,6 @@ namespace Config_API.Repository.Implementations
                 return new ServiceResponse<List<Subject>>(false, ex.Message, [], StatusCodes.Status500InternalServerError);
             }
         }
-
         public async Task<ServiceResponse<Subject>> GetSubjectById(int id)
         {
 
@@ -136,7 +149,6 @@ namespace Config_API.Repository.Implementations
                 return new ServiceResponse<Subject>(false, ex.Message, new Subject(), StatusCodes.Status500InternalServerError);
             }
         }
-
         public async Task<ServiceResponse<bool>> StatusActiveInactive(int id)
         {
             try

@@ -39,11 +39,11 @@ namespace Course_API.Services.Implementations
         }
 
 
-        public async Task<ServiceResponse<List<ContentMaster>>> GetContentList()
+        public async Task<ServiceResponse<List<ContentMaster>>> GetContentList(GetAllContentListRequest request)
         {
             try
             {
-                return await _contentMasterRepository.GetContentList();
+                return await _contentMasterRepository.GetContentList(request);
             }
             catch (Exception ex)
             {

@@ -1,4 +1,5 @@
-﻿using Config_API.DTOs;
+﻿using Config_API.DTOs.Requests;
+using Config_API.DTOs.Response;
 using Config_API.DTOs.ServiceResponse;
 using Config_API.Models;
 
@@ -11,6 +12,6 @@ namespace Config_API.Repository.Interfaces
         Task<ServiceResponse<string>> AddUpdateNotification(NotificationDTO request);
         Task<ServiceResponse<bool>> StatusActiveInactive(int id);
         Task<ServiceResponse<NotificationResponseDTO>> GetNotificationsById(int id);
-        Task<ServiceResponse<List<NotificationResponseDTO>>> GetListofNotifications();
+        Task<ServiceResponse<List<NotificationResponseDTO>>> GetListofNotifications(GetAllNotificationModRequest request);
     }
 }

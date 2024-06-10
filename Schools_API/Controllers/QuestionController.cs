@@ -41,10 +41,10 @@ namespace Schools_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
-        [HttpGet("GetAllQuestions")]
-        public async Task<IActionResult> GetAllQuestionsList()
+        [HttpPost("GetAllQuestions")]
+        public async Task<IActionResult> GetAllQuestionsList(GetAllQuestionListRequest request)
         {
-            var projects = await _questionServices.GetAllQuestionsList();
+            var projects = await _questionServices.GetAllQuestionsList(request);
 
             if (projects == null)
             {

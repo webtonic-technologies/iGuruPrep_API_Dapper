@@ -1,3 +1,4 @@
+using Config_API.DTOs.Requests;
 using Config_API.Services.Interfaces;
 using iGuruPrep.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -37,12 +38,35 @@ namespace Config_API.Controllers
             }
 
         }
-        [HttpGet("GetAllSubjects")]
-        public async Task<IActionResult> GetAllSubjectsList()
+        [HttpPost("GetAllSubjects")]
+        public async Task<IActionResult> GetAllSubjectsList(GetAllSubjectsRequest request)
         {
             try
             {
-                var data = await _subjectService.GetAllSubjects();
+                var data = await _subjectService.GetAllSubjects(request);
+                if (data != null)
+                {
+                    return Ok(data);
+
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+
+        }
+        [HttpGet("GetAllSubjectsMasters")]
+        public async Task<IActionResult> GetAllSubjectsListMasters()
+        {
+            try
+            {
+                var data = await _subjectService.GetAllSubjectsMAsters();
                 if (data != null)
                 {
                     return Ok(data);

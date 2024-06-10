@@ -1,10 +1,12 @@
 ﻿using ControlPanel_API.Models;
+using System.ComponentModel.DataAnnotations;
 
 namespace ControlPanel_API.DTOs
 {
     public class NotificationDTO
     {
         public int NBNotificationID { get; set; }
+        [Required(ErrorMessage = "Title cannot be empty")]
         public string NotificationTitle { get; set; } = string.Empty;
         public string PathURL { get; set; } = string.Empty;
         public bool status { get; set; }
@@ -66,5 +68,7 @@ namespace ControlPanel_API.DTOs
         public int CourseID { get; set; }
         public int SubjectID { get; set; }
         public int ExamTypeID { get; set; }
+        public int PageNumber { get; set; }
+        public int PageSize { get; set; }
     }
 }

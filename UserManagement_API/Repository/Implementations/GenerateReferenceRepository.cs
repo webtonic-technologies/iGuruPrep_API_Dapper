@@ -209,7 +209,7 @@ namespace UserManagement_API.Repository.Implementations
                 return new ServiceResponse<GenerateReferenceDTO>(false, ex.Message, new GenerateReferenceDTO(), 500);
             }
         }
-        public async Task<ServiceResponse<List<GenerateReferenceDTO>>> GetGenerateReferenceList()
+        public async Task<ServiceResponse<List<GenerateReferenceDTO>>> GetGenerateReferenceList(GetAllReferralsRequest request)
         {
             try
             {
@@ -240,7 +240,10 @@ namespace UserManagement_API.Repository.Implementations
                         };
                         resposne.Add(record);
                     }
-                    return new ServiceResponse<List<GenerateReferenceDTO>>(true, "Records found", resposne, 500);
+                    var paginatedList = resposne.Skip((request.PageNumber - 1) * request.PageSize)
+                   .Take(request.PageSize)
+                   .ToList();
+                    return new ServiceResponse<List<GenerateReferenceDTO>>(true, "Records found", paginatedList, 500);
                 }
                 else
                 {

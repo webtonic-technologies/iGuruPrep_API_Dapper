@@ -1,19 +1,30 @@
-﻿namespace ControlPanel_API.DTOs
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace ControlPanel_API.DTOs
 {
     public class EmployeeDTO
     {
         public int Employeeid { get; set; }
         public int Usercode { get; set; }
+        [Required(ErrorMessage = "Role name cannot be empty")]
         public int RoleID { get; set; }
+        [Required(ErrorMessage = "Designation name cannot be empty")]
         public int DesignationID { get; set; }
+        [Required(ErrorMessage = "First name cannot be empty")]
         public string EmpFirstName { get; set; } = string.Empty;
+        [Required(ErrorMessage = "BoLastard name cannot be empty")]
         public string EmpLastName { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Phone number cannot be empty")]
         public string EMPPhoneNumber { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Email cannot be empty")]
         public string EMPEmail { get; set; } = string.Empty;
         public DateTime? EMPDOB { get; set; }
+        [Required(ErrorMessage = "Zip code cannot be empty")]
         public string ZipCode { get; set; } = string.Empty;
+        [Required(ErrorMessage = "District name cannot be empty")]
         public string DistrictName { get; set; } = string.Empty;
         public List<EmployeeSubject>? EmployeeSubjects { get; set; }
+        [Required(ErrorMessage = "State name cannot be empty")]
         public string StateName { get; set; } = string.Empty;
         public string VcName { get; set; } = string.Empty;
         public string Rolename { get; set; } = string.Empty;

@@ -1,3 +1,4 @@
+using ControlPanel_API.DTOs;
 using ControlPanel_API.Models;
 using ControlPanel_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -17,12 +18,12 @@ namespace ControlPanel_API.Controllers
             _helpFAQServices = helpFAQServices;
         }
 
-        [HttpGet("GetFAQs")]
-        public async Task<IActionResult> GetListOfFAQ()
+        [HttpPost("GetFAQs")]
+        public async Task<IActionResult> GetListOfFAQ(GetAllFAQRequest request)
         {
             try
             {
-                return new OkObjectResult(await _helpFAQServices.GetFAQList());
+                return new OkObjectResult(await _helpFAQServices.GetFAQList(request));
             }
             catch (Exception ex)
             {
