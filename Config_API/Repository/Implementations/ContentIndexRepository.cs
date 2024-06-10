@@ -21,6 +21,9 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
+
+                string countSql = @"SELECT COUNT(*) FROM [tblContentIndexChapters]";
+                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
                 // Base query to fetch the content indexes
                 string query = @"SELECT * FROM [tblContentIndexChapters] WHERE 1 = 1";
 
@@ -65,16 +68,16 @@ namespace Config_API.Repository.Implementations
                         contentIndex.ContentIndexTopics = topics;
                     }
 
-                    return new ServiceResponse<List<ContentIndexRequest>>(true, "Records found", contentIndexes.AsList(), StatusCodes.Status302Found);
+                    return new ServiceResponse<List<ContentIndexRequest>>(true, "Records found", contentIndexes.AsList(), StatusCodes.Status302Found, totalCount);
                 }
                 else
                 {
-                    return new ServiceResponse<List<ContentIndexRequest>>(false, "Records not found", new List<ContentIndexRequest>(), StatusCodes.Status204NoContent);
+                    return new ServiceResponse<List<ContentIndexRequest>>(false, "Records not found", [], StatusCodes.Status204NoContent);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<ContentIndexRequest>>(false, ex.Message, new List<ContentIndexRequest>(), StatusCodes.Status500InternalServerError);
+                return new ServiceResponse<List<ContentIndexRequest>>(false, ex.Message, [], StatusCodes.Status500InternalServerError);
             }
         }
         public async Task<ServiceResponse<ContentIndexRequest>> GetContentIndexById(int id)

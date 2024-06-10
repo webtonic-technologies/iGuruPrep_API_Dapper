@@ -77,11 +77,12 @@ namespace Config_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, StatusCodes.Status500InternalServerError);
             }
         }
-
         public async Task<ServiceResponse<List<Class>>> GetAllClasses(GetAllClassesRequest request)
         {
             try
             {
+                string countSql = @"SELECT COUNT(*) FROM [tblClass]";
+                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
                 string query = @"SELECT [ClassId]
                                   ,[ClassName]
                                   ,[ClassCode]
@@ -100,7 +101,7 @@ namespace Config_API.Repository.Implementations
                          .ToList();
                 if (paginatedList.Count != 0)
                 {
-                    return new ServiceResponse<List<Class>>(true, "Records Found", paginatedList.AsList(), StatusCodes.Status302Found);
+                    return new ServiceResponse<List<Class>>(true, "Records Found", paginatedList.AsList(), StatusCodes.Status302Found, totalCount);
                 }
                 else
                 {
@@ -178,7 +179,6 @@ namespace Config_API.Repository.Implementations
                 return new ServiceResponse<Class>(false, ex.Message, new Class(), 500);
             }
         }
-
         public async Task<ServiceResponse<bool>> StatusActiveInactive(int id)
         {
             try

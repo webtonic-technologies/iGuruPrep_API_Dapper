@@ -103,6 +103,9 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
+                string countSql = @"SELECT COUNT(*) FROM [tblStatusMessage]";
+                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
+
                 string query = @"SELECT StatusId, StatusCode, StatusMessage, modifiedon, modifiedby, createdon, createdby, EmployeeID, EmpFirstName 
                              FROM [tblStatusMessage]";
 
@@ -112,7 +115,7 @@ namespace Config_API.Repository.Implementations
           .ToList();
                 if (paginatedList.Count != 0)
                 {
-                    return new ServiceResponse<List<StatusMessages>>(true, "Record Found", paginatedList.AsList(), 200);
+                    return new ServiceResponse<List<StatusMessages>>(true, "Record Found", paginatedList.AsList(), 200, totalCount);
                 }
                 else
                 {

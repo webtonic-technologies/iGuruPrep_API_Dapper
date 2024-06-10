@@ -130,6 +130,9 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
+                string countSql = @"SELECT COUNT(*) FROM [tblQBQuestionType]";
+                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
+
                 string query = @"SELECT [QuestionTypeID],[QuestionType],[Code],[Status],[MinNoOfOptions]
                                     ,[modifiedon],[modifiedby],[createdon],[createdby],[EmployeeID],[TypeOfOption], EmpFirstName
                                     FROM [tblQBQuestionType];";
@@ -140,7 +143,7 @@ namespace Config_API.Repository.Implementations
              .ToList();
                 if (paginatedList.Count != 0)
                 {
-                    return new ServiceResponse<List<Questiontype>>(true, "Records Found", paginatedList.AsList(), StatusCodes.Status302Found);
+                    return new ServiceResponse<List<Questiontype>>(true, "Records Found", paginatedList.AsList(), StatusCodes.Status302Found, totalCount);
                 }
                 else
                 {

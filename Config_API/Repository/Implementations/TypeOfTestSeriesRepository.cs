@@ -90,6 +90,9 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
+                string countSql = @"SELECT COUNT(*) FROM [tblTypeOfTestSeries]";
+                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
+
                 string sql = @"SELECT * FROM tblTypeOfTestSeries";
 
                 var data = await _connection.QueryAsync<TypeOfTestSeries>(sql);
@@ -98,7 +101,7 @@ namespace Config_API.Repository.Implementations
        .ToList();
                 if (paginatedList.Count != 0)
                 {
-                    return new ServiceResponse<List<TypeOfTestSeries>>(true, "Records Found", paginatedList.AsList(), StatusCodes.Status302Found);
+                    return new ServiceResponse<List<TypeOfTestSeries>>(true, "Records Found", paginatedList.AsList(), StatusCodes.Status302Found, totalCount);
                 }
                 else
                 {

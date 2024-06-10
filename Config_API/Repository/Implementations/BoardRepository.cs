@@ -83,6 +83,8 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
+                string countSql = @"SELECT COUNT(*) FROM [tblBoard]";
+                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
                 string sql = @"SELECT [BoardId]
                                   ,[BoardName]
                                   ,[BoardCode]
@@ -102,7 +104,7 @@ namespace Config_API.Repository.Implementations
                            .ToList();
                 if (paginatedList.Count != 0)
                 {
-                    return new ServiceResponse<List<Board>>(true, "Records Found", paginatedList.AsList(), StatusCodes.Status302Found);
+                    return new ServiceResponse<List<Board>>(true, "Records Found", paginatedList.AsList(), StatusCodes.Status302Found, totalCount);
                 }
                 else
                 {

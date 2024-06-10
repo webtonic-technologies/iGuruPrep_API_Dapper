@@ -21,6 +21,8 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
+                string countSql = @"SELECT COUNT(*) FROM [tblClassCourses]";
+                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
                 string query = @"
         SELECT 
             cc.CourseClassMappingID,
@@ -66,18 +68,18 @@ namespace Config_API.Repository.Implementations
                     .Take(request.PageSize)
                     .ToList();
 
-                if (paginatedList.Any())
+                if (paginatedList.Count != 0)
                 {
-                    return new ServiceResponse<List<ClassCourseMappingResponse>>(true, "Records Found", paginatedList, 200);
+                    return new ServiceResponse<List<ClassCourseMappingResponse>>(true, "Records Found", paginatedList, 200, totalCount);
                 }
                 else
                 {
-                    return new ServiceResponse<List<ClassCourseMappingResponse>>(false, "Records Not Found", new List<ClassCourseMappingResponse>(), 204);
+                    return new ServiceResponse<List<ClassCourseMappingResponse>>(false, "Records Not Found", [], 204);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<ClassCourseMappingResponse>>(false, ex.Message, new List<ClassCourseMappingResponse>(), 500);
+                return new ServiceResponse<List<ClassCourseMappingResponse>>(false, ex.Message, [], 500);
             }
         }
         public async Task<ServiceResponse<ClassCourseMappingResponse>> GetClassCourseMappingById(int id)
