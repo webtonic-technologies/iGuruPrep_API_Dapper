@@ -31,16 +31,16 @@ namespace Config_API.Repository.Implementations
             cc.Status,
             cc.createdon,
             cc.EmployeeID,
-            e.EmpFirstName,
+            e.EmpFirstName AS EmpFirstName,
             cc.modifiedon,
             cc.modifiedby,
             cl.classname,
             c.coursename
         FROM 
             tblClassCourses cc
-        INNER JOIN tblClasses cl ON cc.ClassID = cl.ClassID
-        INNER JOIN tblCourses c ON cc.CourseID = c.CourseID
-        LEFT JOIN tblEmployees e ON cc.EmployeeID = e.EmployeeID";
+        INNER JOIN tblClass cl ON cc.ClassID = cl.ClassID
+        INNER JOIN tblCourse c ON cc.CourseID = c.CourseID
+        LEFT JOIN tblEmployee e ON cc.EmployeeID = e.Employeeid";
 
                 var classCourseMappings = await _connection.QueryAsync<dynamic>(query);
 
@@ -53,6 +53,7 @@ namespace Config_API.Repository.Implementations
                         Status = g.First().Status,
                         createdon = g.First().createdon,
                         EmployeeID = g.First().EmployeeID,
+                        EmpFirstName = g.First().EmpFirstName,
                         modifiedon = g.First().modifiedon,
                         modifiedby = g.First().modifiedby,
                         classname = g.First().classname,
@@ -98,11 +99,13 @@ namespace Config_API.Repository.Implementations
             cc.modifiedon,
             cc.modifiedby,
             cl.classname,
-            c.coursename
+            c.coursename,
+            e.EmpFirstName
         FROM 
             tblClassCourses cc
-        INNER JOIN tblClasses cl ON cc.ClassID = cl.ClassID
-        INNER JOIN tblCourses c ON cc.CourseID = c.CourseID
+        INNER JOIN tblClass cl ON cc.ClassID = cl.ClassID
+        INNER JOIN tblCourse c ON cc.CourseID = c.CourseID
+        LEFT JOIN tblEmployee e ON cc.EmployeeID = e.Employeeid
         WHERE 
             cc.CourseClassMappingID = @CourseClassMappingID";
 
@@ -122,6 +125,7 @@ namespace Config_API.Repository.Implementations
                 response.classname = firstRecord.classname;
                 response.modifiedby = firstRecord.modifiedby;
                 response.modifiedon = firstRecord.modifiedon;
+                response.EmpFirstName = firstRecord.EmpFirstName;
 
                 response.Courses = data.Select(item => new CourseData
                 {

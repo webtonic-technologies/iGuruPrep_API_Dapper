@@ -53,7 +53,7 @@ namespace Config_API.Repository.Implementations
 
                         string subTopicsSql = @"
                     SELECT st.*
-                    FROM [tblContentIndexSubTopic] st
+                    FROM [tblContentIndexSubTopics] st
                     INNER JOIN [tblContentIndexTopics] t ON st.ContInIdTopic = t.ContInIdTopic
                     WHERE t.ContentIndexId = @contentIndexId";
                         var subTopics = (await _connection.QueryAsync<ContentIndexSubTopic>(subTopicsSql, new { contentIndexId = contentIndex.ContentIndexId })).ToList();
@@ -100,7 +100,7 @@ namespace Config_API.Repository.Implementations
                 // Fetch the related subtopics
                 string subTopicsSql = @"
             SELECT st.*
-            FROM [tblContentIndexSubTopic] st
+            FROM [tblContentIndexSubTopics] st
             INNER JOIN [tblContentIndexTopics] t ON st.ContInIdTopic = t.ContInIdTopic
             WHERE t.ContentIndexId = @contentIndexId";
                 var subTopics = await _connection.QueryAsync<ContentIndexSubTopic>(subTopicsSql, new { contentIndexId = contentIndex.ContentIndexId });
@@ -140,6 +140,10 @@ namespace Config_API.Repository.Implementations
         }
         public async Task<ServiceResponse<bool>> StatusActiveInactive(int id)
         {
+            if (_connection.State != ConnectionState.Open)
+            {
+                _connection.Open();
+            }
             using var transaction = _connection.BeginTransaction();
             try
             {
@@ -185,7 +189,7 @@ namespace Config_API.Repository.Implementations
                     UPDATE st
                     SET st.Status = @Status,
                         st.ModifiedOn = @ModifiedOn
-                    FROM [tblContentIndexSubTopic] st
+                    FROM [tblContentIndexSubTopics] st
                     INNER JOIN [tblContentIndexTopics] t ON st.ContInIdTopic = t.ContInIdTopic
                     WHERE t.ContentIndexId = @ContentIndexId";
 
@@ -215,9 +219,18 @@ namespace Config_API.Repository.Implementations
                 transaction.Rollback();
                 return new ServiceResponse<bool>(false, ex.Message, false, StatusCodes.Status500InternalServerError);
             }
+            finally
+            {
+                _connection.Close();
+            }
         }
         public async Task<ServiceResponse<string>> AddUpdateContentIndex(ContentIndexRequest request)
         {
+
+            if (_connection.State != ConnectionState.Open)
+            {
+                _connection.Open();
+            }
             using var transaction = _connection.BeginTransaction();
             try
             {
@@ -248,7 +261,7 @@ namespace Config_API.Repository.Implementations
                     {
                         await InsertOrUpdateContentIndexTopics(insertedId, request.ContentIndexTopics, transaction);
                         transaction.Commit();
-                        return new ServiceResponse<string>(true, "Content Index Added Successfully", string.Empty, StatusCodes.Status201Created);
+                        return new ServiceResponse<string>(true, "Operation Successful", "Content Index Added Successfully", StatusCodes.Status201Created);
                     }
                     else
                     {
@@ -294,7 +307,7 @@ namespace Config_API.Repository.Implementations
                     {
                         await InsertOrUpdateContentIndexTopics(request.ContentIndexId, request.ContentIndexTopics, transaction);
                         transaction.Commit();
-                        return new ServiceResponse<string>(true, "Content Index Updated Successfully", string.Empty, StatusCodes.Status200OK);
+                        return new ServiceResponse<string>(true, "Operation Successful", "Content Index Updated Successfully", StatusCodes.Status200OK);
                     }
                     else
                     {
@@ -307,6 +320,10 @@ namespace Config_API.Repository.Implementations
             {
                 transaction.Rollback();
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, StatusCodes.Status500InternalServerError);
+            }
+            finally
+            {
+                _connection.Close();
             }
         }
         private async Task InsertOrUpdateContentIndexTopics(int contentIndexId, List<ContentIndexTopics>? topics, IDbTransaction transaction)
@@ -375,7 +392,7 @@ namespace Config_API.Repository.Implementations
                     {
                         // Insert new subtopic
                         string insertSubTopicQuery = @"
-                    INSERT INTO tblContentIndexSubTopic (ContInIdTopic, ContentName_SubTopic, Status, IndexTypeId, CreatedOn, CreatedBy, EmployeeId)
+                    INSERT INTO tblContentIndexSubTopics (ContInIdTopic, ContentName_SubTopic, Status, IndexTypeId, CreatedOn, CreatedBy, EmployeeId)
                     VALUES (@ContInIdTopic, @ContentName_SubTopic, @Status, @IndexTypeId, @CreatedOn, @CreatedBy, @EmployeeId);";
 
                         await _connection.ExecuteAsync(insertSubTopicQuery, new
@@ -393,7 +410,7 @@ namespace Config_API.Repository.Implementations
                     {
                         // Update existing subtopic
                         string updateSubTopicQuery = @"
-                    UPDATE tblContentIndexSubTopic SET
+                    UPDATE tblContentIndexSubTopics SET
                         ContentName_SubTopic = @ContentName_SubTopic,
                         Status = @Status,
                         IndexTypeId = @IndexTypeId,
@@ -416,6 +433,5 @@ namespace Config_API.Repository.Implementations
                 }
             }
         }
-
     }
 }

@@ -8,6 +8,7 @@
         public bool? Status { get; set; }
         public DateTime? createdon { get; set; }
         public int? EmployeeID { get; set; }
+        public string EmpFirstName { get; set; } = string.Empty;
         public DateTime? modifiedon { get; set; }
         public string modifiedby { get; set; } = string.Empty;
         public string classname { get; set; } = string.Empty;

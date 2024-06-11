@@ -22,8 +22,8 @@ namespace Config_API.Repository.Implementations
                 if (request.QuestionTypeID == 0)
                 {
                     string query = @"
-        INSERT INTO [tblQBQuestionType] (QuestionType, Code, Status, MinNoOfOptions, createdon, createdby, EmployeeID, TypeOfOption)
-        VALUES (@QuestionType, @Code, @Status, @MinNoOfOptions, @createdon, @createdby, @EmployeeID, @TypeOfOption);";
+        INSERT INTO [tblQBQuestionType] (QuestionType, Code, Status, MinNoOfOptions, createdon, createdby, EmployeeID, TypeOfOption, Question)
+        VALUES (@QuestionType, @Code, @Status, @MinNoOfOptions, @createdon, @createdby, @EmployeeID, @TypeOfOption, @Question);";
                     int insertedValue = await _connection.ExecuteAsync(query, new
                     {
                         request.MinNoOfOptions,
@@ -33,7 +33,8 @@ namespace Config_API.Repository.Implementations
                         Status = true,
                         createdon = DateTime.Now,
                         request.createdby,
-                        request.EmployeeID
+                        request.EmployeeID,
+                        request.Question
                     });
                     if (insertedValue > 0)
                     {
@@ -57,7 +58,8 @@ namespace Config_API.Repository.Implementations
             modifiedon = @modifiedon,
             modifiedby = @modifiedby,
             EmployeeID = @EmployeeID,
-            TypeOfOption = @TypeOfOption
+            TypeOfOption = @TypeOfOption,
+            Question = @Question
         WHERE QuestionTypeID = @QuestionTypeID;";
                     int rowsAffected = await _connection.ExecuteAsync(query, new
                     {
@@ -69,7 +71,8 @@ namespace Config_API.Repository.Implementations
                         modifiedon = DateTime.Now,
                         request.modifiedby,
                         request.EmployeeID,
-                        request.QuestionTypeID
+                        request.QuestionTypeID,
+                        request.Question
                     });
                     if (rowsAffected > 0)
                     {
@@ -104,7 +107,8 @@ namespace Config_API.Repository.Implementations
             createdby,
             EmployeeID,
             TypeOfOption,
-            EmpFirstName
+            EmpFirstName,
+            Question
         FROM 
             [tblQBQuestionType]
         WHERE 
@@ -133,7 +137,7 @@ namespace Config_API.Repository.Implementations
                 string countSql = @"SELECT COUNT(*) FROM [tblQBQuestionType]";
                 int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
 
-                string query = @"SELECT [QuestionTypeID],[QuestionType],[Code],[Status],[MinNoOfOptions]
+                string query = @"SELECT [QuestionTypeID],[QuestionType],[Code],[Status],[MinNoOfOptions], Question
                                     ,[modifiedon],[modifiedby],[createdon],[createdby],[EmployeeID],[TypeOfOption], EmpFirstName
                                     FROM [tblQBQuestionType];";
 
@@ -159,7 +163,7 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
-                string query = @"SELECT [QuestionTypeID],[QuestionType],[Code],[Status],[MinNoOfOptions]
+                string query = @"SELECT [QuestionTypeID],[QuestionType],[Code],[Status],[MinNoOfOptions], Question
                                     ,[modifiedon],[modifiedby],[createdon],[createdby],[EmployeeID],[TypeOfOption], EmpFirstName
                                     FROM [tblQBQuestionType];";
 
