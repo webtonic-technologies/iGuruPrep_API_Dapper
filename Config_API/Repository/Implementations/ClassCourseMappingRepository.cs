@@ -21,8 +21,6 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
-                string countSql = @"SELECT COUNT(*) FROM [tblClassCourses]";
-                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
                 string query = @"
         SELECT 
             cc.CourseClassMappingID,
@@ -48,7 +46,6 @@ namespace Config_API.Repository.Implementations
                     .GroupBy(m => m.ClassID)
                     .Select(g => new ClassCourseMappingResponse
                     {
-                        CourseClassMappingID = g.First().CourseClassMappingID,
                         ClassID = g.Key,
                         Status = g.First().Status,
                         createdon = g.First().createdon,
@@ -59,8 +56,10 @@ namespace Config_API.Repository.Implementations
                         classname = g.First().classname,
                         Courses = g.Select(m => new CourseData
                         {
+                            CourseClassMappingID = m.CourseClassMappingID,
                             CourseID = m.CourseID,
-                            Coursename = m.coursename
+                            Coursename = m.coursename,
+                          
                         }).ToList()
                     }).ToList();
 
@@ -71,7 +70,7 @@ namespace Config_API.Repository.Implementations
 
                 if (paginatedList.Count != 0)
                 {
-                    return new ServiceResponse<List<ClassCourseMappingResponse>>(true, "Records Found", paginatedList, 200, totalCount);
+                    return new ServiceResponse<List<ClassCourseMappingResponse>>(true, "Records Found", paginatedList, 200, groupedMappings.Count);
                 }
                 else
                 {
@@ -117,7 +116,6 @@ namespace Config_API.Repository.Implementations
                 }
 
                 var firstRecord = data.First();
-                response.CourseClassMappingID = firstRecord.CourseClassMappingID;
                 response.ClassID = firstRecord.ClassID;
                 response.Status = firstRecord.Status;
                 response.createdon = firstRecord.createdon;
@@ -129,8 +127,10 @@ namespace Config_API.Repository.Implementations
 
                 response.Courses = data.Select(item => new CourseData
                 {
+                    CourseClassMappingID = item.CourseClassMappingID,
                     CourseID = item.CourseID,
-                    Coursename = item.coursename
+                    Coursename = item.coursename,
+                  
                 }).ToList();
 
                 return new ServiceResponse<ClassCourseMappingResponse>(true, "Record Found", response, 200);
@@ -178,6 +178,10 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
+                if (request.CourseID?.Count == 0)
+                {
+                    return new ServiceResponse<string>(false, "Courses data cannot be empty", string.Empty, StatusCodes.Status400BadRequest);
+                }
                 var classData = await _connection.QueryAsync<Class>("SELECT * FROM tblClass WHERE ClassId = @ClassId", new { ClassId = request.ClassID });
                 if (classData != null)
                 {
@@ -194,7 +198,7 @@ namespace Config_API.Repository.Implementations
                         {
                             if (existingCourseIDs.Contains(courseId))
                             {
-                                return new ServiceResponse<string>(false, $"Course ID {courseId} already exists for Class ID {request.ClassID}", string.Empty, StatusCodes.Status400BadRequest);
+                                return new ServiceResponse<string>(false, "Record already exists", string.Empty, StatusCodes.Status400BadRequest);
                             }
 
                             string query = @"INSERT INTO tblClassCourses (CourseID, ClassID, Status, createdon, EmployeeID) 
@@ -226,7 +230,7 @@ namespace Config_API.Repository.Implementations
                         {
                             if (existingCourseIDs.Contains(courseId))
                             {
-                                return new ServiceResponse<string>(false, $"Course ID {courseId} already exists for Class ID {request.ClassID}", string.Empty, StatusCodes.Status400BadRequest);
+                                return new ServiceResponse<string>(false, "Record already exists", string.Empty, StatusCodes.Status400BadRequest);
                             }
 
                             string query = @"INSERT INTO tblClassCourses (CourseID, ClassID, Status, createdon, EmployeeID, modifiedon, modifiedby) 

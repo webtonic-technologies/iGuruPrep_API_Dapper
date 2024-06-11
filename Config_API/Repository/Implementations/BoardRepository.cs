@@ -51,7 +51,7 @@ namespace Config_API.Repository.Implementations
                              Status = @Status,  
                              modifiedon = @modifiedon, 
                              modifiedby = @modifiedby, 
-                             EmployeeID = @EmployeeID,
+                             EmployeeID = @EmployeeID
                          WHERE BoardId = @BoardId";
                     int rowsAffected = await _connection.ExecuteAsync(query, new
                     {

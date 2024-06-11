@@ -55,7 +55,7 @@ namespace Config_API.Repository.Implementations
                            [Status] = @Status, 
                            [modifiedby] = @ModifiedBy, 
                            [modifiedon] = GETDATE(), 
-                           [EmployeeID] = @EmployeeID,
+                           [EmployeeID] = @EmployeeID
                            WHERE [CourseId] = @CourseId";
                     int rowsAffected = await _connection.ExecuteAsync(updateQuery, new
                     {
