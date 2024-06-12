@@ -1,4 +1,5 @@
 ﻿using Config_API.DTOs.Requests;
+using Config_API.DTOs.Response;
 using Config_API.DTOs.ServiceResponse;
 using Config_API.Models;
 using Config_API.Repository.Interfaces;
@@ -90,97 +91,131 @@ namespace Config_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, StatusCodes.Status500InternalServerError);
             }
         }
-        public async Task<ServiceResponse<Questiontype>> GetQuestionTypeByID(int Id)
+        public async Task<ServiceResponse<QuestionTypeResponse>> GetQuestionTypeByID(int Id)
         {
             try
             {
                 string query = @"
         SELECT 
-            QuestionTypeID,
-            QuestionType,
-            Code,
-            Status,
-            MinNoOfOptions,
-            modifiedon,
-            modifiedby,
-            createdon,
-            createdby,
-            EmployeeID,
-            TypeOfOption,
-            EmpFirstName,
-            Question
+            qt.QuestionTypeID,
+            qt.QuestionType,
+            qt.Code,
+            qt.Status,
+            qt.MinNoOfOptions,
+            qt.modifiedon,
+            qt.modifiedby,
+            qt.createdon,
+            qt.createdby,
+            qt.EmployeeID,
+            qt.TypeOfOption AS TypeOfOptionId,
+            ot.OptionTypeName AS TypeOfOptionName,
+            qt.Question
         FROM 
-            [tblQBQuestionType]
+            [tblQBQuestionType] qt
+        LEFT JOIN 
+            [tblQBOptionType] ot ON qt.TypeOfOption = ot.OptionTypeId
         WHERE 
-            QuestionTypeID = @QuestionTypeID;";
+            qt.QuestionTypeID = @QuestionTypeID;";
 
-                var data = await _connection.QueryFirstOrDefaultAsync<Questiontype>(query, new { QuestionTypeID = Id });
+                var data = await _connection.QueryFirstOrDefaultAsync<QuestionTypeResponse>(query, new { QuestionTypeID = Id });
 
                 if (data != null)
                 {
-                    return new ServiceResponse<Questiontype>(true, "Records Found", data, StatusCodes.Status302Found);
+                    return new ServiceResponse<QuestionTypeResponse>(true, "Records Found", data, StatusCodes.Status302Found);
                 }
                 else
                 {
-                    return new ServiceResponse<Questiontype>(false, "Records Not Found", new Questiontype(), StatusCodes.Status204NoContent);
+                    return new ServiceResponse<QuestionTypeResponse>(false, "Records Not Found", new QuestionTypeResponse(), StatusCodes.Status204NoContent);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<Questiontype>(false, ex.Message, new Questiontype(), StatusCodes.Status500InternalServerError);
+                return new ServiceResponse<QuestionTypeResponse>(false, ex.Message, new QuestionTypeResponse(), StatusCodes.Status500InternalServerError);
             }
         }
-        public async Task<ServiceResponse<List<Questiontype>>> GetQuestionTypeList(GetAllQuestionTypeRequest request)
+        public async Task<ServiceResponse<List<QuestionTypeResponse>>> GetQuestionTypeList(GetAllQuestionTypeRequest request)
         {
             try
             {
                 string countSql = @"SELECT COUNT(*) FROM [tblQBQuestionType]";
                 int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
 
-                string query = @"SELECT [QuestionTypeID],[QuestionType],[Code],[Status],[MinNoOfOptions], Question
-                                    ,[modifiedon],[modifiedby],[createdon],[createdby],[EmployeeID],[TypeOfOption], EmpFirstName
-                                    FROM [tblQBQuestionType];";
+                string query = @"
+        SELECT 
+            qt.QuestionTypeID,
+            qt.QuestionType,
+            qt.Code,
+            qt.Status,
+            qt.MinNoOfOptions,
+            qt.Question,
+            qt.modifiedon,
+            qt.modifiedby,
+            qt.createdon,
+            qt.createdby,
+            qt.EmployeeID,
+            qt.TypeOfOption AS TypeOfOptionId,
+            ot.OptionTypeName AS TypeOfOptionName
+        FROM 
+            [tblQBQuestionType] qt
+        LEFT JOIN 
+            [tblQBOptionType] ot ON qt.TypeOfOption = ot.OptionTypeId;";
 
-                var data = await _connection.QueryAsync<Questiontype>(query);
+                var data = await _connection.QueryAsync<QuestionTypeResponse>(query);
                 var paginatedList = data.Skip((request.PageNumber - 1) * request.PageSize)
              .Take(request.PageSize)
              .ToList();
                 if (paginatedList.Count != 0)
                 {
-                    return new ServiceResponse<List<Questiontype>>(true, "Records Found", paginatedList.AsList(), StatusCodes.Status302Found, totalCount);
+                    return new ServiceResponse<List<QuestionTypeResponse>>(true, "Records Found", paginatedList.AsList(), StatusCodes.Status302Found, totalCount);
                 }
                 else
                 {
-                    return new ServiceResponse<List<Questiontype>>(false, "Records Not Found", [], StatusCodes.Status204NoContent);
+                    return new ServiceResponse<List<QuestionTypeResponse>>(false, "Records Not Found", [], StatusCodes.Status204NoContent);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<Questiontype>>(false, ex.Message, [], StatusCodes.Status500InternalServerError);
+                return new ServiceResponse<List<QuestionTypeResponse>>(false, ex.Message, [], StatusCodes.Status500InternalServerError);
             }
         }
-        public async Task<ServiceResponse<List<Questiontype>>> GetQuestionTypeListMasters()
+        public async Task<ServiceResponse<List<QuestionTypeResponse>>> GetQuestionTypeListMasters()
         {
             try
             {
-                string query = @"SELECT [QuestionTypeID],[QuestionType],[Code],[Status],[MinNoOfOptions], Question
-                                    ,[modifiedon],[modifiedby],[createdon],[createdby],[EmployeeID],[TypeOfOption], EmpFirstName
-                                    FROM [tblQBQuestionType];";
+                string query = @"
+        SELECT 
+            qt.QuestionTypeID,
+            qt.QuestionType,
+            qt.Code,
+            qt.Status,
+            qt.MinNoOfOptions,
+            qt.Question,
+            qt.modifiedon,
+            qt.modifiedby,
+            qt.createdon,
+            qt.createdby,
+            qt.EmployeeID,
+            qt.TypeOfOption AS TypeOfOptionId,
+            ot.OptionTypeName AS TypeOfOptionName
+        FROM 
+            [tblQBQuestionType] qt
+        LEFT JOIN 
+            [tblQBOptionType] ot ON qt.TypeOfOption = ot.OptionTypeId;";
 
-                var data = await _connection.QueryAsync<Questiontype>(query);
+                var data = await _connection.QueryAsync<QuestionTypeResponse>(query);
 
                 if (data.Any())
                 {
-                    return new ServiceResponse<List<Questiontype>>(true, "Records Found", data.AsList(), StatusCodes.Status302Found);
+                    return new ServiceResponse<List<QuestionTypeResponse>>(true, "Records Found", data.AsList(), StatusCodes.Status302Found);
                 }
                 else
                 {
-                    return new ServiceResponse<List<Questiontype>>(false, "Records Not Found", [], StatusCodes.Status204NoContent);
+                    return new ServiceResponse<List<QuestionTypeResponse>>(false, "Records Not Found", [], StatusCodes.Status204NoContent);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<Questiontype>>(false, ex.Message, [], StatusCodes.Status500InternalServerError);
+                return new ServiceResponse<List<QuestionTypeResponse>>(false, ex.Message, [], StatusCodes.Status500InternalServerError);
             }
         }
         public async Task<ServiceResponse<List<NoOfOptions>>> NoOfOptionsList()

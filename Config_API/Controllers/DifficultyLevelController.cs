@@ -15,7 +15,7 @@ namespace Config_API.Controllers
         {
             _questionLevelService = questionLevelServices;
         }
-        [HttpPost]
+        [HttpPost("AddUpdate")]
         public async Task<IActionResult> AddUpdateDifficultyLevel(DifficultyLevel request)
         {
             try
@@ -61,7 +61,7 @@ namespace Config_API.Controllers
             }
 
         }
-        [HttpGet("GetDifficultyLevel/{DifficultyLevelId}")]
+        [HttpGet("GetDifficultyLevelById/{DifficultyLevelId}")]
         public async Task<IActionResult> GetDifficultyLevelById(int DifficultyLevelId)
         {
             try

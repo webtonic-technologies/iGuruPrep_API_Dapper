@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Config_API.Controllers
 {
-    [Route("iGuru/[controller]")]
+    [Route("iGuru/Configure/[controller]")]
     [ApiController]
     public class ContentIndexController : ControllerBase
     {
@@ -15,7 +15,7 @@ namespace Config_API.Controllers
         {
             _contentIndexServices = contentIndexServices;
         }
-        [HttpPost]
+        [HttpPost("AddUpdate")]
         public async Task<IActionResult> AddUpdateContentIndex(ContentIndexRequest request)
         {
             try
@@ -59,7 +59,7 @@ namespace Config_API.Controllers
             }
 
         }
-        [HttpGet("GetContentIndex/{ContentIndexId}")]
+        [HttpGet("GetContentIndexById/{ContentIndexId}")]
         public async Task<IActionResult> GetContentIndexById(int ContentIndexId)
         {
             try

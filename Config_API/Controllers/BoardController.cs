@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Config_API.Controllers
 {
-    [Route("iGuru/[controller]")]
+    [Route("iGuru/Configure/[controller]")]
     [ApiController]
     public class BoardController : ControllerBase
     {
@@ -14,7 +14,7 @@ namespace Config_API.Controllers
         {
             _boardService = boardService;
         }
-        [HttpPost]
+        [HttpPost("AddUpdate")]
         public async Task<IActionResult> AddUpdateBoard(Board request)
         {
             try
@@ -60,7 +60,7 @@ namespace Config_API.Controllers
             }
 
         }
-        [HttpGet("GetBoard/{BoardId}")]
+        [HttpGet("GetBoardById/{BoardId}")]
         public async Task<IActionResult> GetBoardById(int BoardId)
         {
             try

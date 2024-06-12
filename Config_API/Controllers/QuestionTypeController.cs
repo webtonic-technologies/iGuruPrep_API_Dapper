@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Config_API.Controllers
 {
-    [Route("iGuru/[controller]")]
+    [Route("iGuru/Configure/[controller]")]
     [ApiController]
     public class QuestionTypeController : ControllerBase
     {
@@ -15,7 +15,7 @@ namespace Config_API.Controllers
         {
             _questionTypeService = questionTypeService;
         }
-        [HttpPost]
+        [HttpPost("AddUpdate")]
         public async Task<IActionResult> AddUpdateQuestionType(Questiontype request)
         {
             try
@@ -59,12 +59,12 @@ namespace Config_API.Controllers
             }
 
         }
-        [HttpGet("GetQuestionType/{Id}")]
-        public async Task<IActionResult> GetBoardById(int Id)
+        [HttpGet("GetQuestionTypeById/{QuestionTypeID}")]
+        public async Task<IActionResult> GetBoardById(int QuestionTypeID)
         {
             try
             {
-                var data = await _questionTypeService.GetQuestionTypeByID(Id);
+                var data = await _questionTypeService.GetQuestionTypeByID(QuestionTypeID);
                 if (data != null)
                 {
                     return Ok(data);
@@ -81,12 +81,12 @@ namespace Config_API.Controllers
             }
 
         }
-        [HttpPut("Status/{Id}")]
-        public async Task<IActionResult> StatusActiveInactive(int Id)
+        [HttpPut("Status/{QuestionTypeID}")]
+        public async Task<IActionResult> StatusActiveInactive(int QuestionTypeID)
         {
             try
             {
-                var data = await _questionTypeService.StatusActiveInactive(Id);
+                var data = await _questionTypeService.StatusActiveInactive(QuestionTypeID);
                 if (data != null)
                 {
                     return Ok(data);

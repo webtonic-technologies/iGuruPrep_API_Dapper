@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Config_API.Controllers
 {
-    [Route("iGuru/[controller]")]
+    [Route("iGuru/Configure/[controller]")]
     [ApiController]
     public class ClassController : ControllerBase
     {
@@ -15,7 +15,7 @@ namespace Config_API.Controllers
         {
             _classService = classService;
         }
-        [HttpPost]
+        [HttpPost("AddUpdate")]
         public async Task<IActionResult> AddUpdateClass(Class request)
         {
             try
@@ -61,7 +61,7 @@ namespace Config_API.Controllers
             }
 
         }
-        [HttpGet("GetClass/{ClassId}")]
+        [HttpGet("GetClassById/{ClassId}")]
         public async Task<IActionResult> GetClassById(int ClassId)
         {
             try

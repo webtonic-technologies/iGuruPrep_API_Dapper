@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Config_API.Controllers
 {
-    [Route("iGuru/[controller]")]
+    [Route("iGuru/Configure/[controller]")]
     [ApiController]
     public class NotificationModController : ControllerBase
     {
@@ -15,7 +15,7 @@ namespace Config_API.Controllers
         {
             _notificationModServices = notificationModServices;
         }
-        [HttpPost]
+        [HttpPost("AddUpdate")]
         public async Task<IActionResult> AddUpdateNotification(NotificationDTO request)
         {
             try
@@ -61,12 +61,12 @@ namespace Config_API.Controllers
             }
 
         }
-        [HttpGet("GetNotification/{Id}")]
-        public async Task<IActionResult> GetNotificationsById(int Id)
+        [HttpGet("GetNotificationById/{notificationTemplateID}")]
+        public async Task<IActionResult> GetNotificationsById(int notificationTemplateID)
         {
             try
             {
-                var data = await _notificationModServices.GetNotificationsById(Id);
+                var data = await _notificationModServices.GetNotificationsById(notificationTemplateID);
                 if (data != null)
                 {
                     return Ok(data);
@@ -84,12 +84,12 @@ namespace Config_API.Controllers
             }
 
         }
-        [HttpPut("Status/{Id}")]
-        public async Task<IActionResult> StatusActiveInactive(int Id)
+        [HttpPut("Status/{notificationTemplateID}")]
+        public async Task<IActionResult> StatusActiveInactive(int notificationTemplateID)
         {
             try
             {
-                var data = await _notificationModServices.StatusActiveInactive(Id);
+                var data = await _notificationModServices.StatusActiveInactive(notificationTemplateID);
                 if (data != null)
                 {
                     return Ok(data);

@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Config_API.Controllers
 {
-    [Route("iGuru/[controller]")]
+    [Route("iGuru/Configure/[controller]")]
     [ApiController]
     public class SubjectController : ControllerBase
     {
@@ -15,7 +15,7 @@ namespace Config_API.Controllers
         {
             _subjectService = subjectServices;
         }
-        [HttpPost]
+        [HttpPost("AddUpdate")]
         public async Task<IActionResult> AddUpdateSubject(Subject request)
         {
             try
@@ -84,7 +84,7 @@ namespace Config_API.Controllers
             }
 
         }
-        [HttpGet("GetSubject/{SubjectId}")]
+        [HttpGet("GetSubjectById/{SubjectId}")]
         public async Task<IActionResult> GetSubjectById(int SubjectId)
         {
             try

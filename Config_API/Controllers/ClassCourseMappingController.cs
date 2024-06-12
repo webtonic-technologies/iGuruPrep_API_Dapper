@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Config_API.Controllers
 {
-    [Route("iGuru/[controller]")]
+    [Route("iGuru/Configure/[controller]")]
     [ApiController]
     public class ClassCourseMappingController : ControllerBase
     {
@@ -14,7 +14,7 @@ namespace Config_API.Controllers
         {
             _classCourseMappingServices = classCourseMappingServices;
         }
-        [HttpPost]
+        [HttpPost("AddUpdate")]
         public async Task<IActionResult> AddUpdateClassCourseMapping(ClassCourseMappingDTO request)
         {
             try
@@ -60,7 +60,7 @@ namespace Config_API.Controllers
             }
 
         }
-        [HttpGet("GetClassCourseMapping/{CourseClassMappingID}")]
+        [HttpGet("GetClassCourseMappingById/{CourseClassMappingID}")]
         public async Task<IActionResult> GetClassCourseMappingById(int CourseClassMappingID)
         {
             try

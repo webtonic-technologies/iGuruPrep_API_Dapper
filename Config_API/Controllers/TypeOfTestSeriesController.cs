@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Config_API.Controllers
 {
-    [Route("iGuru/[controller]")]
+    [Route("iGuru/Configure/[controller]")]
     [ApiController]
     public class TypeOfTestSeriesController : ControllerBase
     {
@@ -15,7 +15,7 @@ namespace Config_API.Controllers
         {
             _typeOfTestSeriesServices = typeOfTestSeriesServices;
         }
-        [HttpPost]
+        [HttpPost("AddUpdate")]
         public async Task<IActionResult> AddUpdateTypeOfTestSeries(TypeOfTestSeries request)
         {
             try
@@ -83,7 +83,7 @@ namespace Config_API.Controllers
             }
 
         }
-        [HttpGet("GetTestSeries/{Id}")]
+        [HttpGet("GetTestSeriesById/{Id}")]
         public async Task<IActionResult> GetTestSeriesById(int Id)
         {
             try

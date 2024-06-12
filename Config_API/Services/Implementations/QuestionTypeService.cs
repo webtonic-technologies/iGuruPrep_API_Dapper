@@ -1,4 +1,5 @@
 ﻿using Config_API.DTOs.Requests;
+using Config_API.DTOs.Response;
 using Config_API.DTOs.ServiceResponse;
 using Config_API.Models;
 using Config_API.Repository.Interfaces;
@@ -26,7 +27,7 @@ namespace Config_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<Questiontype>> GetQuestionTypeByID(int Id)
+        public async Task<ServiceResponse<QuestionTypeResponse>> GetQuestionTypeByID(int Id)
         {
             try
             {
@@ -34,11 +35,11 @@ namespace Config_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<Questiontype>(false, ex.Message, new Questiontype(), 500);
+                return new ServiceResponse<QuestionTypeResponse>(false, ex.Message, new QuestionTypeResponse(), 500);
             }
         }
 
-        public async Task<ServiceResponse<List<Questiontype>>> GetQuestionTypeList(GetAllQuestionTypeRequest request)
+        public async Task<ServiceResponse<List<QuestionTypeResponse>>> GetQuestionTypeList(GetAllQuestionTypeRequest request)
         {
             try
             {
@@ -46,11 +47,11 @@ namespace Config_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<Questiontype>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<QuestionTypeResponse>>(false, ex.Message, [], 500);
             }
         }
 
-        public async Task<ServiceResponse<List<Questiontype>>> GetQuestionTypeListMasters()
+        public async Task<ServiceResponse<List<QuestionTypeResponse>>> GetQuestionTypeListMasters()
         {
             try
             {
@@ -58,7 +59,7 @@ namespace Config_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<Questiontype>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<QuestionTypeResponse>>(false, ex.Message, [], 500);
             }
         }
 

@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Config_API.Controllers
 {
-    [Route("iGuru/[controller]")]
+    [Route("iGuru/Configure/[controller]")]
     [ApiController]
     public class StatusMessageController : ControllerBase
     {
@@ -16,7 +16,7 @@ namespace Config_API.Controllers
             _statusMessageService = statusMessageServices;
         }
 
-        [HttpPost]
+        [HttpPost("AddUpdate")]
         public async Task<IActionResult> AddUpdateStatusMessage(StatusMessages request)
         {
             try
@@ -39,7 +39,7 @@ namespace Config_API.Controllers
             }
 
         }
-        [HttpGet("GetStatusMessage/{StatusId}")]
+        [HttpGet("GetStatusMessageById/{StatusId}")]
         public async Task<IActionResult> GetStatusMessageById(int StatusId)
         {
             try
