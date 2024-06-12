@@ -81,7 +81,7 @@ namespace Config_API.Controllers
             }
 
         }
-        [HttpPut("GetQuestionType/{Id}")]
+        [HttpPut("Status/{Id}")]
         public async Task<IActionResult> StatusActiveInactive(int Id)
         {
             try

@@ -1,4 +1,4 @@
-﻿using ControlPanel_API.DTOs;
+﻿using ControlPanel_API.DTOs.Requests;
 using ControlPanel_API.DTOs.ServiceResponse;
 using ControlPanel_API.Models;
 using ControlPanel_API.Repository.Interfaces;
@@ -22,8 +22,8 @@ namespace ControlPanel_API.Repository.Implementations
                 if (request.HelpFAQId == 0)
                 {
                     string insertQuery = @" INSERT INTO [tblHelpFAQ] (
-                    FAQName, FAQAnswer, Status, CreatedOn, CreatedBy, EmployeeID, EmpFirstName) 
-                    VALUES (@FAQName, @FAQAnswer, @Status, @CreatedOn, @CreatedBy, @EmployeeID, @EmpFirstName);";
+                    FAQName, FAQAnswer, Status, CreatedOn, CreatedBy, EmployeeID) 
+                    VALUES (@FAQName, @FAQAnswer, @Status, @CreatedOn, @CreatedBy, @EmployeeID);";
                     int insertedValue = await _connection.ExecuteAsync(insertQuery, new
                     {
                         request.FAQName,
@@ -31,8 +31,7 @@ namespace ControlPanel_API.Repository.Implementations
                         Status = true,
                         createdon = DateTime.Now,
                         request.createdby,
-                        request.EmployeeID,
-                        request.EmpFirstName
+                        request.EmployeeID
                     });
                     if (insertedValue > 0)
                     {
@@ -47,7 +46,7 @@ namespace ControlPanel_API.Repository.Implementations
                 {
                     string updateQuery = @" UPDATE tblHelpFAQ SET FAQName = @FAQName, FAQAnswer = @FAQAnswer, Status = @Status,
                                             ModifiedOn = @ModifiedOn, ModifiedBy = @ModifiedBy, EmployeeID = @EmployeeID,
-                                            EmpFirstName = @EmpFirstName WHERE HelpFAQId = @HelpFAQId";
+                                            WHERE HelpFAQId = @HelpFAQId";
                     int rowsAffected = await _connection.ExecuteAsync(updateQuery, new
                     {
                         request.FAQName,
@@ -56,7 +55,6 @@ namespace ControlPanel_API.Repository.Implementations
                         modifiedon = DateTime.Now,
                         request.modifiedby,
                         request.EmployeeID,
-                        request.EmpFirstName,
                         request.HelpFAQId
                     });
                     if (rowsAffected > 0)
@@ -75,12 +73,11 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, StatusCodes.Status500InternalServerError);
             }
         }
-
         public async Task<ServiceResponse<HelpFAQ>> GetFAQById(int faqId)
         {
             try
             {
-                var sql = "SELECT * FROM [tblHelpFAQ] WHERE [HelpFAQId] = @HelpFAQId;";
+                var sql = "SELECT [HelpFAQId],[FAQName],[FAQAnswer],[Status],[modifiedon],[modifiedby],[createdon],[createdby],[EmployeeID] FROM [tblHelpFAQ] WHERE [HelpFAQId] = @HelpFAQId;";
                 var data = await _connection.QueryFirstOrDefaultAsync<HelpFAQ>(sql, new { HelpFAQId = faqId });
                 if (data != null)
                 {
@@ -96,19 +93,21 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<HelpFAQ>(false, ex.Message, new HelpFAQ(), 500);
             }
         }
-
         public async Task<ServiceResponse<List<HelpFAQ>>> GetFAQList(GetAllFAQRequest request)
         {
             try
             {
-                var sql = "SELECT * FROM tblHelpFAQ;";
+                string countSql = @"SELECT COUNT(*) FROM [tblHelpFAQ]";
+                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
+
+                var sql = "SELECT [HelpFAQId],[FAQName],[FAQAnswer],[Status],[modifiedon],[modifiedby],[createdon],[createdby],[EmployeeID] FROM [tblHelpFAQ]";
                 var data = await _connection.QueryAsync<HelpFAQ>(sql);
                 var paginatedList = data.Skip((request.PageNumber - 1) * request.PageSize)
                     .Take(request.PageSize)
                     .ToList();
                 if (paginatedList.Count != 0)
                 {
-                    return new ServiceResponse<List<HelpFAQ>>(true, "Records Found", paginatedList.AsList(), 200);
+                    return new ServiceResponse<List<HelpFAQ>>(true, "Records Found", paginatedList.AsList(), 200, totalCount);
                 }
                 else
                 {
@@ -120,7 +119,6 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<List<HelpFAQ>>(false, ex.Message, [], 500);
             }
         }
-
         public async Task<ServiceResponse<bool>> StatusActiveInactive(int id)
         {
             try

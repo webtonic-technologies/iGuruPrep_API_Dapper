@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace ControlPanel_API.DTOs
+namespace ControlPanel_API.DTOs.Requests
 {
     public class MagazineDTO
     {
@@ -21,7 +21,7 @@ namespace ControlPanel_API.DTOs
         public DateTime? createdon { get; set; }
         public string createdby { get; set; } = string.Empty;
         public int EmployeeID { get; set; }
-        public string EmpFirstName { get; set; } = string.Empty;
+        //public string EmpFirstName { get; set; } = string.Empty;
         public List<MagazineCategory>? MagazineCategories { get; set; }
         public List<MagazineBoard>? MagazineBoards { get; set; }
         public List<MagazineClass>? MagazineClasses { get; set; }
@@ -33,35 +33,35 @@ namespace ControlPanel_API.DTOs
         public int MgCategoryID { get; set; }
         public int APID { get; set; }
         public int MagazineId { get; set; }
-        public string APIDName { get; set; } = string.Empty;
+        //public string APIDName { get; set; } = string.Empty;
     }
     public class MagazineBoard
     {
         public int MagazineBoardId { get; set; }
         public int MagazineID { get; set; }
         public int BoardIDID { get; set; }
-        public string Name {  get; set; } = string.Empty;
+        //public string Name { get; set; } = string.Empty;
     }
     public class MagazineClass
     {
         public int MagazineClassId { get; set; }
         public int MagazineID { get; set; }
         public int ClassID { get; set; }
-        public string Name { get; set; } = string.Empty;
+        //public string Name { get; set; } = string.Empty;
     }
     public class MagazineCourse
     {
         public int MagazineCourseID { get; set; }
         public int MagazineID { get; set; }
         public int CourseID { get; set; }
-        public string Name { get; set; } = string.Empty;
+        //public string Name { get; set; } = string.Empty;
     }
     public class MagazineExamType
     {
         public int MagazineExamTypeID { get; set; }
         public int MagazineID { get; set; }
         public int ExamTypeID { get; set; }
-        public string Name { get; set; } = string.Empty;
+        //public string Name { get; set; } = string.Empty;
     }
     public class MagazineListDTO
     {

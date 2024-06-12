@@ -1,12 +1,10 @@
 ﻿using ControlPanel_API.Models;
-using System.ComponentModel.DataAnnotations;
 
-namespace ControlPanel_API.DTOs
+namespace ControlPanel_API.DTOs.Response
 {
-    public class NotificationDTO
+    public class NotificationResponseDTO
     {
         public int NBNotificationID { get; set; }
-        [Required(ErrorMessage = "Title cannot be empty")]
         public string NotificationTitle { get; set; } = string.Empty;
         public string PathURL { get; set; } = string.Empty;
         public bool status { get; set; }
@@ -16,59 +14,47 @@ namespace ControlPanel_API.DTOs
         public string createdby { get; set; } = string.Empty;
         public int EmployeeID { get; set; }
         public string EmpFirstName { get; set; } = string.Empty;
-        public List<NbNotificationCategory>? NbNotificationCategories { get; set; }
-        public List<NbNotificationBoard>? NbNotificationBoards { get; set; }
-        public List<NbNotificationClass>? NbNotificationClasses { get; set; }
-        public List<NbNotificationCourse>? NbNotificationCourses { get; set; }
-        public List<NbNotificationExamType>? NbNotificationExamTypes { get; set; }
+        public List<NbNotificationCategoryResponse>? NbNotificationCategories { get; set; }
+        public List<NbNotificationBoardResponse>? NbNotificationBoards { get; set; }
+        public List<NbNotificationClassResponse>? NbNotificationClasses { get; set; }
+        public List<NbNotificationCourseResponse>? NbNotificationCourses { get; set; }
+        public List<NbNotificationExamTypeResponse>? NbNotificationExamTypes { get; set; }
         public List<NotificationLinkMaster>? NotificationLinkMasters { get; set; }
         public List<NotificationDetail>? NotificationDetails { get; set; }
     }
-    public class NbNotificationCategory
+    public class NbNotificationCategoryResponse
     {
         public int NbNotificationCategoryId { get; set; }
         public int APID { get; set; }
         public int NBNotificationID { get; set; }
         public string Name { get; set; } = string.Empty;
     }
-    public class NbNotificationBoard
+    public class NbNotificationBoardResponse
     {
         public int NbNotificationBoardId { get; set; }
         public int NBNotificationID { get; set; }
         public int BoardID { get; set; }
         public string Name { get; set; } = string.Empty;
     }
-    public class NbNotificationClass
+    public class NbNotificationClassResponse
     {
         public int NbNotificationClassId { get; set; }
         public int NBNotificationID { get; set; }
         public int ClassID { get; set; }
         public string Name { get; set; } = string.Empty;
     }
-    public class NbNotificationCourse
+    public class NbNotificationCourseResponse
     {
         public int NbNotificationCourseId { get; set; }
         public int NBNotificationID { get; set; }
         public int CourseID { get; set; }
         public string Name { get; set; } = string.Empty;
     }
-    public class NbNotificationExamType
+    public class NbNotificationExamTypeResponse
     {
         public int NbNotificationExamTypeId { get; set; }
         public int NBNotificationID { get; set; }
         public int ExamTypeID { get; set; }
         public string Name { get; set; } = string.Empty;
-    }
-
-    public class NotificationsListDTO
-    {
-        public int APId { get; set; }
-        public int BoardID { get; set; }
-        public int ClassID { get; set; }
-        public int CourseID { get; set; }
-        public int SubjectID { get; set; }
-        public int ExamTypeID { get; set; }
-        public int PageNumber { get; set; }
-        public int PageSize { get; set; }
     }
 }

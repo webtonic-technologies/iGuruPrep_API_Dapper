@@ -1,4 +1,5 @@
-﻿using ControlPanel_API.DTOs;
+﻿using ControlPanel_API.DTOs.Requests;
+using ControlPanel_API.DTOs.Response;
 using ControlPanel_API.DTOs.ServiceResponse;
 using ControlPanel_API.Models;
 using ControlPanel_API.Repository.Interfaces;
@@ -25,7 +26,7 @@ namespace ControlPanel_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<EmployeeDTO>> GetEmployeeByID(int ID)
+        public async Task<ServiceResponse<EmployeeResponseDTO>> GetEmployeeByID(int ID)
         {
             try
             {
@@ -33,11 +34,11 @@ namespace ControlPanel_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<EmployeeDTO>(false, ex.Message, new EmployeeDTO(), 500);
+                return new ServiceResponse<EmployeeResponseDTO>(false, ex.Message, new EmployeeResponseDTO(), 500);
             }
         }
 
-        public async Task<ServiceResponse<List<Employee>>> GetEmployeeList(GetEmployeeListDTO request)
+        public async Task<ServiceResponse<List<EmployeeResponseDTO>>> GetEmployeeList(GetEmployeeListDTO request)
         {
             try
             {
@@ -45,7 +46,7 @@ namespace ControlPanel_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<Employee>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<EmployeeResponseDTO>>(false, ex.Message, [], 500);
             }
         }
 

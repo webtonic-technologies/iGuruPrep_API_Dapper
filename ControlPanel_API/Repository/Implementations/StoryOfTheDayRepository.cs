@@ -1,4 +1,5 @@
-﻿using ControlPanel_API.DTOs;
+﻿using ControlPanel_API.DTOs.Requests;
+using ControlPanel_API.DTOs.Response;
 using ControlPanel_API.DTOs.ServiceResponse;
 using ControlPanel_API.Models;
 using ControlPanel_API.Repository.Interfaces;
@@ -29,11 +30,9 @@ namespace ControlPanel_API.Repository.Implementations
                     createdon = DateTime.Now,
                     Event1Posttime = request.Event1Posttime,
                     Event2Posttime = request.Event2Posttime,
-                    EmpFirstName = request.EmpFirstName,
                     EmployeeID = request.EmployeeID,
                     Event1PostDate = request.Event1PostDate,
                     Event2PostDate = request.Event2PostDate,
-                    EventName = request.EventName,
                     EventTypeID = request.EventTypeID,
                     eventtypename = request.eventtypename,
                     Status = true,
@@ -42,12 +41,12 @@ namespace ControlPanel_API.Repository.Implementations
                 };
                 var query = @"
                 INSERT INTO [tblSOTD] (
-                    createdby, createdon, Event1Posttime, Event2Posttime, EmpFirstName, 
-                    EmployeeID, Event1PostDate, Event2PostDate, EventName, EventTypeID, 
+                    createdby, createdon, Event1Posttime, Event2Posttime, 
+                    EmployeeID, Event1PostDate, Event2PostDate, EventTypeID, 
                     eventtypename, Status, Filename1, Filename2)
                 VALUES (
-                    @createdby, @createdon, @Event1Posttime, @Event2Posttime, @EmpFirstName, 
-                    @EmployeeID, @Event1PostDate, @Event2PostDate, @EventName, @EventTypeID, 
+                    @createdby, @createdon, @Event1Posttime, @Event2Posttime, 
+                    @EmployeeID, @Event1PostDate, @Event2PostDate, @EventTypeID, 
                     @eventtypename, @Status, @Filename1, @Filename2);
                     SELECT CAST(SCOPE_IDENTITY() AS INT);";
                 // Execute the SQL insert command with parameters
@@ -90,11 +89,9 @@ namespace ControlPanel_API.Repository.Implementations
                     modifiedon = @modifiedon,
                     Event1Posttime = @Event1Posttime,
                     Event2Posttime = @Event2Posttime,
-                    EmpFirstName = @EmpFirstName,
                     EmployeeID = @EmployeeID,
                     Event1PostDate = @Event1PostDate,
                     Event2PostDate = @Event2PostDate,
-                    EventName = @EventName,
                     EventTypeID = @EventTypeID,
                     eventtypename = @eventtypename,
                     Status = @Status,
@@ -108,11 +105,9 @@ namespace ControlPanel_API.Repository.Implementations
                     modifiedon = DateTime.Now,
                     Event1Posttime = request.Event1Posttime,
                     Event2Posttime = request.Event2Posttime,
-                    EmpFirstName = request.EmpFirstName,
                     EmployeeID = request.EmployeeID,
                     Event1PostDate = request.Event1PostDate,
                     Event2PostDate = request.Event2PostDate,
-                    EventName = request.EventName,
                     EventTypeID = request.EventTypeID,
                     eventtypename = request.eventtypename,
                     Status = request.Status,
@@ -208,10 +203,12 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<bool>(false, ex.Message, false, 500);
             }
         }
-        public async Task<ServiceResponse<List<StoryOfTheDayDTO>>> GetAllStoryOfTheDay(SOTDListDTO request)
+        public async Task<ServiceResponse<List<StoryOfTheDayResponseDTO>>> GetAllStoryOfTheDay(SOTDListDTO request)
         {
             try
             {
+                string countSql = @"SELECT COUNT(*) FROM [tblSOTD]";
+                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
                 var SOTDIds = new HashSet<int>();
 
                 // Define the queries
@@ -282,35 +279,34 @@ namespace ControlPanel_API.Repository.Implementations
 
                 // Main query to fetch magazine details
 
-                string mainQuery = @"
-                SELECT 
-                    [StoryId],
-                    [EventTypeID],
-                    [EventName],
-                    [Event1Posttime],
-                    [Event1PostDate],
-                    [Event2PostDate],
-                    [Event2Posttime],
-                    [modifiedby],
-                    [createdby],
-                    [eventtypename],
-                    [modifiedon],
-                    [createdon],
-                    [Status],
-                    [EmployeeID],
-                    [Filename1],
-                    [Filename2],
-                    [EmpFirstName]
-                FROM [tblSOTD]
-                WHERE [StoryId] IN @Ids";
+                var mainQuery = @"
+        SELECT 
+            s.StoryId,
+            s.EventTypeID,
+            s.Event1PostDate,
+            s.Event1Posttime,
+            s.Event2PostDate,
+            s.Event2Posttime,
+            s.Filename1,
+            s.Filename2,
+            s.Status,
+            s.APName,
+            s.eventtypename,
+            s.modifiedon,
+            s.modifiedby,
+            s.createdon,
+            s.createdby,
+            s.EmployeeID,
+            e.FirstName as EmpFirstName
+        FROM tblSOTD s
+        LEFT JOIN Employee e ON s.EmployeeID = e.Employeeid
+        WHERE s.StoryId IN @Ids;";
+                var SOTDs = await _connection.QueryAsync<dynamic>(mainQuery, parameters);
 
-                var SOTDs = await _connection.QueryAsync<StoryOfTheDay>(mainQuery, parameters);
-
-                var response = SOTDs.Select(item => new StoryOfTheDayDTO
+                var response = SOTDs.Select(item => new StoryOfTheDayResponseDTO
                 {
                     StoryId = item.StoryId,
                     EventTypeID = item.EventTypeID,
-                    EventName = item.EventName,
                     Event1Posttime = item.Event1Posttime,
                     Event1PostDate = item.Event1PostDate,
                     Event2PostDate = item.Event2PostDate,
@@ -336,47 +332,47 @@ namespace ControlPanel_API.Repository.Implementations
                .ToList();
                 if (paginatedList.Count != 0)
                 {
-                    return new ServiceResponse<List<StoryOfTheDayDTO>>(true, "Records found", paginatedList, 200);
+                    return new ServiceResponse<List<StoryOfTheDayResponseDTO>>(true, "Records found", paginatedList, 200, totalCount);
                 }
                 else
                 {
-                    return new ServiceResponse<List<StoryOfTheDayDTO>>(false, "Records not found", [], 404);
+                    return new ServiceResponse<List<StoryOfTheDayResponseDTO>>(false, "Records not found", [], 404);
                 }
 
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<StoryOfTheDayDTO>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<StoryOfTheDayResponseDTO>>(false, ex.Message, [], 500);
             }
         }
-        public async Task<ServiceResponse<StoryOfTheDayDTO>> GetStoryOfTheDayById(int id)
+        public async Task<ServiceResponse<StoryOfTheDayResponseDTO>> GetStoryOfTheDayById(int id)
         {
             try
             {
-                var response = new StoryOfTheDayDTO();
+                var response = new StoryOfTheDayResponseDTO();
                 var query = @"
-                SELECT 
-                    StoryId,
-                    EventTypeID,
-                    EventName,
-                    Event1PostDate,
-                    Event1Posttime,
-                    Event2PostDate,
-                    Event2Posttime,
-                    Filename1,
-                    Filename2,
-                    Status,
-                    APName,
-                    eventtypename,
-                    modifiedon,
-                    modifiedby,
-                    createdon,
-                    createdby,
-                    EmployeeID,
-                    EmpFirstName
-                FROM [tblSOTD]
-                WHERE StoryId = @StoryId;";
-                var storyOfTheDay = await _connection.QueryFirstOrDefaultAsync<StoryOfTheDay>(query, new { StoryId = id });
+        SELECT 
+            s.StoryId,
+            s.EventTypeID,
+            s.Event1PostDate,
+            s.Event1Posttime,
+            s.Event2PostDate,
+            s.Event2Posttime,
+            s.Filename1,
+            s.Filename2,
+            s.Status,
+            s.APName,
+            s.eventtypename,
+            s.modifiedon,
+            s.modifiedby,
+            s.createdon,
+            s.createdby,
+            s.EmployeeID,
+            e.FirstName as EmpFirstName
+        FROM tblSOTD s
+        LEFT JOIN Employee e ON s.EmployeeID = e.Employeeid
+        WHERE s.StoryId = @StoryId;";
+                var storyOfTheDay = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new { StoryId = id });
 
                 if (storyOfTheDay != null)
                 {
@@ -384,7 +380,6 @@ namespace ControlPanel_API.Repository.Implementations
                     response.Filename2 = storyOfTheDay.Filename2 != null ? GetStoryOfTheDayFileById(storyOfTheDay.Filename2) : string.Empty;
                     response.StoryId = storyOfTheDay.StoryId;
                     response.EventTypeID = storyOfTheDay.EventTypeID;
-                    response.EventName = storyOfTheDay.EventName;
                     response.Event1Posttime = storyOfTheDay.Event1Posttime;
                     response.Event2Posttime = storyOfTheDay.Event2Posttime;
                     response.Event1PostDate = storyOfTheDay.Event1PostDate;
@@ -403,16 +398,16 @@ namespace ControlPanel_API.Repository.Implementations
                     response.SOTDCourses = GetListOfSOTDCourse(id);
                     response.SOTDExamTypes = GetListOfSOTDExamType(id);
 
-                    return new ServiceResponse<StoryOfTheDayDTO>(true, "Operation Successful", response, 200);
+                    return new ServiceResponse<StoryOfTheDayResponseDTO>(true, "Operation Successful", response, 200);
                 }
                 else
                 {
-                    return new ServiceResponse<StoryOfTheDayDTO>(false, "Opertion Failed", new StoryOfTheDayDTO(), 500);
+                    return new ServiceResponse<StoryOfTheDayResponseDTO>(false, "Opertion Failed", new StoryOfTheDayResponseDTO(), 500);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<StoryOfTheDayDTO>(false, ex.Message, new StoryOfTheDayDTO(), 500);
+                return new ServiceResponse<StoryOfTheDayResponseDTO>(false, ex.Message, new StoryOfTheDayResponseDTO(), 500);
             }
         }
         public async Task<ServiceResponse<bool>> StatusActiveInactive(int id)
@@ -665,45 +660,93 @@ namespace ControlPanel_API.Repository.Implementations
                 return valuesInserted;
             }
         }
-        private List<SOTDBoard> GetListOfSOTDBoards(int SOTDID)
+        private List<SOTDBoardResponse> GetListOfSOTDBoards(int SOTDID)
         {
-            var boardquery = @"
-                SELECT *
-                FROM 
-                    [tblSOTDBoard]
-                WHERE 
-                    SOTDID = @SOTDID;";
+            var query = @"
+        SELECT 
+            b.tblSOTDBoardID,
+            b.SOTDID,
+            b.BoardID,
+            bc.Name as BoardName
+        FROM 
+            [tblSOTDBoard] b
+        LEFT JOIN 
+            Boards bc ON b.BoardID = bc.BoardID
+        WHERE 
+            b.SOTDID = @SOTDID;";
 
             // Execute the SQL query with the SOTDID parameter
-            var boardData = _connection.Query<SOTDBoard>(boardquery, new { SOTDID = SOTDID });
+            var boardData = _connection.Query<SOTDBoardResponse>(query, new { SOTDID });
             return boardData != null ? boardData.AsList() : [];
         }
-        private List<SOTDCategory> GetListOfSOTDCategory(int SOTDID)
+        private List<SOTDCategoryResponse> GetListOfSOTDCategory(int SOTDID)
         {
-            var query = @"SELECT * FROM [tblSOTDCategory] WHERE  SOTDID = @SOTDID;";
+            var query = @"
+        SELECT 
+            c.SOTDCategoryID,
+            c.SOTDID,
+            c.APID,
+            cap.Name as APIDName
+        FROM 
+            [tblSOTDCategory] c
+        LEFT JOIN 
+            Categories cap ON c.APID = cap.APID
+        WHERE 
+            c.SOTDID = @SOTDID;";
             // Execute the SQL query with the SOTDID parameter
-            var data = _connection.Query<SOTDCategory>(query, new { SOTDID });
+            var data = _connection.Query<SOTDCategoryResponse>(query, new { SOTDID });
             return data != null ? data.AsList() : [];
         }
-        private List<SOTDClass> GetListOfSOTDClass(int SOTDID)
+        private List<SOTDClassResponse> GetListOfSOTDClass(int SOTDID)
         {
-            var query = @"SELECT * FROM [tblSOTDClass] WHERE  SOTDID = @SOTDID;";
-            // Execute the SQL query with the SOTDID parameter
-            var data = _connection.Query<SOTDClass>(query, new { SOTDID });
+            var query = @"
+        SELECT 
+            cl.tblSOTDClassID,
+            cl.SOTDID,
+            cl.ClassID,
+            cc.Name as ClassName
+        FROM 
+            [tblSOTDClass] cl
+        LEFT JOIN 
+            Classes cc ON cl.ClassID = cc.ClassID
+        WHERE 
+            cl.SOTDID = @SOTDID;";
+      
+            var data = _connection.Query<SOTDClassResponse>(query, new { SOTDID });
             return data != null ? data.AsList() : [];
         }
-        private List<SOTDCourse> GetListOfSOTDCourse(int SOTDID)
+        private List<SOTDCourseResponse> GetListOfSOTDCourse(int SOTDID)
         {
-            var query = @"SELECT * FROM [tblSOTDCourse] WHERE  SOTDID = @SOTDID;";
-            // Execute the SQL query with the SOTDID parameter
-            var data = _connection.Query<SOTDCourse>(query, new { SOTDID });
+            var query = @"
+        SELECT 
+            co.SOTDCourseID,
+            co.SOTDID,
+            co.CourseID,
+            cn.Name as CourseName
+        FROM 
+            [tblSOTDCourse] co
+        LEFT JOIN 
+            Courses cn ON co.CourseID = cn.CourseID
+        WHERE 
+            co.SOTDID = @SOTDID;";
+            var data = _connection.Query<SOTDCourseResponse>(query, new { SOTDID });
             return data != null ? data.AsList() : [];
         }
-        private List<SOTDExamType> GetListOfSOTDExamType(int SOTDID)
+        private List<SOTDExamTypeResponse> GetListOfSOTDExamType(int SOTDID)
         {
-            var query = @"SELECT * FROM [tblSOTDExamType] WHERE  SOTDID = @SOTDID;";
-            // Execute the SQL query with the SOTDID parameter
-            var data = _connection.Query<SOTDExamType>(query, new { SOTDID });
+            var query = @"
+        SELECT 
+            et.SOTDExamTypeID,
+            et.SOTDID,
+            et.ExamTypeID,
+            ex.Name as ExamTypeName
+        FROM 
+            [tblSOTDExamType] et
+        LEFT JOIN 
+            ExamTypes ex ON et.ExamTypeID = ex.ExamTypeID
+        WHERE 
+            et.SOTDID = @SOTDID;";
+            var data = _connection.Query<SOTDExamTypeResponse>(query, new { SOTDID });
             return data != null ? data.AsList() : [];
         }
         private bool IsJpeg(byte[] bytes)

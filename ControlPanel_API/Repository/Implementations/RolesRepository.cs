@@ -1,4 +1,4 @@
-﻿using ControlPanel_API.DTOs;
+﻿using ControlPanel_API.DTOs.Requests;
 using ControlPanel_API.DTOs.ServiceResponse;
 using ControlPanel_API.Models;
 using ControlPanel_API.Repository.Interfaces;
@@ -39,7 +39,6 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-
         public async Task<ServiceResponse<Role>> GetRoleByID(int roleId)
         {
             try
@@ -60,7 +59,6 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<Role>(false, ex.Message, new Role(), 500);
             }
         }
-
         public async Task<ServiceResponse<List<Role>>> GetRolesMasters()
         {
             try
@@ -86,6 +84,9 @@ namespace ControlPanel_API.Repository.Implementations
         {
             try
             {
+                string countSql = @"SELECT COUNT(*) FROM [tblRole]";
+                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
+
                 var sql = "SELECT * FROM tblRole;";
                 var roles = await _connection.QueryAsync<Role>(sql);
                 var paginatedList = roles.Skip((request.PageNumber - 1) * request.PageSize)
@@ -93,7 +94,7 @@ namespace ControlPanel_API.Repository.Implementations
            .ToList();
                 if (paginatedList.Count != 0)
                 {
-                    return new ServiceResponse<List<Role>>(true, "Records Found", paginatedList.AsList(), 200);
+                    return new ServiceResponse<List<Role>>(true, "Records Found", paginatedList.AsList(), 200, totalCount);
                 }
                 else
                 {

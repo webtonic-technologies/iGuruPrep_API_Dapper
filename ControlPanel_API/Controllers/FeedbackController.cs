@@ -1,4 +1,4 @@
-using ControlPanel_API.DTOs;
+using ControlPanel_API.DTOs.Requests;
 using ControlPanel_API.Models;
 using ControlPanel_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -16,58 +16,13 @@ namespace ControlPanel_API.Controllers
         {
             _feedbackService = feedbackServices;
         }
-        [HttpPost("AddFeedback")]
-        public async Task<IActionResult> AddFeedback(Feedback request)
-        {
-            try
-            {
-                var data = await _feedbackService.AddFeedBack(request);
-                if (data != null)
-                {
-                    return Ok(data);
 
-                }
-                else
-                {
-                    return BadRequest("Bad Request");
-                }
-
-            }
-            catch (Exception e)
-            {
-                return this.BadRequest(e.Message);
-            }
-
-        }
         [HttpPost("GetAllFeedback")]
         public async Task<IActionResult> GetAllFeedback(GetAllFeedbackRequest request)
         {
             try
             {
                 var data = await _feedbackService.GetAllFeedBackList(request);
-                if (data != null)
-                {
-                    return Ok(data);
-
-                }
-                else
-                {
-                    return BadRequest("Bad Request");
-                }
-
-            }
-            catch (Exception e)
-            {
-                return this.BadRequest(e.Message);
-            }
-
-        }
-        [HttpPut("UpdateFeedback")]
-        public async Task<IActionResult> UpdateFeedback(Feedback request)
-        {
-            try
-            {
-                var data = await _feedbackService.UpdateFeedback(request);
                 if (data != null)
                 {
                     return Ok(data);

@@ -1,4 +1,4 @@
-﻿namespace ControlPanel_API.DTOs
+﻿namespace ControlPanel_API.DTOs.Requests
 {
     public class GetAllDesignationsRequest
     {

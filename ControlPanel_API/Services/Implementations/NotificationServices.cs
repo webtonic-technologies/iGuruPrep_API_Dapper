@@ -1,4 +1,5 @@
-﻿using ControlPanel_API.DTOs;
+﻿using ControlPanel_API.DTOs.Requests;
+using ControlPanel_API.DTOs.Response;
 using ControlPanel_API.DTOs.ServiceResponse;
 using ControlPanel_API.Models;
 using ControlPanel_API.Repository.Interfaces;
@@ -26,7 +27,7 @@ namespace ControlPanel_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<NotificationDTO>>> GetAllNotificationsList(NotificationsListDTO request)
+        public async Task<ServiceResponse<List<NotificationResponseDTO>>> GetAllNotificationsList(NotificationsListDTO request)
         {
             try
             {
@@ -34,10 +35,10 @@ namespace ControlPanel_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<NotificationDTO>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<NotificationResponseDTO>>(false, ex.Message, [], 500);
             }
         }
-        public async Task<ServiceResponse<NotificationDTO>> GetNotificationById(int NotificationId)
+        public async Task<ServiceResponse<NotificationResponseDTO>> GetNotificationById(int NotificationId)
         {
             try
             {
@@ -45,7 +46,7 @@ namespace ControlPanel_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<NotificationDTO>(false, ex.Message, new NotificationDTO(), 500);
+                return new ServiceResponse<NotificationResponseDTO>(false, ex.Message, new NotificationResponseDTO(), 500);
             }
         }
     }

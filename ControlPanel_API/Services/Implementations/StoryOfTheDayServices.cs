@@ -1,4 +1,5 @@
-﻿using ControlPanel_API.DTOs;
+﻿using ControlPanel_API.DTOs.Requests;
+using ControlPanel_API.DTOs.Response;
 using ControlPanel_API.DTOs.ServiceResponse;
 using ControlPanel_API.Models;
 using ControlPanel_API.Repository.Interfaces;
@@ -38,7 +39,7 @@ namespace ControlPanel_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<StoryOfTheDayDTO>>> GetAllStoryOfTheDay(SOTDListDTO request)
+        public async Task<ServiceResponse<List<StoryOfTheDayResponseDTO>>> GetAllStoryOfTheDay(SOTDListDTO request)
         {
             try
             {
@@ -46,7 +47,7 @@ namespace ControlPanel_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<StoryOfTheDayDTO>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<StoryOfTheDayResponseDTO>>(false, ex.Message, [], 500);
             }
         }
 
@@ -62,7 +63,7 @@ namespace ControlPanel_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<StoryOfTheDayDTO>> GetStoryOfTheDayById(int id)
+        public async Task<ServiceResponse<StoryOfTheDayResponseDTO>> GetStoryOfTheDayById(int id)
         {
             try
             {
@@ -70,7 +71,7 @@ namespace ControlPanel_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<StoryOfTheDayDTO>(false, ex.Message, new StoryOfTheDayDTO(), 500);
+                return new ServiceResponse<StoryOfTheDayResponseDTO>(false, ex.Message, new StoryOfTheDayResponseDTO(), 500);
             }
         }
 

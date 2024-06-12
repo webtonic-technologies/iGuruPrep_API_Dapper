@@ -1,4 +1,5 @@
-﻿using ControlPanel_API.DTOs;
+﻿using ControlPanel_API.DTOs.Requests;
+using ControlPanel_API.DTOs.Response;
 using ControlPanel_API.DTOs.ServiceResponse;
 using ControlPanel_API.Models;
 using ControlPanel_API.Repository.Interfaces;
@@ -15,34 +16,12 @@ namespace ControlPanel_API.Repository.Implementations
         {
             _connection = connection;
         }
-        public async Task<ServiceResponse<string>> AddTicket(ContactUs request)
-        {
-            try
-            {
-                int rowsAffected = await _connection.ExecuteAsync(
-                            @"INSERT INTO tblTicket (TicketID, boardid, ClassId, Boardname, ClassName, CourseName, DateAndTime, MobileNumber, QueryInfo, QueryType, Status, SubjectName, TicketNo) 
-              VALUES (@TicketID, @boardid, @ClassId, @Boardname, @ClassName, @CourseName, @DateAndTime, @MobileNumber, @QueryInfo, @QueryType, @Status, @SubjectName, @TicketNo)",
-                            request);
-
-                if (rowsAffected > 0)
-                {
-                    return new ServiceResponse<string>(true, "Operation Successful", "Ticket Added Successfully", 200);
-                }
-                else
-                {
-                    return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
-                }
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
-            }
-        }
-
         public async Task<ServiceResponse<List<GetAllContactUsResponse>>> GetAllContactUs(GeAllContactUsRequest request)
         {
             try
             {
+                string countSql = @"SELECT COUNT(*) FROM [tblHelpContactUs]";
+                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
                 string sql = @"
     SELECT 
         cu.ContactusID, 
@@ -79,7 +58,8 @@ namespace ControlPanel_API.Repository.Implementations
         AND (cu.APID = @APID OR @APID = 0)
         AND (@StartDate IS NULL OR cu.[DateTime] >= @StartDate)
         AND (@EndDate IS NULL OR cu.[DateTime] <= @EndDate)
-        AND (@Today IS NULL OR cu.[DateTime] = @Today);";
+        AND (@Today IS NULL OR cu.[DateTime] = @Today)
+        AND (@SearchText IS NULL OR [ContactusID] LIKE @SearchText);";
 
                 var list = await _connection.QueryAsync<GetAllContactUsResponse>(sql, new
                 {
@@ -96,7 +76,7 @@ namespace ControlPanel_API.Repository.Implementations
                            .ToList();
                 if (paginatedList.Count != 0)
                 {
-                    return new ServiceResponse<List<GetAllContactUsResponse>>(true, "Records Found", paginatedList.AsList(), 200);
+                    return new ServiceResponse<List<GetAllContactUsResponse>>(true, "Records Found", paginatedList.AsList(), 200, totalCount);
                 }
                 else
                 {

@@ -1,4 +1,4 @@
-using ControlPanel_API.DTOs;
+using ControlPanel_API.DTOs.Requests;
 using ControlPanel_API.Services.Implementations;
 using ControlPanel_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -65,20 +65,6 @@ namespace ControlPanel_API.Controllers
             {
                 var magazine = await _magazineService.GetMagazineById(id);
                 return Ok(magazine);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
-
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteMagazine(int id)
-        {
-            try
-            {
-                var data = await _magazineService.DeleteMagazine(id);
-                return Ok(data);
             }
             catch (Exception ex)
             {

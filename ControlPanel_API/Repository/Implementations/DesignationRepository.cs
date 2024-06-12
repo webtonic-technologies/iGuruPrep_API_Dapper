@@ -1,10 +1,9 @@
-﻿using ControlPanel_API.DTOs;
+﻿using ControlPanel_API.DTOs.Requests;
 using ControlPanel_API.DTOs.ServiceResponse;
 using ControlPanel_API.Models;
 using ControlPanel_API.Repository.Interfaces;
 using Dapper;
 using System.Data;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace ControlPanel_API.Repository.Implementations
 {
@@ -41,7 +40,6 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-
         public async Task<ServiceResponse<Designation>> GetDesignationByID(int DesgnID)
         {
             try
@@ -64,7 +62,6 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<Designation>(false, ex.Message, new Designation(), 500);
             }
         }
-
         public async Task<ServiceResponse<List<Designation>>> GetDesignationListMasters()
         {
             try
@@ -91,15 +88,18 @@ namespace ControlPanel_API.Repository.Implementations
         {
             try
             {
+                string countSql = @"SELECT COUNT(*) FROM [tblDesignation]";
+                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
+
                 string sql = "SELECT * FROM tblDesignation";
 
                 var designations = await _connection.QueryAsync<Designation>(sql);
                 var paginatedList = designations.Skip((request.PageNumber - 1) * request.PageSize)
                     .Take(request.PageSize)
                     .ToList();
-                if (paginatedList.Any())
+                if (paginatedList.Count != 0)
                 {
-                    return new ServiceResponse<List<Designation>>(true, "Records Found", paginatedList.AsList(), 200);
+                    return new ServiceResponse<List<Designation>>(true, "Records Found", paginatedList.AsList(), 200, totalCount);
                 }
                 else
                 {
@@ -111,7 +111,6 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<List<Designation>>(false, ex.Message, [], 500);
             }
         }
-
         public async Task<ServiceResponse<string>> UpdateDesignation(Designation request)
         {
             try

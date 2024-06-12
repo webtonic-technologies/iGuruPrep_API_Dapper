@@ -1,4 +1,4 @@
-using ControlPanel_API.DTOs;
+using ControlPanel_API.DTOs.Requests;
 using ControlPanel_API.Models;
 using ControlPanel_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -35,7 +35,7 @@ namespace ControlPanel_API.Controllers
 
         }
         [HttpGet("GetFAQById/{FAQId}")]
-        public async Task<IActionResult> GetDesignationByID(int FAQId)
+        public async Task<IActionResult> GetFAQByID(int FAQId)
         {
             try
             {
@@ -50,7 +50,6 @@ namespace ControlPanel_API.Controllers
             }
 
         }
-
         [HttpPost("AddUpdateHelpFAQ")]
         public async Task<IActionResult> AddUpdateHelpFAQ(HelpFAQ request)
         {

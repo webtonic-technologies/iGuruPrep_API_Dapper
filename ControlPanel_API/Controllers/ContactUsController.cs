@@ -1,5 +1,4 @@
-using ControlPanel_API.DTOs;
-using ControlPanel_API.Models;
+using ControlPanel_API.DTOs.Requests;
 using ControlPanel_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -17,30 +16,6 @@ namespace ControlPanel_API.Controllers
             _contactUsServices = contactUsServices;
         }
 
-
-        [HttpPost("AddTicket")]
-        public async Task<IActionResult> AddTicket(ContactUs request)
-        {
-            try
-            {
-                var data = await _contactUsServices.AddTicket(request);
-                if (data != null)
-                {
-                    return Ok(data);
-
-                }
-                else
-                {
-                    return BadRequest("Bad Request");
-                }
-
-            }
-            catch (Exception e)
-            {
-                return this.BadRequest(e.Message);
-            }
-
-        }
         [HttpPost("GetAllContactUs")]
         public async Task<IActionResult> GetAllContactUs(GeAllContactUsRequest request)
         {
@@ -50,19 +25,16 @@ namespace ControlPanel_API.Controllers
                 if (data != null)
                 {
                     return Ok(data);
-
                 }
                 else
                 {
                     return BadRequest("Bad Request");
                 }
-
             }
             catch (Exception e)
             {
                 return this.BadRequest(e.Message);
             }
-
         }
     }
 }

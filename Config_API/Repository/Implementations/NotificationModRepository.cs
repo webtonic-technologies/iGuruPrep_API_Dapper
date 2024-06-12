@@ -408,7 +408,7 @@ namespace Config_API.Repository.Implementations
         FROM 
             tblNotificationTemplate nt
         LEFT JOIN 
-            tblEmployees e ON nt.EmployeeID = e.EmployeeID
+            tblEmployee e ON nt.EmployeeID = e.EmployeeID
         LEFT JOIN 
             tblModule m ON nt.moduleID = m.ModuleID
         LEFT JOIN 
@@ -494,7 +494,7 @@ namespace Config_API.Repository.Implementations
         FROM 
             tblNotificationTemplate nt
         LEFT JOIN 
-            tblEmployees e ON nt.EmployeeID = e.EmployeeID
+            tblEmployee e ON nt.EmployeeID = e.EmployeeID
         LEFT JOIN 
             tblModule m ON nt.moduleID = m.ModuleID
         LEFT JOIN 

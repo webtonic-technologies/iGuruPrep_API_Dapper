@@ -1,4 +1,4 @@
-﻿namespace ControlPanel_API.DTOs
+﻿namespace ControlPanel_API.DTOs.Requests
 {
     public class GetAllFeedbackRequest
     {
@@ -8,9 +8,9 @@
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
         public DateTime? Today { get; set; }
-        public int APID {  get; set; }
+        public int APID { get; set; }
         public int PageNumber { get; set; }
-        public int PageSize { get; set; } 
+        public int PageSize { get; set; }
     }
     public class GetAllFAQRequest
     {

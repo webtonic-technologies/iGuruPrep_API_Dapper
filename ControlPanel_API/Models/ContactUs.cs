@@ -12,13 +12,13 @@
         public bool? RQSID { get; set; }
         public int APID { get; set; }
         public int EmployeeID { get; set; }
-        public string EmpFirstName { get; set; } = string.Empty;
-        public string boardame { get; set; } = string.Empty;
-        public string classname { get; set; } = string.Empty;
-        public string coursename { get; set; } = string.Empty;
-        public string APName { get; set; } = string.Empty;
+        // public string EmpFirstName { get; set; } = string.Empty;
+        // public string boardame { get; set; } = string.Empty;
+        //public string classname { get; set; } = string.Empty;
+        //public string coursename { get; set; } = string.Empty;
+        //public string APName { get; set; } = string.Empty;
         public string phonenumber { get; set; } = string.Empty;
-        public string RQSName { get; set; } = string.Empty;
+        //public string RQSName { get; set; } = string.Empty;
         public string username { get; set; } = string.Empty;
         public DateTime? modifiedon { get; set; }
         public string modifiedby { get; set; } = string.Empty;

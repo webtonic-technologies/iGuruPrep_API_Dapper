@@ -147,12 +147,13 @@ namespace Config_API.Repository.Implementations
             using var transaction = _connection.BeginTransaction();
             try
             {
-                var data = await GetContentIndexById(id);
+                string contentIndexSql = @"SELECT * FROM [tblContentIndexChapters] WHERE [ContentIndexId] = @id";
+                var data = await _connection.QueryFirstOrDefaultAsync<ContentIndexChapters>(contentIndexSql, new { id }, transaction);
 
-                if (data.Data != null)
+                if (data != null)
                 {
                     // Toggle the status
-                    data.Data.Status = !data.Data.Status;
+                    data.Status = !data.Status;
 
                     // Update the main content index status
                     string updateContentIndexQuery = @"
@@ -163,7 +164,7 @@ namespace Config_API.Repository.Implementations
 
                     int rowsAffected = await _connection.ExecuteAsync(updateContentIndexQuery, new
                     {
-                        data.Data.Status,
+                        data.Status,
                         ModifiedOn = DateTime.Now,
                         Id = id
                     }, transaction);
@@ -179,7 +180,7 @@ namespace Config_API.Repository.Implementations
 
                         await _connection.ExecuteAsync(updateTopicsQuery, new
                         {
-                            data.Data.Status,
+                            data.Status,
                             ModifiedOn = DateTime.Now,
                             ContentIndexId = id
                         }, transaction);
@@ -195,7 +196,7 @@ namespace Config_API.Repository.Implementations
 
                         await _connection.ExecuteAsync(updateSubTopicsQuery, new
                         {
-                            data.Data.Status,
+                            data.Status,
                             ModifiedOn = DateTime.Now,
                             ContentIndexId = id
                         }, transaction);

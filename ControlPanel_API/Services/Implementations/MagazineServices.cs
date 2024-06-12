@@ -1,4 +1,5 @@
-﻿using ControlPanel_API.DTOs;
+﻿using ControlPanel_API.DTOs.Requests;
+using ControlPanel_API.DTOs.Response;
 using ControlPanel_API.DTOs.ServiceResponse;
 using ControlPanel_API.Repository.Interfaces;
 using ControlPanel_API.Services.Interfaces;
@@ -25,19 +26,7 @@ namespace ControlPanel_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<bool>> DeleteMagazine(int id)
-        {
-            try
-            {
-                return await _magazineRepository.DeleteMagazine(id);
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<bool>(false, ex.Message, false, 500);
-            }
-        }
-
-        public async Task<ServiceResponse<List<MagazineDTO>>> GetAllMagazines(MagazineListDTO request)
+        public async Task<ServiceResponse<List<MagazineResponseDTO>>> GetAllMagazines(MagazineListDTO request)
         {
 
             try
@@ -46,11 +35,11 @@ namespace ControlPanel_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<MagazineDTO>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<MagazineResponseDTO>>(false, ex.Message, [], 500);
             }
         }
 
-        public async Task<ServiceResponse<MagazineDTO>> GetMagazineById(int id)
+        public async Task<ServiceResponse<MagazineResponseDTO>> GetMagazineById(int id)
         {
             try
             {
@@ -58,7 +47,7 @@ namespace ControlPanel_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<MagazineDTO>(false, ex.Message, new MagazineDTO(), 500);
+                return new ServiceResponse<MagazineResponseDTO>(false, ex.Message, new MagazineResponseDTO(), 500);
             }
         }
         public async Task<ServiceResponse<bool>> StatusActiveInactive(int id)

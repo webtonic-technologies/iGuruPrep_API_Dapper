@@ -10,7 +10,7 @@
         public DateTime? CreatedOn { get; set; }
         public string CreatedBy { get; set; } = string.Empty;
         public DateTime? ModifiedOn { get; set; }
-        public DateTime? ModifiedBy { get; set; }
+        public string? ModifiedBy { get; set; }
         public int EmployeeId { get; set; }
         public List<ContentIndexSubTopic>? ContentIndexSubTopics { get; set; }
     }

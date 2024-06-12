@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace ControlPanel_API.DTOs
+namespace ControlPanel_API.DTOs.Requests
 {
     public class EmployeeDTO
     {
@@ -27,8 +27,8 @@ namespace ControlPanel_API.DTOs
         [Required(ErrorMessage = "State name cannot be empty")]
         public string StateName { get; set; } = string.Empty;
         public string VcName { get; set; } = string.Empty;
-        public string Rolename { get; set; } = string.Empty;
-        public string Designationname { get; set; } = string.Empty;
+        //public string Rolename { get; set; } = string.Empty;
+        //public string Designationname { get; set; } = string.Empty;
         public DateTime? Modifiedon { get; set; }
         public string Modifiedby { get; set; } = string.Empty;
         public DateTime? Createdon { get; set; }
@@ -39,7 +39,7 @@ namespace ControlPanel_API.DTOs
     {
         public int EmpSubId { get; set; }
         public int SubjectID { get; set; }
-        public string SubjectName { get; set; } = string.Empty;
+       // public string SubjectName { get; set; } = string.Empty;
         public int Employeeid { get; set; }
     }
 }

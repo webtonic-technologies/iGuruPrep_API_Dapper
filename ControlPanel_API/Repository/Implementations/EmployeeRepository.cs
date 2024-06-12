@@ -1,10 +1,10 @@
-﻿using ControlPanel_API.DTOs;
+﻿using ControlPanel_API.DTOs.Requests;
+using ControlPanel_API.DTOs.Response;
 using ControlPanel_API.DTOs.ServiceResponse;
-using ControlPanel_API.Models;
 using ControlPanel_API.Repository.Interfaces;
 using Dapper;
-using System.Collections.Generic;
 using System.Data;
+using static ControlPanel_API.DTOs.Response.EmployeeResponseDTO;
 
 namespace ControlPanel_API.Repository.Implementations
 {
@@ -25,11 +25,11 @@ namespace ControlPanel_API.Repository.Implementations
                     string insertQuery = @"
                 INSERT INTO [tblEmployee] (UserCode, RoleId, DesignationID, EmpFirstName, EmpLastName,
                                              EmpPhoneNumber, EmpEmail, EmpDOB, ZipCode, DistrictName,
-                                             StateName, VcName, RoleName, DesignationName,
+                                             StateName, VcName,
                                              CreatedOn, CreatedBy, Status)
                 VALUES (@UserCode, @RoleId, @DesignationID, @EmpFirstName, @EmpLastName,
                         @EmpPhoneNumber, @EmpEmail, @EmpDOB, @ZipCode, @DistrictName,
-                        @StateName, @VcName, @RoleName, @DesignationName,
+                        @StateName, @VcName,
                         @CreatedOn, @CreatedBy, @Status);
                         SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
@@ -45,11 +45,8 @@ namespace ControlPanel_API.Repository.Implementations
                         request.EMPDOB,
                         request.ZipCode,
                         request.DistrictName,
-                        //request.SubjectID,
                         request.StateName,
                         request.VcName,
-                        request.Rolename,
-                        request.Designationname,
                         request.Createdby,
                         CreatedOn = DateTime.Now,
                         Status = true
@@ -80,8 +77,6 @@ namespace ControlPanel_API.Repository.Implementations
                     DistrictName = @DistrictName,
                     StateName = @StateName,
                     VcName = @VcName,
-                    RoleName = @RoleName,
-                    DesignationName = @DesignationName,
                     ModifiedOn = @ModifiedOn,
                     ModifiedBy = @ModifiedBy,
                     Status = @Status
@@ -100,11 +95,8 @@ namespace ControlPanel_API.Repository.Implementations
                         request.EMPDOB,
                         request.ZipCode,
                         request.DistrictName,
-                        //request.SubjectID,
                         request.StateName,
                         request.VcName,
-                        request.Rolename,
-                        request.Designationname,
                         request.Modifiedby,
                         ModifiedOn = DateTime.Now,
                         request.Status
@@ -124,17 +116,19 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-        public async Task<ServiceResponse<EmployeeDTO>> GetEmployeeByID(int Id)
+        public async Task<ServiceResponse<EmployeeResponseDTO>> GetEmployeeByID(int Id)
         {
             try
             {
-                EmployeeDTO response = new();
+                EmployeeResponseDTO response = new();
                 string query = @"
-                SELECT *
-                FROM [tblEmployee]
-                WHERE [Employeeid] = @EmployeeId";
+                SELECT e.*, d.DesignationName, r.RoleName
+                FROM [tblEmployee] e
+                LEFT JOIN [tblDesignation] d ON e.DesignationID = d.DesgnID
+                LEFT JOIN [tblRole] r ON e.RoleID = r.RoleID
+                WHERE e.Employeeid = @EmployeeId";
 
-                var data = await _connection.QueryFirstOrDefaultAsync<Employee>(query, new { EmployeeId = Id });
+                var data = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new { EmployeeId = Id });
                 if (data != null)
                 {
                     response.Employeeid = data.Employeeid;
@@ -157,58 +151,92 @@ namespace ControlPanel_API.Repository.Implementations
                     response.Createdon = data.Createdon;
                     response.Createdby = data.Createdby;
                     response.Status = data.Status;
-                    response.EmployeeSubjects = GetListOfEmployeeSubject(Id);
-                    return new ServiceResponse<EmployeeDTO>(true, "Records found", response, StatusCodes.Status302Found);
+                    response.EmployeeSubjectsList = GetListOfEmployeeSubject(Id);
+                    return new ServiceResponse<EmployeeResponseDTO>(true, "Records found", response, StatusCodes.Status302Found);
                 }
                 else
                 {
-                    return new ServiceResponse<EmployeeDTO>(false, "Records not found", new EmployeeDTO(), StatusCodes.Status204NoContent);
+                    return new ServiceResponse<EmployeeResponseDTO>(false, "Records not found", new EmployeeResponseDTO(), StatusCodes.Status204NoContent);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<EmployeeDTO>(false, ex.Message, new EmployeeDTO(), StatusCodes.Status500InternalServerError);
+                return new ServiceResponse<EmployeeResponseDTO>(false, ex.Message, new EmployeeResponseDTO(), StatusCodes.Status500InternalServerError);
             }
         }
-        public async Task<ServiceResponse<List<Employee>>> GetEmployeeList(GetEmployeeListDTO request)
+        public async Task<ServiceResponse<List<EmployeeResponseDTO>>> GetEmployeeList(GetEmployeeListDTO request)
         {
             try
             {
+
+                string countSql = @"SELECT COUNT(*) FROM [tblEmployee]";
+                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
+
                 string query = @"
-                SELECT *
-                FROM [tblEmployee]
+                SELECT e.*, d.DesignationName, r.RoleName
+                FROM [tblEmployee] e
+                LEFT JOIN [tblDesignation] d ON e.DesignationID = d.DesgnID
+                LEFT JOIN [tblRole] r ON e.RoleID = r.RoleID
                 WHERE 1 = 1";
 
                 // Add filters based on DTO properties
                 if (request.RoleId > 0)
                 {
-                    query += " AND [RoleID] = @RoleId";
+                    query += " AND e.RoleID = @RoleId";
                 }
                 if (request.DesignationId > 0)
                 {
-                    query += " AND [DesignationID] = @DesignationId";
+                    query += " AND e.DesignationID = @DesignationId";
                 }
                 if (!string.IsNullOrEmpty(request.SearchText))
                 {
-                    query += " AND ([EmpFirstName] LIKE @SearchText OR [EmpLastName] LIKE @SearchText)";
+                    query += " AND (e.EmpFirstName LIKE @SearchText OR e.EmpLastName LIKE @SearchText)";
                     request.SearchText = "%" + request.SearchText + "%";
                 }
-                var data = await _connection.QueryAsync<Employee>(query, request);
+
+                var data = await _connection.QueryAsync<dynamic>(query, request);
+
                 var paginatedList = data.Skip((request.PageNumber - 1) * request.PageSize)
-                      .Take(request.PageSize)
-                      .ToList();
+                                        .Take(request.PageSize)
+                                        .ToList();
+
                 if (paginatedList.Count != 0)
                 {
-                    return new ServiceResponse<List<Employee>>(true, "Records found", paginatedList.AsList(), StatusCodes.Status302Found);
+                    var responseList = paginatedList.Select(employee => new EmployeeResponseDTO
+                    {
+                        Employeeid = employee.Employeeid,
+                        Usercode = employee.Usercode,
+                        RoleID = employee.RoleID,
+                        DesignationID = employee.DesignationID,
+                        EmpFirstName = employee.EmpFirstName,
+                        EmpLastName = employee.EmpLastName,
+                        EMPPhoneNumber = employee.EMPPhoneNumber,
+                        EMPEmail = employee.EMPEmail,
+                        EMPDOB = employee.EMPDOB,
+                        ZipCode = employee.ZipCode,
+                        DistrictName = employee.DistrictName,
+                        StateName = employee.StateName,
+                        VcName = employee.VcName,
+                        Rolename = employee.Rolename, 
+                        Designationname = employee.Designationname, 
+                        Modifiedon = employee.Modifiedon,
+                        Modifiedby = employee.Modifiedby,
+                        Createdon = employee.Createdon,
+                        Createdby = employee.Createdby,
+                        Status = employee.Status,
+                        EmployeeSubjectsList = GetListOfEmployeeSubject(employee.Employeeid)
+                    }).ToList();
+
+                    return new ServiceResponse<List<EmployeeResponseDTO>>(true, "Records found", responseList, StatusCodes.Status302Found, totalCount);
                 }
                 else
                 {
-                    return new ServiceResponse<List<Employee>>(false, "Records not found", [], StatusCodes.Status204NoContent);
+                    return new ServiceResponse<List<EmployeeResponseDTO>>(false, "Records not found", [], StatusCodes.Status204NoContent);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<Employee>>(false, ex.Message, [], StatusCodes.Status500InternalServerError);
+                return new ServiceResponse<List<EmployeeResponseDTO>>(false, ex.Message, [], StatusCodes.Status500InternalServerError);
             }
         }
         public async Task<ServiceResponse<bool>> StatusActiveInactive(int id)
@@ -243,11 +271,15 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<bool>(false, ex.Message, false, 500);
             }
         }
-        private List<EmployeeSubject> GetListOfEmployeeSubject(int EmployeeId)
+        private List<EmployeeSubjectResponse> GetListOfEmployeeSubject(int EmployeeId)
         {
-            var query = @"SELECT * FROM [tblEmployeeSubject] WHERE  [Employeeid] = @Employeeid;";
-            // Execute the SQL query with the SOTDID parameter
-            var data = _connection.Query<EmployeeSubject>(query, new { Employeeid = EmployeeId });
+            string query = @"
+            SELECT es.EmpSubId, es.SubjectID, s.SubjectName, es.Employeeid
+            FROM [tblEmployeeSubject] es
+            JOIN [tblSubject] s ON es.SubjectID = s.SubjectID
+            WHERE es.Employeeid = @EmployeeId";
+     
+            var data = _connection.Query<EmployeeSubjectResponse>(query, new { Employeeid = EmployeeId });
             return data != null ? data.AsList() : [];
         }
         private int EmployeeSubjectMapping(List<EmployeeSubject> request, int EmployeeId)
@@ -265,8 +297,8 @@ namespace ControlPanel_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { Employeeid = EmployeeId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblEmployeeSubject] ([SubjectID], [SubjectName], [Employeeid])
-                          VALUES (@SubjectID, @SubjectName, @Employeeid);";
+                    var insertquery = @"INSERT INTO [tblEmployeeSubject] ([SubjectID], [Employeeid])
+                          VALUES (@SubjectID, @Employeeid);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -277,8 +309,8 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblEmployeeSubject] ([SubjectID], [SubjectName], [Employeeid])
-                          VALUES (@SubjectID, @SubjectName, @Employeeid);";
+                var insertquery = @"INSERT INTO [tblEmployeeSubject] ([SubjectID], [Employeeid])
+                          VALUES (@SubjectID, @Employeeid);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }

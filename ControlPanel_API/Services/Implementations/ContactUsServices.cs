@@ -1,4 +1,5 @@
-﻿using ControlPanel_API.DTOs;
+﻿using ControlPanel_API.DTOs.Requests;
+using ControlPanel_API.DTOs.Response;
 using ControlPanel_API.DTOs.ServiceResponse;
 using ControlPanel_API.Models;
 using ControlPanel_API.Repository.Interfaces;
@@ -13,17 +14,6 @@ namespace ControlPanel_API.Services.Implementations
         public ContactUsServices(IContactUsRepository contactUsRepository)
         {
             _contactUsRepository = contactUsRepository;
-        }
-        public async Task<ServiceResponse<string>> AddTicket(ContactUs request)
-        {
-            try
-            {
-                return await _contactUsRepository.AddTicket(request);
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
-            }
         }
         public async Task<ServiceResponse<List<GetAllContactUsResponse>>> GetAllContactUs(GeAllContactUsRequest request)
         {

@@ -19,8 +19,8 @@ namespace ControlPanel_API.Models
         public int SubjectID { get; set; }
         public string StateName { get; set; } = string.Empty;
         public string VcName { get; set; } = string.Empty;
-        public string Rolename { get; set; } = string.Empty;
-        public string Designationname { get; set; } = string.Empty;
+        //public string Rolename { get; set; } = string.Empty;
+        //public string Designationname { get; set; } = string.Empty;
         public DateTime? Modifiedon { get; set; }
         public string Modifiedby { get; set; } = string.Empty;
         public DateTime? Createdon { get; set; }

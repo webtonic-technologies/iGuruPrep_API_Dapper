@@ -1,13 +1,13 @@
-﻿using ControlPanel_API.DTOs;
+﻿using ControlPanel_API.DTOs.Requests;
+using ControlPanel_API.DTOs.Response;
 using ControlPanel_API.DTOs.ServiceResponse;
-using ControlPanel_API.Models;
 
 namespace ControlPanel_API.Services.Interfaces
 {
     public interface INotificationServices
     {
         Task<ServiceResponse<string>> AddUpdateNotification(NotificationDTO request);
-        Task<ServiceResponse<List<NotificationDTO>>> GetAllNotificationsList(NotificationsListDTO request);
-        Task<ServiceResponse<NotificationDTO>> GetNotificationById(int NotificationId);
+        Task<ServiceResponse<List<NotificationResponseDTO>>> GetAllNotificationsList(NotificationsListDTO request);
+        Task<ServiceResponse<NotificationResponseDTO>> GetNotificationById(int NotificationId);
     }
 }

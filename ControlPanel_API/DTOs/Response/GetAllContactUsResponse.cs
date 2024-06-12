@@ -1,4 +1,4 @@
-﻿namespace ControlPanel_API.DTOs
+﻿namespace ControlPanel_API.DTOs.Response
 {
     public class GetAllContactUsResponse
     {
@@ -11,8 +11,8 @@
         public string Board { get; set; } = string.Empty;
         public string Class { get; set; } = string.Empty;
         public string Course { get; set; } = string.Empty;
-        public string Category {  get; set; } = string.Empty;
+        public string Category { get; set; } = string.Empty;
         public string username { get; set; } = string.Empty;
-        public DateTime? DateTime {  get; set; }
+        public DateTime? DateTime { get; set; }
     }
 }
