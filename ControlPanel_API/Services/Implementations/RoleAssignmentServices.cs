@@ -1,4 +1,5 @@
 ﻿using ControlPanel_API.DTOs.Requests;
+using ControlPanel_API.DTOs.Response;
 using ControlPanel_API.DTOs.ServiceResponse;
 using ControlPanel_API.Models;
 using ControlPanel_API.Repository.Interfaces;
@@ -25,12 +26,18 @@ namespace ControlPanel_API.Services.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-
-        public Task<ServiceResponse<List<RoleAssignmentMapping>>> GetListOfRoleAssignment(GetListOfRoleAssignmentRequest request)
+        public async Task<ServiceResponse<List<RoleAssignmentResponse>>> GetListOfRoleAssignment(GetListOfRoleAssignmentRequest request)
         {
-            throw new NotImplementedException();
-        }
 
+            try
+            {
+                return await _roleAssignmentRepository.GetListOfRoleAssignment(request);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<RoleAssignmentResponse>>(false, ex.Message, [], 500);
+            }
+        }
         public async Task<ServiceResponse<List<MenuMasterDTOResponse>>> GetMasterMenu()
         {
             try
@@ -42,7 +49,18 @@ namespace ControlPanel_API.Services.Implementations
                 return new ServiceResponse<List<MenuMasterDTOResponse>>(false, ex.Message, [], 500);
             }
         }
+        public async Task<ServiceResponse<RoleAssignmentResponse>> GetRoleAssignmentById(int EmployeeId)
+        {
 
+            try
+            {
+                return await _roleAssignmentRepository.GetRoleAssignmentById(EmployeeId);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<RoleAssignmentResponse>(false, ex.Message, new RoleAssignmentResponse(), 500);
+            }
+        }
         public async Task<ServiceResponse<string>> RemoveRoleAssignment(int RAMappingId)
         {
 

@@ -1,3 +1,4 @@
+using ControlPanel_API.DTOs.Requests;
 using ControlPanel_API.Models;
 using ControlPanel_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -18,7 +19,7 @@ namespace ControlPanel_API.Controllers
         }
 
 
-        [HttpPost("GetMasterMenu")]
+        [HttpGet("GetMasterMenu")]
         public async Task<IActionResult> GetMasterMenu()
         {
             try
@@ -33,7 +34,6 @@ namespace ControlPanel_API.Controllers
                 };
             }
         }
-
         [HttpPost("AddUpdateRoleAssignment")]
         public async Task<IActionResult> AddUpdateRoleAssignment(List<RoleAssignmentMapping> request, int EmployeeId)
         {
@@ -55,6 +55,42 @@ namespace ControlPanel_API.Controllers
             try
             {
                 var data = await _roleAssignmentServices.RemoveRoleAssignment(RAMappingId);
+                if (data != null)
+                {
+                    return Ok(data);
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
+        [HttpPost("GetRoleAssignmentList")]
+        public async Task<IActionResult> GetRoleAssignmentList(GetListOfRoleAssignmentRequest request)
+        {
+            try
+            {
+                return new OkObjectResult(await _roleAssignmentServices.GetListOfRoleAssignment(request));
+            }
+            catch (Exception ex)
+            {
+                return new JsonResult(ex.Message)
+                {
+                    StatusCode = (int)HttpStatusCode.NotFound
+                };
+            }
+        }
+        [HttpGet("GetRoleAssignmentById/{EmployeeId}")]
+        public async Task<IActionResult> GetRoleAssignmentById(int EmployeeId)
+        {
+            try
+            {
+                var data = await _roleAssignmentServices.GetRoleAssignmentById(EmployeeId);
                 if (data != null)
                 {
                     return Ok(data);
