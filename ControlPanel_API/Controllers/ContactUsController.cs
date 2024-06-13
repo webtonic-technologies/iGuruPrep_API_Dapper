@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace ControlPanel_API.Controllers
 {
-    [Route("iGuru/[controller]")]
+    [Route("iGuru/ControlPanel/[controller]")]
     [ApiController]
     public class ContactUsController : ControllerBase
     {

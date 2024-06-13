@@ -122,7 +122,7 @@ namespace ControlPanel_API.Repository.Implementations
             {
                 EmployeeResponseDTO response = new();
                 string query = @"
-                SELECT e.*, d.DesignationName, r.RoleName
+                SELECT e.*, d.DesignationName AS Designationname, r.RoleName AS Rolename
                 FROM [tblEmployee] e
                 LEFT JOIN [tblDesignation] d ON e.DesignationID = d.DesgnID
                 LEFT JOIN [tblRole] r ON e.RoleID = r.RoleID

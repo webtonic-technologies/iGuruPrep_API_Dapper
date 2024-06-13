@@ -7,7 +7,7 @@ using System.Net;
 
 namespace ControlPanel_API.Controllers
 {
-    [Route("iGuru/[controller]")]
+    [Route("iGuru/ControlPanel/[controller]")]
     [ApiController]
     public class RolesController : ControllerBase
     {

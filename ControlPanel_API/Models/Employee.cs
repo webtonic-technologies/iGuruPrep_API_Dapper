@@ -6,7 +6,7 @@ namespace ControlPanel_API.Models
     public class Employee
     {
         public int Employeeid { get; set; }
-        public int Usercode { get; set; }
+        public string Usercode { get; set; }
         public int RoleID { get; set; }
         public int DesignationID { get; set; }
         public string EmpFirstName { get; set; } = string.Empty;

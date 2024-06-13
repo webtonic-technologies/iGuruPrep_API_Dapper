@@ -45,7 +45,7 @@ namespace ControlPanel_API.Repository.Implementations
                 else
                 {
                     string updateQuery = @" UPDATE tblHelpFAQ SET FAQName = @FAQName, FAQAnswer = @FAQAnswer, Status = @Status,
-                                            ModifiedOn = @ModifiedOn, ModifiedBy = @ModifiedBy, EmployeeID = @EmployeeID,
+                                            ModifiedOn = @ModifiedOn, ModifiedBy = @ModifiedBy, EmployeeID = @EmployeeID
                                             WHERE HelpFAQId = @HelpFAQId";
                     int rowsAffected = await _connection.ExecuteAsync(updateQuery, new
                     {

@@ -1,11 +1,10 @@
 using ControlPanel_API.DTOs.Requests;
-using ControlPanel_API.Models;
 using ControlPanel_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ControlPanel_API.Controllers
 {
-    [Route("iGuru/[controller]")]
+    [Route("iGuru/ControlPanel/[controller]")]
     [ApiController]
     public class FeedbackController : ControllerBase
     {

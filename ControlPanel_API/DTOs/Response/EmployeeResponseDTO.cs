@@ -5,7 +5,7 @@ namespace ControlPanel_API.DTOs.Response
     public class EmployeeResponseDTO
     {
         public int Employeeid { get; set; }
-        public int Usercode { get; set; }
+        public string Usercode { get; set; }
         [Required(ErrorMessage = "Role name cannot be empty")]
         public int RoleID { get; set; }
         [Required(ErrorMessage = "Designation name cannot be empty")]

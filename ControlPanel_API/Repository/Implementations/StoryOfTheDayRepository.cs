@@ -297,9 +297,9 @@ namespace ControlPanel_API.Repository.Implementations
             s.createdon,
             s.createdby,
             s.EmployeeID,
-            e.FirstName as EmpFirstName
+            e.EmpFirstName as EmpFirstName
         FROM tblSOTD s
-        LEFT JOIN Employee e ON s.EmployeeID = e.Employeeid
+        LEFT JOIN tblEmployee e ON s.EmployeeID = e.Employeeid
         WHERE s.StoryId IN @Ids;";
                 var SOTDs = await _connection.QueryAsync<dynamic>(mainQuery, parameters);
 
@@ -368,9 +368,9 @@ namespace ControlPanel_API.Repository.Implementations
             s.createdon,
             s.createdby,
             s.EmployeeID,
-            e.FirstName as EmpFirstName
+            e.EmpFirstName as EmpFirstName
         FROM tblSOTD s
-        LEFT JOIN Employee e ON s.EmployeeID = e.Employeeid
+        LEFT JOIN tblEmployee e ON s.EmployeeID = e.Employeeid
         WHERE s.StoryId = @StoryId;";
                 var storyOfTheDay = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new { StoryId = id });
 
@@ -510,8 +510,8 @@ namespace ControlPanel_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { SOTDID });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblSOTDCategory] ([APID], [SOTDID], [APIDName])
-                          VALUES (@APID, @SOTDID, @APIDName);";
+                    var insertquery = @"INSERT INTO [tblSOTDCategory] ([APID], [SOTDID])
+                          VALUES (@APID, @SOTDID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -522,8 +522,8 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblSOTDCategory] ([APID], [SOTDID], [APIDName])
-                          VALUES (@APID, @SOTDID, @APIDName);";
+                var insertquery = @"INSERT INTO [tblSOTDCategory] ([APID], [SOTDID])
+                          VALUES (@APID, @SOTDID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -543,8 +543,8 @@ namespace ControlPanel_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { SOTDID });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblSOTDClass] ([SOTDID], [ClassID], Name)
-                          VALUES (@SOTDID, @ClassID, @Name);";
+                    var insertquery = @"INSERT INTO [tblSOTDClass] ([SOTDID], [ClassID])
+                          VALUES (@SOTDID, @ClassID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -555,8 +555,8 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblSOTDClass] ([SOTDID], [ClassID], Name)
-                          VALUES (@SOTDID, @ClassID, @Name);";
+                var insertquery = @"INSERT INTO [tblSOTDClass] ([SOTDID], [ClassID])
+                          VALUES (@SOTDID, @ClassID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -576,8 +576,8 @@ namespace ControlPanel_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { SOTDID });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblSOTDBoard] ([SOTDID], [BoardID], Name)
-                          VALUES (@SOTDID, @BoardID, @Name);";
+                    var insertquery = @"INSERT INTO [tblSOTDBoard] ([SOTDID], [BoardID])
+                          VALUES (@SOTDID, @BoardID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -588,8 +588,8 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblSOTDBoard] ([SOTDID], [BoardID], Name)
-                          VALUES (@SOTDID, @BoardID, @Name);";
+                var insertquery = @"INSERT INTO [tblSOTDBoard] ([SOTDID], [BoardID])
+                          VALUES (@SOTDID, @BoardID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -609,8 +609,8 @@ namespace ControlPanel_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { SOTDID });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblSOTDCourse] ([SOTDID], [CourseID], Name)
-                          VALUES (@SOTDID, @CourseID, @Name);";
+                    var insertquery = @"INSERT INTO [tblSOTDCourse] ([SOTDID], [CourseID])
+                          VALUES (@SOTDID, @CourseID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -621,8 +621,8 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblSOTDCourse] ([SOTDID], [CourseID], Name)
-                          VALUES (@SOTDID, @CourseID, @Name);";
+                var insertquery = @"INSERT INTO [tblSOTDCourse] ([SOTDID], [CourseID])
+                          VALUES (@SOTDID, @CourseID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -642,8 +642,8 @@ namespace ControlPanel_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { SOTDID });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblSOTDExamType] ([SOTDID], [ExamTypeID], Name)
-                          VALUES (@SOTDID, @ExamTypeID, @Name);";
+                    var insertquery = @"INSERT INTO [tblSOTDExamType] ([SOTDID], [ExamTypeID])
+                          VALUES (@SOTDID, @ExamTypeID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -654,8 +654,8 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblSOTDExamType] ([SOTDID], [ExamTypeID], Name)
-                          VALUES (@SOTDID, @ExamTypeID, @Name);";
+                var insertquery = @"INSERT INTO [tblSOTDExamType] ([SOTDID], [ExamTypeID])
+                          VALUES (@SOTDID, @ExamTypeID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -667,11 +667,11 @@ namespace ControlPanel_API.Repository.Implementations
             b.tblSOTDBoardID,
             b.SOTDID,
             b.BoardID,
-            bc.Name as BoardName
+            bc.BoardName as Name
         FROM 
             [tblSOTDBoard] b
         LEFT JOIN 
-            Boards bc ON b.BoardID = bc.BoardID
+            tblBoard bc ON b.BoardId = bc.BoardID
         WHERE 
             b.SOTDID = @SOTDID;";
 
@@ -686,11 +686,11 @@ namespace ControlPanel_API.Repository.Implementations
             c.SOTDCategoryID,
             c.SOTDID,
             c.APID,
-            cap.Name as APIDName
+            cap.APName as APIDName
         FROM 
             [tblSOTDCategory] c
         LEFT JOIN 
-            Categories cap ON c.APID = cap.APID
+            tblCategory cap ON c.APID = cap.APId
         WHERE 
             c.SOTDID = @SOTDID;";
             // Execute the SQL query with the SOTDID parameter
@@ -704,11 +704,11 @@ namespace ControlPanel_API.Repository.Implementations
             cl.tblSOTDClassID,
             cl.SOTDID,
             cl.ClassID,
-            cc.Name as ClassName
+            cc.ClassName as Name
         FROM 
             [tblSOTDClass] cl
         LEFT JOIN 
-            Classes cc ON cl.ClassID = cc.ClassID
+            tblClass cc ON cl.ClassID = cc.ClassID
         WHERE 
             cl.SOTDID = @SOTDID;";
       
@@ -722,11 +722,11 @@ namespace ControlPanel_API.Repository.Implementations
             co.SOTDCourseID,
             co.SOTDID,
             co.CourseID,
-            cn.Name as CourseName
+            cn.CourseName as Name
         FROM 
             [tblSOTDCourse] co
         LEFT JOIN 
-            Courses cn ON co.CourseID = cn.CourseID
+            tblCourse cn ON co.CourseID = cn.CourseID
         WHERE 
             co.SOTDID = @SOTDID;";
             var data = _connection.Query<SOTDCourseResponse>(query, new { SOTDID });
@@ -739,11 +739,11 @@ namespace ControlPanel_API.Repository.Implementations
             et.SOTDExamTypeID,
             et.SOTDID,
             et.ExamTypeID,
-            ex.Name as ExamTypeName
+            ex.ExamTypeName as Name
         FROM 
             [tblSOTDExamType] et
         LEFT JOIN 
-            ExamTypes ex ON et.ExamTypeID = ex.ExamTypeID
+            tblExamType ex ON et.ExamTypeID = ex.ExamTypeID
         WHERE 
             et.SOTDID = @SOTDID;";
             var data = _connection.Query<SOTDExamTypeResponse>(query, new { SOTDID });

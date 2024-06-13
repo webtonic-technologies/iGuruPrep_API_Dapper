@@ -1,11 +1,10 @@
 using ControlPanel_API.DTOs.Requests;
-using ControlPanel_API.Services.Implementations;
 using ControlPanel_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ControlPanel_API.Controllers
 {
-    [Route("iGuru/[controller]")]
+    [Route("iGuru/ControlPanel/[controller]")]
     [ApiController]
     public class MagazineController : ControllerBase
     {
@@ -58,12 +57,12 @@ namespace ControlPanel_API.Controllers
             }
         }
 
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetMagazineById(int id)
+        [HttpGet("GetMagazineById/{MagazineId}")]
+        public async Task<IActionResult> GetMagazineById(int MagazineId)
         {
             try
             {
-                var magazine = await _magazineService.GetMagazineById(id);
+                var magazine = await _magazineService.GetMagazineById(MagazineId);
                 return Ok(magazine);
             }
             catch (Exception ex)
@@ -72,12 +71,12 @@ namespace ControlPanel_API.Controllers
             }
         }
 
-        [HttpPut("Status/{id}")]
-        public async Task<IActionResult> StatusActiveInactive(int id)
+        [HttpPut("Status/{MagazineId}")]
+        public async Task<IActionResult> StatusActiveInactive(int MagazineId)
         {
             try
             {
-                var data = await _magazineService.StatusActiveInactive(id);
+                var data = await _magazineService.StatusActiveInactive(MagazineId);
                 if (data != null)
                 {
                     return Ok(data);

@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace ControlPanel_API.Controllers
 {
     //Notification template
-    [Route("iGuru/[controller]")]
+    [Route("iGuru/ControlPanel/[controller]")]
     [ApiController]
     public class NotificationController : ControllerBase
     {
@@ -17,7 +17,7 @@ namespace ControlPanel_API.Controllers
             _notificationServices = notificationServices;
         }
 
-        [HttpPost]
+        [HttpPost("AddUpdate")]
         public async Task<IActionResult> AddUpdateNotification([FromBody]NotificationDTO request)
         {
             try
@@ -45,12 +45,12 @@ namespace ControlPanel_API.Controllers
             }
         }
 
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetNotificationById(int id)
+        [HttpGet("GetNotificationById/{NBNotificationID}")]
+        public async Task<IActionResult> GetNotificationById(int NBNotificationID)
         {
             try
             {
-                var storyOfTheDay = await _notificationServices.GetNotificationById(id);
+                var storyOfTheDay = await _notificationServices.GetNotificationById(NBNotificationID);
                 return Ok(storyOfTheDay);
             }
             catch (Exception ex)

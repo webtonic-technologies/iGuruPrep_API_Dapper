@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace ControlPanel_API.Controllers
 {
-    [Route("iGuru/[controller]")]
+    [Route("iGuru/ControlPanel/[controller]")]
     [ApiController]
     public class StoryOfTheDayController : ControllerBase
     {
@@ -58,12 +58,12 @@ namespace ControlPanel_API.Controllers
             }
         }
 
-        [HttpGet("GetofStoryofTheDayById/{id}")]
-        public async Task<IActionResult> GetStoryOfTheDayById(int id)
+        [HttpGet("GetofStoryofTheDayById/{StoryId}")]
+        public async Task<IActionResult> GetStoryOfTheDayById(int StoryId)
         {
             try
             {
-                var storyOfTheDay = await _storyOfTheDayService.GetStoryOfTheDayById(id);
+                var storyOfTheDay = await _storyOfTheDayService.GetStoryOfTheDayById(StoryId);
                 return Ok(storyOfTheDay);
             }
             catch (Exception ex)
@@ -72,25 +72,12 @@ namespace ControlPanel_API.Controllers
             }
         }
 
-        [HttpDelete("DeleteStoryOftheDay/{id}")]
-        public async Task<IActionResult> DeleteStoryOfTheDay(int id)
+        [HttpPut("Status/{StoryId}")]
+        public async Task<IActionResult> StatusActiveInactive(int StoryId)
         {
             try
             {
-                var data = await _storyOfTheDayService.DeleteStoryOfTheDay(id);
-                return Ok(data);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
-        [HttpPut("Status/{id}")]
-        public async Task<IActionResult> StatusActiveInactive(int id)
-        {
-            try
-            {
-                var data = await _storyOfTheDayService.StatusActiveInactive(id);
+                var data = await _storyOfTheDayService.StatusActiveInactive(StoryId);
                 if (data != null)
                 {
                     return Ok(data);

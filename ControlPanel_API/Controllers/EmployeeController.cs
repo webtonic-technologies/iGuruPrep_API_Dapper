@@ -6,7 +6,7 @@ using System.Net;
 
 namespace ControlPanel_API.Controllers
 {
-    [Route("iGuru/[controller]")]
+    [Route("iGuru/ControlPanel/[controller]")]
     [ApiController]
     public class EmployeeController : ControllerBase
     {
@@ -34,12 +34,12 @@ namespace ControlPanel_API.Controllers
             }
 
         }
-        [HttpGet("GetEmployeeById/{ID}")]
-        public async Task<IActionResult> GetEmployeeByID(int ID)
+        [HttpGet("GetEmployeeById/{Employeeid}")]
+        public async Task<IActionResult> GetEmployeeByID(int Employeeid)
         {
             try
             {
-                return new OkObjectResult(await _employeeServices.GetEmployeeByID(ID));
+                return new OkObjectResult(await _employeeServices.GetEmployeeByID(Employeeid));
             }
             catch (Exception ex)
             {

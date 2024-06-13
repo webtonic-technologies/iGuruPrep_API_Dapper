@@ -545,7 +545,7 @@ namespace ControlPanel_API.Repository.Implementations
         private List<MagazineBoardResponse> GetListOfMagazineBoards(int MagazineID)
         {
             string boardQuery = @"
-            SELECT mb.[MagazineBoardId], mb.[MagazineID], mb.[BoardIDID], b.[Name] AS Name
+            SELECT mb.[MagazineBoardId], mb.[MagazineID], mb.[BoardIDID], b.[BoardName] AS Name
             FROM [tblMagazineBoard] mb
             LEFT JOIN [tblBoard] b ON mb.BoardIDID = b.BoardID
             WHERE mb.[MagazineID] = @MagazineID";
@@ -557,7 +557,7 @@ namespace ControlPanel_API.Repository.Implementations
         private List<MagazineCategoryResponse> GetListOfMagazineCategory(int MagazineId)
         {
             string categoryQuery = @"
-            SELECT mc.[MgCategoryID], mc.[MagazineId], mc.[APID], c.[Name] AS APIDName
+            SELECT mc.[MgCategoryID], mc.[MagazineId], mc.[APID], c.[APName] AS APIDName
             FROM [tblMagazineCategory] mc
             LEFT JOIN [tblCategory] c ON mc.APID = c.APID
             WHERE mc.[MagazineId] = @MagazineId";
@@ -568,7 +568,7 @@ namespace ControlPanel_API.Repository.Implementations
         private List<MagazineClassResponse> GetListOfMagazineClass(int MagazineID)
         {
             string classQuery = @"
-            SELECT mcl.[MagazineClassId], mcl.[MagazineID], mcl.[ClassID], cl.[Name] AS Name
+            SELECT mcl.[MagazineClassId], mcl.[MagazineID], mcl.[ClassID], cl.[ClassName] AS Name
             FROM [tblMagazineClass] mcl
             LEFT JOIN [tblClass] cl ON mcl.ClassID = cl.ClassID
             WHERE mcl.[MagazineID] = @MagazineID";
@@ -578,7 +578,7 @@ namespace ControlPanel_API.Repository.Implementations
         private List<MagazineCourseResponse> GetListOfMagazineCourse(int MagazineID)
         {
             string courseQuery = @"
-            SELECT mcr.[MagazineCourseID], mcr.[MagazineID], mcr.[CourseID], cr.[Name] AS Name
+            SELECT mcr.[MagazineCourseID], mcr.[MagazineID], mcr.[CourseID], cr.[CourseName] AS Name
             FROM [tblMagazineCourse] mcr
             LEFT JOIN [tblCourse] cr ON mcr.CourseID = cr.CourseID
             WHERE mcr.[MagazineID] = @MagazineID";
@@ -589,7 +589,7 @@ namespace ControlPanel_API.Repository.Implementations
         private List<MagazineExamTypeResponse> GetListOfMagazineExamType(int MagazineID)
         {
             string examTypeQuery = @"
-            SELECT met.[MagazineExamTypeID], met.[MagazineID], met.[ExamTypeID], et.[Name] AS Name
+            SELECT met.[MagazineExamTypeID], met.[MagazineID], met.[ExamTypeID], et.[ExamTypeName] AS Name
             FROM [tblMagazineExamType] met
             LEFT JOIN [tblExamType] et ON met.ExamTypeID = et.ExamTypeID
             WHERE met.[MagazineID] = @MagazineID";

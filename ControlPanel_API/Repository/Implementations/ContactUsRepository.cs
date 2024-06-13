@@ -69,7 +69,8 @@ namespace ControlPanel_API.Repository.Implementations
                     request.APID,
                     request.StartDate,
                     request.EndDate,
-                    request.Today
+                    request.Today,
+                    request.SearchText
                 });
                 var paginatedList = list.Skip((request.PageNumber - 1) * request.PageSize)
                            .Take(request.PageSize)

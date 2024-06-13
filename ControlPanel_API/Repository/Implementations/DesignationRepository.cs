@@ -119,7 +119,7 @@ namespace ControlPanel_API.Repository.Implementations
                        SET DesgnCode = @DesgnCode, DesignationName = @DesignationName, Status = @Status,
                        modifiedon = @modifiedon, modifiedby = @modifiedby
                        WHERE DesgnID = @DesgnID";
-
+                request.modifiedon = DateTime.Now;
                 int rowsAffected = await _connection.ExecuteAsync(sql, request);
 
                 if (rowsAffected > 0)

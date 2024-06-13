@@ -99,7 +99,7 @@ namespace ControlPanel_API.Repository.Implementations
                         int exam = NBExamTypeMapping(request.NbNotificationExamTypes ??= ([]), request.NBNotificationID);
                         if (category > 0 && classes > 0 && board > 0 && course > 0 && exam > 0 && data > 0 && data1 > 0)
                         {
-                            return new ServiceResponse<string>(true, "Operation Successful", "Notice Board Notification Added Successfully", 200);
+                            return new ServiceResponse<string>(true, "Operation Successful", "Notice Board Notification Updated Successfully", 200);
                         }
                         else
                         {
@@ -195,10 +195,10 @@ namespace ControlPanel_API.Repository.Implementations
             n.modifiedon, 
             n.modifiedby, 
             n.EmployeeID,
-            e.FirstName as EmpFirstName
+            e.EmpFirstName as EmpFirstName
         FROM tblNbNotification n
-        LEFT JOIN Employee e ON n.EmployeeID = e.EmployeeID
-        WHERE n.NBNotificationID = @Ids";
+        LEFT JOIN tblEmployee e ON n.EmployeeID = e.Employeeid
+        WHERE n.NBNotificationID IN @Ids";
 
                 var data = await _connection.QueryAsync<dynamic>(mainQuery, parameters);
 
@@ -256,9 +256,9 @@ namespace ControlPanel_API.Repository.Implementations
             n.modifiedon, 
             n.modifiedby, 
             n.EmployeeID,
-            e.FirstName as EmpFirstName
+            e.EmpFirstName as EmpFirstName
         FROM tblNbNotification n
-        LEFT JOIN Employee e ON n.EmployeeID = e.Employeeid
+        LEFT JOIN tblEmployee e ON n.EmployeeID = e.Employeeid
         WHERE n.NBNotificationID = @NotificationId";
                 var data = await _connection.QuerySingleOrDefaultAsync<dynamic>(selectQuery, new { NotificationId });
                 if (data != null)
@@ -355,7 +355,7 @@ namespace ControlPanel_API.Repository.Implementations
             string updateQuery = @"
             UPDATE tblNbNotificationLink
             SET NBNLID = @NBNLID,
-                NotificationLink = @NotificationLink,
+                NotificationLink = @NotificationLink
             WHERE NBNotificationLinkId = @NBNotificationLinkId";
             if (request != null)
             {
@@ -459,7 +459,7 @@ namespace ControlPanel_API.Repository.Implementations
             if (count > 0)
             {
                 var deleteDuery = @"DELETE FROM [tblNbNotificationClass]
-                          WHERE [SOTDID] = @SOTDID;";
+                          WHERE [NBNotificationID] = @NBNotificationID;";
                 var rowsAffected = _connection.Execute(deleteDuery, new { NBNotificationID = notificationId });
                 if (rowsAffected > 0)
                 {
@@ -587,11 +587,11 @@ namespace ControlPanel_API.Repository.Implementations
             nb.NbNotificationBoardId, 
             nb.NBNotificationID, 
             nb.BoardID, 
-            b.Name as Name
+            b.BoardName as Name
         FROM tblNbNotificationBoard nb
-        LEFT JOIN Boards b ON nb.BoardID = b.BoardID
+        LEFT JOIN tblBoard b ON nb.BoardID = b.BoardID
         WHERE nb.NBNotificationID = @NotificationId;";
-            var boardData = _connection.Query<NbNotificationBoardResponse>(boardquery, new { NbNotificationBoardId = notificationId });
+            var boardData = _connection.Query<NbNotificationBoardResponse>(boardquery, new { NotificationId = notificationId });
             return boardData != null ? boardData.AsList() : [];
         }
         private List<NbNotificationCategoryResponse> GetListOfNBCategory(int notificationId)
@@ -601,11 +601,11 @@ namespace ControlPanel_API.Repository.Implementations
             nc.NbNotificationCategoryId, 
             nc.NBNotificationID, 
             nc.APID, 
-            c.Name as Name
+            c.APName as Name
         FROM tblNbNotificationCategory nc
-        LEFT JOIN Categories c ON nc.APID = c.CategoryID
+        LEFT JOIN tblCategory c ON nc.APID = c.APId
         WHERE nc.NBNotificationID = @NotificationId;";
-            var data = _connection.Query<NbNotificationCategoryResponse>(query, new { NBNotificationID = notificationId });
+            var data = _connection.Query<NbNotificationCategoryResponse>(query, new { NotificationId = notificationId });
             return data != null ? data.AsList() : [];
         }
         private List<NbNotificationClassResponse> GetListOfNBClass(int notificationId)
@@ -615,11 +615,11 @@ namespace ControlPanel_API.Repository.Implementations
             nc.NbNotificationClassId, 
             nc.NBNotificationID, 
             nc.ClassID, 
-            c.Name as Name
+            c.ClassName as Name
         FROM tblNbNotificationClass nc
-        LEFT JOIN Classes c ON nc.ClassID = c.ClassID
+        LEFT JOIN tblClass c ON nc.ClassID = c.ClassID
         WHERE nc.NBNotificationID = @NotificationId;";
-            var data = _connection.Query<NbNotificationClassResponse>(query, new { NBNotificationID = notificationId });
+            var data = _connection.Query<NbNotificationClassResponse>(query, new { NotificationId = notificationId });
             return data != null ? data.AsList() : [];
         }
         private List<NbNotificationCourseResponse> GetListOfNBCourse(int notificationId)
@@ -629,11 +629,11 @@ namespace ControlPanel_API.Repository.Implementations
             nc.NbNotificationCourseId, 
             nc.NBNotificationID, 
             nc.CourseID, 
-            c.Name as Name
+            c.CourseName as Name
         FROM tblNbNotificationCourse nc
-        LEFT JOIN Courses c ON nc.CourseID = c.CourseID
+        LEFT JOIN tblCourse c ON nc.CourseID = c.CourseID
         WHERE nc.NBNotificationID = @NotificationId;";
-            var data = _connection.Query<NbNotificationCourseResponse>(query, new { NBNotificationID = notificationId });
+            var data = _connection.Query<NbNotificationCourseResponse>(query, new { NotificationId = notificationId });
             return data != null ? data.AsList() : [];
         }
         private List<NbNotificationExamTypeResponse> GetListOfNBExamType(int notificationId)
@@ -643,25 +643,25 @@ namespace ControlPanel_API.Repository.Implementations
             ne.NbNotificationExamTypeId, 
             ne.NBNotificationID, 
             ne.ExamTypeID, 
-            et.Name as Name
+            et.ExamTypeName as Name
         FROM tblNbNotificationExamType ne
-        LEFT JOIN ExamTypes et ON ne.ExamTypeID = et.ExamTypeID
+        LEFT JOIN tblExamType et ON ne.ExamTypeID = et.ExamTypeID
         WHERE ne.NBNotificationID = @NotificationId;";
-            var data = _connection.Query<NbNotificationExamTypeResponse>(query, new { NBNotificationID = notificationId });
+            var data = _connection.Query<NbNotificationExamTypeResponse>(query, new { NotificationId = notificationId });
             return data != null ? data.AsList() : [];
         }
         private List<NotificationDetail> GetListOfNotificationDetails(int notificationId)
         {
             string query = @"SELECT * FROM tblNbNotificationDetail WHERE NBNID = @NotificationId";
             // Execute the SQL query with the SOTDID parameter
-            var data = _connection.Query<NotificationDetail>(query, new { NBNotificationID = notificationId });
+            var data = _connection.Query<NotificationDetail>(query, new { NotificationId = notificationId });
             return data != null ? data.AsList() : [];
         }
         private List<NotificationLinkMaster> GetListOfNotificationLink(int notificationId)
         {
             string query = @"SELECT * FROM tblNbNotificationLink WHERE NBNLID = @NotificationId";
             // Execute the SQL query with the SOTDID parameter
-            var data = _connection.Query<NotificationLinkMaster>(query, new { NBNotificationID = notificationId });
+            var data = _connection.Query<NotificationLinkMaster>(query, new { NotificationId = notificationId });
             return data != null ? data.AsList() : [];
         }
     }
