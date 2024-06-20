@@ -82,33 +82,51 @@ namespace Config_API.Repository.Implementations
                 return new ServiceResponse<List<ClassCourseMappingResponse>>(false, ex.Message, [], 500);
             }
         }
-        public async Task<ServiceResponse<ClassCourseMappingResponse>> GetClassCourseMappingById(int id)
+        public async Task<ServiceResponse<ClassCourseMappingResponse>> GetClassCourseMappingById(int courseClassMappingID)
         {
             try
             {
-                var response = new ClassCourseMappingResponse();
-                string query = @"
-        SELECT 
-            cc.CourseClassMappingID,
-            cc.CourseID,
-            cc.ClassID,
-            cc.Status,
-            cc.createdon,
-            cc.EmployeeID,
-            cc.modifiedon,
-            cc.modifiedby,
-            cl.classname,
-            c.coursename,
-            e.EmpFirstName
-        FROM 
-            tblClassCourses cc
-        INNER JOIN tblClass cl ON cc.ClassID = cl.ClassID
-        INNER JOIN tblCourse c ON cc.CourseID = c.CourseID
-        LEFT JOIN tblEmployee e ON cc.EmployeeID = e.Employeeid
-        WHERE 
-            cc.CourseClassMappingID = @CourseClassMappingID";
+                // Query to get ClassID from CourseClassMappingID
+                string classIdQuery = @"
+                SELECT 
+                    ClassID 
+                FROM 
+                    tblClassCourses 
+                WHERE 
+                    CourseClassMappingID = @CourseClassMappingID";
 
-                var data = await _connection.QueryAsync<dynamic>(query, new { CourseClassMappingID = id });
+                var classIdResult = await _connection.QuerySingleOrDefaultAsync<int>(classIdQuery, new { CourseClassMappingID = courseClassMappingID });
+
+                if (classIdResult == 0)
+                {
+                    return new ServiceResponse<ClassCourseMappingResponse>(false, "Record not Found", new ClassCourseMappingResponse(), 500);
+                }
+
+                int classId = classIdResult;
+
+                // Query to get all records associated with the ClassID
+                string query = @"
+                SELECT 
+                    cc.CourseClassMappingID,
+                    cc.CourseID,
+                    cc.ClassID,
+                    cc.Status,
+                    cc.createdon,
+                    cc.EmployeeID,
+                    cc.modifiedon,
+                    cc.modifiedby,
+                    cl.classname,
+                    c.coursename,
+                    e.EmpFirstName
+                FROM 
+                    tblClassCourses cc
+                INNER JOIN tblClass cl ON cc.ClassID = cl.ClassID
+                INNER JOIN tblCourse c ON cc.CourseID = c.CourseID
+                LEFT JOIN tblEmployee e ON cc.EmployeeID = e.Employeeid
+                WHERE 
+                    cc.ClassID = @ClassID";
+
+                var data = await _connection.QueryAsync<dynamic>(query, new { ClassID = classId });
 
                 if (data == null || !data.Any())
                 {
@@ -116,22 +134,23 @@ namespace Config_API.Repository.Implementations
                 }
 
                 var firstRecord = data.First();
-                response.ClassID = firstRecord.ClassID;
-                response.Status = firstRecord.Status;
-                response.createdon = firstRecord.createdon;
-                response.EmployeeID = firstRecord.EmployeeID;
-                response.classname = firstRecord.classname;
-                response.modifiedby = firstRecord.modifiedby;
-                response.modifiedon = firstRecord.modifiedon;
-                response.EmpFirstName = firstRecord.EmpFirstName;
-
-                response.Courses = data.Select(item => new CourseData
+                var response = new ClassCourseMappingResponse
                 {
-                    CourseClassMappingID = item.CourseClassMappingID,
-                    CourseID = item.CourseID,
-                    Coursename = item.coursename,
-                  
-                }).ToList();
+                    ClassID = firstRecord.ClassID,
+                    Status = firstRecord.Status,
+                    createdon = firstRecord.createdon,
+                    EmployeeID = firstRecord.EmployeeID,
+                    classname = firstRecord.classname,
+                    modifiedby = firstRecord.modifiedby,
+                    modifiedon = firstRecord.modifiedon,
+                    EmpFirstName = firstRecord.EmpFirstName,
+                    Courses = data.Select(item => new CourseData
+                    {
+                        CourseClassMappingID = item.CourseClassMappingID,
+                        CourseID = item.CourseID,
+                        Coursename = item.coursename,
+                    }).ToList()
+                };
 
                 return new ServiceResponse<ClassCourseMappingResponse>(true, "Record Found", response, 200);
             }
@@ -178,10 +197,15 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
+                if (_connection.State != ConnectionState.Open)
+                {
+                    _connection.Open();
+                }
                 if (request.CourseID?.Count == 0)
                 {
                     return new ServiceResponse<string>(false, "Courses data cannot be empty", string.Empty, StatusCodes.Status400BadRequest);
                 }
+
                 var classData = await _connection.QueryAsync<Class>("SELECT * FROM tblClass WHERE ClassId = @ClassId", new { ClassId = request.ClassID });
                 if (classData != null)
                 {
@@ -192,78 +216,68 @@ namespace Config_API.Repository.Implementations
 
                     var existingCourseIDs = existingMappings.ToList();
 
-                    if (request.CourseClassMappingID == 0)
+                    // Prepare the list of course IDs to be inserted and removed
+                    var newCourseIDs = request.CourseID?.Except(existingCourseIDs).ToList();
+                    var removedCourseIDs = existingCourseIDs?.Except(request.CourseID ??= ([])).ToList();
+
+                    using (var transaction = _connection.BeginTransaction())
                     {
-                        foreach (var courseId in request.CourseID ??= [])
+                        // Remove course mappings that are not in the new list
+                        if (removedCourseIDs?.Count > 0)
                         {
-                            if (existingCourseIDs.Contains(courseId))
-                            {
-                                return new ServiceResponse<string>(false, "Record already exists", string.Empty, StatusCodes.Status400BadRequest);
-                            }
+                            string deleteQuery = "DELETE FROM tblClassCourses WHERE ClassID = @ClassID AND CourseID IN @CourseIDs";
+                            int deletedRows = await _connection.ExecuteAsync(deleteQuery, new { request.ClassID, CourseIDs = removedCourseIDs }, transaction);
 
-                            string query = @"INSERT INTO tblClassCourses (CourseID, ClassID, Status, createdon, EmployeeID) 
-                                     VALUES (@CourseID, @ClassID, @Status, @createdon, @EmployeeID)";
-
-                            int rowsAffected = await _connection.ExecuteAsync(query, new
+                            if (deletedRows == 0)
                             {
-                                CourseID = courseId,
-                                request.ClassID,
-                                Status = true,
-                                createdon = DateTime.Now,
-                                request.EmployeeID
-                            });
-
-                            if (rowsAffected == 0)
-                            {
-                                return new ServiceResponse<string>(false, "Operation Failed", string.Empty, StatusCodes.Status400BadRequest);
+                                transaction.Rollback();
+                                return new ServiceResponse<string>(false, "Failed to remove old course mappings", string.Empty, StatusCodes.Status400BadRequest);
                             }
                         }
-                        return new ServiceResponse<string>(true, "Operation Successful", "Record added successfully", StatusCodes.Status200OK);
-                    }
-                    else
-                    {
-                        // Delete existing mappings for the class
-                        string delete = "DELETE FROM tblClassCourses WHERE ClassID = @ClassID";
-                        int deletedRows = await _connection.ExecuteAsync(delete, new { request.ClassID });
 
-                        foreach (var courseId in request.CourseID ??= [])
+                        // Insert new course mappings
+                        if (newCourseIDs?.Count > 0)
                         {
-                            if (existingCourseIDs.Contains(courseId))
+                            foreach (var courseId in newCourseIDs)
                             {
-                                return new ServiceResponse<string>(false, "Record already exists", string.Empty, StatusCodes.Status400BadRequest);
-                            }
+                                string query = @"INSERT INTO tblClassCourses (CourseID, ClassID, Status, createdon, EmployeeID, modifiedon, modifiedby) 
+                                         VALUES (@CourseID, @ClassID, @Status, @createdon, @EmployeeID, @modifiedon, @modifiedby)";
 
-                            string query = @"INSERT INTO tblClassCourses (CourseID, ClassID, Status, createdon, EmployeeID, modifiedon, modifiedby) 
-                                     VALUES (@CourseID, @ClassID, @Status, @createdon, @EmployeeID, @modifiedon, @modifiedby)";
+                                int rowsAffected = await _connection.ExecuteAsync(query, new
+                                {
+                                    CourseID = courseId,
+                                    request.ClassID,
+                                    Status = true,
+                                    createdon = DateTime.Now,
+                                    modifiedon = DateTime.UtcNow,
+                                    request.modifiedby,
+                                    request.EmployeeID
+                                }, transaction);
 
-                            int rowsAffected = await _connection.ExecuteAsync(query, new
-                            {
-                                request.ClassID,
-                                request.Status,
-                                createdon = DateTime.Now,
-                                modifiedon = DateTime.UtcNow,
-                                request.modifiedby,
-                                CourseID = courseId,
-                                request.CourseClassMappingID,
-                                request.EmployeeID
-                            });
-
-                            if (rowsAffected == 0)
-                            {
-                                return new ServiceResponse<string>(false, "Operation Failed", string.Empty, StatusCodes.Status400BadRequest);
+                                if (rowsAffected == 0)
+                                {
+                                    transaction.Rollback();
+                                    return new ServiceResponse<string>(false, "Failed to insert new course mappings", string.Empty, StatusCodes.Status400BadRequest);
+                                }
                             }
                         }
-                        return new ServiceResponse<string>(true, "Operation Successful", "Record updated successfully", StatusCodes.Status200OK);
+
+                        transaction.Commit();
+                        return new ServiceResponse<string>(true, "Operation Successful", "Courses updated successfully", StatusCodes.Status200OK);
                     }
                 }
                 else
                 {
-                    return new ServiceResponse<string>(false, "Operation Failed", "No record found for class or course", 204);
+                    return new ServiceResponse<string>(false, "Operation Failed", "No record found for class or course", StatusCodes.Status204NoContent);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, StatusCodes.Status500InternalServerError);
+            }
+            finally
+            {
+                _connection.Close();
             }
         }
     }

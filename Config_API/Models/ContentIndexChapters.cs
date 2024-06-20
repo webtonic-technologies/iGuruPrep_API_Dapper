@@ -16,5 +16,6 @@
         public DateTime? ModifiedOn { get; set; }
         public string ModifiedBy { get; set; } = string.Empty;
         public int EmployeeId { get; set; }
+        public int ExamTypeId {  get; set; }
     }
 }

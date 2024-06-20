@@ -122,6 +122,7 @@ namespace Config_API.Repository.Implementations
                     ModifiedOn = contentIndex.ModifiedOn,
                     ModifiedBy = contentIndex.ModifiedBy,
                     EmployeeId = contentIndex.EmployeeId,
+                    ExamTypeId = contentIndex.ExamTypeId,
                     ContentIndexTopics = topics.ToList()
                 };
 
@@ -239,8 +240,8 @@ namespace Config_API.Repository.Implementations
                 {
                     // Insert new content index
                     string insertQuery = @"
-                INSERT INTO tblContentIndexChapters (SubjectId, ContentName_Chapter, IndexTypeId, Status, ClassId, BoardId, APID, CreatedOn, CreatedBy, CourseId, EmployeeId)
-                VALUES (@SubjectId, @ContentName_Chapter, @IndexTypeId, @Status, @ClassId, @BoardId, @APID, @CreatedOn, @CreatedBy, @CourseId, @EmployeeId);
+                INSERT INTO tblContentIndexChapters (SubjectId, ContentName_Chapter, IndexTypeId, Status, ClassId, BoardId, APID, CreatedOn, CreatedBy, CourseId, EmployeeId, ExamTypeId)
+                VALUES (@SubjectId, @ContentName_Chapter, @IndexTypeId, @Status, @ClassId, @BoardId, @APID, @CreatedOn, @CreatedBy, @CourseId, @EmployeeId, @ExamTypeId);
                 SELECT CAST(SCOPE_IDENTITY() as int);";
 
                     int insertedId = await _connection.QuerySingleAsync<int>(insertQuery, new
@@ -255,7 +256,8 @@ namespace Config_API.Repository.Implementations
                         CreatedOn = DateTime.Now,
                         request.CreatedBy,
                         request.CourseId,
-                        request.EmployeeId
+                        request.EmployeeId,
+                        request.ExamTypeId
                     }, transaction);
 
                     if (insertedId > 0)
@@ -285,7 +287,8 @@ namespace Config_API.Repository.Implementations
                     ModifiedOn = @ModifiedOn,
                     ModifiedBy = @ModifiedBy,
                     CourseId = @CourseId,
-                    EmployeeId = @EmployeeId
+                    EmployeeId = @EmployeeId,
+                    ExamTypeId = @ExamTypeId
                 WHERE ContentIndexId = @ContentIndexId";
 
                     int rowsAffected = await _connection.ExecuteAsync(updateQuery, new
@@ -301,7 +304,8 @@ namespace Config_API.Repository.Implementations
                         ModifiedOn = DateTime.Now,
                         request.ModifiedBy,
                         request.CourseId,
-                        request.EmployeeId
+                        request.EmployeeId,
+                        request.ExamTypeId
                     }, transaction);
 
                     if (rowsAffected > 0)

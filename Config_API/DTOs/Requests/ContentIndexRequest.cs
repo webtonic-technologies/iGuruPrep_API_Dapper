@@ -18,6 +18,7 @@ namespace Config_API.DTOs.Requests
         public DateTime? ModifiedOn { get; set; }
         public string ModifiedBy { get; set; } = string.Empty;
         public int EmployeeId { get; set; }
+        public int ExamTypeId {  get; set; }
         public List<ContentIndexTopics>? ContentIndexTopics { get; set; }
     }
 }

@@ -1,6 +1,5 @@
 ﻿using Config_API.DTOs.Requests;
 using Config_API.DTOs.ServiceResponse;
-using Config_API.Models;
 
 namespace Config_API.Repository.Interfaces
 {

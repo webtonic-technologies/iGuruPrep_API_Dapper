@@ -1,5 +1,4 @@
 using Config_API.DTOs.Requests;
-using Config_API.Models;
 using Config_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
