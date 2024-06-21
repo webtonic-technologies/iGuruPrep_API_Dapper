@@ -268,7 +268,7 @@ namespace ControlPanel_API.Repository.Implementations
 
                         if (!exists)
                         {
-                            if (menuMasterId == 0)
+                            if (roleAssignment.RAMappingId == 0)
                             {
                                 // Insert if no duplicate
                                 string insertSql = @"

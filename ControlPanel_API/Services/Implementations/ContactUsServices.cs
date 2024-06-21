@@ -1,7 +1,6 @@
 ﻿using ControlPanel_API.DTOs.Requests;
 using ControlPanel_API.DTOs.Response;
 using ControlPanel_API.DTOs.ServiceResponse;
-using ControlPanel_API.Models;
 using ControlPanel_API.Repository.Interfaces;
 using ControlPanel_API.Services.Interfaces;
 

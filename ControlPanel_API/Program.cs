@@ -32,6 +32,8 @@ builder.Services.AddTransient<IHelpFAQRepository, HelpFAQRepository>();
 builder.Services.AddTransient<IHelpFAQServices, HelpFAQServices>();
 builder.Services.AddTransient<IRoleAssignmentRepository, RoleAssignmentRepository>();
 builder.Services.AddTransient<IRoleAssignmentServices, RoleAssignmentServices>();
+builder.Services.AddTransient<ITimeTablePreparationRepository, TimeTablePreparationRepository>();
+builder.Services.AddTransient<ITimeTablePreparationServices, TimeTablePreparationServices>();
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

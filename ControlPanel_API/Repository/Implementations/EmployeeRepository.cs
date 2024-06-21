@@ -173,28 +173,32 @@ namespace ControlPanel_API.Repository.Implementations
                 int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
 
                 string query = @"
-                SELECT e.*, d.DesignationName, r.RoleName
+                SELECT e.*, d.DesignationName AS Designationname, r.RoleName AS Rolename
                 FROM [tblEmployee] e
                 LEFT JOIN [tblDesignation] d ON e.DesignationID = d.DesgnID
                 LEFT JOIN [tblRole] r ON e.RoleID = r.RoleID
                 WHERE 1 = 1";
+             
+                var mainParameters = new DynamicParameters();
 
                 // Add filters based on DTO properties
                 if (request.RoleId > 0)
                 {
                     query += " AND e.RoleID = @RoleId";
+                    mainParameters.Add("RoleId", request.RoleId);
                 }
                 if (request.DesignationId > 0)
                 {
                     query += " AND e.DesignationID = @DesignationId";
+                    mainParameters.Add("DesignationId", request.DesignationId);
                 }
                 if (!string.IsNullOrEmpty(request.SearchText))
                 {
                     query += " AND (e.EmpFirstName LIKE @SearchText OR e.EmpLastName LIKE @SearchText)";
-                    request.SearchText = "%" + request.SearchText + "%";
+                    mainParameters.Add("SearchText", "%" + request.SearchText + "%");
                 }
 
-                var data = await _connection.QueryAsync<dynamic>(query, request);
+                var data = await _connection.QueryAsync<dynamic>(query, mainParameters);
 
                 var paginatedList = data.Skip((request.PageNumber - 1) * request.PageSize)
                                         .Take(request.PageSize)
