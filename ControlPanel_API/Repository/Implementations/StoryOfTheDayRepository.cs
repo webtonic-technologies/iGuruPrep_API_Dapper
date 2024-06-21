@@ -5,7 +5,6 @@ using ControlPanel_API.Models;
 using ControlPanel_API.Repository.Interfaces;
 using Dapper;
 using System.Data;
-using System.Data.SqlClient;
 
 namespace ControlPanel_API.Repository.Implementations
 {
@@ -207,103 +206,87 @@ namespace ControlPanel_API.Repository.Implementations
         {
             try
             {
+
                 string countSql = @"SELECT COUNT(*) FROM [tblSOTD]";
                 int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
-                var SOTDIds = new HashSet<int>();
+                // Base query
+                string baseQuery = @"
+                SELECT DISTINCT
+                    s.StoryId,
+                    s.EventTypeID,
+                    s.Event1PostDate,
+                    s.Event1Posttime,
+                    s.Event2PostDate,
+                    s.Event2Posttime,
+                    s.Filename1,
+                    s.Filename2,
+                    s.Status,
+                    s.APName,
+                    s.eventtypename,
+                    s.modifiedon,
+                    s.modifiedby,
+                    s.createdon,
+                    s.createdby,
+                    s.EmployeeID,
+                    e.EmpFirstName
+                FROM [tblSOTD] s
+                LEFT JOIN [tblEmployee] e ON s.EmployeeID = e.Employeeid
+                LEFT JOIN [tblSOTDCategory] sc ON s.StoryId = sc.SOTDID
+                LEFT JOIN [tblSOTDBoard] sb ON s.StoryId = sb.SOTDID
+                LEFT JOIN [tblSOTDClass] scl ON s.StoryId = scl.SOTDID
+                LEFT JOIN [tblSOTDCourse] sco ON s.StoryId = sco.SOTDID
+                LEFT JOIN [tblSOTDExamType] se ON s.StoryId = se.SOTDID
+                WHERE 1=1";
 
-                // Define the queries
-                string categoriesQuery = @"SELECT [SOTDID] FROM [tblSOTDCategory] WHERE [APID] = @APID";
-                string boardsQuery = @"SELECT [SOTDID] FROM [tblSOTDBoard] WHERE [BoardID] = @BoardID";
-                string classesQuery = @"SELECT SOTDID FROM [tblSOTDClass] WHERE [ClassID] = @ClassID";
-                string coursesQuery = @"SELECT SOTDID FROM [tblSOTDCourse] WHERE [CourseID] = @CourseID";
-                string examsQuery = @"SELECT SOTDID FROM [tblSOTDExamType] WHERE [ExamTypeID] = @ExamTypeID";
-                string sotdQuery = @"SELECT StoryId FROM [tblSOTD] WHERE [EventTypeID] = @EventTypeID";
-
-                var categoryTask = Task.Run(async () =>
+                // Applying filters
+                if (request.ClassID > 0)
                 {
-                    using var connection = new SqlConnection(_connectionString);
-                    await connection.OpenAsync();
-                    return await connection.QueryAsync<int>(categoriesQuery, new { request.APID });
-                });
-
-                var boardTask = Task.Run(async () =>
+                    baseQuery += " AND scl.ClassID = @ClassID";
+                }
+                if (request.BoardID > 0)
                 {
-                    using var connection = new SqlConnection(_connectionString);
-                    await connection.OpenAsync();
-                    return await connection.QueryAsync<int>(boardsQuery, new { request.BoardID });
-                });
-
-                var classTask = Task.Run(async () =>
+                    baseQuery += " AND sb.BoardID = @BoardID";
+                }
+                if (request.CourseID > 0)
                 {
-                    using var connection = new SqlConnection(_connectionString);
-                    await connection.OpenAsync();
-                    return await connection.QueryAsync<int>(classesQuery, new { request.ClassID });
-                });
-
-                var courseTask = Task.Run(async () =>
+                    baseQuery += " AND sco.CourseID = @CourseID";
+                }
+                if (request.ExamTypeID > 0)
                 {
-                    using var connection = new SqlConnection(_connectionString);
-                    await connection.OpenAsync();
-                    return await connection.QueryAsync<int>(coursesQuery, new { request.CourseID });
-                });
-
-                var examTask = Task.Run(async () =>
+                    baseQuery += " AND se.ExamTypeID = @ExamTypeID";
+                }
+                if (request.APID > 0)
                 {
-                    using var connection = new SqlConnection(_connectionString);
-                    await connection.OpenAsync();
-                    return await connection.QueryAsync<int>(examsQuery, new { request.ExamTypeID });
-                });
-
-                var sotdTask = Task.Run(async () =>
+                    baseQuery += " AND sc.APID = @APID";
+                }
+                if (request.EventTypeID > 0)
                 {
-                    using var connection = new SqlConnection(_connectionString);
-                    await connection.OpenAsync();
-                    return await connection.QueryAsync<int>(sotdQuery, new { request.EventTypeID });
-                });
-
-
-                // Wait for all tasks to complete
-                var results = await Task.WhenAll(categoryTask, boardTask, classTask, courseTask, examTask, sotdTask);
-
-                // Add all results to the HashSet to ensure uniqueness
-                foreach (var result in results)
-                {
-                    foreach (var id in result)
-                    {
-                        SOTDIds.Add(id);
-                    }
+                    baseQuery += " AND s.EventTypeID = @EventTypeID";
                 }
 
-                // Prepare the list of IDs for the final query
-                var parameters = new { Ids = SOTDIds.ToList() };
+                // Pagination
+                baseQuery += " ORDER BY s.StoryId OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
 
-                // Main query to fetch magazine details
+                var offset = (request.PageNumber - 1) * request.PageSize;
 
-                var mainQuery = @"
-        SELECT 
-            s.StoryId,
-            s.EventTypeID,
-            s.Event1PostDate,
-            s.Event1Posttime,
-            s.Event2PostDate,
-            s.Event2Posttime,
-            s.Filename1,
-            s.Filename2,
-            s.Status,
-            s.APName,
-            s.eventtypename,
-            s.modifiedon,
-            s.modifiedby,
-            s.createdon,
-            s.createdby,
-            s.EmployeeID,
-            e.EmpFirstName as EmpFirstName
-        FROM tblSOTD s
-        LEFT JOIN tblEmployee e ON s.EmployeeID = e.Employeeid
-        WHERE s.StoryId IN @Ids;";
-                var SOTDs = await _connection.QueryAsync<dynamic>(mainQuery, parameters);
+                // Parameters for the query
+                var parameters = new
+                {
+                    ClassID = request.ClassID,
+                    BoardID = request.BoardID,
+                    CourseID = request.CourseID,
+                    ExamTypeID = request.ExamTypeID,
+                    APID = request.APID,
+                    EventTypeID = request.EventTypeID,
+                    Offset = offset,
+                    PageSize = request.PageSize
+                };
 
-                var response = SOTDs.Select(item => new StoryOfTheDayResponseDTO
+                // Fetch filtered and paginated records
+                var mainResult = await _connection.QueryAsync<dynamic>(baseQuery, parameters);
+
+                // Map results to response DTO
+                var response = mainResult.Select(item => new StoryOfTheDayResponseDTO
                 {
                     StoryId = item.StoryId,
                     EventTypeID = item.EventTypeID,
@@ -327,22 +310,20 @@ namespace ControlPanel_API.Repository.Implementations
                     SOTDCourses = GetListOfSOTDCourse(item.StoryId),
                     SOTDExamTypes = GetListOfSOTDExamType(item.StoryId)
                 }).ToList();
-                var paginatedList = response.Skip((request.PageNumber - 1) * request.PageSize)
-               .Take(request.PageSize)
-               .ToList();
-                if (paginatedList.Count != 0)
+
+                // Check if there are records
+                if (response.Count != 0)
                 {
-                    return new ServiceResponse<List<StoryOfTheDayResponseDTO>>(true, "Records found", paginatedList, 200, totalCount);
+                    return new ServiceResponse<List<StoryOfTheDayResponseDTO>>(true, "Records found", response, 200, totalCount);
                 }
                 else
                 {
-                    return new ServiceResponse<List<StoryOfTheDayResponseDTO>>(false, "Records not found", [], 404);
+                    return new ServiceResponse<List<StoryOfTheDayResponseDTO>>(false, "Records not found", new List<StoryOfTheDayResponseDTO>(), 404);
                 }
-
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<StoryOfTheDayResponseDTO>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<StoryOfTheDayResponseDTO>>(false, ex.Message, new List<StoryOfTheDayResponseDTO>(), 500);
             }
         }
         public async Task<ServiceResponse<StoryOfTheDayResponseDTO>> GetStoryOfTheDayById(int id)

@@ -5,7 +5,6 @@ using ControlPanel_API.Models;
 using ControlPanel_API.Repository.Interfaces;
 using Dapper;
 using System.Data;
-using System.Data.SqlClient;
 
 namespace ControlPanel_API.Repository.Implementations
 {
@@ -122,79 +121,75 @@ namespace ControlPanel_API.Repository.Implementations
             {
                 string countSql = @"SELECT COUNT(*) FROM [tblMagazine]";
                 int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
-                var magazineIds = new HashSet<int>();
+                // Base query
+                string baseQuery = @"
+                SELECT DISTINCT
+                    m.[MagazineId], 
+                    m.[Date], 
+                    m.[Time], 
+                    m.[PathURL], 
+                    m.[MagazineTitle], 
+                    m.[Status], 
+                    m.[Link], 
+                    m.[EmployeeID],
+                    m.[createdon], 
+                    m.[createdby], 
+                    m.[modifiedby], 
+                    m.[modifiedon],
+                    e.[EmpFirstName]
+                FROM [tblMagazine] m
+                LEFT JOIN [tblEmployee] e ON m.EmployeeID = e.Employeeid
+                LEFT JOIN [tblMagazineCategory] mc ON m.MagazineId = mc.MagazineId
+                LEFT JOIN [tblMagazineBoard] mb ON m.MagazineId = mb.MagazineId
+                LEFT JOIN [tblMagazineClass] mcl ON m.MagazineId = mcl.MagazineId
+                LEFT JOIN [tblMagazineCourse] mco ON m.MagazineId = mco.MagazineId
+                LEFT JOIN [tblMagazineExamType] met ON m.MagazineId = met.MagazineId
+                WHERE 1=1";
 
-                // Define the queries
-                string categoriesQuery = @"SELECT MagazineId FROM [tblMagazineCategory] WHERE [APID] = @APID";
-                string boardsQuery = @"SELECT MagazineID FROM [tblMagazineBoard] WHERE [BoardIDID] = @BoardIDID";
-                string classesQuery = @"SELECT MagazineID FROM [tblMagazineClass] WHERE [ClassID] = @ClassID";
-                string coursesQuery = @"SELECT MagazineID FROM [tblMagazineCourse] WHERE [CourseID] = @CourseID";
-                string examsQuery = @"SELECT MagazineID FROM [tblMagazineExamType] WHERE [ExamTypeID] = @ExamTypeID";
-
-
-                var categoryTask = Task.Run(async () =>
+                // Applying filters
+                if (request.ClassID > 0)
                 {
-                    using var connection = new SqlConnection(_connectionString);
-                    await connection.OpenAsync();
-                    return await connection.QueryAsync<int>(categoriesQuery, new { request.APID });
-                });
-
-                var boardTask = Task.Run(async () =>
+                    baseQuery += " AND mcl.ClassID = @ClassID";
+                }
+                if (request.BoardIDID > 0)
                 {
-                    using var connection = new SqlConnection(_connectionString);
-                    await connection.OpenAsync();
-                    return await connection.QueryAsync<int>(boardsQuery, new { request.BoardIDID });
-                });
-
-                var classTask = Task.Run(async () =>
+                    baseQuery += " AND mb.BoardIDID = @BoardIDID";
+                }
+                if (request.CourseID > 0)
                 {
-                    using var connection = new SqlConnection(_connectionString);
-                    await connection.OpenAsync();
-                    return await connection.QueryAsync<int>(classesQuery, new { request.ClassID });
-                });
-
-                var courseTask = Task.Run(async () =>
+                    baseQuery += " AND mco.CourseID = @CourseID";
+                }
+                if (request.ExamTypeID > 0)
                 {
-                    using var connection = new SqlConnection(_connectionString);
-                    await connection.OpenAsync();
-                    return await connection.QueryAsync<int>(coursesQuery, new { request.CourseID });
-                });
-
-                var examTask = Task.Run(async () =>
+                    baseQuery += " AND met.ExamTypeID = @ExamTypeID";
+                }
+                if (request.APID > 0)
                 {
-                    using var connection = new SqlConnection(_connectionString);
-                    await connection.OpenAsync();
-                    return await connection.QueryAsync<int>(examsQuery, new { request.ExamTypeID });
-                });
-
-                // Wait for all tasks to complete
-                var results = await Task.WhenAll(categoryTask, boardTask, classTask, courseTask, examTask);
-
-                // Add all results to the HashSet to ensure uniqueness
-                foreach (var result in results)
-                {
-                    foreach (var id in result)
-                    {
-                        magazineIds.Add(id);
-                    }
+                    baseQuery += " AND mc.APID = @APID";
                 }
 
-                // Prepare the list of IDs for the final query
-                var parameters = new { Ids = magazineIds.ToList() };
+                // Pagination
+                baseQuery += " ORDER BY m.MagazineId OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
 
-                // Main query to fetch magazine details
+                var offset = (request.PageNumber - 1) * request.PageSize;
 
-                string mainQuery = @"
-            SELECT m.[MagazineId], m.[Date], m.[Time], m.[PathURL], m.[MagazineTitle], m.[Status], m.[Link], m.[EmployeeID],
-            m.[createdon], m.[createdby], m.[modifiedby], m.[modifiedon],
-                   e.[EmpFirstName]
-            FROM [tblMagazine] m
-            LEFT JOIN [tblEmployee] e ON m.EmployeeID = e.Employeeid
-            WHERE m.[MagazineId] IN @Ids";
+                // Parameters for the query
+                var parameters = new
+                {
+                    ClassID = request.ClassID,
+                    BoardIDID = request.BoardIDID,
+                    CourseID = request.CourseID,
+                    ExamTypeID = request.ExamTypeID,
+                    APID = request.APID,
+                    Offset = offset,
+                    PageSize = request.PageSize
+                };
 
-                var magazines = await _connection.QueryAsync<dynamic>(mainQuery, parameters);
+                // Fetch filtered and paginated records
+                var mainResult = await _connection.QueryAsync<dynamic>(baseQuery, parameters);
 
-                var response = magazines.Select(item => new MagazineResponseDTO
+                // Map results to response DTO
+                var response = mainResult.Select(item => new MagazineResponseDTO
                 {
                     MagazineId = item.MagazineId,
                     Date = item.Date,
@@ -215,12 +210,11 @@ namespace ControlPanel_API.Repository.Implementations
                     MagazineCourses = GetListOfMagazineCourse(item.MagazineId),
                     MagazineExamTypes = GetListOfMagazineExamType(item.MagazineId)
                 }).ToList();
-                var paginatedList = response.Skip((request.PageNumber - 1) * request.PageSize)
-                 .Take(request.PageSize)
-                 .ToList();
-                if (paginatedList.Count != 0)
+
+                // Check if there are records
+                if (response.Count != 0)
                 {
-                    return new ServiceResponse<List<MagazineResponseDTO>>(true, "Records found", paginatedList, 200, totalCount);
+                    return new ServiceResponse<List<MagazineResponseDTO>>(true, "Records found", response, 200, totalCount);
                 }
                 else
                 {
@@ -229,7 +223,7 @@ namespace ControlPanel_API.Repository.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<MagazineResponseDTO>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<MagazineResponseDTO>>(false, ex.Message, new List<MagazineResponseDTO>(), 500);
             }
         }
         public async Task<ServiceResponse<MagazineResponseDTO>> GetMagazineById(int id)
@@ -368,7 +362,6 @@ namespace ControlPanel_API.Repository.Implementations
         private string GetPDF(string Filename)
         {
             var filePath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "MagazinePDF", Filename);
-
             if (!File.Exists(filePath))
             {
                 return string.Empty;

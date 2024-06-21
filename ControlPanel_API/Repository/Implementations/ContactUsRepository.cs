@@ -22,35 +22,35 @@ namespace ControlPanel_API.Repository.Implementations
                 string countSql = @"SELECT COUNT(*) FROM [tblHelpContactUs]";
                 int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
                 string sql = @"
-        SELECT 
-            cu.ContactusID, 
-            cu.QuerytypeDescription AS QuerytypeDescription,
-            cu.phonenumber AS phonenumber,
-            cu.username AS username,
-            cu.DateTime AS DateTime,
-            e.EmpFirstName AS EmpFirstName,
-            b.BoardName AS Board,
-            c.ClassName AS Class,
-            cr.CourseName AS Course,
-            ct.APName AS Category,
-            q.[QueryType] AS QueryTypeName,
-            e.EMPEmail AS Email
-        FROM 
-            [tblHelpContactUs] cu
-        LEFT JOIN 
-            [dbo].[tblBoard] b ON b.BoardId = cu.BoardId
-        LEFT JOIN 
-            [dbo].[tblClass] c ON c.ClassId = cu.ClassId
-        LEFT JOIN 
-            [dbo].[tblCourse] cr ON cr.CourseId = cu.CourseId
-        LEFT JOIN 
-            [dbo].[tblCategory] ct ON ct.APId = cu.APId
-        LEFT JOIN 
-            [dbo].[tblQuery] q ON q.QueryID = cu.QueryType
-        LEFT JOIN 
-            [dbo].[tblEmployee] e ON e.Employeeid = cu.[EmployeeID]
-        WHERE 
-            1 = 1";
+                SELECT 
+                    cu.ContactusID, 
+                    cu.QuerytypeDescription AS QuerytypeDescription,
+                    cu.phonenumber AS phonenumber,
+                    cu.username AS username,
+                    cu.DateTime AS DateTime,
+                    e.EmpFirstName AS EmpFirstName,
+                    b.BoardName AS Board,
+                    c.ClassName AS Class,
+                    cr.CourseName AS Course,
+                    ct.APName AS Category,
+                    q.[QueryType] AS QueryTypeName,
+                    e.EMPEmail AS Email
+                FROM 
+                    [tblHelpContactUs] cu
+                LEFT JOIN 
+                    [dbo].[tblBoard] b ON b.BoardId = cu.BoardId
+                LEFT JOIN 
+                    [dbo].[tblClass] c ON c.ClassId = cu.ClassId
+                LEFT JOIN 
+                    [dbo].[tblCourse] cr ON cr.CourseId = cu.CourseId
+                LEFT JOIN 
+                    [dbo].[tblCategory] ct ON ct.APId = cu.APId
+                LEFT JOIN 
+                    [dbo].[tblQuery] q ON q.QueryID = cu.QueryType
+                LEFT JOIN 
+                    [dbo].[tblEmployee] e ON e.Employeeid = cu.[EmployeeID]
+                WHERE 
+                    1 = 1";
 
                 var parameters = new DynamicParameters();
 

@@ -22,33 +22,33 @@ namespace ControlPanel_API.Repository.Implementations
                 string countSql = @"SELECT COUNT(*) FROM [tblUserFeedBack]";
                 int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
                 string sql = @"
-    SELECT 
-        fb.FeedBackId, 
-        fb.FirstName AS Name,
-        fb.FeedbackDescription AS FeedBackDesc,
-        fb.Rating AS Rating,
-        fb.Date AS Date,
-        fb.phonenumber AS PhoneNumber,
-        fb.Email AS Email,
-        b.BoardName AS Board,
-        c.ClassName AS Class,
-        cr.CourseName AS Course
-    FROM 
-        [tblUserFeedBack] fb
-    LEFT JOIN 
-        [dbo].[tblBoard] b ON b.BoardId = fb.BoardId
-    LEFT JOIN 
-        [dbo].[tblClass] c ON c.ClassId = fb.ClassId
-    LEFT JOIN 
-        [dbo].[tblCourse] cr ON cr.CourseId = fb.CourseId
-    WHERE 
-        (fb.BoardId = @BoardId OR @BoardId = 0)
-        AND (fb.CourseId = @CourseId OR @CourseId = 0)
-        AND (fb.ClassId = @ClassId OR @ClassId = 0)
-        AND (fb.APID = @APID OR @APID = 0)
-        AND (@StartDate IS NULL OR fb.Date >= @StartDate)
-        AND (@EndDate IS NULL OR fb.Date <= @EndDate)
-        AND (@Today IS NULL OR fb.Date = @Today);";
+                SELECT 
+                    fb.FeedBackId, 
+                    fb.FirstName AS Name,
+                    fb.FeedbackDescription AS FeedBackDesc,
+                    fb.Rating AS Rating,
+                    fb.Date AS Date,
+                    fb.phonenumber AS PhoneNumber,
+                    fb.Email AS Email,
+                    b.BoardName AS Board,
+                    c.ClassName AS Class,
+                    cr.CourseName AS Course
+                FROM 
+                    [tblUserFeedBack] fb
+                LEFT JOIN 
+                    [dbo].[tblBoard] b ON b.BoardId = fb.BoardId
+                LEFT JOIN 
+                    [dbo].[tblClass] c ON c.ClassId = fb.ClassId
+                LEFT JOIN 
+                    [dbo].[tblCourse] cr ON cr.CourseId = fb.CourseId
+                WHERE 
+                    (fb.BoardId = @BoardId OR @BoardId = 0)
+                    AND (fb.CourseId = @CourseId OR @CourseId = 0)
+                    AND (fb.ClassId = @ClassId OR @ClassId = 0)
+                    AND (fb.APID = @APID OR @APID = 0)
+                    AND (@StartDate IS NULL OR fb.Date >= @StartDate)
+                    AND (@EndDate IS NULL OR fb.Date <= @EndDate)
+                    AND (@Today IS NULL OR fb.Date = @Today);";
 
                 var list = await _connection.QueryAsync<GetAllFeedbackResponse>(sql, new
                 {
