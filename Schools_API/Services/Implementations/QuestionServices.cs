@@ -1,7 +1,7 @@
-﻿using Schools_API.DTOs;
+﻿using Schools_API.DTOs.Requests;
+using Schools_API.DTOs.Response;
 using Schools_API.DTOs.ServiceResponse;
 using Schools_API.Models;
-using Schools_API.Repository.Implementations;
 using Schools_API.Repository.Interfaces;
 using Schools_API.Services.Interfaces;
 
@@ -15,19 +15,51 @@ namespace Schools_API.Services.Implementations
         {
             _questionRepository = questionRepository;
         }
-        public async Task<ServiceResponse<string>> AddQuestion(QuestionDTO request)
+        public async Task<ServiceResponse<string>> AddUpdateQuestion(QuestionDTO request)
         {
             try
             {
-                return await _questionRepository.AddQuestion(request);
+                return await _questionRepository.AddUpdateQuestion(request);
             }
             catch (Exception ex)
             {
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-
-        public async Task<ServiceResponse<List<QuestionDTO>>> GetAllQuestionsList(GetAllQuestionListRequest request)
+        public async Task<ServiceResponse<string>> ApproveQuestion(QuestionApprovalRequestDTO request)
+        {
+            try
+            {
+                return await _questionRepository.ApproveQuestion(request);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+            }
+        }
+        public async Task<ServiceResponse<string>> AssignQuestionToProfiler(QuestionProfilerRequest request)
+        {
+            try
+            {
+                return await _questionRepository.AssignQuestionToProfiler(request);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+            }
+        }
+        public async Task<ServiceResponse<List<QuestionComparisonDTO>>> CompareQuestionAsync(QuestionCompareRequest newQuestion)
+        {
+            try
+            {
+                return await _questionRepository.CompareQuestionAsync(newQuestion);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<QuestionComparisonDTO>>(false, ex.Message, [], 500);
+            }
+        }
+        public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetAllQuestionsList(GetAllQuestionListRequest request)
         {
             try
             {
@@ -35,11 +67,21 @@ namespace Schools_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<QuestionDTO>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, [], 500);
             }
         }
-
-        public async Task<ServiceResponse<QuestionDTO>> GetQuestionById(int questionId)
+        public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetApprovedQuestionsList(GetAllQuestionListRequest request)
+        {
+            try
+            {
+                return await _questionRepository.GetApprovedQuestionsList(request);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, [], 500);
+            }
+        }
+        public async Task<ServiceResponse<QuestionResponseDTO>> GetQuestionById(int questionId)
         {
             try
             {
@@ -47,7 +89,40 @@ namespace Schools_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<QuestionDTO>(false, ex.Message, new QuestionDTO(), 500);
+                return new ServiceResponse<QuestionResponseDTO>(false, ex.Message, new QuestionResponseDTO(), 500);
+            }
+        }
+        public async Task<ServiceResponse<QuestionProfilerResponse>> GetQuestionProfilerDetails(int QuestionId)
+        {
+            try
+            {
+                return await _questionRepository.GetQuestionProfilerDetails(QuestionId);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<QuestionProfilerResponse>(false, ex.Message, new QuestionProfilerResponse(), 500);
+            }
+        }
+        public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetRejectedQuestionsList(GetAllQuestionListRequest request)
+        {
+            try
+            {
+                return await _questionRepository.GetRejectedQuestionsList(request);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, [], 500);
+            }
+        }
+        public async Task<ServiceResponse<string>> RejectQuestion(QuestionRejectionRequestDTO request)
+        {
+            try
+            {
+                return await _questionRepository.RejectQuestion(request);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
     }

@@ -1,10 +1,10 @@
 ﻿using Dapper;
-using Schools_API.DTOs;
+using Schools_API.DTOs.Requests;
+using Schools_API.DTOs.Response;
 using Schools_API.DTOs.ServiceResponse;
 using Schools_API.Models;
 using Schools_API.Repository.Interfaces;
 using System.Data;
-using System.Data.SqlClient;
 
 namespace Schools_API.Repository.Implementations
 {
@@ -27,8 +27,8 @@ namespace Schools_API.Repository.Implementations
                 if (request.ProjectId == 0)
                 {
                     var insertQuery = @"
-                    INSERT INTO tblProject (ProjectName, ProjectDescription, PathURL, createdby, ReferenceLink, EmployeeID, status, createdon, EmpFirstName, pdfVideoFile)
-                    VALUES (@ProjectName, @ProjectDescription, @PathURL, @createdby, @ReferenceLink, @EmployeeID, @status, @createdon, @EmpFirstName, @pdfVideoFile);
+                    INSERT INTO tblProject (ProjectName, ProjectDescription, PathURL, createdby, ReferenceLink, EmployeeID, status, createdon, pdfVideoFile)
+                    VALUES (@ProjectName, @ProjectDescription, @PathURL, @createdby, @ReferenceLink, @EmployeeID, @status, @createdon, @pdfVideoFile);
                     SELECT CAST(SCOPE_IDENTITY() AS INT);";
                     var project = new Project
                     {
@@ -40,7 +40,6 @@ namespace Schools_API.Repository.Implementations
                         EmployeeID = request.EmployeeID,
                         status = true,
                         createdon = DateTime.Now,
-                        EmpFirstName = request.EmpFirstName,
                         pdfVideoFile = FileUpload(request.pdfVideoFile ??= string.Empty)
                     };
                     int insertedValue = await _connection.QueryFirstOrDefaultAsync<int>(insertQuery, project);
@@ -78,7 +77,6 @@ namespace Schools_API.Repository.Implementations
                         status = @status,
                         modifiedby = @modifiedby,
                         modifiedon = @modifiedon,
-                        EmpFirstName = @EmpFirstName,
                         pdfVideoFile = @pdfVideoFile
                         WHERE ProjectId = @ProjectId;";
                     var project = new Project
@@ -91,7 +89,6 @@ namespace Schools_API.Repository.Implementations
                         EmployeeID = request.EmployeeID,
                         status = request.status,
                         modifiedon = DateTime.Now,
-                        EmpFirstName = request.EmpFirstName,
                         pdfVideoFile = FileUpload(request.pdfVideoFile ??= string.Empty),
                         ProjectId = request.ProjectId
                     }; ;
@@ -124,97 +121,88 @@ namespace Schools_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-        public async Task<ServiceResponse<List<ProjectDTO>>> GetAllProjectsByFilter(ProjectFilter request)
+        public async Task<ServiceResponse<List<ProjectResponseDTO>>> GetAllProjectsByFilter(ProjectFilter request)
         {
             try
             {
-                var ProjectIds = new HashSet<int>();
+                string countSql = @"SELECT COUNT(*) FROM [tblProject]";
+                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
 
-                // Define the queries
-                string categoriesQuery = @"SELECT [ProjectId] FROM [tblProjectCategory] WHERE [APID] = @APID";
-                string boardsQuery = @"SELECT [ProjectID] FROM [tblProjectBoard] WHERE [BoardID] = @BoardID";
-                string classesQuery = @"SELECT [ProjectID] FROM [tblProjectClass] WHERE [ClassID] = @ClassID";
-                string coursesQuery = @"SELECT [ProjectID] FROM [tblProjectCourse] WHERE [CourseID] = @CourseID";
-                string examsQuery = @"SELECT [ProjectID] FROM [tblProjectExamType] WHERE [ExamTypeID] = @ExamTypeID";
-                string subjectQuery = @"SELECT [ProjectID] FROM [tblProjectSubject] WHERE [SubjectID] = @SubjectID";
+                // Base query
+                string baseQuery = @"
+                SELECT
+                    p.ProjectId,
+                    p.ProjectName,
+                    p.ProjectDescription,
+                    p.PathURL,
+                    p.createdby,
+                    p.ReferenceLink,
+                    p.EmployeeID,
+                    p.status,
+                    p.modifiedby,
+                    p.modifiedon,
+                    p.createdon,
+                    e.EmpFirstName,
+                    p.pdfVideoFile
+                FROM [tblProject] p
+                LEFT JOIN [tblEmployee] e ON p.EmployeeID = e.Employeeid
+                LEFT JOIN [tblProjectCategory] pc ON p.ProjectId = pc.ProjectId
+                LEFT JOIN [tblProjectBoard] pb ON p.ProjectId = pb.ProjectID
+                LEFT JOIN [tblProjectClass] pcl ON p.ProjectId = pcl.ProjectID
+                LEFT JOIN [tblProjectCourse] pco ON p.ProjectId = pco.ProjectID
+                LEFT JOIN [tblProjectExamType] pet ON p.ProjectId = pet.ProjectID
+                LEFT JOIN [tblProjectSubject] ps ON p.ProjectId = ps.ProjectID
+                WHERE 1=1";
 
-                var categoryTask = Task.Run(async () =>
+                // Applying filters dynamically
+                if (request.ClassID > 0)
                 {
-                    using var connection = new SqlConnection(_connectionString);
-                    await connection.OpenAsync();
-                    return await connection.QueryAsync<int>(categoriesQuery, new { request.APID });
-                });
-
-                var boardTask = Task.Run(async () =>
+                    baseQuery += " AND pcl.ClassID = @ClassID";
+                }
+                if (request.BoardID > 0)
                 {
-                    using var connection = new SqlConnection(_connectionString);
-                    await connection.OpenAsync();
-                    return await connection.QueryAsync<int>(boardsQuery, new { request.BoardID });
-                });
-
-                var classTask = Task.Run(async () =>
+                    baseQuery += " AND pb.BoardID = @BoardID";
+                }
+                if (request.CourseID > 0)
                 {
-                    using var connection = new SqlConnection(_connectionString);
-                    await connection.OpenAsync();
-                    return await connection.QueryAsync<int>(classesQuery, new { request.ClassID });
-                });
-
-                var courseTask = Task.Run(async () =>
+                    baseQuery += " AND pco.CourseID = @CourseID";
+                }
+                if (request.ExamTypeID > 0)
                 {
-                    using var connection = new SqlConnection(_connectionString);
-                    await connection.OpenAsync();
-                    return await connection.QueryAsync<int>(coursesQuery, new { request.CourseID });
-                });
-
-                var examTask = Task.Run(async () =>
+                    baseQuery += " AND pet.ExamTypeID = @ExamTypeID";
+                }
+                if (request.APID > 0)
                 {
-                    using var connection = new SqlConnection(_connectionString);
-                    await connection.OpenAsync();
-                    return await connection.QueryAsync<int>(examsQuery, new { request.ExamTypeID });
-                });
-
-                var subjectTask = Task.Run(async () =>
+                    baseQuery += " AND pc.APID = @APID";
+                }
+                if (request.SubjectID > 0)
                 {
-                    using var connection = new SqlConnection(_connectionString);
-                    await connection.OpenAsync();
-                    return await connection.QueryAsync<int>(subjectQuery, new { request.SubjectID });
-                });
-
-                // Wait for all tasks to complete
-                var results = await Task.WhenAll(categoryTask, boardTask, classTask, courseTask, examTask, subjectTask);
-
-                // Add all results to the HashSet to ensure uniqueness
-                foreach (var result in results)
-                {
-                    foreach (var id in result)
-                    {
-                        ProjectIds.Add(id);
-                    }
+                    baseQuery += " AND ps.SubjectID = @SubjectID";
                 }
 
-                // Prepare the list of IDs for the final query
-                var parameters = new { Ids = ProjectIds.ToList() };
-                string mainQuery = @"
-                SELECT 
-                    [ProjectId],
-                    [ProjectName],
-                    [ProjectDescription],
-                    [PathURL],
-                    [createdby],
-                    [ReferenceLink],
-                    [EmployeeID],
-                    [status],
-                    [modifiedby],
-                    [modifiedon],
-                    [createdon],
-                    [EmpFirstName],
-                    [pdfVideoFile]
-                FROM [tblProject]
-                WHERE [ProjectId] IN @Ids";
+                // Pagination
+                baseQuery += " ORDER BY p.ProjectId OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
 
-                var projects = await _connection.QueryAsync<Project>(mainQuery, parameters);
+                var offset = (request.PageNumber - 1) * request.PageSize;
 
-                var response = projects.Select(item => new ProjectDTO
+                // Parameters for the query
+                var parameters = new
+                {
+                    ClassID = request.ClassID,
+                    BoardID = request.BoardID,
+                    CourseID = request.CourseID,
+                    ExamTypeID = request.ExamTypeID,
+                    APID = request.APID,
+                    SubjectID = request.SubjectID,
+                    Offset = offset,
+                    PageSize = request.PageSize
+                };
+
+                // Fetch filtered and paginated records
+                var mainResult = await _connection.QueryAsync<dynamic>(baseQuery, parameters);
+
+                // Map results to response DTO
+                var response = mainResult.Select(item => new ProjectResponseDTO
                 {
                     ProjectId = item.ProjectId,
                     ProjectName = item.ProjectName,
@@ -236,49 +224,182 @@ namespace Schools_API.Repository.Implementations
                     ProjectExamTypes = GetListOfProjectExamType(item.ProjectId),
                     ProjectSubjects = GetListOfProjectSubject(item.ProjectId)
                 }).ToList();
-                var paginatedList = response.Skip((request.PageNumber - 1) * request.PageSize)
-                     .Take(request.PageSize)
-                     .ToList();
-                return new ServiceResponse<List<ProjectDTO>>(true, "Records found", paginatedList, 200);
+                if (response.Count != 0)
+                {
+                    return new ServiceResponse<List<ProjectResponseDTO>>(true, "Records found", response, 200, totalCount);
+                }
+                else
+                {
+                    return new ServiceResponse<List<ProjectResponseDTO>>(false, "Records not found", [], 404);
+                }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<ProjectDTO>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<ProjectResponseDTO>>(false, ex.Message, new List<ProjectResponseDTO>(), 500);
             }
         }
-        public async Task<ServiceResponse<ProjectDTO>> GetProjectByIdAsync(int projectId)
+
+
+        //public async Task<ServiceResponse<List<ProjectResponseDTO>>> GetAllProjectsByFilter(ProjectFilter request)
+        //{
+        //    try
+        //    {
+        //        string countSql = @"SELECT COUNT(*) FROM [tblProject]";
+        //        int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
+        //        var ProjectIds = new HashSet<int>();
+
+        //        // Define the queries
+        //        string categoriesQuery = @"SELECT [ProjectId] FROM [tblProjectCategory] WHERE [APID] = @APID";
+        //        string boardsQuery = @"SELECT [ProjectID] FROM [tblProjectBoard] WHERE [BoardID] = @BoardID";
+        //        string classesQuery = @"SELECT [ProjectID] FROM [tblProjectClass] WHERE [ClassID] = @ClassID";
+        //        string coursesQuery = @"SELECT [ProjectID] FROM [tblProjectCourse] WHERE [CourseID] = @CourseID";
+        //        string examsQuery = @"SELECT [ProjectID] FROM [tblProjectExamType] WHERE [ExamTypeID] = @ExamTypeID";
+        //        string subjectQuery = @"SELECT [ProjectID] FROM [tblProjectSubject] WHERE [SubjectID] = @SubjectID";
+
+        //        var categoryTask = Task.Run(async () =>
+        //        {
+        //            using var connection = new SqlConnection(_connectionString);
+        //            await connection.OpenAsync();
+        //            return await connection.QueryAsync<int>(categoriesQuery, new { request.APID });
+        //        });
+
+        //        var boardTask = Task.Run(async () =>
+        //        {
+        //            using var connection = new SqlConnection(_connectionString);
+        //            await connection.OpenAsync();
+        //            return await connection.QueryAsync<int>(boardsQuery, new { request.BoardID });
+        //        });
+
+        //        var classTask = Task.Run(async () =>
+        //        {
+        //            using var connection = new SqlConnection(_connectionString);
+        //            await connection.OpenAsync();
+        //            return await connection.QueryAsync<int>(classesQuery, new { request.ClassID });
+        //        });
+
+        //        var courseTask = Task.Run(async () =>
+        //        {
+        //            using var connection = new SqlConnection(_connectionString);
+        //            await connection.OpenAsync();
+        //            return await connection.QueryAsync<int>(coursesQuery, new { request.CourseID });
+        //        });
+
+        //        var examTask = Task.Run(async () =>
+        //        {
+        //            using var connection = new SqlConnection(_connectionString);
+        //            await connection.OpenAsync();
+        //            return await connection.QueryAsync<int>(examsQuery, new { request.ExamTypeID });
+        //        });
+
+        //        var subjectTask = Task.Run(async () =>
+        //        {
+        //            using var connection = new SqlConnection(_connectionString);
+        //            await connection.OpenAsync();
+        //            return await connection.QueryAsync<int>(subjectQuery, new { request.SubjectID });
+        //        });
+
+        //        // Wait for all tasks to complete
+        //        var results = await Task.WhenAll(categoryTask, boardTask, classTask, courseTask, examTask, subjectTask);
+
+        //        // Add all results to the HashSet to ensure uniqueness
+        //        foreach (var result in results)
+        //        {
+        //            foreach (var id in result)
+        //            {
+        //                ProjectIds.Add(id);
+        //            }
+        //        }
+
+        //        // Prepare the list of IDs for the final query
+        //        var parameters = new { Ids = ProjectIds.ToList() };
+        //        string mainQuery = @"
+        //        SELECT 
+        //            p.[ProjectId],
+        //            p.[ProjectName],
+        //            p.[ProjectDescription],
+        //            p.[PathURL],
+        //            p.[createdby],
+        //            p.[ReferenceLink],
+        //            p.[EmployeeID],
+        //            p.[status],
+        //            p.[modifiedby],
+        //            p.[modifiedon],
+        //            p.[createdon],
+        //            e.[EmpFirstName],
+        //            p.[pdfVideoFile]
+        //        FROM [tblProject] p
+        //        LEFT JOIN [tblEmployee] e ON p.EmployeeID = e.Employeeid
+        //        WHERE p.[ProjectId] IN @Ids";
+
+        //        var projects = await _connection.QueryAsync<dynamic>(mainQuery, parameters);
+
+        //        var response = projects.Select(item => new ProjectResponseDTO
+        //        {
+        //            ProjectId = item.ProjectId,
+        //            ProjectName = item.ProjectName,
+        //            ProjectDescription = item.ProjectDescription,
+        //            PathURL = GetFile(item.PathURL ??= string.Empty),
+        //            createdby = item.createdby,
+        //            ReferenceLink = item.ReferenceLink,
+        //            EmployeeID = item.EmployeeID,
+        //            status = item.status,
+        //            modifiedby = item.modifiedby,
+        //            modifiedon = item.modifiedon,
+        //            createdon = item.createdon,
+        //            EmpFirstName = item.EmpFirstName,
+        //            pdfVideoFile = GetFile(item.pdfVideoFile),
+        //            ProjectCategories = GetListOfProjectCategory(item.ProjectId),
+        //            ProjectBoards = GetListOfProjectBoards(item.ProjectId),
+        //            ProjectClasses = GetListOfProjectClass(item.ProjectId),
+        //            ProjectCourses = GetListOfProjectCourse(item.ProjectId),
+        //            ProjectExamTypes = GetListOfProjectExamType(item.ProjectId),
+        //            ProjectSubjects = GetListOfProjectSubject(item.ProjectId)
+        //        }).ToList();
+        //        var paginatedList = response.Skip((request.PageNumber - 1) * request.PageSize)
+        //             .Take(request.PageSize)
+        //             .ToList();
+        //        return new ServiceResponse<List<ProjectResponseDTO>>(true, "Records found", paginatedList, 200, totalCount);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new ServiceResponse<List<ProjectResponseDTO>>(false, ex.Message, [], 500);
+        //    }
+        //}
+        public async Task<ServiceResponse<ProjectResponseDTO>> GetProjectByIdAsync(int projectId)
         {
             try
             {
-                var response = new ProjectDTO();
+                var response = new ProjectResponseDTO();
 
                 string sql = @"
-            SELECT ProjectId,
-                   ProjectName,
-                   ProjectDescription,
-                   PathURL,
-                   createdby,
-                   ReferenceLink,
-                   EmployeeID,
-                   status,
-                   modifiedby,
-                   modifiedon,
-                   createdon,
-                   EmpFirstName,
-                   pdfVideoFile
-            FROM tblProject
-            WHERE ProjectId = @ProjectId";
+                SELECT 
+                    p.ProjectId,
+                    p.ProjectName,
+                    p.ProjectDescription,
+                    p.PathURL,
+                    p.createdby,
+                    p.ReferenceLink,
+                    p.EmployeeID,
+                    p.status,
+                    p.modifiedby,
+                    p.modifiedon,
+                    p.createdon,
+                    e.EmpFirstName,
+                    p.pdfVideoFile
+                FROM tblProject p
+                LEFT JOIN tblEmployee e ON p.EmployeeID = e.Employeeid
+                WHERE p.ProjectId = @ProjectId";
 
-                var data = await _connection.QueryFirstOrDefaultAsync<Project>(sql, new { ProjectId = projectId });
+                var data = await _connection.QueryFirstOrDefaultAsync<dynamic>(sql, new { ProjectId = projectId });
 
                 // If project is found, append full path to ImageName
-                if (data != null && !string.IsNullOrEmpty(data.PathURL))
+                if (data != null && !string.IsNullOrEmpty(data?.PathURL))
                 {
-                    response.PathURL = GetFile(data.PathURL);
+                    response.PathURL = GetFile(data?.PathURL);
                 }
-                if (data != null && !string.IsNullOrEmpty(data.pdfVideoFile))
+                if (data != null && !string.IsNullOrEmpty(data?.pdfVideoFile))
                 {
-                    response.pdfVideoFile = GetFile(data.pdfVideoFile);
+                    response.pdfVideoFile = GetFile(data?.pdfVideoFile);
                 }
                 // If project is not found, throw KeyNotFoundException
                 if (data == null)
@@ -305,16 +426,16 @@ namespace Schools_API.Repository.Implementations
                     response.ProjectBoards = GetListOfProjectBoards(response.ProjectId);
                     response.ProjectSubjects = GetListOfProjectSubject(response.ProjectId);
                     response.ProjectCategories = GetListOfProjectCategory(response.ProjectId);
-                    return new ServiceResponse<ProjectDTO>(true, "Operation Successful", response, 200);
+                    return new ServiceResponse<ProjectResponseDTO>(true, "Operation Successful", response, 200);
                 }
                 else
                 {
-                    return new ServiceResponse<ProjectDTO>(false, "Opertion Failed", new ProjectDTO(), 500);
+                    return new ServiceResponse<ProjectResponseDTO>(false, "Opertion Failed", new ProjectResponseDTO(), 500);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<ProjectDTO>(false, ex.Message, new ProjectDTO(), 500);
+                return new ServiceResponse<ProjectResponseDTO>(false, ex.Message, new ProjectResponseDTO(), 500);
             }
         }
         private string FileUpload(string base64String)
@@ -388,8 +509,8 @@ namespace Schools_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { ProjectId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblProjectCategory] ([APId], [ProjectId], [APName])
-                          VALUES (@APId, @ProjectId, @APName);";
+                    var insertquery = @"INSERT INTO [tblProjectCategory] ([APId], [ProjectId])
+                          VALUES (@APId, @ProjectId);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -400,8 +521,8 @@ namespace Schools_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblProjectCategory] ([APId], [ProjectId], [APName])
-                          VALUES (@APId, @ProjectId, @APName);";
+                var insertquery = @"INSERT INTO [tblProjectCategory] ([APId], [ProjectId])
+                          VALUES (@APId, @ProjectId);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -421,8 +542,8 @@ namespace Schools_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { ProjectID = ProjectId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblProjectClass] ([ProjectID], [ClassID], Name)
-                          VALUES (@ProjectID, @ClassID, @Name);";
+                    var insertquery = @"INSERT INTO [tblProjectClass] ([ProjectID], [ClassID])
+                          VALUES (@ProjectID, @ClassID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -433,8 +554,8 @@ namespace Schools_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblProjectClass] ([ProjectID], [ClassID], Name)
-                          VALUES (@ProjectID, @ClassID, @Name);";
+                var insertquery = @"INSERT INTO [tblProjectClass] ([ProjectID], [ClassID])
+                          VALUES (@ProjectID, @ClassID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -454,8 +575,8 @@ namespace Schools_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { ProjectID = ProjectId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblProjectBoard] ([ProjectID], [BoardID], Name)
-                          VALUES (@ProjectID, @BoardID, @Name);";
+                    var insertquery = @"INSERT INTO [tblProjectBoard] ([ProjectID], [BoardID])
+                          VALUES (@ProjectID, @BoardID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -466,8 +587,8 @@ namespace Schools_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblProjectBoard] ([ProjectID], [BoardID], Name)
-                          VALUES (@ProjectID, @BoardID, @Name);";
+                var insertquery = @"INSERT INTO [tblProjectBoard] ([ProjectID], [BoardID])
+                          VALUES (@ProjectID, @BoardID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -487,8 +608,8 @@ namespace Schools_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { ProjectID = ProjectId});
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblProjectCourse] ([ProjectID], [CourseID], Name)
-                          VALUES (@ProjectID, @CourseID, @Name);";
+                    var insertquery = @"INSERT INTO [tblProjectCourse] ([ProjectID], [CourseID])
+                          VALUES (@ProjectID, @CourseID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -499,8 +620,8 @@ namespace Schools_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblProjectCourse] ([ProjectID], [CourseID], Name)
-                          VALUES (@ProjectID, @CourseID, @Name);";
+                var insertquery = @"INSERT INTO [tblProjectCourse] ([ProjectID], [CourseID])
+                          VALUES (@ProjectID, @CourseID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -520,8 +641,8 @@ namespace Schools_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { ProjectID = ProjectId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblProjectExamType] ([ProjectID], [ExamTypeID], Name)
-                          VALUES (@ProjectID, @ExamTypeID, @Name);";
+                    var insertquery = @"INSERT INTO [tblProjectExamType] ([ProjectID], [ExamTypeID])
+                          VALUES (@ProjectID, @ExamTypeID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -532,8 +653,8 @@ namespace Schools_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblProjectExamType] ([ProjectID], [ExamTypeID], Name)
-                          VALUES (@ProjectID, @ExamTypeID, @Name);";
+                var insertquery = @"INSERT INTO [tblProjectExamType] ([ProjectID], [ExamTypeID])
+                          VALUES (@ProjectID, @ExamTypeID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -553,8 +674,8 @@ namespace Schools_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { ProjectID = ProjectId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblProjectSubject] ([ProjectID], [SubjectID], Name)
-                          VALUES (@ProjectID, @SubjectID, @Name);";
+                    var insertquery = @"INSERT INTO [tblProjectSubject] ([ProjectID], [SubjectID])
+                          VALUES (@ProjectID, @SubjectID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -565,8 +686,8 @@ namespace Schools_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblProjectSubject] ([ProjectID], [SubjectID], Name)
-                          VALUES (@ProjectID, @SubjectID, @Name);";
+                var insertquery = @"INSERT INTO [tblProjectSubject] ([ProjectID], [SubjectID])
+                          VALUES (@ProjectID, @SubjectID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -596,47 +717,64 @@ namespace Schools_API.Repository.Implementations
             return bytes.Length > 3 &&
                    bytes[0] == 0x6D && bytes[1] == 0x6F && bytes[2] == 0x6F && bytes[3] == 0x76;
         }
-        private List<ProjectBoard> GetListOfProjectBoards(int ProjectId)
+        private List<ProjectBoardResponse> GetListOfProjectBoards(int ProjectId)
         {
-            var boardquery = @"SELECT * FROM [tblProjectBoard] WHERE ProjectID = @ProjectID;";
-
-            // Execute the SQL query with the SOTDID parameter
-            var data = _connection.Query<ProjectBoard>(boardquery, new { ProjectID = ProjectId });
+            var boardquery = @"
+            SELECT pb.*, b.BoardName as Name
+            FROM tblProjectBoard pb
+            LEFT JOIN tblBoard b ON pb.BoardID = b.BoardId
+            WHERE pb.ProjectID = @ProjectID;";
+            var data = _connection.Query<ProjectBoardResponse>(boardquery, new { ProjectID = ProjectId });
             return data != null ? data.AsList() : [];
         }
-        private List<ProjectCategory> GetListOfProjectCategory(int ProjectId)
+        private List<ProjectCategoryResponse> GetListOfProjectCategory(int ProjectId)
         {
-            var query = @"SELECT * FROM [tblProjectCategory] WHERE  ProjectId = @ProjectId;";
-            // Execute the SQL query with the SOTDID parameter
-            var data = _connection.Query<ProjectCategory>(query, new { ProjectId });
+            var query = @"
+            SELECT pc.*, ap.APName
+            FROM tblProjectCategory pc
+            LEFT JOIN tblCategory ap ON pc.APID = ap.APId
+            WHERE pc.ProjectId = @ProjectId;";
+            var data = _connection.Query<ProjectCategoryResponse>(query, new { ProjectId });
             return data != null ? data.AsList() : [];
         }
-        private List<ProjectClass> GetListOfProjectClass(int ProjectId)
+        private List<ProjectClassResponse> GetListOfProjectClass(int ProjectId)
         {
-            var query = @"SELECT * FROM [tblProjectClass] WHERE  ProjectID = @ProjectID;";
-            // Execute the SQL query with the SOTDID parameter
-            var data = _connection.Query<ProjectClass>(query, new { ProjectID = ProjectId });
+            var query = @"
+            SELECT pc.*, c.ClassName as Name
+            FROM tblProjectClass pc
+            LEFT JOIN tblClass c ON pc.ClassID = c.ClassId
+            WHERE pc.ProjectID = @ProjectID;";
+            var data = _connection.Query<ProjectClassResponse>(query, new { ProjectID = ProjectId });
             return data != null ? data.AsList() : [];
         }
-        private List<ProjectCourse> GetListOfProjectCourse(int ProjectId)
+        private List<ProjectCourseResponse> GetListOfProjectCourse(int ProjectId)
         {
-            var query = @"SELECT * FROM [tblProjectCourse] WHERE  ProjectID = @ProjectID;";
-            // Execute the SQL query with the SOTDID parameter
-            var data = _connection.Query<ProjectCourse>(query, new { ProjectID = ProjectId });
+            var query = @"
+            SELECT pc.*, c.CourseName as Name
+            FROM tblProjectCourse pc
+            LEFT JOIN tblCourse c ON pc.CourseID = c.CourseId
+            WHERE pc.ProjectID = @ProjectID;";
+            var data = _connection.Query<ProjectCourseResponse>(query, new { ProjectID = ProjectId });
             return data != null ? data.AsList() : [];
         }
-        private List<ProjectExamType> GetListOfProjectExamType(int ProjectId)
+        private List<ProjectExamTypeResponse> GetListOfProjectExamType(int ProjectId)
         {
-            var query = @"SELECT * FROM [tblProjectExamType] WHERE  ProjectID = @ProjectID;";
-            // Execute the SQL query with the SOTDID parameter
-            var data = _connection.Query<ProjectExamType>(query, new { ProjectID = ProjectId });
+            var query = @"
+            SELECT pet.*, et.ExamTypeName as Name
+            FROM tblProjectExamType pet
+            LEFT JOIN tblExamType et ON pet.ExamTypeID = et.ExamTypeID
+            WHERE pet.ProjectID = @ProjectID;";
+            var data = _connection.Query<ProjectExamTypeResponse>(query, new { ProjectID = ProjectId });
             return data != null ? data.AsList() : [];
         }
-        private List<ProjectSubject> GetListOfProjectSubject(int ProjectId)
+        private List<ProjectSubjectResponse> GetListOfProjectSubject(int ProjectId)
         {
-            var query = @"SELECT * FROM [tblProjectSubject] WHERE  ProjectID = @ProjectID;";
-            // Execute the SQL query with the SOTDID parameter
-            var data = _connection.Query<ProjectSubject>(query, new { ProjectID = ProjectId });
+            var query = @"
+            SELECT ps.*, s.SubjectName as Name
+            FROM tblProjectSubject ps
+            LEFT JOIN tblSubject s ON ps.SubjectID = s.SubjectId
+            WHERE ps.ProjectID = @ProjectID;";
+            var data = _connection.Query<ProjectSubjectResponse>(query, new { ProjectID = ProjectId });
             return data != null ? data.AsList() : [];
         }
 

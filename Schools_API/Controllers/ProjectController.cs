@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
-using Schools_API.DTOs;
+using Schools_API.DTOs.Requests;
 using Schools_API.Services.Interfaces;
 
 namespace Schools_API.Controllers
 {
-    [Route("iGuru/[controller]")]
+    [Route("iGuru/Schools/[controller]")]
     [ApiController]
     public class ProjectController : ControllerBase
     {
@@ -14,7 +14,7 @@ namespace Schools_API.Controllers
         {
             _projectServices = projectServices;
         }
-        [HttpPost("AddProject")]
+        [HttpPost("AddUpdateProject")]
         public async Task<IActionResult> AddProject([FromBody] ProjectDTO projectDTO)
         {
             try

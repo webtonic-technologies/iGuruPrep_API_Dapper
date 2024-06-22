@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace Schools_API.DTOs
+namespace Schools_API.DTOs.Requests
 {
     public class ProjectDTO
     {
@@ -17,7 +17,7 @@ namespace Schools_API.DTOs
         public string modifiedby { get; set; } = string.Empty;
         public DateTime? modifiedon { get; set; }
         public DateTime? createdon { get; set; }
-        public string EmpFirstName { get; set; } = string.Empty;
+        // public string EmpFirstName { get; set; } = string.Empty;
         public string pdfVideoFile { get; set; } = string.Empty;
         public List<ProjectCategory>? ProjectCategories { get; set; }
         public List<ProjectBoard>? ProjectBoards { get; set; }
@@ -31,7 +31,7 @@ namespace Schools_API.DTOs
         public int ProjectCategoryId { get; set; }
         public int APID { get; set; }
         public int ProjectId { get; set; } //Academic-Professional Id
-        public string APName { get; set; } = string.Empty;
+        //public string APName { get; set; } = string.Empty;
     }
     public class ProjectBoard
     {

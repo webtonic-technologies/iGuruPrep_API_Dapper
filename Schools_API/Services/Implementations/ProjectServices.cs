@@ -1,4 +1,5 @@
-﻿using Schools_API.DTOs;
+﻿using Schools_API.DTOs.Requests;
+using Schools_API.DTOs.Response;
 using Schools_API.DTOs.ServiceResponse;
 using Schools_API.Repository.Interfaces;
 using Schools_API.Services.Interfaces;
@@ -25,7 +26,7 @@ namespace Schools_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<ProjectDTO>>> GetAllProjectsByFilter(ProjectFilter filter)
+        public async Task<ServiceResponse<List<ProjectResponseDTO>>> GetAllProjectsByFilter(ProjectFilter filter)
         {
 
             try
@@ -34,11 +35,11 @@ namespace Schools_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<ProjectDTO>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<ProjectResponseDTO>>(false, ex.Message, [], 500);
             }
         }
 
-        public async Task<ServiceResponse<ProjectDTO>> GetProjectByIdAsync(int projectId)
+        public async Task<ServiceResponse<ProjectResponseDTO>> GetProjectByIdAsync(int projectId)
         {
             try
             {
@@ -46,7 +47,7 @@ namespace Schools_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<ProjectDTO>(false, ex.Message, new ProjectDTO(), 500);
+                return new ServiceResponse<ProjectResponseDTO>(false, ex.Message, new ProjectResponseDTO(), 500);
             }
         }
     }

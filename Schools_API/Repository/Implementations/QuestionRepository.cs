@@ -1,8 +1,11 @@
 ﻿using Dapper;
+using Schools_API.DTOs.Requests;
+using Schools_API.DTOs.Response;
 using Schools_API.DTOs.ServiceResponse;
 using Schools_API.Models;
 using Schools_API.Repository.Interfaces;
 using System.Data;
+using System.Data.SqlClient;
 
 namespace Schools_API.Repository.Implementations
 {
@@ -16,61 +19,58 @@ namespace Schools_API.Repository.Implementations
             _connection = connection;
             _hostingEnvironment = hostingEnvironment;
         }
-        public async Task<ServiceResponse<string>> AddQuestion(QuestionDTO request)
+        public async Task<ServiceResponse<string>> AddUpdateQuestion(QuestionDTO request)
         {
             try
             {
-                string imagePath = string.Empty;
                 if (request.QuestionId == 0)
                 {
                     var question = new Question
                     {
                         QuestionDescription = request.QuestionDescription,
-                        QuestionFormula = request.QuestionFormula,
-                        QuestionImage = FileUpload(request.QuestionImage),
-                        DifficultyLevelId = request.DifficultyLevelId,
                         QuestionTypeId = request.QuestionTypeId,
-                        SubjectIndexId = request.SubjectIndexId,
-                        Duration = request.Duration,
-                        Occurrence = request.Occurrence,
-                        ApprovedStatus = request.ApprovedStatus,
-                        ApprovedBy = request.ApprovedBy,
-                        ReasonNote = request.ReasonNote,
-                        ActualOption = request.ActualOption,
                         Status = true,
                         CreatedBy = request.CreatedBy,
                         CreatedOn = DateTime.Now,
-                        Verified = request.Verified,
-                        courseid = request.courseid,
-                        boardid = request.boardid,
-                        classid = request.classid,
                         subjectID = request.subjectID,
-                        userid = request.userid,
-                        Rejectedby = request.Rejectedby,
-                        RejectedReason = request.RejectedReason,
-                        APName = request.APName,
-                        BoardName = request.BoardName,
-                        ClassName = request.ClassName,
-                        CourseName = request.CourseName,
-                        SubjectName = request.SubjectName
+                        ContentIndexId = request.ContentIndexId,
+                        EmployeeId = request.EmployeeId,
+                        IndexTypeId = request.IndexTypeId,
+                        IsApproved = false,
+                        IsRejected = false
                     };
 
                     string insertQuery = @"
-                INSERT INTO tblQuestion (
-                    QuestionDescription, QuestionFormula, QuestionImage, DifficultyLevelId, QuestionTypeId, 
-                    SubjectIndexId, Duration, Occurrence, ApprovedStatus, ApprovedBy, ReasonNote, 
-                    ActualOption, Status, CreatedBy, CreatedOn,
-                    Verified, CourseId, BoardId, ClassId, SubjectId, UserId, 
-                    RejectedBy, RejectedReason, APName, BoardName, ClassName, CourseName, SubjectName
-                )
-                VALUES (
-                    @QuestionDescription, @QuestionFormula, @QuestionImage, @DifficultyLevelId, @QuestionTypeId, 
-                    @SubjectIndexId, @Duration, @Occurrence, @ApprovedStatus, @ApprovedBy, @ReasonNote, 
-                    @ActualOption, @Status, @CreatedBy, @CreatedOn, 
-                    @Verified, @CourseId, @BoardId, @ClassId, @SubjectId, @UserId, 
-                    @RejectedBy, @RejectedReason, @APName, @BoardName, @ClassName, @CourseName, @SubjectName
-                );
-                SELECT CAST(SCOPE_IDENTITY() as int);";
+                    INSERT INTO tblQuestion (
+                        QuestionDescription,
+                        QuestionTypeId,
+                        Status,
+                        CreatedBy,
+                        CreatedOn,
+                        ModifiedBy,
+                        ModifiedOn,
+                        subjectID,
+                        EmployeeId,
+                        IndexTypeId,
+                        ContentIndexId,
+                        IsRejected,
+                        IsApproved
+                    ) VALUES (
+                        @QuestionDescription,
+                        @QuestionTypeId,
+                        @Status,
+                        @CreatedBy,
+                        @CreatedOn,
+                        @ModifiedBy,
+                        @ModifiedOn,
+                        @subjectID,
+                        @EmployeeId,
+                        @IndexTypeId,
+                        @ContentIndexId,
+                        @IsRejected,
+                        @IsApproved
+                    );
+                    SELECT CAST(SCOPE_IDENTITY() as int);";
 
                     int questionId = await _connection.QuerySingleOrDefaultAsync<int>(insertQuery, question);
                     if (questionId != 0)
@@ -96,7 +96,7 @@ namespace Schools_API.Repository.Implementations
 
                         if (questTypedata != null)
                         {
-                            if (questTypedata.Code == "MCQ" || questTypedata.Code == "TF" || questTypedata.Code == "MT1" || questTypedata.Code == "MAQ"
+                            if (questTypedata.Code == "MCQ " || questTypedata.Code == "TF  " || questTypedata.Code == "MT1" || questTypedata.Code == "MAQ"
                                 || questTypedata.Code == "MT2" || questTypedata.Code == "AR" || questTypedata.Code == "C")
                             {
                                 if (request.AnswerMultipleChoiceCategories != null)
@@ -109,7 +109,6 @@ namespace Schools_API.Repository.Implementations
                                                             (Answerid, Answer, Iscorrect, Matchid) 
                                                             VALUES (@AnswerId, @Answer, @IsCorrect, @MatchId);";
                                     answer = await _connection.ExecuteAsync(insertAnsQuery, request.AnswerMultipleChoiceCategories);
-
                                 }
                             }
                             else
@@ -118,8 +117,10 @@ namespace Schools_API.Repository.Implementations
                                              ( Answerid, Answer)
                                              VALUES ( @AnswerId, @Answer);";
                                 if (request.Answersingleanswercategories != null)
+                                {
                                     request.Answersingleanswercategories.Answerid = Answerid;
-                                answer = await _connection.ExecuteAsync(sql, request.Answersingleanswercategories);
+                                    answer = await _connection.ExecuteAsync(sql, request.Answersingleanswercategories);
+                                }
                             }
                         }
 
@@ -143,76 +144,44 @@ namespace Schools_API.Repository.Implementations
                     {
                         QuestionId = request.QuestionId,
                         QuestionDescription = request.QuestionDescription,
-                        QuestionFormula = request.QuestionFormula,
-                        QuestionImage = FileUpload(request.QuestionImage),
-                        DifficultyLevelId = request.DifficultyLevelId,
                         QuestionTypeId = request.QuestionTypeId,
-                        SubjectIndexId = request.SubjectIndexId,
-                        Duration = request.Duration,
-                        Occurrence = request.Occurrence,
-                        ApprovedStatus = request.ApprovedStatus,
-                        ApprovedBy = request.ApprovedBy,
-                        ReasonNote = request.ReasonNote,
-                        ActualOption = request.ActualOption,
                         Status = request.Status,
                         ModifiedBy = request.ModifiedBy,
                         ModifiedOn = DateTime.Now,
-                        Verified = request.Verified,
-                        courseid = request.courseid,
-                        boardid = request.boardid,
-                        classid = request.classid,
                         subjectID = request.subjectID,
-                        userid = request.userid,
-                        Rejectedby = request.Rejectedby,
-                        RejectedReason = request.RejectedReason,
-                        APName = request.APName,
-                        BoardName = request.BoardName,
-                        ClassName = request.ClassName,
-                        CourseName = request.CourseName,
-                        SubjectName = request.SubjectName
+                        IndexTypeId = request.IndexTypeId,
+                        EmployeeId = request.EmployeeId,
+                        ContentIndexId = request.ContentIndexId,
+                        IsRejected = request.IsRejected,
+                        IsApproved = request.IsApproved
                     };
 
                     string updateQuery = @"
-                UPDATE Questions
-                SET
-                    QuestionDescription = @QuestionDescription,
-                    QuestionFormula = @QuestionFormula,
-                    QuestionImage = @QuestionImage,
-                    DifficultyLevelId = @DifficultyLevelId,
-                    QuestionTypeId = @QuestionTypeId,
-                    SubjectIndexId = @SubjectIndexId,
-                    Duration = @Duration,
-                    Occurrence = @Occurrence,
-                    ApprovedStatus = @ApprovedStatus,
-                    ApprovedBy = @ApprovedBy,
-                    ReasonNote = @ReasonNote,
-                    ActualOption = @ActualOption,
-                    Status = @Status,
-                    ModifiedBy = @ModifiedBy,
-                    ModifiedOn = @ModifiedOn,
-                    Verified = @Verified,
-                    CourseId = @CourseId,
-                    BoardId = @BoardId,
-                    ClassId = @ClassId,
-                    SubjectId = @SubjectId,
-                    UserId = @UserId,
-                    RejectedBy = @RejectedBy,
-                    RejectedReason = @RejectedReason,
-                    APName = @APName,
-                    BoardName = @BoardName,
-                    ClassName = @ClassName,
-                    CourseName = @CourseName,
-                    SubjectName = @SubjectName
-                WHERE QuestionId = @QuestionId";
+                    UPDATE tblQuestion
+                    SET 
+                        QuestionDescription = @QuestionDescription,
+                        QuestionTypeId = @QuestionTypeId,
+                        Status = @Status,
+                        ModifiedBy = @ModifiedBy,
+                        ModifiedOn = @ModifiedOn,
+                        subjectID = @subjectID,
+                        EmployeeId = @EmployeeId,
+                        IndexTypeId = @IndexTypeId,
+                        ContentIndexId = @ContentIndexId,
+                        IsRejected = @IsRejected,
+                        IsApproved = @IsApproved
+                    WHERE
+                        QuestionId = @QuestionId;";
+
 
                     int rowsAffected = await _connection.ExecuteAsync(updateQuery, question);
                     if (rowsAffected > 0)
                     {
                         int count = await _connection.ExecuteScalarAsync<int>("SELECT COUNT(*) " +
-                            "FROM tblQIDCourse WHERE QuestionId = @QuestionId", new { request.QuestionId });
+                            "FROM tblQIDCourse WHERE QID = @QuestionId", new { request.QuestionId });
                         if (count > 0)
                         {
-                            string deleteQuery = @"DELETE FROM tblQIDCourse WHERE QuestionId = @QuestionId";
+                            string deleteQuery = @"DELETE FROM tblQIDCourse WHERE QID = @QuestionId";
                             int rowsAffected1 = await _connection.ExecuteAsync(deleteQuery, new { request.QuestionId });
                             if (rowsAffected1 > 0)
                             {
@@ -236,7 +205,7 @@ namespace Schools_API.Repository.Implementations
 
                         var questTypedata = await _connection.QuerySingleAsync<QuestionTypes>(getQuesType, new { QuestionTypeID = request.QuestionTypeId });
                         var answer = 0;
-                        string selectQuery = @"SELECT * FROM AnswerMaster WHERE Questionid = @Questionid";
+                        string selectQuery = @"SELECT * FROM tblAnswerMaster WHERE Questionid = @Questionid";
 
                         var answerData = await _connection.QueryFirstOrDefaultAsync<AnswerMaster>(selectQuery, new { Questionid = request.QuestionId });
 
@@ -251,7 +220,7 @@ namespace Schools_API.Repository.Implementations
 
                         if (questTypedata != null)
                         {
-                            if (questTypedata.Code == "MCQ" || questTypedata.Code == "TF" || questTypedata.Code == "MT1" || questTypedata.Code == "MAQ"
+                            if (questTypedata.Code == "MCQ " || questTypedata.Code == "TF  " || questTypedata.Code == "MT1" || questTypedata.Code == "MAQ"
                                 || questTypedata.Code == "MT2" || questTypedata.Code == "AR" || questTypedata.Code == "C")
                             {
                                 if (request.AnswerMultipleChoiceCategories != null)
@@ -283,7 +252,7 @@ namespace Schools_API.Repository.Implementations
 
                         if (rowsAffected > 0 && quesSub > 0 && answer > 0)
                         {
-                            return new ServiceResponse<string>(true, "Operation Successful", "Question Added Successfully", 200);
+                            return new ServiceResponse<string>(true, "Operation Successful", "Question Updated Successfully", 200);
                         }
                         else
                         {
@@ -301,136 +270,661 @@ namespace Schools_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-        public async Task<ServiceResponse<List<QuestionDTO>>> GetAllQuestionsList(GetAllQuestionListRequest request)
+        public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetAllQuestionsList(GetAllQuestionListRequest request)
         {
             try
             {
-                string sql = @"SELECT TOP (100) * FROM tblQuestion";
-                var data = await _connection.QueryAsync<Question>(sql);
+                string countSql = @"SELECT COUNT(*) FROM [tblQuestion]";
+                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
+                string sql = @"
+                SELECT q.*, 
+                       c.CourseName, 
+                       b.BoardName, 
+                       cl.ClassName, 
+                       s.SubjectName,
+                       et.ExamTypeName,
+                       e.EmpFirstName, 
+                       qt.QuestionType as QuestionTypeName,
+                       it.IndexType as IndexTypeName,
+                   CASE 
+                   WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
+                   WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
+                   WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+               END AS ContentIndexName
+                FROM tblQuestion q
+                 LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
+                LEFT JOIN tblCourse c ON q.courseid = c.CourseID
+                LEFT JOIN tblBoard b ON q.boardid = b.BoardID
+                LEFT JOIN tblClass cl ON q.classid = cl.ClassID
+                LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
+                LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
+                LEFT JOIN tblEmployee e ON q.EmployeeId = e.Employeeid
+                LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
+                 LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
+        LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
+        LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
+                WHERE (@ContentIndexId = 0 OR q.ContentIndexId = @ContentIndexId)
+                  AND (@IndexTypeId = 0 OR q.IndexTypeId = @IndexTypeId)
+                  AND q.IsRejected = 0
+                  AND q.IsApproved = 0";
+
+
+                var parameters = new
+                {
+                    ContentIndexId = request.ContentIndexId == 0 ? 0 : request.ContentIndexId,
+                    IndexTypeId = request.IndexTypeId == 0 ? 0 : request.IndexTypeId
+                };
+
+                var data = await _connection.QueryAsync<dynamic>(sql, parameters);
+
                 if (data != null)
                 {
-                    var response = data.Select(item => new QuestionDTO
+                    var response = data.Select(item => new QuestionResponseDTO
                     {
                         QuestionId = item.QuestionId,
                         QuestionDescription = item.QuestionDescription,
-                        QuestionFormula = item.QuestionFormula,
-                        QuestionImage = GetFile(item.QuestionImage),
-                        DifficultyLevelId = item.DifficultyLevelId,
                         QuestionTypeId = item.QuestionTypeId,
-                        SubjectIndexId = item.SubjectIndexId,
-                        Duration = item.Duration,
-                        Occurrence = item.Occurrence,
-                        ApprovedStatus = item.ApprovedStatus,
-                        ApprovedBy = item.ApprovedBy,
-                        ReasonNote = item.ReasonNote,
-                        ActualOption = item.ActualOption,
                         Status = item.Status,
                         CreatedBy = item.CreatedBy,
                         CreatedOn = item.CreatedOn,
                         ModifiedBy = item.ModifiedBy,
                         ModifiedOn = item.ModifiedOn,
-                        Verified = item.Verified,
-                        courseid = item.courseid,
-                        boardid = item.boardid,
-                        classid = item.classid,
                         subjectID = item.subjectID,
-                        userid = item.userid,
-                        Rejectedby = item.Rejectedby,
-                        RejectedReason = item.RejectedReason,
-                        APName = item.APName,
-                        BoardName = item.BoardName,
-                        ClassName = item.ClassName,
-                        CourseName = item.CourseName,
                         SubjectName = item.SubjectName,
+                        EmployeeId = item.EmployeeId,
+                        EmployeeName = item.EmployeeName,
+                        IndexTypeId = item.IndexTypeId,
+                        IndexTypeName = item.IndexTypeName,
+                        ContentIndexId = item.ContentIndexId,
+                        ContentIndexName = item.ContentIndexName,
                         QIDCourses = GetListOfQIDCourse(item.QuestionId),
                         QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionId),
-                        References = GetQuestionReference(item.QuestionId),
                         Answersingleanswercategories = GetSingleAnswer(item.QuestionId),
-                        AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionId)
+                        AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionId),
+                        References = GetQuestionReference(item.QuestionId),
+                        IsApproved = item.IsApproved,
+                        IsRejected = item.IsRejected
                     }).ToList();
+
                     var paginatedList = response.Skip((request.PageNumber - 1) * request.PageSize)
-                     .Take(request.PageSize)
-                     .ToList();
+                                                .Take(request.PageSize)
+                                                .ToList();
+
                     if (paginatedList.Count != 0)
                     {
-                        return new ServiceResponse<List<QuestionDTO>>(true, "Operation Successful", paginatedList, 200);
+                        return new ServiceResponse<List<QuestionResponseDTO>>(true, "Operation Successful", paginatedList, 200, totalCount);
                     }
                     else
                     {
-                        return new ServiceResponse<List<QuestionDTO>>(false, "No records found", [], 404);
+                        return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", [], 404);
                     }
                 }
                 else
                 {
-                    return new ServiceResponse<List<QuestionDTO>>(false, "no records found", [], 500);
+                    return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", [], 404);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<QuestionDTO>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, [], 500);
             }
         }
-        public async Task<ServiceResponse<QuestionDTO>> GetQuestionById(int questionId)
+        public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetApprovedQuestionsList(GetAllQuestionListRequest request)
         {
             try
             {
-                var response = new QuestionDTO();
-                string sql = @"SELECT * FROM tblQuestion WHERE QuestionId = @QuestionId";
+                string sql = @"
+        SELECT q.*, 
+               c.CourseName, 
+               b.BoardName, 
+               cl.ClassName, 
+               s.SubjectName,
+               et.ExamTypeName,
+               e.EmpFirstName, 
+               qt.QuestionType as QuestionTypeName,
+               it.IndexType as IndexTypeName,
+           CASE 
+           WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
+           WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
+           WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+       END AS ContentIndexName
+        FROM tblQuestion q
+        LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
+        LEFT JOIN tblCourse c ON q.courseid = c.CourseID
+        LEFT JOIN tblBoard b ON q.boardid = b.BoardID
+        LEFT JOIN tblClass cl ON q.classid = cl.ClassID
+        LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
+        LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
+        LEFT JOIN tblEmployee e ON q.EmployeeId = e.Employeeid
+        LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
+        LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
+        LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
+        LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
+        WHERE (@ContentIndexId = 0 OR q.ContentIndexId = @ContentIndexId)
+          AND (@IndexTypeId = 0 OR q.IndexTypeId = @IndexTypeId)
+          AND q.IsApproved = 1";
 
-                var item = await _connection.QueryFirstOrDefaultAsync<Question>(sql, new { QuestionId = questionId });
-                if (item != null)
+                var parameters = new
                 {
-                    response = new QuestionDTO
+                    ContentIndexId = request.ContentIndexId == 0 ? 0 : request.ContentIndexId,
+                    IndexTypeId = request.IndexTypeId == 0 ? 0 : request.IndexTypeId
+                };
+
+                var data = await _connection.QueryAsync<dynamic>(sql, parameters);
+
+                if (data != null)
+                {
+                    var response = data.Select(item => new QuestionResponseDTO
                     {
                         QuestionId = item.QuestionId,
                         QuestionDescription = item.QuestionDescription,
-                        QuestionFormula = item.QuestionFormula,
-                        QuestionImage = GetFile(item.QuestionImage),
-                        DifficultyLevelId = item.DifficultyLevelId,
                         QuestionTypeId = item.QuestionTypeId,
-                        SubjectIndexId = item.SubjectIndexId,
-                        Duration = item.Duration,
-                        Occurrence = item.Occurrence,
-                        ApprovedStatus = item.ApprovedStatus,
-                        ApprovedBy = item.ApprovedBy,
-                        ReasonNote = item.ReasonNote,
-                        ActualOption = item.ActualOption,
                         Status = item.Status,
                         CreatedBy = item.CreatedBy,
                         CreatedOn = item.CreatedOn,
                         ModifiedBy = item.ModifiedBy,
                         ModifiedOn = item.ModifiedOn,
-                        Verified = item.Verified,
-                        courseid = item.courseid,
-                        boardid = item.boardid,
-                        classid = item.classid,
                         subjectID = item.subjectID,
-                        userid = item.userid,
-                        Rejectedby = item.Rejectedby,
-                        RejectedReason = item.RejectedReason,
-                        APName = item.APName,
-                        BoardName = item.BoardName,
-                        ClassName = item.ClassName,
-                        CourseName = item.CourseName,
                         SubjectName = item.SubjectName,
+                        EmployeeId = item.EmployeeId,
+                        EmployeeName = item.EmployeeName,
+                        IndexTypeId = item.IndexTypeId,
+                        IndexTypeName = item.IndexTypeName,
+                        ContentIndexId = item.ContentIndexId,
+                        ContentIndexName = item.ContentIndexName,
                         QIDCourses = GetListOfQIDCourse(item.QuestionId),
                         QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionId),
-                        References = GetQuestionReference(item.QuestionId),
                         Answersingleanswercategories = GetSingleAnswer(item.QuestionId),
-                        AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionId)
-                    };
-                    return new ServiceResponse<QuestionDTO>(true, "Operation Successful", response, 200);
+                        AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionId),
+                        References = GetQuestionReference(item.QuestionId),
+                        IsApproved = item.IsApproved,
+                        IsRejected = item.IsRejected
+                    }).ToList();
+
+                    var paginatedList = response.Skip((request.PageNumber - 1) * request.PageSize)
+                                                .Take(request.PageSize)
+                                                .ToList();
+
+                    if (paginatedList.Count != 0)
+                    {
+                        return new ServiceResponse<List<QuestionResponseDTO>>(true, "Operation Successful", paginatedList, 200);
+                    }
+                    else
+                    {
+                        return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
+                    }
                 }
                 else
                 {
-
-                    return new ServiceResponse<QuestionDTO>(false, "no records found", new QuestionDTO(), 500);
+                    return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<QuestionDTO>(false, ex.Message, new QuestionDTO(), 500);
+                return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, new List<QuestionResponseDTO>(), 500);
             }
+        }
+        public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetRejectedQuestionsList(GetAllQuestionListRequest request)
+        {
+            try
+            {
+                string sql = @"
+        SELECT q.*, 
+               c.CourseName, 
+               b.BoardName, 
+               cl.ClassName, 
+               s.SubjectName,
+               et.ExamTypeName,
+               e.EmpFirstName, 
+               qt.QuestionType as QuestionTypeName,
+               it.IndexType as IndexTypeName,
+           CASE 
+           WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
+           WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
+           WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+       END AS ContentIndexName
+        FROM tblQuestion q
+        LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
+        LEFT JOIN tblCourse c ON q.courseid = c.CourseID
+        LEFT JOIN tblBoard b ON q.boardid = b.BoardID
+        LEFT JOIN tblClass cl ON q.classid = cl.ClassID
+        LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
+        LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
+        LEFT JOIN tblEmployee e ON q.EmployeeId = e.Employeeid
+        LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
+        LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
+        LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
+        LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
+        WHERE (@ContentIndexId = 0 OR q.ContentIndexId = @ContentIndexId)
+          AND (@IndexTypeId = 0 OR q.IndexTypeId = @IndexTypeId)
+          AND q.IsRejected = 1";
+
+                var parameters = new
+                {
+                    ContentIndexId = request.ContentIndexId == 0 ? 0 : request.ContentIndexId,
+                    IndexTypeId = request.IndexTypeId == 0 ? 0 : request.IndexTypeId
+                };
+
+                var data = await _connection.QueryAsync<dynamic>(sql, parameters);
+
+                if (data != null)
+                {
+                    var response = data.Select(item => new QuestionResponseDTO
+                    {
+                        QuestionId = item.QuestionId,
+                        QuestionDescription = item.QuestionDescription,
+                        QuestionTypeId = item.QuestionTypeId,
+                        Status = item.Status,
+                        CreatedBy = item.CreatedBy,
+                        CreatedOn = item.CreatedOn,
+                        ModifiedBy = item.ModifiedBy,
+                        ModifiedOn = item.ModifiedOn,
+                        subjectID = item.subjectID,
+                        SubjectName = item.SubjectName,
+                        EmployeeId = item.EmployeeId,
+                        EmployeeName = item.EmployeeName,
+                        IndexTypeId = item.IndexTypeId,
+                        IndexTypeName = item.IndexTypeName,
+                        ContentIndexId = item.ContentIndexId,
+                        ContentIndexName = item.ContentIndexName,
+                        QIDCourses = GetListOfQIDCourse(item.QuestionId),
+                        QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionId),
+                        Answersingleanswercategories = GetSingleAnswer(item.QuestionId),
+                        AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionId),
+                        References = GetQuestionReference(item.QuestionId),
+                        IsApproved = item.IsApproved,
+                        IsRejected = item.IsRejected
+                    }).ToList();
+
+                    var paginatedList = response.Skip((request.PageNumber - 1) * request.PageSize)
+                                                .Take(request.PageSize)
+                                                .ToList();
+
+                    if (paginatedList.Count != 0)
+                    {
+                        return new ServiceResponse<List<QuestionResponseDTO>>(true, "Operation Successful", paginatedList, 200);
+                    }
+                    else
+                    {
+                        return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
+                    }
+                }
+                else
+                {
+                    return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, new List<QuestionResponseDTO>(), 500);
+            }
+        }
+        public async Task<ServiceResponse<QuestionResponseDTO>> GetQuestionById(int questionId)
+        {
+            try
+            {
+                string sql = @"
+        SELECT q.*, 
+               c.CourseName, 
+               b.BoardName, 
+               cl.ClassName, 
+               s.SubjectName,
+               et.ExamTypeName,
+               e.EmpFirstName,
+               qt.QuestionType as QuestionTypeName,
+               it.IndexType as IndexTypeName,
+               CASE 
+                   WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
+                   WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
+                   WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+               END AS ContentIndexName
+        FROM tblQuestion q
+        LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
+        LEFT JOIN tblCourse c ON q.courseid = c.CourseID
+        LEFT JOIN tblBoard b ON q.boardid = b.BoardID
+        LEFT JOIN tblClass cl ON q.classid = cl.ClassID
+        LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
+        LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
+        LEFT JOIN tblEmployee e ON q.EmployeeId = e.EmployeeId
+        LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
+        LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
+        LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
+        LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
+        WHERE q.QuestionId = @QuestionId";
+
+                var parameters = new { QuestionId = questionId };
+
+                var item = await _connection.QueryFirstOrDefaultAsync<dynamic>(sql, parameters);
+
+                if (item != null)
+                {
+                    var questionResponse = new QuestionResponseDTO
+                    {
+                        QuestionId = item.QuestionId,
+                        QuestionDescription = item.QuestionDescription,
+                        SubjectName = item.SubjectName,
+                        EmployeeName = item.EmpFirstName,
+                        IndexTypeName = item.IndexTypeName,
+                        ContentIndexName = item.ContentIndexName,
+                        QIDCourses = GetListOfQIDCourse(item.QuestionId),
+                        QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionId),
+                        Answersingleanswercategories = GetSingleAnswer(item.QuestionId),
+                        AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionId),
+                        References = GetQuestionReference(item.QuestionId),
+                        ContentIndexId = item.ContentIndexId,
+                        CreatedBy = item.CreatedBy,
+                        CreatedOn = item.CreatedOn,
+                        EmployeeId = item.EmployeeId,
+                        IndexTypeId = item.IndexTypeId,
+                        subjectID=item.subjectID,
+                        ModifiedOn = item.ModifiedOn,
+                        QuestionTypeId = item.QuestionTypeId,
+                        QuestionTypeName = item.QuestionTypeName,
+                    };
+
+                    return new ServiceResponse<QuestionResponseDTO>(true, "Operation Successful", questionResponse, 200);
+                }
+                else
+                {
+                    return new ServiceResponse<QuestionResponseDTO>(false, "No records found", new QuestionResponseDTO(), 404);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<QuestionResponseDTO>(false, ex.Message, new QuestionResponseDTO(), 500);
+            }
+        }
+        public async Task<ServiceResponse<List<QuestionComparisonDTO>>> CompareQuestionAsync(QuestionCompareRequest newQuestion)
+        {
+            string query = "SELECT QuestionId, QuestionDescription FROM tblQuestion";
+            var existingQuestions = await _connection.QueryAsync<Question>(query);
+
+            var comparisons = existingQuestions.Select(q => new QuestionComparisonDTO
+            {
+                QuestionID = q.QuestionId,
+                QuestionText = q.QuestionDescription,
+                Similarity = CalculateSimilarity(newQuestion.NewQuestion, q.QuestionDescription)
+            }).OrderByDescending(c => c.Similarity).Take(10).ToList();
+
+            return new ServiceResponse<List<QuestionComparisonDTO>>(true, "Comparison results", comparisons, 200);
+        }
+        public async Task<ServiceResponse<string>> RejectQuestion(QuestionRejectionRequestDTO request)
+        {
+            try
+            {
+                string updateSql = @"
+                UPDATE [tblQuestion]
+                SET 
+                   IsRejected = @IsRejected
+                WHERE
+                    QuestionId = @QuestionId";
+
+                var parameters = new
+                {
+                    request.QuestionId,
+                    IsRejected = true
+                };
+                var affectedRows = await _connection.ExecuteAsync(updateSql, parameters);
+                if (affectedRows > 0)
+                {
+                    string sql = @"
+                    INSERT INTO [tblQuestionProfilerRejections]
+                    ([Questionid], [CreatedDate], [QuestionRejectReason], [RejectedBy])
+                    VALUES (@Questionid, @CreatedDate, @QuestionRejectReason, @RejectedBy);
+        
+                    SELECT CAST(SCOPE_IDENTITY() as int)";
+
+                    var newId = await _connection.ExecuteScalarAsync<int>(sql, new
+                    {
+                        request.QuestionId,
+                        CreatedDate = request.RejectedDate,
+                        request.RejectedReason,
+                        request.Rejectedby
+                    });
+                    if (newId > 0)
+                    {
+                        return new ServiceResponse<string>(true, "Question rejected successfully", "Success", 200);
+                    }
+                    else
+                    {
+                        return new ServiceResponse<string>(false, "Some error occured", string.Empty, 500);
+                    }
+                }
+                else
+                {
+                    return new ServiceResponse<string>(false, "Question not found", "Failure", 404);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+            }
+        }
+        public async Task<ServiceResponse<string>> ApproveQuestion(QuestionApprovalRequestDTO request)
+        {
+            try
+            {
+                if (_connection.State != ConnectionState.Open)
+                {
+                    _connection.Open();
+                }
+                using (var transaction = _connection.BeginTransaction())
+                {
+                    // Update the question status to approved
+                    string updateQuestionSql = @"
+            UPDATE [tblQuestion]
+            SET IsApproved = @IsApproved
+            WHERE QuestionId = @QuestionId";
+
+                    var updateParameters = new
+                    {
+                        request.QuestionId,
+                        IsApproved = true
+                    };
+
+                    var affectedRows = await _connection.ExecuteAsync(updateQuestionSql, updateParameters, transaction);
+                    if (affectedRows == 0)
+                    {
+                        return new ServiceResponse<string>(false, "Question not found", "Failure", 404);
+                    }
+
+                    // Insert into tblQuestionProfilerApproval
+                    string insertApprovalSql = @"
+            INSERT INTO [tblQuestionProfilerApproval]
+            ([QuestionId], [ApprovedBy], [ApprovedDate])
+            VALUES (@QuestionId, @ApprovedBy, @ApprovedDate)";
+
+                    var insertApprovalParameters = new
+                    {
+                        request.QuestionId,
+                        request.ApprovedBy,
+                        ApprovedDate = request.ApprovedDate ?? DateTime.UtcNow
+                    };
+
+                    await _connection.ExecuteAsync(insertApprovalSql, insertApprovalParameters, transaction);
+
+                    // Update tblQuestionProfiler to set status of the current profiler to inactive
+                    string updateProfilerSql = @"
+            UPDATE tblQuestionProfiler
+            SET Status = 0
+            WHERE Questionid = @QuestionId AND Status = 1";
+
+                    await _connection.ExecuteAsync(updateProfilerSql, new { request.QuestionId }, transaction);
+
+                    // Commit the transaction
+                    transaction.Commit();
+                }
+
+                return new ServiceResponse<string>(true, "Question approved successfully", "Success", 200);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+            }
+            finally
+            {
+                _connection.Close();
+            }
+        }
+        public async Task<ServiceResponse<string>> AssignQuestionToProfiler(QuestionProfilerRequest request)
+        {
+            try
+            {
+                if (_connection.State != ConnectionState.Open)
+                {
+                    _connection.Open();
+                }
+                using (var transaction = _connection.BeginTransaction())
+                {
+                    // Check if the question is already assigned to a profiler with active status
+                    string checkSql = @"
+                SELECT QPID
+                FROM tblQuestionProfiler
+                WHERE Questionid = @Questionid AND Status = 1";
+
+                    var existingProfiler = await _connection.QueryFirstOrDefaultAsync<int?>(checkSql, new { request.Questionid }, transaction);
+
+                    // If the question is already assigned, update the status of the current profiler to false
+                    if (existingProfiler.HasValue)
+                    {
+                        string updateSql = @"
+                    UPDATE tblQuestionProfiler
+                    SET Status = 0
+                    WHERE QPID = @QPID";
+
+                        await _connection.ExecuteAsync(updateSql, new { QPID = existingProfiler.Value }, transaction);
+                    }
+
+                    // Insert a new record for the new profiler with ApprovedStatus = false and Status = true
+                    string insertSql = @"
+                INSERT INTO tblQuestionProfiler (Questionid, EmpId, ApprovedStatus, Status)
+                VALUES (@Questionid, @EmpId, 0, 1)";
+
+                    await _connection.ExecuteAsync(insertSql, new { request.Questionid, request.EmpId }, transaction);
+
+                    // Commit the transaction
+                    transaction.Commit();
+                }
+
+                return new ServiceResponse<string>(true, "Question successfully assigned to profiler", string.Empty, 200);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+            }
+            finally
+            {
+                _connection.Close();
+            }
+        }
+        public async Task<ServiceResponse<QuestionProfilerResponse>> GetQuestionProfilerDetails(int QuestionId)
+        {
+            try
+            {
+                string sql = @"
+                SELECT qp.QPID, qp.Questionid, qp.EmpId, qp.ApprovedStatus, 
+                       e.EmpFirstName + ' ' + e.EmpLastName AS EmpName, r.RoleName AS Role, r.RoleID,
+                       qr.QuestionProfilerRejectionsid AS RejectionId, qr.CreatedDate AS RejectedDate, 
+                       qr.QuestionRejectReason AS RejectedReason, qr.RejectedBy,
+                       c.CourseName, c.CourseId, qc.QIDCourseID, qc.LevelId, l.LevelName
+                FROM tblQuestionProfiler qp
+                LEFT JOIN tblEmployee e ON qp.EmpId = e.Employeeid
+                LEFT JOIN tblRole r ON e.RoleID = r.RoleID
+                LEFT JOIN tblQuestionProfilerRejections qr ON qp.Questionid = qr.Questionid
+                LEFT JOIN tblQIDCourse qc ON qp.QPID = qc.QID
+                LEFT JOIN tblCourse c ON qc.CourseID = c.CourseId
+                LEFT JOIN tblLevel l ON qc.LevelId = l.LevelId
+                WHERE qp.Questionid = @QuestionId AND qp.Status = 1";
+
+                var parameters = new { QuestionId = QuestionId };
+
+                var data = await _connection.QueryAsync<dynamic>(sql, parameters);
+
+                if (data != null && data.Any())
+                {
+                    var firstRecord = data.First();
+
+                    var response = new QuestionProfilerResponse
+                    {
+                        QPID = firstRecord.QPID,
+                        Questionid = firstRecord.Questionid,
+                        EmpId = firstRecord.EmpId,
+                        EmpName = firstRecord.EmpName,
+                        Role = firstRecord.Role,
+                        RoleId = firstRecord.RoleID,
+                        ApprovedStatus = firstRecord.ApprovedStatus,
+                        QIDCourses = data.Select(d => new QIDCourseResponse
+                        {
+                            QIDCourseID = d.QIDCourseID,
+                            QID = d.QPID,
+                            CourseID = d.CourseId,
+                            CourseName = d.CourseName,
+                            LevelId = d.LevelId,
+                            LevelName = d.LevelName,
+                            Status = d.Status,
+                            CreatedBy = d.CreatedBy,
+                            CreatedDate = d.CreatedDate,
+                            ModifiedBy = d.ModifiedBy,
+                            ModifiedDate = d.ModifiedDate
+                        }).ToList(),
+                        QuestionRejectionResponseDTOs = data.Select(d => new QuestionRejectionResponseDTO
+                        {
+                            RejectionId = d.RejectionId,
+                            QuestionId = d.Questionid,
+                            EmpId = d.RejectedBy,
+                            EmpName = firstRecord.EmpName,
+                            RejectedDate = d.RejectedDate,
+                            RejectedReason = d.RejectedReason
+                        }).ToList()
+                    };
+
+                    return new ServiceResponse<QuestionProfilerResponse>(true, "Operation Successful", response, 200);
+                }
+                else
+                {
+                    return new ServiceResponse<QuestionProfilerResponse>(false, "No records found", new QuestionProfilerResponse(), 404);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<QuestionProfilerResponse>(false, ex.Message, new QuestionProfilerResponse(), 500);
+            }
+        }
+        private double CalculateSimilarity(string question1, string question2)
+        {
+            int maxLen = Math.Max(question1.Length, question2.Length);
+            if (maxLen == 0) return 100.0;
+
+            int distance = ComputeLevenshteinDistance(question1, question2);
+            return (1.0 - (double)distance / maxLen) * 100;
+        }
+        private int ComputeLevenshteinDistance(string s, string t)
+        {
+            int[,] d = new int[s.Length + 1, t.Length + 1];
+
+            // Step 1: Initialize the matrix
+            for (int i = 0; i <= s.Length; i++)
+            {
+                d[i, 0] = i;
+            }
+            for (int j = 0; j <= t.Length; j++)
+            {
+                d[0, j] = j;
+            }
+
+            // Step 2: Fill the matrix
+            for (int i = 1; i <= s.Length; i++)
+            {
+                for (int j = 1; j <= t.Length; j++)
+                {
+                    int cost = (t[j - 1] == s[i - 1]) ? 0 : 1;
+                    d[i, j] = Math.Min(
+                        Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1),
+                        d[i - 1, j - 1] + cost);
+                }
+            }
+
+            return d[s.Length, t.Length];
         }
         private async Task<int> AddUpdateQIDCourses(List<QIDCourse>? request, int questionId)
         {
@@ -489,8 +983,6 @@ namespace Schools_API.Repository.Implementations
             {
                 var newReference = new Reference
                 {
-                    SubjectIndexId = request.SubjectIndexId,
-                    Type = request.Type,
                     ReferenceNotes = request.ReferenceNotes,
                     ReferenceURL = request.ReferenceURL,
                     QuestionId = questionId,
@@ -505,9 +997,9 @@ namespace Schools_API.Repository.Implementations
                 if (request.ReferenceId == 0)
                 {
                     string insertQuery = @"
-                    INSERT INTO tblReference (SubjectIndexId, Type, ReferenceNotes, ReferenceURL, QuestionId,
+                    INSERT INTO tblReference (ReferenceNotes, ReferenceURL, QuestionId,
                                             Status, CreatedBy, CreatedOn, ModifiedBy, ModifiedOn)
-                    VALUES (@SubjectIndexId, @Type, @ReferenceNotes, @ReferenceURL, @QuestionId,
+                    VALUES (@ReferenceNotes, @ReferenceURL, @QuestionId,
                             @Status, @CreatedBy, @CreatedOn, @ModifiedBy, @ModifiedOn)";
 
                     rowsAffected = await _connection.ExecuteAsync(insertQuery, newReference);
@@ -516,9 +1008,7 @@ namespace Schools_API.Repository.Implementations
                 {
                     string updateQuery = @"
                     UPDATE tblReference
-                    SET SubjectIndexId = @SubjectIndexId,
-                        Type = @Type,
-                        ReferenceNotes = @ReferenceNotes,
+                    SET ReferenceNotes = @ReferenceNotes,
                         ReferenceURL = @ReferenceURL,
                         QuestionId = @QuestionId,
                         Status = @Status,
@@ -548,13 +1038,12 @@ namespace Schools_API.Repository.Implementations
                 int count = await _connection.QueryFirstOrDefaultAsync<int>(query, new { questionId });
                 if (count > 0)
                 {
-                    var deleteDuery = @"DELETE FROM [tblQuestionSubjectMapping]
-                          WHERE [questionid] = @questionId;";
+                    var deleteDuery = @"DELETE FROM [tblQuestionSubjectMapping] WHERE [questionid] = @questionId;";
                     var rowsAffected = await _connection.ExecuteAsync(deleteDuery, new { questionId });
                     if (rowsAffected > 0)
                     {
-                        string insertQuery = @"INSERT INTO tblQuestionSubjectMapping (SubjectIndexId, Indexid, questionid, Levelid) 
-                           VALUES (@SubjectIndexId, @Indexid, @questionid, @Levelid)";
+                        string insertQuery = @"INSERT INTO tblQuestionSubjectMapping (ContentIndexId, Indexid, questionid) 
+                           VALUES (@ContentIndexId, @Indexid, @questionid)";
                         var valuesInserted = await _connection.ExecuteAsync(insertQuery, request);
                         return valuesInserted;
                     }
@@ -565,8 +1054,8 @@ namespace Schools_API.Repository.Implementations
                 }
                 else
                 {
-                    string insertQuery = @"INSERT INTO tblQuestionSubjectMapping (SubjectIndexId, Indexid, questionid, Levelid) 
-                           VALUES (@SubjectIndexId, @Indexid, @questionid, @Levelid)";
+                    string insertQuery = @"INSERT INTO tblQuestionSubjectMapping (ContentIndexId, Indexid, questionid) 
+                           VALUES (@ContentIndexId, @Indexid, @questionid)";
                     var valuesInserted = await _connection.ExecuteAsync(insertQuery, request);
                     return valuesInserted;
                 }
@@ -576,11 +1065,16 @@ namespace Schools_API.Repository.Implementations
                 return 0;
             }
         }
-        private List<QIDCourse> GetListOfQIDCourse(int questionId)
+        private List<QIDCourseResponse> GetListOfQIDCourse(int questionId)
         {
-            var boardquery = @"SELECT * FROM [tblQIDCourse] WHERE QID = @questionId;";
+            var boardquery = @"
+            SELECT qc.*, c.CourseName, l.LevelName
+            FROM [tblQIDCourse] qc
+            LEFT JOIN tblCourse c ON qc.CourseID = c.CourseID
+            LEFT JOIN tbldifficultylevel l ON qc.LevelId = l.LevelId
+            WHERE QID = @questionId";
 
-            var data = _connection.Query<QIDCourse>(boardquery, new { questionId });
+            var data = _connection.Query<QIDCourseResponse>(boardquery, new { questionId });
             return data != null ? data.AsList() : [];
         }
         private Reference GetQuestionReference(int questionId)
@@ -590,73 +1084,35 @@ namespace Schools_API.Repository.Implementations
             var data = _connection.QueryFirstOrDefault<Reference>(boardquery, new { questionId });
             return data ?? new Reference();
         }
-        private List<QuestionSubjectMapping> GetListOfQuestionSubjectMapping(int questionId)
+        private List<QuestionSubjectMappingResponse> GetListOfQuestionSubjectMapping(int questionId)
         {
-            var boardquery = @"SELECT * FROM [tblQuestionSubjectMapping] WHERE questionid = @questionId;";
+            var boardquery = @"
+            SELECT qsm.*, it.IndexType as IndexTypeName,
+            CASE 
+                WHEN qsm.Indexid = 1 THEN ci.ContentName_Chapter
+                WHEN qsm.Indexid = 2 THEN ct.ContentName_Topic
+                WHEN qsm.Indexid = 3 THEN cst.ContentName_SubTopic
+            END AS ContentIndexName
+            FROM [tblQuestionSubjectMapping] qsm
+            LEFT JOIN tblQBIndexType it ON qsm.Indexid = it.IndexId
+               LEFT JOIN tblContentIndexChapters ci ON qsm.ContentIndexId = ci.ContentIndexId AND qsm.Indexid = 1
+                LEFT JOIN tblContentIndexTopics ct ON qsm.ContentIndexId = ct.ContInIdTopic AND qsm.Indexid = 2
+                LEFT JOIN tblContentIndexSubTopics cst ON qsm.ContentIndexId = cst.ContInIdSubTopic AND qsm.Indexid = 3
+            WHERE questionid = @questionId";
 
-            var data = _connection.Query<QuestionSubjectMapping>(boardquery, new { questionId });
+            var data = _connection.Query<QuestionSubjectMappingResponse>(boardquery, new { questionId });
             return data != null ? data.AsList() : [];
         }
-        private string FileUpload(string base64String)
+        private Answersingleanswercategory GetSingleAnswer(int questionId)
         {
-            if (string.IsNullOrEmpty(base64String) || base64String == "string")
-            {
-                return string.Empty;
-            }
-            if (base64String == string.Empty)
-            {
-                return string.Empty;
-            }
-            byte[] data = Convert.FromBase64String(base64String);
-            string directoryPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "QuestionImages");
+            var answerMaster = _connection.QueryFirstOrDefault<AnswerMaster>(@"
+        SELECT * FROM tblAnswerMaster WHERE Questionid = @Questionid", new { Questionid = questionId });
 
-            if (!Directory.Exists(directoryPath))
-            {
-                Directory.CreateDirectory(directoryPath);
-            }
-            string fileExtension = IsJpeg(data) == true ? ".jpg" : IsPng(data) == true ? ".png" : IsGif(data) == true ? ".gif" : string.Empty;
-
-            string fileName = Guid.NewGuid().ToString() + fileExtension;
-            string filePath = Path.Combine(directoryPath, fileName);
-
-            // Write the byte array to the image file
-            File.WriteAllBytes(filePath, data);
-            return filePath;
-        }
-        private string GetFile(string Filename)
-        {
-            var filePath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "QuestionImages", Filename);
-
-            if (!File.Exists(filePath))
-            {
-                return string.Empty;
-            }
-            byte[] fileBytes = File.ReadAllBytes(filePath);
-            string base64String = Convert.ToBase64String(fileBytes);
-            return base64String;
-        }
-        private bool IsJpeg(byte[] bytes)
-        {
-            // JPEG magic number: 0xFF, 0xD8
-            return bytes.Length > 1 && bytes[0] == 0xFF && bytes[1] == 0xD8;
-        }
-        private bool IsPng(byte[] bytes)
-        {
-            // PNG magic number: 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A
-            return bytes.Length > 7 && bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47
-                && bytes[4] == 0x0D && bytes[5] == 0x0A && bytes[6] == 0x1A && bytes[7] == 0x0A;
-        }
-        private bool IsGif(byte[] bytes)
-        {
-            // GIF magic number: "GIF"
-            return bytes.Length > 2 && bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46;
-        }
-        private Answersingleanswercategory GetSingleAnswer(int QuestionId)
-        {
-            var answerMaster = _connection.QueryFirstOrDefault<AnswerMaster>(@"Select * from tblAnswerMaster where Questionid = @Questionid", new { Questionid = QuestionId });
             if (answerMaster != null)
             {
-                string getQuery = @"Select * from [tblAnswersingleanswercategory] where [Answerid] = @Answerid;";
+                string getQuery = @"
+            SELECT * FROM [tblAnswersingleanswercategory] WHERE [Answerid] = @Answerid";
+
                 var response = _connection.QueryFirstOrDefault<Answersingleanswercategory>(getQuery, new { answerMaster.Answerid });
                 return response ?? new Answersingleanswercategory();
             }
@@ -665,18 +1121,22 @@ namespace Schools_API.Repository.Implementations
                 return new Answersingleanswercategory();
             }
         }
-        private List<AnswerMultipleChoiceCategory> GetMultipleAnswers (int QuestionId)
+        private List<AnswerMultipleChoiceCategory> GetMultipleAnswers(int questionId)
         {
-            var answerMaster = _connection.QueryFirstOrDefault<AnswerMaster>(@"Select * from tblAnswerMaster where Questionid = @Questionid", new { Questionid = QuestionId });
+            var answerMaster = _connection.QueryFirstOrDefault<AnswerMaster>(@"
+        SELECT * FROM tblAnswerMaster WHERE Questionid = @Questionid", new { Questionid = questionId });
+
             if (answerMaster != null)
             {
-                string getQuery = @"Select * from [tblAnswerMultipleChoiceCategory] where [Answerid] = @Answerid;";
+                string getQuery = @"
+            SELECT * FROM [tblAnswerMultipleChoiceCategory] WHERE [Answerid] = @Answerid";
+
                 var response = _connection.Query<AnswerMultipleChoiceCategory>(getQuery, new { answerMaster.Answerid });
-                return response.AsList() ?? [];
+                return response.AsList() ?? new List<AnswerMultipleChoiceCategory>();
             }
             else
             {
-                return [];
+                return new List<AnswerMultipleChoiceCategory>();
             }
         }
     }
