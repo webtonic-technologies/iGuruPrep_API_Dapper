@@ -15,6 +15,8 @@ builder.Services.AddTransient<IProjectServices, ProjectServices>();
 builder.Services.AddTransient<IProjectRepository, ProjectRepository>();
 builder.Services.AddTransient<IQuestionRepository, QuestionRepository>();
 builder.Services.AddTransient<IQuestionServices, QuestionServices>();
+builder.Services.AddTransient<IReportedQuestionRepository, ReportedQuestionRepository>();
+builder.Services.AddTransient<IReportedQuestionsServices, ReportedQuestionsServices>();
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
