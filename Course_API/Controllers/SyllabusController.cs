@@ -1,11 +1,10 @@
-using Course_API.DTOs;
-using Course_API.Models;
+using Course_API.DTOs.Requests;
 using Course_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Course_API.Controllers
 {
-    [Route("iGuru/[controller]")]
+    [Route("iGuru/Course/[controller]")]
     [ApiController]
     public class SyllabusController : ControllerBase
     {
@@ -16,7 +15,7 @@ namespace Course_API.Controllers
             _syllabusServices = syllabusServices;
         }
 
-        [HttpPost("Syllabus")]
+        [HttpPost("AddUpdateSyllabus")]
         public async Task<IActionResult> AddUpdateSyllabus([FromBody] SyllabusDTO request)
         {
             try
@@ -40,7 +39,7 @@ namespace Course_API.Controllers
 
         }
 
-        [HttpPost("SyllabusDetail")]
+        [HttpPost("AddUpdateSyllabusDetails")]
         public async Task<IActionResult> AddUpdateSyllabusDetails([FromBody] SyllabusDetailsDTO request)
         {
             try
@@ -61,7 +60,66 @@ namespace Course_API.Controllers
             {
                 return this.BadRequest(e.Message);
             }
-
+        }
+        [HttpGet("GetSyllabusDetailById/{syllabusId}")]
+        public async Task<IActionResult> GetSyllabusDetailsById(int syllabusId)
+        {
+            try
+            {
+                var data = await _syllabusServices.GetSyllabusDetailsById(syllabusId);
+                if (data != null)
+                {
+                    return Ok(data);
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
+        [HttpGet("GetSyllabusById/{syllabusId}")]
+        public async Task<IActionResult> GetSyllabusById(int syllabusId)
+        {
+            try
+            {
+                var data = await _syllabusServices.GetSyllabusById(syllabusId);
+                if (data != null)
+                {
+                    return Ok(data);
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
+        [HttpPut("UpdateContentIndexName")]
+        public async Task<IActionResult> UpdateContentIndexName(UpdateContentIndexNameDTO request)
+        {
+            try
+            {
+                var data = await _syllabusServices.UpdateContentIndexName(request);
+                if (data != null)
+                {
+                    return Ok(data);
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
         }
     }
 }

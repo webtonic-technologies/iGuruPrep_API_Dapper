@@ -1,10 +1,10 @@
-using Course_API.DTOs;
+using Course_API.DTOs.Requests;
 using Course_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Course_API.Controllers
 {
-    [Route("iGuru/[controller]")]
+    [Route("iGuru/Course/[controller]")]
     [ApiController]
     public class BookController : ControllerBase
     {
@@ -15,7 +15,7 @@ namespace Course_API.Controllers
             _bookServices = bookServices;
         }
         [HttpPost("GetAllBook")]
-        public async Task<IActionResult> Get(BookListDTO request)
+        public async Task<IActionResult> GetListOfBooks(BookListDTO request)
         {
             try
             {
@@ -36,13 +36,12 @@ namespace Course_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
-
-        [HttpGet("{id}")]
-        public async Task<IActionResult> Get(int id)
+        [HttpGet("GetBookById/{BookId}")]
+        public async Task<IActionResult> GetBookById(int BookId)
         {
             try
             {
-                var data = await _bookServices.Get(id);
+                var data = await _bookServices.Get(BookId);
                 if (data != null)
                 {
                     return Ok(data);
@@ -60,9 +59,8 @@ namespace Course_API.Controllers
             }
 
         }
-
-        [HttpPost]
-        public async Task<IActionResult> Post([FromBody] BookDTO bookDTO)
+        [HttpPost("AddBook")]
+        public async Task<IActionResult> AddBook([FromBody] BookDTO bookDTO)
         {
             try
             {
@@ -84,37 +82,12 @@ namespace Course_API.Controllers
             }
 
         }
-
-        [HttpPut]
-        public async Task<IActionResult> Put([FromBody] BookDTO bookDTO)
+        [HttpPut("UpdateBook")]
+        public async Task<IActionResult> UpdateBook([FromBody] BookDTO bookDTO)
         {
             try
             {
                 var data = await _bookServices.Update(bookDTO);
-                if (data != null)
-                {
-                    return Ok(data);
-
-                }
-                else
-                {
-                    return BadRequest("Bad Request");
-                }
-
-            }
-            catch (Exception e)
-            {
-                return this.BadRequest(e.Message);
-            }
-
-        }
-
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
-        {
-            try
-            {
-                var data = await _bookServices.Delete(id);
                 if (data != null)
                 {
                     return Ok(data);

@@ -1,6 +1,6 @@
-﻿using Course_API.DTOs;
+﻿using Course_API.DTOs.Requests;
+using Course_API.DTOs.Response;
 using Course_API.DTOs.ServiceResponse;
-using Course_API.Models;
 using Course_API.Repository.Interfaces;
 using Course_API.Services.Interfaces;
 
@@ -14,7 +14,7 @@ namespace Course_API.Services.Implementations
         {
             _syllabusRepository = syllabusRepository;
         }
-        public async Task<ServiceResponse<string>> AddUpdateSyllabus(SyllabusDTO request)
+        public async Task<ServiceResponse<int>> AddUpdateSyllabus(SyllabusDTO request)
         {
             try
             {
@@ -22,16 +22,51 @@ namespace Course_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+                return new ServiceResponse<int>(false, ex.Message, 0, 500);
             }
         }
 
         public async Task<ServiceResponse<string>> AddUpdateSyllabusDetails(SyllabusDetailsDTO request)
         {
-
             try
             {
                 return await _syllabusRepository.AddUpdateSyllabusDetails(request);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+            }
+        }
+
+        public async Task<ServiceResponse<SyllabusResponseDTO>> GetSyllabusById(int syllabusId)
+        {
+            try
+            {
+                return await _syllabusRepository.GetSyllabusById(syllabusId);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<SyllabusResponseDTO>(false, ex.Message, new SyllabusResponseDTO(), 500);
+            }
+        }
+
+        public async Task<ServiceResponse<SyllabusDetailsResponseDTO>> GetSyllabusDetailsById(int syllabusId)
+        {
+            try
+            {
+                return await _syllabusRepository.GetSyllabusDetailsById(syllabusId);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<SyllabusDetailsResponseDTO>(false, ex.Message, new SyllabusDetailsResponseDTO(), 500);
+            }
+        }
+
+        public async Task<ServiceResponse<string>> UpdateContentIndexName(UpdateContentIndexNameDTO request)
+        {
+            try
+            {
+                return await _syllabusRepository.UpdateContentIndexName(request);
             }
             catch (Exception ex)
             {

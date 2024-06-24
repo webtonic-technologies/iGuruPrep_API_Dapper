@@ -1,11 +1,11 @@
-using Course_API.DTOs;
+using Course_API.DTOs.Requests;
 using Course_API.Models;
 using Course_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Course_API.Controllers
 {
-    [Route("iGuru/[controller]")]
+    [Route("iGuru/Course/[controller]")]
     [ApiController]
     public class ContentController : ControllerBase
     {
@@ -38,7 +38,7 @@ namespace Course_API.Controllers
             }
         }
 
-        [HttpGet("Content/{id}")]
+        [HttpGet("GetContentById/{id}")]
         public async Task<IActionResult> GetContentMasterById(int id)
         {
             try
@@ -62,7 +62,7 @@ namespace Course_API.Controllers
 
         }
 
-        [HttpPost]
+        [HttpPost("AddUpdateContent")]
         public async Task<IActionResult> AddUpdateContentMaster([FromBody] ContentMaster request)
         {
             try
@@ -84,12 +84,12 @@ namespace Course_API.Controllers
             }
 
         }
-        [HttpGet("SubjectContent")]
-        public async Task<IActionResult> GetListOfSubjectContent(SubjectContentIndexRequestDTO request)
+        [HttpPost("GetContentIndexList")]
+        public async Task<IActionResult> GetAllContentIndexList(ContentIndexRequestDTO request)
         {
             try
             {
-                var data = await _contentMasterServices.GetListOfSubjectContent(request);
+                var data = await _contentMasterServices.GetAllContentIndexList(request);
                 if (data != null)
                 {
                     return Ok(data);

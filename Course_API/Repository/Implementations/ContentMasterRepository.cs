@@ -1,4 +1,5 @@
-﻿using Course_API.DTOs;
+﻿using Course_API.DTOs.Requests;
+using Course_API.DTOs.Response;
 using Course_API.DTOs.ServiceResponse;
 using Course_API.Models;
 using Course_API.Repository.Interfaces;
@@ -22,19 +23,27 @@ namespace Course_API.Repository.Implementations
             {
                 if (request.contentid == 0)
                 {
-                    var insertQuery = @"INSERT INTO tblContentMaster (subjectindexid, boardId, classId, courseId, subjectId, fileName, PathURL, createdon, createdby)
-                VALUES (@subjectindexid, @boardId, @classId, @courseId, @subjectId, @fileName, @PathURL, @createdon, @createdby);";
+                    var insertQuery = @"
+                INSERT INTO tblContentMaster (
+                    boardId, classId, courseId, subjectId, fileName, PathURL, createdon, createdby, IndexTypeId, ExamTypeId, APId, EmployeeId, ContentIndexId)
+                VALUES (
+                    @boardId, @classId, @courseId, @subjectId, @fileName, @PathURL, @createdon, @createdby, @IndexTypeId, @ExamTypeId, @APId, @EmployeeId, @ContentIndexId);";
+
                     var content = new ContentMaster
                     {
                         boardId = request.boardId,
                         classId = request.classId,
                         courseId = request.courseId,
+                        subjectId = request.subjectId,
                         fileName = PDFUpload(request.fileName),
                         PathURL = VideoUpload(request.PathURL),
-                        subjectindexid = request.subjectindexid,
-                        subjectId = request.subjectId,
+                        createdon = DateTime.Now,
                         createdby = request.createdby,
-                        createdon = DateTime.Now
+                        IndexTypeId = request.IndexTypeId,
+                        ExamTypeId = request.ExamTypeId,
+                        APId = request.APId,
+                        EmployeeId = request.EmployeeId,
+                        ContentIndexId = request.ContentIndexId
                     };
 
                     int rowsAffected = await _connection.ExecuteAsync(insertQuery, content);
@@ -44,35 +53,46 @@ namespace Course_API.Repository.Implementations
                     }
                     else
                     {
-                        return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
+                        return new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
                     }
                 }
                 else
                 {
-                    var updateQuery = @"UPDATE tblContentMaster
-                SET subjectindexid = @subjectindexid,
-                    boardId = @boardId,
+                    var updateQuery = @"
+                UPDATE tblContentMaster
+                SET boardId = @boardId,
                     classId = @classId,
                     courseId = @courseId,
                     subjectId = @subjectId,
                     fileName = @fileName,
                     PathURL = @PathURL,
                     modifiedon = @modifiedon,
-                    modifiedby = @modifiedby
+                    modifiedby = @modifiedby,
+                    IndexTypeId = @IndexTypeId,
+                    ExamTypeId = @ExamTypeId,
+                    APId = @APId,
+                    EmployeeId = @EmployeeId,
+                    ContentIndexId = @ContentIndexId
                 WHERE contentid = @contentid;";
+
                     var content = new ContentMaster
                     {
+                        contentid = request.contentid,
                         boardId = request.boardId,
                         classId = request.classId,
                         courseId = request.courseId,
+                        subjectId = request.subjectId,
                         fileName = PDFUpload(request.fileName),
                         PathURL = VideoUpload(request.PathURL),
-                        subjectindexid = request.subjectindexid,
-                        subjectId = request.subjectId,
-                        modifiedby = request.modifiedby,
                         modifiedon = DateTime.Now,
-                        contentid = request.contentid
+                        modifiedby = request.modifiedby,
+                        IndexTypeId = request.IndexTypeId,
+                        ExamTypeId = request.ExamTypeId,
+                        APId = request.APId,
+                        EmployeeId = request.EmployeeId,
+                        ContentIndexId = request.ContentIndexId
                     };
+
                     int rowsAffected = await _connection.ExecuteAsync(updateQuery, content);
                     if (rowsAffected > 0)
                     {
@@ -80,7 +100,7 @@ namespace Course_API.Repository.Implementations
                     }
                     else
                     {
-                        return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
+                        return new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
                     }
                 }
             }
@@ -89,99 +109,190 @@ namespace Course_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-        public async Task<ServiceResponse<ContentMaster>> GetContentById(int ContentId)
+        public async Task<ServiceResponse<ContentMasterResponseDTO>> GetContentById(int ContentId)
         {
             try
             {
                 string selectQuery = @"
-            SELECT *
-            FROM tblContentMaster
-            WHERE contentid = @ContentId";
-                var data = await _connection.QuerySingleOrDefaultAsync<ContentMaster>(selectQuery, new { ContentId });
+            SELECT cm.contentid, cm.boardId, b.BoardName, cm.classId, cl.ClassName, cm.courseId, c.CourseName, cm.subjectId, s.SubjectName, cm.fileName, cm.PathURL, cm.createdon, cm.createdby, cm.modifiedon, cm.modifiedby,
+                   cm.IndexTypeId, it.IndexType as IndexTypeName, cm.ExamTypeId, et.ExamTypeName, cm.APId, a.APName, cm.EmployeeId, e.EmpFirstName as EmployeeName , cm.ContentIndexId,
+                   CASE 
+                       WHEN cm.IndexTypeId = 1 THEN ci.ContentName_Chapter
+                       WHEN cm.IndexTypeId = 2 THEN ct.ContentName_Topic
+                       WHEN cm.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+                   END AS ContentIndexName
+            FROM tblContentMaster cm
+            LEFT JOIN tblBoard b ON cm.boardId = b.BoardId
+            LEFT JOIN tblClass cl ON cm.classId = cl.ClassId
+            LEFT JOIN tblCourse c ON cm.courseId = c.CourseId
+            LEFT JOIN tblSubject s ON cm.subjectId = s.SubjectId
+            LEFT JOIN tblExamType et ON cm.ExamTypeId = et.ExamTypeId
+            LEFT JOIN tblCategory a ON cm.APId = a.APId
+            LEFT JOIN tblEmployee e ON cm.EmployeeId = e.EmployeeId
+            LEFT JOIN tblQBIndexType it ON cm.IndexTypeId = it.IndexId
+            LEFT JOIN tblContentIndexChapters ci ON cm.ContentIndexId = ci.ContentIndexId AND cm.IndexTypeId = 1
+            LEFT JOIN tblContentIndexTopics ct ON cm.ContentIndexId = ct.ContInIdTopic AND cm.IndexTypeId = 2
+            LEFT JOIN tblContentIndexSubTopics cst ON cm.ContentIndexId = cst.ContInIdSubTopic AND cm.IndexTypeId = 3
+            WHERE cm.contentid = @ContentId";
+
+                var data = await _connection.QuerySingleOrDefaultAsync<ContentMasterResponseDTO>(selectQuery, new { ContentId });
                 if (data != null)
                 {
                     data.PathURL = GetVideo(data.PathURL);
                     data.fileName = GetPDF(data.fileName);
-                    return new ServiceResponse<ContentMaster>(true, "Operation Successful", data, 200);
+                    return new ServiceResponse<ContentMasterResponseDTO>(true, "Operation Successful", data, 200);
                 }
                 else
                 {
-                    return new ServiceResponse<ContentMaster>(false, "Opertion Failed", new ContentMaster(), 500);
+                    return new ServiceResponse<ContentMasterResponseDTO>(false, "Operation Failed", new ContentMasterResponseDTO(), 500);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<ContentMaster>(false, ex.Message, new ContentMaster(), 500);
+                return new ServiceResponse<ContentMasterResponseDTO>(false, ex.Message, new ContentMasterResponseDTO(), 500);
             }
         }
-        public async Task<ServiceResponse<List<ContentMaster>>> GetContentList(GetAllContentListRequest request)
+        public async Task<ServiceResponse<List<ContentMasterResponseDTO>>> GetContentList(GetAllContentListRequest request)
         {
             try
             {
+                string countSql = @"SELECT COUNT(*) FROM [tblContentMaster]";
+                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
+            
                 string selectQuery = @"
-            SELECT *
-            FROM tblContentMaster";
-                var data = await _connection.QueryAsync<ContentMaster>(selectQuery);
-                if (data != null)
+                SELECT cm.contentid, cm.boardId, b.BoardName, cm.classId, cl.ClassName, cm.courseId, c.CourseName, cm.subjectId, s.SubjectName, cm.fileName, cm.PathURL, cm.createdon, cm.createdby, cm.modifiedon, cm.modifiedby,
+                       cm.IndexTypeId, it.IndexType as IndexTypeName, cm.ExamTypeId, et.ExamTypeName, cm.APId, a.APName, cm.EmployeeId, e.EmpFirstName as EmployeeName , cm.ContentIndexId,
+                       CASE 
+                           WHEN cm.IndexTypeId = 1 THEN ci.ContentName_Chapter
+                           WHEN cm.IndexTypeId = 2 THEN ct.ContentName_Topic
+                           WHEN cm.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+                       END AS ContentIndexName
+                FROM tblContentMaster cm
+                LEFT JOIN tblBoard b ON cm.boardId = b.BoardId
+                LEFT JOIN tblClass cl ON cm.classId = cl.ClassId
+                LEFT JOIN tblCourse c ON cm.courseId = c.CourseId
+                LEFT JOIN tblSubject s ON cm.subjectId = s.SubjectId
+                LEFT JOIN tblExamType et ON cm.ExamTypeId = et.ExamTypeId
+                LEFT JOIN tblCategory a ON cm.APId = a.APId
+                LEFT JOIN tblEmployee e ON cm.EmployeeId = e.EmployeeId
+                LEFT JOIN tblQBIndexType it ON cm.IndexTypeId = it.IndexId
+                LEFT JOIN tblContentIndexChapters ci ON cm.ContentIndexId = ci.ContentIndexId AND cm.IndexTypeId = 1
+                LEFT JOIN tblContentIndexTopics ct ON cm.ContentIndexId = ct.ContInIdTopic AND cm.IndexTypeId = 2
+                LEFT JOIN tblContentIndexSubTopics cst ON cm.ContentIndexId = cst.ContInIdSubTopic AND cm.IndexTypeId = 3
+                ORDER BY cm.contentid
+                OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
+
+                int offset = (request.PageNumber - 1) * request.PageSize;
+
+                var data = await _connection.QueryAsync<ContentMasterResponseDTO>(selectQuery, new { Offset = offset, request.PageSize });
+
+                if (data != null && data.Any())
                 {
                     foreach (var item in data)
                     {
                         item.fileName = GetPDF(item.fileName);
                         item.PathURL = GetVideo(item.PathURL);
                     }
-                    var paginatedList = data.Skip((request.PageNumber - 1) * request.PageSize)
-                     .Take(request.PageSize)
-                     .ToList();
-                    return new ServiceResponse<List<ContentMaster>>(true, "Operation Successful", paginatedList.AsList(), 200);
+
+                    return new ServiceResponse<List<ContentMasterResponseDTO>>(true, "Operation Successful", data.ToList(), 200, totalCount);
                 }
                 else
                 {
-                    return new ServiceResponse<List<ContentMaster>>(false, "Opertion Failed", new List<ContentMaster>(), 500);
+                    return new ServiceResponse<List<ContentMasterResponseDTO>>(false, "No Records Found", [], 204);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<ContentMaster>>(false, ex.Message, new List<ContentMaster>(), 500);
+                return new ServiceResponse<List<ContentMasterResponseDTO>>(false, ex.Message, [], 500);
             }
         }
-        public async Task<ServiceResponse<List<SubjectContentIndexDTO>>> GetListOfSubjectContent(SubjectContentIndexRequestDTO request)
+        public async Task<ServiceResponse<List<ContentIndexResponse>>> GetAllContentIndexList(ContentIndexRequestDTO request)
         {
             try
             {
-                List<SubjectContentIndexDTO> resposne = [];
-                string query = @" SELECT * FROM tblQBSubjectContentIndex WHERE SubjectId = @SubjectId 
-                                AND classid = @ClassId AND courseid = @CourseId AND boardid = @BoardId";
-                var data = await _connection.QueryAsync(query, request);
-                if(data != null)
+                string countSql = @"SELECT COUNT(*) FROM [tblContentIndexChapters]";
+                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
+                // Base query to fetch the content indexes
+                string query = @"SELECT * FROM [tblContentIndexChapters] WHERE 1 = 1";
+
+                // Add filters based on DTO properties
+                if (request.APId > 0)
                 {
-                    foreach (var item in data)
+                    query += " AND [APId] = @APId";
+                }
+                if (request.ExamTypeId > 0)
+                {
+                    query += " AND [ExamTypeId] = @ExamTypeId";
+                }
+                if (request.SubjectId > 0)
+                {
+                    query += " AND [SubjectId] = @SubjectId";
+                }
+                if (request.classid > 0)
+                {
+                    query += " AND [classid] = @classid";
+                }
+                if (request.courseid > 0)
+                {
+                    query += " AND [courseid] = @courseid";
+                }
+                if (request.boardid > 0)
+                {
+                    query += " AND [boardid] = @boardid";
+                }
+
+                // Apply pagination
+                int offset = (request.PageNumber - 1) * request.PageSize;
+                query += " ORDER BY [ContentIndexId] OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
+
+                // Execute the query
+                var contentIndexes = await _connection.QueryAsync<ContentIndexResponse>(query, new
+                {
+                    request.APId,
+                    request.ExamTypeId,
+                    request.SubjectId,
+                    request.classid,
+                    request.courseid,
+                    request.boardid,
+                    Offset = offset,
+                    request.PageSize
+                });
+
+                if (contentIndexes.Any())
+                {
+                    // Fetch related topics and subtopics for each content index
+                    foreach (var contentIndex in contentIndexes)
                     {
-                        var responseData = new SubjectContentIndexDTO
+                        string topicsSql = @"SELECT * FROM [tblContentIndexTopics] WHERE [ContentIndexId] = @contentIndexId";
+                        var topics = (await _connection.QueryAsync<ContentIndexTopics>(topicsSql, new { contentIndexId = contentIndex.ContentIndexId })).ToList();
+
+                        string subTopicsSql = @"
+                    SELECT st.*
+                    FROM [tblContentIndexSubTopics] st
+                    INNER JOIN [tblContentIndexTopics] t ON st.ContInIdTopic = t.ContInIdTopic
+                    WHERE t.ContentIndexId = @contentIndexId";
+                        var subTopics = (await _connection.QueryAsync<ContentIndexSubTopic>(subTopicsSql, new { contentIndexId = contentIndex.ContentIndexId })).ToList();
+
+                        // Assign the subtopics to the respective topics
+                        foreach (var topic in topics)
                         {
-                            boardid = item.boardid,
-                            classid = item.classid,
-                            ContentName = item.contentname,
-                            courseid = item.courseid,
-                            DisplayOrder = item.displayorder,
-                            IndexTypeId = item.indexid,
-                            IsSubjective = item.issubjective,
-                            ParentLevel = item.parentlevel,
-                            SubjectId = item.subjectid,
-                            SubjectIndexId = item.subjectindexid,
-                        };
-                        resposne.Add(responseData);
+                            topic.ContentIndexSubTopics = subTopics.Where(st => st.ContInIdTopic == topic.ContInIdTopic).ToList();
+                        }
+
+                        // Assign the topics to the content index
+                        contentIndex.ContentIndexTopics = topics;
                     }
-                    return new ServiceResponse<List<SubjectContentIndexDTO>>(true, "Records found", resposne, 200);
+
+                    return new ServiceResponse<List<ContentIndexResponse>>(true, "Records found", contentIndexes.AsList(), StatusCodes.Status302Found, totalCount);
                 }
                 else
                 {
-                    return new ServiceResponse<List<SubjectContentIndexDTO>>(false, " No Records found", resposne, 204);
+                    return new ServiceResponse<List<ContentIndexResponse>>(false, "Records not found", [], StatusCodes.Status204NoContent);
                 }
-               
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<SubjectContentIndexDTO>>(false, ex.Message, new List<SubjectContentIndexDTO>(), 500);
+                return new ServiceResponse<List<ContentIndexResponse>>(false, ex.Message, [], StatusCodes.Status500InternalServerError);
             }
         }
         private string PDFUpload(string pdf)

@@ -1,11 +1,10 @@
-﻿using Course_API.DTOs;
+﻿using Course_API.DTOs.Requests;
+using Course_API.DTOs.Response;
 using Course_API.DTOs.ServiceResponse;
 using Course_API.Models;
 using Course_API.Repository.Interfaces;
 using Dapper;
-using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
 
 namespace Course_API.Repository.Implementations
 {
@@ -35,14 +34,13 @@ namespace Course_API.Repository.Implementations
                     createdon = DateTime.Now,
                     createdby = request.createdby,
                     EmployeeID = request.EmployeeID,
-                    EmpFirstName = request.EmpFirstName,
                     FileTypeId = request.FileTypeId
                 };
                 string insertQuery = @"
         INSERT INTO [tblLibrary] 
-            (BookName, Status, pathURL, link, createdon, createdby, EmployeeID, EmpFirstName, FileTypeId)
+            (BookName, Status, pathURL, link, createdon, createdby, EmployeeID, FileTypeId)
         VALUES 
-            (@BookName, @Status, @pathURL, @link, @createdon, @createdby, @EmployeeID, @EmpFirstName, @FileTypeId);
+            (@BookName, @Status, @pathURL, @link, @createdon, @createdby, @EmployeeID, @FileTypeId);
         SELECT CAST(SCOPE_IDENTITY() AS INT);";
                 int insertedId = await _connection.QueryFirstOrDefaultAsync<int>(insertQuery, book);
                 if (insertedId > 0)
@@ -135,30 +133,37 @@ namespace Course_API.Repository.Implementations
                 return new ServiceResponse<bool>(false, ex.Message, false, 500);
             }
         }
-        public async Task<ServiceResponse<BookDTO>> Get(int id)
+        public async Task<ServiceResponse<BookResponseDTO>> Get(int id)
         {
             try
             {
-                var response = new BookDTO();
+                var response = new BookResponseDTO();
+
                 string selectQuery = @"
-        SELECT 
-            BookId,
-            BookName,
-            Status,
-            pathURL,
-            link,
-            modifiedon,
-            modifiedby,
-            createdon,
-            createdby,
-            EmployeeID,
-            EmpFirstName,
-            FileTypeId
-        FROM 
-            [tblLibrary]
-        WHERE 
-            BookId = @BookId";
-                var book = await _connection.QueryFirstOrDefaultAsync<Book>(selectQuery, new { BookId = id });
+                SELECT 
+                    l.BookId,
+                    l.BookName,
+                    l.Status,
+                    l.pathURL,
+                    l.link,
+                    l.modifiedon,
+                    l.modifiedby,
+                    l.createdon,
+                    l.createdby,
+                    l.EmployeeID,
+                    e.EmpFirstName,
+                    l.FileTypeId,
+                    f.FileType AS FileTypeName
+                FROM 
+                    [tblLibrary] l
+                LEFT JOIN 
+                    [tblEmployee] e ON l.EmployeeID = e.Employeeid
+                LEFT JOIN 
+                    [tblLibraryFileType] f ON l.FileTypeId = f.tblLibraryFileType
+                WHERE 
+                    l.BookId = @BookId";
+
+                var book = await _connection.QueryFirstOrDefaultAsync<dynamic>(selectQuery, new { BookId = id });
                 if (book != null)
                 {
                     response.BookId = book.BookId;
@@ -173,7 +178,8 @@ namespace Course_API.Repository.Implementations
                     response.EmployeeID = book.EmployeeID;
                     response.EmpFirstName = book.EmpFirstName;
                     response.FileTypeId = book.FileTypeId;
-                    response.BookAuthorDetails = GetListOfAuthorDettails(book.BookId);
+                    response.FileTypeName = book.FileTypeName;
+                    response.BookAuthorDetails = GetListOfAuthorDetails(book.BookId);
                     response.BookSubjects = GetListOfBookSubject(book.BookId);
                     response.BookBoards = GetListOfBookBoards(book.BookId);
                     response.BookClasses = GetListOfBookClass(book.BookId);
@@ -181,115 +187,101 @@ namespace Course_API.Repository.Implementations
                     response.BookExamTypes = GetListOfBookExamType(book.BookId);
                     response.BookCategories = GetListOfBookCategory(book.BookId);
 
-                    return new ServiceResponse<BookDTO>(true, "Record Found", response, 200);
+                    return new ServiceResponse<BookResponseDTO>(true, "Record Found", response, 200);
                 }
                 else
                 {
-                    return new ServiceResponse<BookDTO>(false, "Record not Found", new BookDTO(), 500);
+                    return new ServiceResponse<BookResponseDTO>(false, "Record not Found", new BookResponseDTO(), 500);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<BookDTO>(false, ex.Message, new BookDTO(), 500);
+                return new ServiceResponse<BookResponseDTO>(false, ex.Message, new BookResponseDTO(), 500);
             }
         }
-        public async Task<ServiceResponse<List<BookDTO>>> GetAllBooks(BookListDTO request)
+        public async Task<ServiceResponse<List<BookResponseDTO>>> GetAllBooks(BookListDTO request)
         {
-
             try
             {
-                var bookIds = new HashSet<int>();
+                string countSql = @"SELECT COUNT(*) FROM [tblLibrary]";
+                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
 
-                // Define the queries
-                string categoriesQuery = @"SELECT [BookId] FROM [tbllibraryCategory] WHERE [APId] = @APId";
-                string boardsQuery = @"SELECT [bookID] FROM [tbllibraryBoard] WHERE [BoardID] = @BoardID";
-                string classesQuery = @"SELECT [bookID] FROM [tbllibraryClass] WHERE [ClassID] = @ClassID";
-                string coursesQuery = @"SELECT [bookID] FROM [tbllibraryCourse] WHERE [CourseID] = @CourseID";
-                string examsQuery = @"SELECT [bookID] FROM [tbllibraryExamType] WHERE [ExamTypeID] = @ExamTypeID";
-                string subjectQuery = @"SELECT [bookID] FROM [tbllibrarySubject] WHERE [SubjectID] = @SubjectID";
+                // Base query
+                string baseQuery = @"
+                SELECT DISTINCT
+                    l.BookId,
+                    l.BookName,
+                    l.Status,
+                    l.pathURL,
+                    l.link,
+                    l.modifiedon,
+                    l.modifiedby,
+                    l.createdon,
+                    l.createdby,
+                    l.EmployeeID,
+                    e.EmpFirstName,
+                    l.FileTypeId,
+                    f.FileType
+                FROM [tblLibrary] l
+                LEFT JOIN [tblEmployee] e ON l.EmployeeID = e.Employeeid
+                LEFT JOIN [tblLibraryFileType] f ON l.FileTypeId = f.tblLibraryFileType
+                LEFT JOIN [tbllibraryCategory] lc ON l.BookId = lc.BookId
+                LEFT JOIN [tbllibraryBoard] lb ON l.BookId = lb.BookId
+                LEFT JOIN [tbllibraryClass] lc2 ON l.BookId = lc2.BookId
+                LEFT JOIN [tbllibraryCourse] lco ON l.BookId = lco.BookId
+                LEFT JOIN [tbllibraryExamType] le ON l.BookId = le.BookId
+                LEFT JOIN [tbllibrarySubject] ls ON l.BookId = ls.BookId
+                WHERE 1=1";
 
-                var categoryTask = Task.Run(async () =>
+                // Applying filters
+                if (request.ClassID > 0)
                 {
-                    using var connection = new SqlConnection(_connectionString);
-                    await connection.OpenAsync();
-                    return await connection.QueryAsync<int>(categoriesQuery, new { request.APId });
-                });
-
-                var boardTask = Task.Run(async () =>
+                    baseQuery += " AND lc2.ClassID = @ClassID";
+                }
+                if (request.BoardID > 0)
                 {
-                    using var connection = new SqlConnection(_connectionString);
-                    await connection.OpenAsync();
-                    return await connection.QueryAsync<int>(boardsQuery, new { request.BoardID });
-                });
-
-                var classTask = Task.Run(async () =>
+                    baseQuery += " AND lb.BoardID = @BoardID";
+                }
+                if (request.CourseID > 0)
                 {
-                    using var connection = new SqlConnection(_connectionString);
-                    await connection.OpenAsync();
-                    return await connection.QueryAsync<int>(classesQuery, new { request.ClassID });
-                });
-
-                var courseTask = Task.Run(async () =>
+                    baseQuery += " AND lco.CourseID = @CourseID";
+                }
+                if (request.ExamTypeID > 0)
                 {
-                    using var connection = new SqlConnection(_connectionString);
-                    await connection.OpenAsync();
-                    return await connection.QueryAsync<int>(coursesQuery, new { request.CourseID });
-                });
-
-                var examTask = Task.Run(async () =>
+                    baseQuery += " AND le.ExamTypeID = @ExamTypeID";
+                }
+                if (request.APId > 0)
                 {
-                    using var connection = new SqlConnection(_connectionString);
-                    await connection.OpenAsync();
-                    return await connection.QueryAsync<int>(examsQuery, new { request.ExamTypeID });
-                });
-
-                var subjectTask = Task.Run(async () =>
+                    baseQuery += " AND lc.APId = @APId";
+                }
+                if (request.SubjectID > 0)
                 {
-                    using var connection = new SqlConnection(_connectionString);
-                    await connection.OpenAsync();
-                    return await connection.QueryAsync<int>(subjectQuery, new { request.SubjectID });
-                });
-
-                // Wait for all tasks to complete
-                var results = await Task.WhenAll(categoryTask, boardTask, classTask, courseTask, examTask, subjectTask);
-
-                // Add all results to the HashSet to ensure uniqueness
-                foreach (var result in results)
-                {
-                    foreach (var id in result)
-                    {
-                        bookIds.Add(id);
-                    }
+                    baseQuery += " AND ls.SubjectID = @SubjectID";
                 }
 
-                // Prepare the list of IDs for the final query
-                var parameters = new { Ids = bookIds.ToList() };
+                // Pagination
+                baseQuery += " ORDER BY l.BookId OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
 
-                // Main query to fetch magazine details
+                var offset = (request.PageNumber - 1) * request.PageSize;
 
+                // Parameters for the query
+                var parameters = new
+                {
+                    ClassID = request.ClassID,
+                    BoardID = request.BoardID,
+                    CourseID = request.CourseID,
+                    ExamTypeID = request.ExamTypeID,
+                    APId = request.APId,
+                    SubjectID = request.SubjectID,
+                    Offset = offset,
+                    PageSize = request.PageSize
+                };
 
-                string mainQuery = @"
-        SELECT 
-            BookId,
-            BookName,
-            Status,
-            pathURL,
-            link,
-            modifiedon,
-            modifiedby,
-            createdon,
-            createdby,
-            EmployeeID,
-            EmpFirstName,
-            FileTypeId
-        FROM 
-            [tblLibrary]
-        WHERE 
-            BookId IN @Ids";
+                // Fetch filtered and paginated records
+                var mainResult = await _connection.QueryAsync<dynamic>(baseQuery, parameters);
 
-                var books = await _connection.QueryAsync<Book>(mainQuery, parameters);
-
-                var response = books.Select(item => new BookDTO
+                // Map results to response DTO
+                var response = mainResult.Select(item => new BookResponseDTO
                 {
                     BookId = item.BookId,
                     BookName = item.BookName,
@@ -303,7 +295,8 @@ namespace Course_API.Repository.Implementations
                     EmployeeID = item.EmployeeID,
                     EmpFirstName = item.EmpFirstName,
                     FileTypeId = item.FileTypeId,
-                    BookAuthorDetails = GetListOfAuthorDettails(item.BookId),
+                    FileTypeName = item.FileTypeName, // Make sure this property is correctly retrieved
+                    BookAuthorDetails = GetListOfAuthorDetails(item.BookId),
                     BookCategories = GetListOfBookCategory(item.BookId),
                     BookBoards = GetListOfBookBoards(item.BookId),
                     BookClasses = GetListOfBookClass(item.BookId),
@@ -311,14 +304,20 @@ namespace Course_API.Repository.Implementations
                     BookExamTypes = GetListOfBookExamType(item.BookId),
                     BookSubjects = GetListOfBookSubject(item.BookId)
                 }).ToList();
-                var paginatedList = response.Skip((request.PageNumber - 1) * request.PageSize)
-                        .Take(request.PageSize)
-                        .ToList();
-                return new ServiceResponse<List<BookDTO>>(true, "Records found", paginatedList, 200);
+
+                // Check if there are records
+                if (response.Count != 0)
+                {
+                    return new ServiceResponse<List<BookResponseDTO>>(true, "Records found", response, 200, totalCount);
+                }
+                else
+                {
+                    return new ServiceResponse<List<BookResponseDTO>>(false, "Records not found", new List<BookResponseDTO>(), 404);
+                }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<BookDTO>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<BookResponseDTO>>(false, ex.Message, new List<BookResponseDTO>(), 500);
             }
         }
         public async Task<ServiceResponse<string>> Update(BookDTO request)
@@ -334,7 +333,6 @@ namespace Course_API.Repository.Implementations
                     modifiedon = DateTime.Now,
                     modifiedby = request.modifiedby,
                     EmployeeID = request.EmployeeID,
-                    EmpFirstName = request.EmpFirstName,
                     FileTypeId = request.FileTypeId,
                     BookId = request.BookId
                 };
@@ -348,7 +346,6 @@ namespace Course_API.Repository.Implementations
             modifiedon = @modifiedon,
             modifiedby = @modifiedby,
             EmployeeID = @EmployeeID,
-            EmpFirstName = @EmpFirstName,
             FileTypeId = @FileTypeId
         WHERE
             BookId = @BookId";
@@ -396,8 +393,8 @@ namespace Course_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { BookId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tbllibraryCategory] ([APId], [BookId], [APName])
-                          VALUES (@APId, @BookId, @APName);";
+                    var insertquery = @"INSERT INTO [tbllibraryCategory] ([APId], [BookId])
+                          VALUES (@APId, @BookId);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -408,8 +405,8 @@ namespace Course_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tbllibraryCategory] ([APId], [BookId], [APName])
-                          VALUES (@APId, @BookId, @APName);";
+                var insertquery = @"INSERT INTO [tbllibraryCategory] ([APId], [BookId])
+                          VALUES (@APId, @BookId);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -429,8 +426,8 @@ namespace Course_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { bookID = BookId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tbllibraryClass] ([bookID], [ClassID], Name)
-                          VALUES (@bookID, @ClassID, @Name);";
+                    var insertquery = @"INSERT INTO [tbllibraryClass] ([bookID], [ClassID])
+                          VALUES (@bookID, @ClassID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -441,8 +438,8 @@ namespace Course_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tbllibraryClass] ([bookID], [ClassID], Name)
-                          VALUES (@bookID, @ClassID, @Name);";
+                var insertquery = @"INSERT INTO [tbllibraryClass] ([bookID], [ClassID])
+                          VALUES (@bookID, @ClassID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -462,8 +459,8 @@ namespace Course_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { bookID = BookId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tbllibraryBoard] ([bookID], [BoardID], Name)
-                          VALUES (@bookID, @BoardID, @Name);";
+                    var insertquery = @"INSERT INTO [tbllibraryBoard] ([bookID], [BoardID])
+                          VALUES (@bookID, @BoardID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -474,8 +471,8 @@ namespace Course_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tbllibraryBoard] ([bookID], [BoardID], Name)
-                          VALUES (@bookID, @BoardID, @Name);";
+                var insertquery = @"INSERT INTO [tbllibraryBoard] ([bookID], [BoardID])
+                          VALUES (@bookID, @BoardID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -495,8 +492,8 @@ namespace Course_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { bookID = BookId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tbllibraryCourse] ([bookID], [CourseID], Name)
-                          VALUES (@bookID, @CourseID, @Name);";
+                    var insertquery = @"INSERT INTO [tbllibraryCourse] ([bookID], [CourseID])
+                          VALUES (@bookID, @CourseID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -507,8 +504,8 @@ namespace Course_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tbllibraryCourse] ([bookID], [CourseID], Name)
-                          VALUES (@bookID, @CourseID, @Name);";
+                var insertquery = @"INSERT INTO [tbllibraryCourse] ([bookID], [CourseID])
+                          VALUES (@bookID, @CourseID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -528,8 +525,8 @@ namespace Course_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { bookID = BookId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tbllibraryExamType] ([bookID], [ExamTypeID], Name)
-                          VALUES (@bookID, @ExamTypeID, @Name);";
+                    var insertquery = @"INSERT INTO [tbllibraryExamType] ([bookID], [ExamTypeID])
+                          VALUES (@bookID, @ExamTypeID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -540,8 +537,8 @@ namespace Course_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tbllibraryExamType] ([bookID], [ExamTypeID], Name)
-                          VALUES (@bookID, @ExamTypeID, @Name);";
+                var insertquery = @"INSERT INTO [tbllibraryExamType] ([bookID], [ExamTypeID])
+                          VALUES (@bookID, @ExamTypeID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -561,8 +558,8 @@ namespace Course_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { bookID = BookId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tbllibrarySubject] ([bookID], [SubjectID], Name)
-                          VALUES (@bookID, @SubjectID, @Name);";
+                    var insertquery = @"INSERT INTO [tbllibrarySubject] ([bookID], [SubjectID])
+                          VALUES (@bookID, @SubjectID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -573,8 +570,8 @@ namespace Course_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tbllibrarySubject] ([bookID], [SubjectID], Name)
-                          VALUES (@bookID, @SubjectID, @Name);";
+                var insertquery = @"INSERT INTO [tbllibrarySubject] ([bookID], [SubjectID])
+                          VALUES (@bookID, @SubjectID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -612,54 +609,71 @@ namespace Course_API.Repository.Implementations
                 return valuesInserted;
             }
         }
-        private List<BookBoard> GetListOfBookBoards(int BookId)
+        private List<BookBoardResponse> GetListOfBookBoards(int BookId)
         {
-            var boardquery = @"SELECT * FROM [tbllibraryBoard] WHERE bookID = @bookID;";
-
-            // Execute the SQL query with the SOTDID parameter
-            var data = _connection.Query<BookBoard>(boardquery, new { bookID = BookId });
+            var boardquery = @"
+            SELECT lb.*, b.BoardName as Name
+            FROM [tbllibraryBoard] lb
+            JOIN [tblBoard] b ON lb.BoardId = b.BoardId
+            WHERE lb.BookID = @BookID;";
+            var data = _connection.Query<BookBoardResponse>(boardquery, new { bookID = BookId });
             return data != null ? data.AsList() : [];
         }
-        private List<BookCategory> GetListOfBookCategory(int BookId)
+        private List<BookCategoryResponse> GetListOfBookCategory(int BookId)
         {
-            var query = @"SELECT * FROM [tbllibraryCategory] WHERE  BookId = @BookId;";
-            // Execute the SQL query with the SOTDID parameter
-            var data = _connection.Query<BookCategory>(query, new { BookId });
+            var query = @"
+            SELECT lc.*, c.APName
+            FROM [tbllibraryCategory] lc
+            JOIN [tblCategory] c ON lc.APId = c.APID
+            WHERE lc.BookId = @BookId;";
+            var data = _connection.Query<BookCategoryResponse>(query, new { BookId });
             return data != null ? data.AsList() : [];
         }
-        private List<BookClass> GetListOfBookClass(int bookID)
+        private List<BookClassResponse> GetListOfBookClass(int bookID)
         {
-            var query = @"SELECT * FROM [tbllibraryClass] WHERE  bookID = @bookID;";
-            // Execute the SQL query with the SOTDID parameter
-            var data = _connection.Query<BookClass>(query, new { bookID });
+            var query = @"
+            SELECT lcl.*, cl.ClassName as Name
+            FROM [tbllibraryClass] lcl
+            JOIN [tblClass] cl ON lcl.ClassId = cl.ClassId
+            WHERE lcl.BookID = @bookID;";
+            var data = _connection.Query<BookClassResponse>(query, new { bookID });
             return data != null ? data.AsList() : [];
         }
-        private List<BookCourse> GetListOfBookCourse(int bookID)
+        private List<BookCourseResponse> GetListOfBookCourse(int bookID)
         {
-            var query = @"SELECT * FROM [tbllibraryCourse] WHERE  bookID = @bookID;";
-            // Execute the SQL query with the SOTDID parameter
-            var data = _connection.Query<BookCourse>(query, new { bookID });
+            var query = @"
+            SELECT lc.*, c.CourseName as Name
+            FROM [tbllibraryCourse] lc
+            JOIN [tblCourse] c ON lc.CourseId = c.CourseId
+            WHERE lc.BookID = @bookID;";
+            var data = _connection.Query<BookCourseResponse>(query, new { bookID });
             return data != null ? data.AsList() : [];
         }
-        private List<BookExamType> GetListOfBookExamType(int bookID)
+        private List<BookExamTypeResponse> GetListOfBookExamType(int bookID)
         {
-            var query = @"SELECT * FROM [tbllibraryExamType] WHERE  bookID = @bookID;";
-            // Execute the SQL query with the SOTDID parameter
-            var data = _connection.Query<BookExamType>(query, new { bookID });
+            var query = @"
+            SELECT let.*, et.ExamTypeName as Name
+            FROM [tbllibraryExamType] let
+            JOIN [tblExamType] et ON let.ExamTypeId = et.ExamTypeId
+            WHERE let.BookID = @bookID;";
+            var data = _connection.Query<BookExamTypeResponse>(query, new { bookID });
             return data != null ? data.AsList() : [];
         }
-        private List<BookSubject> GetListOfBookSubject(int bookID)
+        private List<BookSubjectResponse> GetListOfBookSubject(int bookID)
         {
-            var query = @"SELECT * FROM [tbllibrarySubject] WHERE  bookID = @bookID;";
-            // Execute the SQL query with the SOTDID parameter
-            var data = _connection.Query<BookSubject>(query, new { bookID });
+            var query = @"
+            SELECT ls.*, s.SubjectName as Name
+            FROM [tbllibrarySubject] ls
+            JOIN [tblSubject] s ON ls.SubjectId = s.SubjectId
+            WHERE ls.BookID = @bookID;";
+            var data = _connection.Query<BookSubjectResponse>(query, new { bookID });
             return data != null ? data.AsList() : [];
         }
-        private List<BookAuthorDetail> GetListOfAuthorDettails(int BookId)
+        private List<BookAuthorDetailResponse> GetListOfAuthorDetails(int BookId)
         {
             var query = @"SELECT * FROM [tbllibraryAuthorDetails] WHERE  BookId = @BookId;";
             // Execute the SQL query with the SOTDID parameter
-            var data = _connection.Query<BookAuthorDetail>(query, new { BookId });
+            var data = _connection.Query<BookAuthorDetailResponse>(query, new { BookId });
             return data != null ? data.AsList() : [];
         }
         private string ImageUpload(string image)

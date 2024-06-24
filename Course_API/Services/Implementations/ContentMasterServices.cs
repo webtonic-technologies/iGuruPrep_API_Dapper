@@ -1,4 +1,5 @@
-﻿using Course_API.DTOs;
+﻿using Course_API.DTOs.Requests;
+using Course_API.DTOs.Response;
 using Course_API.DTOs.ServiceResponse;
 using Course_API.Models;
 using Course_API.Repository.Interfaces;
@@ -26,7 +27,7 @@ namespace Course_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<ContentMaster>> GetContentById(int ContentId)
+        public async Task<ServiceResponse<ContentMasterResponseDTO>> GetContentById(int ContentId)
         {
             try
             {
@@ -34,12 +35,12 @@ namespace Course_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<ContentMaster>(false, ex.Message, new ContentMaster(), 500);
+                return new ServiceResponse<ContentMasterResponseDTO>(false, ex.Message, new ContentMasterResponseDTO(), 500);
             }
         }
 
 
-        public async Task<ServiceResponse<List<ContentMaster>>> GetContentList(GetAllContentListRequest request)
+        public async Task<ServiceResponse<List<ContentMasterResponseDTO>>> GetContentList(GetAllContentListRequest request)
         {
             try
             {
@@ -47,19 +48,19 @@ namespace Course_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<ContentMaster>>(false, ex.Message, new List<ContentMaster>(), 500);
+                return new ServiceResponse<List<ContentMasterResponseDTO>>(false, ex.Message, [], 500);
             }
         }
 
-        public async Task<ServiceResponse<List<SubjectContentIndexDTO>>> GetListOfSubjectContent(SubjectContentIndexRequestDTO request)
+        public async Task<ServiceResponse<List<ContentIndexResponse>>> GetAllContentIndexList(ContentIndexRequestDTO request)
         {
             try
             {
-                return await _contentMasterRepository.GetListOfSubjectContent(request);
+                return await _contentMasterRepository.GetAllContentIndexList(request);
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<SubjectContentIndexDTO>>(false, ex.Message, new List<SubjectContentIndexDTO>(), 500);
+                return new ServiceResponse<List<ContentIndexResponse>>(false, ex.Message, [], 500);
             }
         }
     }

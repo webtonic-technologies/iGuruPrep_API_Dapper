@@ -1,6 +1,6 @@
-﻿using Course_API.DTOs;
+﻿using Course_API.DTOs.Requests;
+using Course_API.DTOs.Response;
 using Course_API.DTOs.ServiceResponse;
-using Course_API.Models;
 using Course_API.Repository.Interfaces;
 using Course_API.Services.Interfaces;
 
@@ -39,7 +39,7 @@ namespace Course_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<BookDTO>> Get(int id)
+        public async Task<ServiceResponse<BookResponseDTO>> Get(int id)
         {
             try
             {
@@ -47,11 +47,11 @@ namespace Course_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<BookDTO>(false, ex.Message, new BookDTO(), 500);
+                return new ServiceResponse<BookResponseDTO>(false, ex.Message, new BookResponseDTO(), 500);
             }
         }
 
-        public async Task<ServiceResponse<List<BookDTO>>> GetAll(BookListDTO request)
+        public async Task<ServiceResponse<List<BookResponseDTO>>> GetAll(BookListDTO request)
         {
             try
             {
@@ -59,7 +59,7 @@ namespace Course_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<BookDTO>>(false, ex.Message, new List<BookDTO>(), 500);
+                return new ServiceResponse<List<BookResponseDTO>>(false, ex.Message, [], 500);
             }
         }
 
