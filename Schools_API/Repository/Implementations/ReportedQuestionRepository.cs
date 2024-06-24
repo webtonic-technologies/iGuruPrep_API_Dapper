@@ -40,7 +40,7 @@ namespace Schools_API.Repository.Implementations
                rq.EmployeeId,
                e.EmpFirstName + ' ' + e.EmpLastName AS EmployeeName,
                rq.CategoryId,
-               c.CategoryName,
+               c.APName,
                rq.ClassId,
                cl.ClassName,
                rq.CourseId,
@@ -51,10 +51,10 @@ namespace Schools_API.Repository.Implementations
                et.ExamTypeName
         FROM tblReportedQuestions rq
         LEFT JOIN tblSubject s ON rq.subjectID = s.SubjectID
-        LEFT JOIN tblRQS rqs ON rq.RQSID = rqs.RQSID
+        LEFT JOIN tblStatus rqs ON rq.RQSID = rqs.RQSID
         LEFT JOIN tblUser u ON rq.StudentId = u.UserId
         LEFT JOIN tblEmployee e ON rq.EmployeeId = e.Employeeid
-        LEFT JOIN tblCategory c ON rq.CategoryId = c.CategoryId
+        LEFT JOIN tblCategory c ON rq.CategoryId = c.APId
         LEFT JOIN tblClass cl ON rq.ClassId = cl.ClassID
         LEFT JOIN tblCourse co ON rq.CourseId = co.CourseID
         LEFT JOIN tblBoard b ON rq.BoardId = b.BoardID
@@ -115,7 +115,7 @@ namespace Schools_API.Repository.Implementations
                rq.EmployeeId,
                e.EmpFirstName + ' ' + e.EmpLastName AS EmployeeName,
                rq.CategoryId,
-               c.CategoryName,
+               c.APName,
                rq.ClassId,
                cl.ClassName,
                rq.CourseId,
@@ -126,10 +126,10 @@ namespace Schools_API.Repository.Implementations
                et.ExamTypeName
         FROM tblReportedQuestions rq
         LEFT JOIN tblSubject s ON rq.subjectID = s.SubjectID
-        LEFT JOIN tblRQS rqs ON rq.RQSID = rqs.RQSID
+        LEFT JOIN tblStatus rqs ON rq.RQSID = rqs.RQSID
         LEFT JOIN tblUser u ON rq.StudentId = u.UserId
         LEFT JOIN tblEmployee e ON rq.EmployeeId = e.Employeeid
-        LEFT JOIN tblCategory c ON rq.CategoryId = c.CategoryId
+        LEFT JOIN tblCategory c ON rq.CategoryId = c.APId
         LEFT JOIN tblClass cl ON rq.ClassId = cl.ClassID
         LEFT JOIN tblCourse co ON rq.CourseId = co.CourseID
         LEFT JOIN tblBoard b ON rq.BoardId = b.BoardID

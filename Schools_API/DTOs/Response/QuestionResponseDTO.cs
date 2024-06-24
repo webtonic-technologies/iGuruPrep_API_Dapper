@@ -48,12 +48,12 @@ namespace Schools_API.DTOs.Response
     public class QIDCourseResponse
     {
         public int QIDCourseID { get; set; }
-        public int QID { get; set; }
-        public int CourseID { get; set; }
+        public int? QID { get; set; }
+        public int? CourseID { get; set; }
         public string CourseName { get; set; } = string.Empty;
-        public int LevelId { get; set; }
+        public int? LevelId { get; set; }
         public string LevelName { get; set; } = string.Empty;
-        public bool? Status { get; set; }
+        public int Status { get; set; }
         public int? CreatedBy { get; set; }
         public DateTime? CreatedDate { get; set; }
         public int? ModifiedBy { get; set; }

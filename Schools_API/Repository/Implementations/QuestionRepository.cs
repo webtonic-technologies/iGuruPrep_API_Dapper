@@ -678,7 +678,7 @@ namespace Schools_API.Repository.Implementations
                     {
                         request.QuestionId,
                         CreatedDate = request.RejectedDate,
-                        request.RejectedReason,
+                        QuestionRejectReason = request.RejectedReason,
                         request.Rejectedby
                     });
                     if (newId > 0)
@@ -822,23 +822,24 @@ namespace Schools_API.Repository.Implementations
             try
             {
                 string sql = @"
-                SELECT qp.QPID, qp.Questionid, qp.EmpId, qp.ApprovedStatus, 
-                       e.EmpFirstName + ' ' + e.EmpLastName AS EmpName, r.RoleName AS Role, r.RoleID,
-                       qr.QuestionProfilerRejectionsid AS RejectionId, qr.CreatedDate AS RejectedDate, 
-                       qr.QuestionRejectReason AS RejectedReason, qr.RejectedBy,
-                       c.CourseName, c.CourseId, qc.QIDCourseID, qc.LevelId, l.LevelName
-                FROM tblQuestionProfiler qp
-                LEFT JOIN tblEmployee e ON qp.EmpId = e.Employeeid
-                LEFT JOIN tblRole r ON e.RoleID = r.RoleID
-                LEFT JOIN tblQuestionProfilerRejections qr ON qp.Questionid = qr.Questionid
-                LEFT JOIN tblQIDCourse qc ON qp.QPID = qc.QID
-                LEFT JOIN tblCourse c ON qc.CourseID = c.CourseId
-                LEFT JOIN tblLevel l ON qc.LevelId = l.LevelId
-                WHERE qp.Questionid = @QuestionId AND qp.Status = 1";
+        SELECT qp.QPID, qp.Questionid, qp.EmpId, qp.ApprovedStatus, 
+               e.EmpFirstName + ' ' + e.EmpLastName AS EmpName, r.RoleName AS Role, r.RoleID,
+               qr.QuestionProfilerRejectionsid AS RejectionId, qr.CreatedDate AS RejectedDate, 
+               qr.QuestionRejectReason AS RejectedReason, qr.RejectedBy,
+               c.CourseName, c.CourseId, qc.QIDCourseID, qc.LevelId, l.LevelName,
+               qc.Status, qc.CreatedBy, qc.CreatedDate, qc.ModifiedBy, qc.ModifiedDate
+        FROM tblQuestionProfiler qp
+        LEFT JOIN tblEmployee e ON qp.EmpId = e.Employeeid
+        LEFT JOIN tblRole r ON e.RoleID = r.RoleID
+        LEFT JOIN tblQuestionProfilerRejections qr ON qp.Questionid = qr.Questionid
+        LEFT JOIN tblQIDCourse qc ON qp.Questionid = qc.QID
+        LEFT JOIN tblCourse c ON qc.CourseID = c.CourseId
+        LEFT JOIN tbldifficultylevel l ON qc.LevelId = l.LevelId
+        WHERE qp.Questionid = @QuestionId";
 
-                var parameters = new { QuestionId = QuestionId };
+                var parameters = new { QuestionId };
 
-                var data = await _connection.QueryAsync<dynamic>(sql, parameters);
+                var data = (await _connection.QueryAsync<dynamic>(sql, parameters)).ToList();
 
                 if (data != null && data.Any())
                 {
@@ -848,34 +849,44 @@ namespace Schools_API.Repository.Implementations
                     {
                         QPID = firstRecord.QPID,
                         Questionid = firstRecord.Questionid,
-                        EmpId = firstRecord.EmpId,
-                        EmpName = firstRecord.EmpName,
-                        Role = firstRecord.Role,
-                        RoleId = firstRecord.RoleID,
                         ApprovedStatus = firstRecord.ApprovedStatus,
-                        QIDCourses = data.Select(d => new QIDCourseResponse
-                        {
-                            QIDCourseID = d.QIDCourseID,
-                            QID = d.QPID,
-                            CourseID = d.CourseId,
-                            CourseName = d.CourseName,
-                            LevelId = d.LevelId,
-                            LevelName = d.LevelName,
-                            Status = d.Status,
-                            CreatedBy = d.CreatedBy,
-                            CreatedDate = d.CreatedDate,
-                            ModifiedBy = d.ModifiedBy,
-                            ModifiedDate = d.ModifiedDate
-                        }).ToList(),
-                        QuestionRejectionResponseDTOs = data.Select(d => new QuestionRejectionResponseDTO
-                        {
-                            RejectionId = d.RejectionId,
-                            QuestionId = d.Questionid,
-                            EmpId = d.RejectedBy,
-                            EmpName = firstRecord.EmpName,
-                            RejectedDate = d.RejectedDate,
-                            RejectedReason = d.RejectedReason
-                        }).ToList()
+                        Proofers = data.GroupBy(d => new { d.EmpId, d.EmpName, d.Role, d.RoleID })
+                                       .Select(g => g.First())
+                                       .Select(g => new ProoferList
+                                       {
+                                           EmpId = g.EmpId,
+                                           EmpName = g.EmpName,
+                                           Role = g.Role,
+                                           RoleId = g.RoleID
+                                       }).ToList(),
+                        QIDCourses = data.GroupBy(d => new { d.QIDCourseID, d.CourseId, d.CourseName, d.LevelId, d.LevelName, d.Status, d.CreatedBy, d.CreatedDate, d.ModifiedBy, d.ModifiedDate })
+                                         .Select(g => g.First())
+                                         .Select(g => new QIDCourseResponse
+                                         {
+                                             QIDCourseID = g.QIDCourseID,
+                                             QID = firstRecord.QPID,
+                                             CourseID = g.CourseId,
+                                             CourseName = g.CourseName,
+                                             LevelId = g.LevelId,
+                                             LevelName = g.LevelName,
+                                             Status = g.Status,
+                                             CreatedBy = g.CreatedBy,
+                                             CreatedDate = g.CreatedDate,
+                                             ModifiedBy = g.ModifiedBy,
+                                             ModifiedDate = g.ModifiedDate
+                                         }).ToList(),
+                        QuestionRejectionResponseDTOs = data.Where(d => d.RejectionId != null)
+                                                            .GroupBy(d => new { d.RejectionId, d.Questionid, d.RejectedBy, d.RejectedDate, d.RejectedReason })
+                                                            .Select(g => g.First())
+                                                            .Select(g => new QuestionRejectionResponseDTO
+                                                            {
+                                                                RejectionId = g.RejectionId,
+                                                                QuestionId = g.Questionid,
+                                                                EmpId = g.RejectedBy,
+                                                                EmpName = g.EmpName,
+                                                                RejectedDate = g.RejectedDate,
+                                                                RejectedReason = g.RejectedReason
+                                                            }).ToList()
                     };
 
                     return new ServiceResponse<QuestionProfilerResponse>(true, "Operation Successful", response, 200);
