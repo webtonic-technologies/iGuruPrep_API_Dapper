@@ -854,6 +854,7 @@ namespace Schools_API.Repository.Implementations
                                        .Select(g => g.First())
                                        .Select(g => new ProoferList
                                        {
+                                           QPId = g.QPID,
                                            EmpId = g.EmpId,
                                            EmpName = g.EmpName,
                                            Role = g.Role,

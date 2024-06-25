@@ -21,6 +21,7 @@
     }
     public class ProoferList
     {
+        public int QPId {  get; set; }
         public int EmpId { get; set; }
         public string EmpName { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
