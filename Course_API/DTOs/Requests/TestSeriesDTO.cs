@@ -1,31 +1,31 @@
 ﻿using Course_API.Models;
 using System.ComponentModel.DataAnnotations;
 
-namespace Course_API.DTOs
+namespace Course_API.DTOs.Requests
 {
     public class TestSeriesDTO
     {
         public int TestSeriesId { get; set; }
-        public int boardid { get; set; }
-        public int classId { get; set; }
-        public int CourseId { get; set; }
-        public int ExamTypeID { get; set; }
+        //public int boardid { get; set; }
+        //public int classId { get; set; }
+        //public int CourseId { get; set; }
+        //public int ExamTypeID { get; set; }
         public DateTime? createdon { get; set; }
         public string createdby { get; set; } = string.Empty;
         public DateTime? modifiedon { get; set; }
         public string modifiedby { get; set; } = string.Empty;
         [Required(ErrorMessage = "Pattern name cannot be empty")]
         public string TestPatternName { get; set; } = string.Empty;
-        public string BoardName { get; set; } = string.Empty;
-        public string ClassName { get; set; } = string.Empty;
-        public string CourseName { get; set; } = string.Empty;
-        public string ExamTypeName { get; set; } = string.Empty;
-        public string FirstName { get; set; } = string.Empty;
+        //public string BoardName { get; set; } = string.Empty;
+        //public string ClassName { get; set; } = string.Empty;
+        //public string CourseName { get; set; } = string.Empty;
+        //public string ExamTypeName { get; set; } = string.Empty;
+        //public string FirstName { get; set; } = string.Empty;
         [Required(ErrorMessage = "Duration cannot be empty")]
         public string Duration { get; set; } = string.Empty;
         public bool Status { get; set; }
         public int APID { get; set; }
-        public string APName { get; set; } = string.Empty;
+       // public string APName { get; set; } = string.Empty;
         [Required(ErrorMessage = "Total number of questions cannot be empty")]
         public int TotalNoOfQuestions { get; set; }
         public bool MethodofAddingType { get; set; }
@@ -38,19 +38,19 @@ namespace Course_API.DTOs
         [Required(ErrorMessage = "Result time cannot be empty")]
         public string ResultTime { get; set; } = string.Empty;
         public int EmployeeID { get; set; }
-        public string EmpFirstName { get; set; } = string.Empty;
+        //public string EmpFirstName { get; set; } = string.Empty;
         [Required(ErrorMessage = "Exam name cannot be empty")]
         public string NameOfExam { get; set; } = string.Empty;
         public bool RepeatedExams { get; set; }
-        public List<TestSeriesBoards>? TestSeriesBoard { get; set;}
+        public int TypeOfTestSeries {  get; set; }
+        public List<TestSeriesBoards>? TestSeriesBoard { get; set; }
         public List<TestSeriesClass>? TestSeriesClasses { get; set; }
         public List<TestSeriesCourse>? TestSeriesCourses { get; set; }
-        public List<TestSeriesSubjects>? TestSeriesSubject { get; set;}
-        public List<TestSeriesSubjectIndex>? TestSeriesSubjectIndexes { get; set; }
+        public List<TestSeriesSubjects>? TestSeriesSubject { get; set; }
+        public List<TestSeriesContentIndex>? TestSeriesContentIndexes { get; set; }
         public TestSeriesQuestionSection? TestSeriesQuestionsSection { get; set; }
         public List<TestSeriesQuestionType>? TestSeriesQuestionTypes { get; set; }
-        public List<TestSeriesQuestionDifficulty>? TestSeriesQuestionDifficultyLevel { get; set; }
-        public List<TestSeriesInstructions>? TestSeriesInstruction { get; set;}
-        public List<TestSeriesQuestions>? TestSeriesQuestions { get; set;}
+        public List<TestSeriesInstructions>? TestSeriesInstruction { get; set; }
+        public List<TestSeriesQuestions>? TestSeriesQuestions { get; set; }
     }
 }

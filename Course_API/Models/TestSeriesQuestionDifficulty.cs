@@ -8,6 +8,7 @@ namespace Course_API.Models
         [Required(ErrorMessage = "Difficulty level cannot be empty")]
         public int LevelID { get; set; }
         public int TestSeriesID { get; set; }
+        public int TestSeriesQuestionTypeId {  get; set; }
         public decimal PercentagePerDifficulty { get; set; }
     }
 }

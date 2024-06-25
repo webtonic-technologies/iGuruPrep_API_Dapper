@@ -1,4 +1,5 @@
-﻿using Course_API.DTOs;
+﻿using Course_API.DTOs.Requests;
+using Course_API.DTOs.Response;
 using Course_API.DTOs.ServiceResponse;
 using Course_API.Repository.Interfaces;
 using Course_API.Services.Interfaces;
@@ -23,6 +24,18 @@ namespace Course_API.Services.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+            }
+        }
+
+        public async Task<ServiceResponse<TestSeriesResponseDTO>> GetTestSeriesById(int TestSeriesId)
+        {
+            try
+            {
+                return await _testSeriesRepository.GetTestSeriesById(TestSeriesId);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<TestSeriesResponseDTO>(false, ex.Message, new TestSeriesResponseDTO(), 500);
             }
         }
     }

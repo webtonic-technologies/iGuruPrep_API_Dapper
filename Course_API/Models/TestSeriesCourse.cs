@@ -5,6 +5,6 @@
         public int TestSeriesCourseId { get; set; }
         public int TestSeriesId { get; set; }
         public int CourseId { get; set; }
-        public string CourseName { get; set; } = string.Empty;
+        //public string CourseName { get; set; } = string.Empty;
     }
 }

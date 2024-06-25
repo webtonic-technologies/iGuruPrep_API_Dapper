@@ -14,5 +14,6 @@ namespace Course_API.Models
         public decimal EnterNegativeMarks { get; set; }
         public int PerNoofQuestions { get; set; }
         public int NoofQuestionsforChoice { get; set; }
+        public List<TestSeriesQuestionDifficulty>? TestSeriesQuestionDifficultyLevel { get; set; }
     }
 }

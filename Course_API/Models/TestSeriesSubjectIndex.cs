@@ -1,9 +1,10 @@
 ﻿namespace Course_API.Models
 {
-    public class TestSeriesSubjectIndex
+    public class TestSeriesContentIndex
     {
         public int TestSeriesSubjectIndexId { get; set; }
-        public int SubjectIndexID { get; set; }
+        public int IndexTypeId { get; set; }
+        public int ContentIndexId { get; set; }
         public int TestSeriesID { get; set; }
     }
 }
