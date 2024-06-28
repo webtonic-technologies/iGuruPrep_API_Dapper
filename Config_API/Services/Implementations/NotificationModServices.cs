@@ -51,6 +51,18 @@ namespace Config_API.Services.Implementations
             }
         }
 
+        public async Task<ServiceResponse<List<NotificationModule>>> GetAllSubModuleList(int ParentId)
+        {
+            try
+            {
+                return await _notificationModRepository.GetAllSubModuleList(ParentId);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<NotificationModule>>(false, ex.Message, [], 500);
+            }
+        }
+
         public async Task<ServiceResponse<List<NotificationResponseDTO>>> GetListofNotifications(GetAllNotificationModRequest request)
         {
             try

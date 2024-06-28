@@ -152,5 +152,28 @@ namespace Config_API.Controllers
             }
 
         }
+        [HttpGet("GetAllSubModules/{ParentId}")]
+        public async Task<IActionResult> GetAllSubModules(int ParentId)
+        {
+            try
+            {
+                var data = await _notificationModServices.GetAllSubModuleList(ParentId);
+                if (data != null)
+                {
+                    return Ok(data);
+
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+
+        }
     }
 }

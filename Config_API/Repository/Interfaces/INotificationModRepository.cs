@@ -8,6 +8,7 @@ namespace Config_API.Repository.Interfaces
     public interface INotificationModRepository
     {
         Task<ServiceResponse<List<NotificationModule>>> GetAllModuleList();
+        Task<ServiceResponse<List<NotificationModule>>> GetAllSubModuleList(int ParentId);
         Task<ServiceResponse<List<Platform>>> GetAllPlatformList();
         Task<ServiceResponse<string>> AddUpdateNotification(NotificationDTO request);
         Task<ServiceResponse<bool>> StatusActiveInactive(int id);

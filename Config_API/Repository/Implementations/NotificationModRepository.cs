@@ -101,8 +101,28 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
-                string sql = "SELECT * FROM tblModule";
+                string sql = "SELECT * FROM tblModule where ParentModuleID = 0";
                 var modules = await _connection.QueryAsync<NotificationModule>(sql);
+                if (modules.Any())
+                {
+                    return new ServiceResponse<List<NotificationModule>>(true, "Records Found", modules.AsList(), 200);
+                }
+                else
+                {
+                    return new ServiceResponse<List<NotificationModule>>(false, "Records Not Found", [], 204);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<NotificationModule>>(false, ex.Message, [], 500);
+            }
+        }
+        public async Task<ServiceResponse<List<NotificationModule>>> GetAllSubModuleList(int ParentId)
+        {
+            try
+            {
+                string sql = "SELECT * FROM tblModule where ParentModuleID = @ParentModuleID";
+                var modules = await _connection.QueryAsync<NotificationModule>(sql, new { ParentModuleID = ParentId });
                 if (modules.Any())
                 {
                     return new ServiceResponse<List<NotificationModule>>(true, "Records Found", modules.AsList(), 200);
