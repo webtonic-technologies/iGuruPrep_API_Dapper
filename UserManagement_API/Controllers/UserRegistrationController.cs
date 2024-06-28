@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
-using UserManagement_API.DTOs.Registration;
+using UserManagement_API.DTOs.Requests;
 using UserManagement_API.Repository.Interfaces;
 
 namespace UserManagement_API.Controllers
 {
-    [Route("iGuru/[controller]")]
+    [Route("iGuru/UserManagement/[controller]")]
     [ApiController]
     public class UserRegistrationController : ControllerBase
     {

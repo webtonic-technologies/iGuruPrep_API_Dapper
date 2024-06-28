@@ -14,5 +14,6 @@ namespace ControlPanel_API.Repository.Interfaces
         Task<ServiceResponse<bool>> DeleteStoryOfTheDay(int id);
         Task<ServiceResponse<bool>> StatusActiveInactive(int id);
         Task<ServiceResponse<List<EventType>>> GetEventtypeList();
+        Task<ServiceResponse<List<Category>>> GetCategoryList();
     }
 }

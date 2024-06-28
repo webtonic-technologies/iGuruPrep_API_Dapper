@@ -35,7 +35,7 @@ namespace ControlPanel_API.Repository.Implementations
                         Event1PostDate = request.Event1PostDate,
                         Event2PostDate = request.Event2PostDate,
                         EventTypeID = request.EventTypeID,
-                        eventtypename = request.eventtypename,
+                        eventname = request.EventName,
                         Status = true,
                         Filename1 = request.Filename1 != null ? ImageUpload(request.Filename1) : string.Empty,
                         Filename2 = request.Filename2 != null ? ImageUpload(request.Filename2) : string.Empty,
@@ -44,11 +44,11 @@ namespace ControlPanel_API.Repository.Implementations
                 INSERT INTO [tblSOTD] (
                     createdby, createdon, Event1Posttime, Event2Posttime, 
                     EmployeeID, Event1PostDate, Event2PostDate, EventTypeID, 
-                    eventtypename, Status, Filename1, Filename2)
+                    eventname, Status, Filename1, Filename2)
                 VALUES (
                     @createdby, @createdon, @Event1Posttime, @Event2Posttime, 
                     @EmployeeID, @Event1PostDate, @Event2PostDate, @EventTypeID, 
-                    @eventtypename, @Status, @Filename1, @Filename2);
+                    @eventname, @Status, @Filename1, @Filename2);
                     SELECT CAST(SCOPE_IDENTITY() AS INT);";
                     // Execute the SQL insert command with parameters
                     int insertedValue = await _connection.QueryFirstOrDefaultAsync<int>(query, storyOfTheDay);
@@ -87,7 +87,7 @@ namespace ControlPanel_API.Repository.Implementations
                     Event1PostDate = @Event1PostDate,
                     Event2PostDate = @Event2PostDate,
                     EventTypeID = @EventTypeID,
-                    eventtypename = @eventtypename,
+                    eventname = @eventname,
                     Status = @Status,
                     Filename1 = @Filename1,
                     Filename2 = @Filename2
@@ -103,7 +103,7 @@ namespace ControlPanel_API.Repository.Implementations
                         Event1PostDate = request.Event1PostDate,
                         Event2PostDate = request.Event2PostDate,
                         EventTypeID = request.EventTypeID,
-                        eventtypename = request.eventtypename,
+                        eventname = request.EventName,
                         Status = request.Status,
                         Filename1 = request.Filename1 != null ? ImageUpload(request.Filename1) : string.Empty,
                         Filename2 = request.Filename2 != null ? ImageUpload(request.Filename2) : string.Empty,
@@ -219,15 +219,17 @@ namespace ControlPanel_API.Repository.Implementations
                     s.Filename2,
                     s.Status,
                     s.APName,
-                    s.eventtypename,
+                    s.eventname,
                     s.modifiedon,
                     s.modifiedby,
                     s.createdon,
                     s.createdby,
                     s.EmployeeID,
+                    ev.EventTypeName as eventtypename,
                     e.EmpFirstName
                 FROM [tblSOTD] s
                 LEFT JOIN [tblEmployee] e ON s.EmployeeID = e.Employeeid
+                LEFT JOIN tblSOTDEventtype ev ON s.EventTypeID = ev.EventTypeID
                 LEFT JOIN [tblSOTDCategory] sc ON s.StoryId = sc.SOTDID
                 LEFT JOIN [tblSOTDBoard] sb ON s.StoryId = sb.SOTDID
                 LEFT JOIN [tblSOTDClass] scl ON s.StoryId = scl.SOTDID
@@ -340,15 +342,17 @@ namespace ControlPanel_API.Repository.Implementations
             s.Filename2,
             s.Status,
             s.APName,
-            s.eventtypename,
+            s.eventname,
             s.modifiedon,
             s.modifiedby,
             s.createdon,
             s.createdby,
             s.EmployeeID,
+            ev.EventTypeName as eventtypename,
             e.EmpFirstName as EmpFirstName
         FROM tblSOTD s
         LEFT JOIN tblEmployee e ON s.EmployeeID = e.Employeeid
+        LEFT JOIN tblSOTDEventtype ev ON s.EventTypeID = ev.EventTypeID
         WHERE s.StoryId = @StoryId;";
                 var storyOfTheDay = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new { StoryId = id });
 
@@ -438,6 +442,26 @@ namespace ControlPanel_API.Repository.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<List<EventType>>(false, ex.Message, [], 500);
+            }
+        }
+        public async Task<ServiceResponse<List<Category>>> GetCategoryList()
+        {
+            try
+            {
+                var query = "SELECT * FROM [tblCategory];";
+                var eventTypes = await _connection.QueryAsync<Category>(query);
+                if (eventTypes != null)
+                {
+                    return new ServiceResponse<List<Category>>(true, "Operation Successful", eventTypes.AsList(), 200);
+                }
+                else
+                {
+                    return new ServiceResponse<List<Category>>(false, "Opertion Failed", [], 500);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<Category>>(false, ex.Message, [], 500);
             }
         }
         private string ImageUpload(string image)

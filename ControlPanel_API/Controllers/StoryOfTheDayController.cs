@@ -94,5 +94,18 @@ namespace ControlPanel_API.Controllers
                 return BadRequest(ex.Message);
             }
         }
+        [HttpGet("GetCategoryList")]
+        public async Task<IActionResult> GetCategoryList()
+        {
+            try
+            {
+                var storyOfTheDay = await _storyOfTheDayService.GetCategoryList();
+                return Ok(storyOfTheDay);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
     }
 }

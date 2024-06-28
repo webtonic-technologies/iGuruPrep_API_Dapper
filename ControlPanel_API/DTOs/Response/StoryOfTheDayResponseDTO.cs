@@ -5,6 +5,7 @@
 
         public int StoryId { get; set; }
         public int EventTypeID { get; set; }
+        public string EventName { get; set; } = string.Empty;
         public string Event1Posttime { get; set; } = string.Empty;
         public DateTime? Event1PostDate { get; set; }
         public DateTime? Event2PostDate { get; set; }

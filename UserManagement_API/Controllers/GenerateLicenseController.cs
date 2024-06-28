@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
-using UserManagement_API.DTOs;
+using UserManagement_API.DTOs.Requests;
 using UserManagement_API.Services.Interfaces;
 
 namespace UserManagement_API.Controllers
 {
-    [Route("iGuru/[controller]")]
+    [Route("iGuru/UserManagement/[controller]")]
     [ApiController]
     public class GenerateLicenseController : ControllerBase
     {
@@ -15,7 +15,7 @@ namespace UserManagement_API.Controllers
             _generateLicenseServices = generateLicenseServices;
         }
 
-        [HttpPost]
+        [HttpPost("AddUpdate")]
         public async Task<IActionResult> AddUpdateGenerateLicense(GenerateLicenseDTO request)
         {
             try
@@ -35,12 +35,12 @@ namespace UserManagement_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetGenerateLicenseById(int id)
+        [HttpGet("GetLicenseById/{GenerateLicenseID}")]
+        public async Task<IActionResult> GetGenerateLicenseById(int GenerateLicenseID)
         {
             try
             {
-                var data = await _generateLicenseServices.GetGenerateLicenseById(id);
+                var data = await _generateLicenseServices.GetGenerateLicenseById(GenerateLicenseID);
                 if (data != null)
                 {
                     return Ok(data);

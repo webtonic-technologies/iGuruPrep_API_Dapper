@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
-using UserManagement_API.DTOs;
+using UserManagement_API.DTOs.Requests;
 using UserManagement_API.Services.Interfaces;
 
 namespace UserManagement_API.Controllers
 {
-    [Route("iGuru/[controller]")]
+    [Route("iGuru/UserManagement/[controller]")]
     [ApiController]
     public class GenerateReferenceController : ControllerBase
     {
@@ -15,7 +15,7 @@ namespace UserManagement_API.Controllers
             _generateReferenceServices = generateReferenceServices;
         }
 
-        [HttpPost]
+        [HttpPost("AddUpdate")]
         public async Task<IActionResult> AddUpdateGenerateReference(GenerateReferenceDTO request)
         {
             try
@@ -35,12 +35,12 @@ namespace UserManagement_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetGenerateReferenceById(int id)
+        [HttpGet("GetReferrelById/{referenceLinkID}")]
+        public async Task<IActionResult> GetGenerateReferenceById(int referenceLinkID)
         {
             try
             {
-                var data = await _generateReferenceServices.GetGenerateReferenceById(id);
+                var data = await _generateReferenceServices.GetGenerateReferenceById(referenceLinkID);
                 if (data != null)
                 {
                     return Ok(data);
@@ -61,6 +61,26 @@ namespace UserManagement_API.Controllers
             try
             {
                 var data = await _generateReferenceServices.GetGenerateReferenceList(request);
+                if (data != null)
+                {
+                    return Ok(data);
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
+        [HttpGet("GetBankList")]
+        public async Task<IActionResult> GetBankList()
+        {
+            try
+            {
+                var data = await _generateReferenceServices.GetBankListMasters();
                 if (data != null)
                 {
                     return Ok(data);

@@ -5,8 +5,8 @@ namespace UserManagement_API.Models
     public class GenRefBankDetail
     {
         public int refBankID { get; set; }
-        public string InstitutionName { get; set; } = string.Empty;
         public int referenceLinkID { get; set; }
+        public string BranchName { get; set; } = string.Empty;
         [Required(ErrorMessage = "Bank name cannot be empty")]
         public string BankName { get; set; } = string.Empty;
         [Required(ErrorMessage = "Acc number cannot be empty")]

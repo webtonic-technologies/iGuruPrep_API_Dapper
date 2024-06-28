@@ -21,7 +21,7 @@ namespace ControlPanel_API.Models
         public string Event2Posttime { get; set; } = string.Empty;
         public string modifiedby { get; set; } = string.Empty;
         public string createdby { get; set; } = string.Empty;
-        public string eventtypename { get; set; } = string.Empty;
+        public string eventname { get; set; } = string.Empty;
         public DateTime? modifiedon {  get; set; }
         public DateTime? createdon {  get; set; }
         //public string APName {  get; set; } = string.Empty;

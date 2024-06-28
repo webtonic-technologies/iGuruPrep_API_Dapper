@@ -1,4 +1,4 @@
-﻿namespace UserManagement_API.DTOs.Registration
+﻿namespace UserManagement_API.DTOs.Requests
 {
     public class UserRegistrationDto
     {

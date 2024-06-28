@@ -104,5 +104,27 @@ namespace Config_API.Controllers
             }
 
         }
+        [HttpPost("GetAllContentIndexMasters")]
+        public async Task<IActionResult> GetAllContentIndexListMasters(ContentIndexMastersDTO request)
+        {
+            try
+            {
+                var data = await _contentIndexServices.GetAllContentIndexListMasters(request);
+                if (data != null)
+                {
+                    return Ok(data);
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+
+        }
     }
 }

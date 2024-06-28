@@ -1,4 +1,5 @@
-﻿using UserManagement_API.DTOs;
+﻿using UserManagement_API.DTOs.Requests;
+using UserManagement_API.DTOs.Response;
 using UserManagement_API.DTOs.ServiceResponse;
 using UserManagement_API.Repository.Interfaces;
 using UserManagement_API.Services.Interfaces;
@@ -25,7 +26,7 @@ namespace UserManagement_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<GenerateLicenseDTO>> GetGenerateLicenseById(int GenerateLicenseID)
+        public async Task<ServiceResponse<GenerateLicenseResponseDTO>> GetGenerateLicenseById(int GenerateLicenseID)
         {
             try
             {
@@ -33,10 +34,10 @@ namespace UserManagement_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<GenerateLicenseDTO>(false, ex.Message, new GenerateLicenseDTO(), 500);
+                return new ServiceResponse<GenerateLicenseResponseDTO>(false, ex.Message, new GenerateLicenseResponseDTO(), 500);
             }
         }
-        public async Task<ServiceResponse<List<GenerateLicenseDTO>>> GetGenerateLicenseList(GetAllLicensesListRequest request)
+        public async Task<ServiceResponse<List<GenerateLicenseResponseDTO>>> GetGenerateLicenseList(GetAllLicensesListRequest request)
         {
             try
             {
@@ -44,7 +45,7 @@ namespace UserManagement_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<GenerateLicenseDTO>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<GenerateLicenseResponseDTO>>(false, ex.Message, [], 500);
             }
         }
     }

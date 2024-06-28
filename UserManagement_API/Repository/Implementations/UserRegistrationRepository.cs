@@ -1,6 +1,6 @@
 ﻿using Dapper;
 using System.Data;
-using UserManagement_API.DTOs.Registration;
+using UserManagement_API.DTOs.Requests;
 using UserManagement_API.DTOs.ServiceResponse;
 using UserManagement_API.Models;
 using UserManagement_API.Repository.Interfaces;
@@ -27,7 +27,7 @@ namespace UserManagement_API.Repository.Implementations
                 {
                     if (request.Photo != null)
                     {
-                        var folderName = Path.Combine(_hostingEnvironment.ContentRootPath, "ProjectImages");
+                        var folderName = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "UserProfile");
                         if (!Directory.Exists(folderName))
                         {
                             Directory.CreateDirectory(folderName);

@@ -8,7 +8,8 @@ namespace ControlPanel_API.DTOs.Requests
         public int StoryId { get; set; }
         [Required(ErrorMessage = "Event type cannot be empty")]
         public int EventTypeID { get; set; }
-       // public string EventName { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Event name cannot be empty")]
+        public string EventName { get; set; } = string.Empty;
         [Required(ErrorMessage = "Post time cannot be empty")]
         public string Event1Posttime { get; set; } = string.Empty;
         [Required(ErrorMessage = "Date cannot be empty")]
@@ -19,8 +20,8 @@ namespace ControlPanel_API.DTOs.Requests
         public string Event2Posttime { get; set; } = string.Empty;
         public string modifiedby { get; set; } = string.Empty;
         public string createdby { get; set; } = string.Empty;
-        [Required(ErrorMessage = "Event name cannot be empty")]
-        public string eventtypename { get; set; } = string.Empty;
+       
+       // public string eventtypename { get; set; } = string.Empty;
         public DateTime? modifiedon { get; set; }
         public DateTime? createdon { get; set; }
         public bool Status { get; set; }

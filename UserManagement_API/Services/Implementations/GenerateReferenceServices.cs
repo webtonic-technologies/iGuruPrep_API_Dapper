@@ -1,5 +1,7 @@
-﻿using UserManagement_API.DTOs;
+﻿using UserManagement_API.DTOs.Requests;
+using UserManagement_API.DTOs.Response;
 using UserManagement_API.DTOs.ServiceResponse;
+using UserManagement_API.Models;
 using UserManagement_API.Repository.Interfaces;
 using UserManagement_API.Services.Interfaces;
 
@@ -25,7 +27,19 @@ namespace UserManagement_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<GenerateReferenceDTO>> GetGenerateReferenceById(int GenerateReferenceID)
+        public async Task<ServiceResponse<List<Bank>>> GetBankListMasters()
+        {
+            try
+            {
+                return await _generateReferenceRepository.GetBankListMasters();
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<Bank>>(false, ex.Message, [], 500);
+            }
+        }
+
+        public async Task<ServiceResponse<GenerateReferenceResponseDTO>> GetGenerateReferenceById(int GenerateReferenceID)
         {
             try
             {
@@ -33,11 +47,11 @@ namespace UserManagement_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<GenerateReferenceDTO>(false, ex.Message, new GenerateReferenceDTO(), 500);
+                return new ServiceResponse<GenerateReferenceResponseDTO>(false, ex.Message, new GenerateReferenceResponseDTO(), 500);
             }
         }
 
-        public async Task<ServiceResponse<List<GenerateReferenceDTO>>> GetGenerateReferenceList(GetAllReferralsRequest request)
+        public async Task<ServiceResponse<List<GenerateReferenceResponseDTO>>> GetGenerateReferenceList(GetAllReferralsRequest request)
         {
             try
             {
@@ -45,7 +59,7 @@ namespace UserManagement_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<GenerateReferenceDTO>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<GenerateReferenceResponseDTO>>(false, ex.Message, [], 500);
             }
         }
     }

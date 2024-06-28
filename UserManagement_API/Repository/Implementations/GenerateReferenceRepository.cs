@@ -1,9 +1,11 @@
 ﻿using System.Data;
-using UserManagement_API.DTOs;
 using UserManagement_API.DTOs.ServiceResponse;
 using UserManagement_API.Models;
 using UserManagement_API.Repository.Interfaces;
 using Dapper;
+using UserManagement_API.DTOs.Requests;
+using UserManagement_API.DTOs.Response;
+using System.Text;
 
 namespace UserManagement_API.Repository.Implementations
 {
@@ -22,15 +24,13 @@ namespace UserManagement_API.Repository.Implementations
                 if (request.referenceLinkID == 0)
                 {
                     string insertQuery = @"
-        INSERT INTO tblReferenceLinkMaster (MobileNo, EmailID, StateId, DistrictID, PAN, ReferenceID, PersonName, StateName, DistrictName, NumberOfRef)
-        VALUES (@MobileNo, @EmailID, @StateId, @DistrictID, @PAN, @ReferenceID, @PersonName, @StateName, @DistrictName, @NumberOfRef);
-        SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                    INSERT INTO tblReferenceLinkMaster (MobileNo, EmailID, StateId, DistrictID, PAN, ReferenceID, PersonName, NumberOfRef)
+                    VALUES (@MobileNo, @EmailID, @StateId, @DistrictID, @PAN, @ReferenceID, @PersonName, @NumberOfRef);
+                    SELECT CAST(SCOPE_IDENTITY() AS INT);";
                     var newReference = new GenerateReference
                     {
                         DistrictID = request.DistrictID,
                         EmailID = request.EmailID,
-                        StateName = request.StateName,
-                        DistrictName = request.DistrictName,
                         NumberOfRef = request.NumberOfRef,
                         MobileNo = request.MobileNo,
                         PAN = request.PAN,
@@ -42,8 +42,8 @@ namespace UserManagement_API.Repository.Implementations
                     if (insertedId > 0)
                     {
                         string insertBankQuery = @"
-        INSERT INTO tblRefererBankDetails (InstitutionName, referenceLinkID, BankName, ACNo, IFSC, ReferenceID)
-        VALUES (@InstitutionName, @referenceLinkID, @BankName, @ACNo, @IFSC, @ReferenceID);";
+                        INSERT INTO tblRefererBankDetails (referenceLinkID, BankName, ACNo, IFSC, ReferenceID, BranchName)
+                        VALUES (@referenceLinkID, @BankName, @ACNo, @IFSC, @ReferenceID, @BranchName);";
                         if (request.GenRefBankdetail != null)
                             request.GenRefBankdetail.referenceLinkID = insertedId;
                         var rowsAffected = await _connection.ExecuteAsync(insertBankQuery, request.GenRefBankdetail);
@@ -64,25 +64,21 @@ namespace UserManagement_API.Repository.Implementations
                 else
                 {
                     string updateQuery = @"
-        UPDATE tblReferenceLinkMaster 
-        SET StateName = @StateName,
-            DistrictName = @DistrictName,
-            NumberOfRef =  @NumberOfRef,
-            MobileNo = @MobileNo, 
-            EmailID = @EmailID, 
-            StateId = @StateId, 
-            DistrictID = @DistrictID, 
-            PAN = @PAN, 
-            ReferenceID = @ReferenceID, 
-            PersonName = @PersonName 
-        WHERE referenceLinkID = @referenceLinkID;";
+                    UPDATE tblReferenceLinkMaster 
+                    SET NumberOfRef =  @NumberOfRef,
+                        MobileNo = @MobileNo, 
+                        EmailID = @EmailID, 
+                        StateId = @StateId, 
+                        DistrictID = @DistrictID, 
+                        PAN = @PAN,
+                        ReferenceID = @ReferenceID, 
+                        PersonName = @PersonName 
+                    WHERE referenceLinkID = @referenceLinkID;";
                     var newReference = new GenerateReference
                     {
                         referenceLinkID = request.referenceLinkID,
                         DistrictID = request.DistrictID,
                         EmailID = request.EmailID,
-                        StateName = request.StateName,
-                        DistrictName = request.DistrictName,
                         NumberOfRef = request.NumberOfRef,
                         MobileNo = request.MobileNo,
                         PAN = request.PAN,
@@ -98,21 +94,21 @@ namespace UserManagement_API.Repository.Implementations
                         if (data != null)
                         {
                             string updateBankQuery = @"
-        UPDATE tblRefererBankDetails
-        SET InstitutionName = @InstitutionName,
-            referenceLinkID = @referenceLinkID,
-            BankName = @BankName,
-            ACNo = @ACNo,
-            IFSC = @IFSC,
-            ReferenceID = @ReferenceID
-        WHERE refBankID = @refBankID;";
+                            UPDATE tblRefererBankDetails
+                            SET BranchName = @BranchName,
+                                referenceLinkID = @referenceLinkID,
+                                BankName = @BankName,
+                                ACNo = @ACNo,
+                                IFSC = @IFSC,
+                                ReferenceID = @ReferenceID
+                            WHERE refBankID = @refBankID;";
                             var bankDetail = new GenRefBankDetail
                             {
                                 referenceLinkID = request.referenceLinkID,
                                 ACNo = request.GenRefBankdetail != null ? request.GenRefBankdetail.ACNo : string.Empty,
                                 BankName = request.GenRefBankdetail != null ? request.GenRefBankdetail.BankName : string.Empty,
                                 IFSC = request.GenRefBankdetail != null ? request.GenRefBankdetail.IFSC : string.Empty,
-                                InstitutionName = request.GenRefBankdetail != null ? request.GenRefBankdetail.InstitutionName : string.Empty,
+                                BranchName = request.GenRefBankdetail != null ? request.GenRefBankdetail.BranchName : string.Empty,
                                 ReferenceID = request.GenRefBankdetail != null ? request.GenRefBankdetail.ReferenceID : 0,
                                 refBankID = data.refBankID
                             };
@@ -129,8 +125,8 @@ namespace UserManagement_API.Repository.Implementations
                         else
                         {
                             string insertBankQuery = @"
-        INSERT INTO tblRefererBankDetails (InstitutionName, referenceLinkID, BankName, ACNo, IFSC, ReferenceID)
-        VALUES (@InstitutionName, @referenceLinkID, @BankName, @ACNo, @IFSC, @ReferenceID);";
+                            INSERT INTO tblRefererBankDetails (BranchName, referenceLinkID, BankName, ACNo, IFSC, ReferenceID)
+                            VALUES (@BranchName, @referenceLinkID, @BankName, @ACNo, @IFSC, @ReferenceID);";
                             if (request.GenRefBankdetail != null)
                             {
                                 request.GenRefBankdetail.referenceLinkID = request.referenceLinkID;
@@ -161,69 +157,105 @@ namespace UserManagement_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-        public async Task<ServiceResponse<GenerateReferenceDTO>> GetGenerateReferenceById(int GenerateReferenceID)
+        public async Task<ServiceResponse<GenerateReferenceResponseDTO>> GetGenerateReferenceById(int GenerateReferenceID)
         {
             try
             {
-                GenerateReferenceDTO resposne = new();
+                GenerateReferenceResponseDTO response = new();
 
                 string selectQuery = @"
-        SELECT *
-        FROM tblReferenceLinkMaster
-        WHERE referenceLinkID = @referenceLinkID;";
-                var data = await _connection.QueryFirstOrDefaultAsync<GenerateReference>(selectQuery, new { referenceLinkID = GenerateReferenceID });
+                SELECT 
+                    gl.*, 
+                    s.StateName, 
+                    d.DistrictName, 
+                    e.EmpFirstName AS EmployeeName
+                FROM tblReferenceLinkMaster gl
+                LEFT JOIN tblStateName s ON gl.StateId = s.StateId
+                LEFT JOIN tblDistricts d ON gl.DistrictID = d.DistrictID
+                LEFT JOIN tblEmployee e ON gl.ReferenceID = e.Employeeid
+                WHERE gl.referenceLinkID = @referenceLinkID;";
+
+                var data = await _connection.QueryFirstOrDefaultAsync<dynamic>(selectQuery, new { referenceLinkID = GenerateReferenceID });
+
                 if (data != null)
                 {
-                    resposne.referenceLinkID = data.referenceLinkID;
-                    resposne.ReferenceID = data.ReferenceID;
-                    resposne.StateName = data.StateName;
-                    resposne.DistrictName = data.DistrictName;
-                    resposne.NumberOfRef = data.NumberOfRef;
-                    resposne.MobileNo = data.MobileNo;
-                    resposne.EmailID = data.EmailID;
-                    resposne.StateId = data.StateId;
-                    resposne.DistrictID = data.DistrictID;
-                    resposne.PAN = data.PAN;
-                    resposne.PersonName = data.PersonName;
+                    response.referenceLinkID = data.referenceLinkID;
+                    response.ReferenceID = data.ReferenceID;
+                    response.StateName = data.StateName;
+                    response.DistrictName = data.DistrictName;
+                    response.NumberOfRef = data.NumberOfRef;
+                    response.MobileNo = data.MobileNo;
+                    response.EmailID = data.EmailID;
+                    response.StateId = data.StateId;
+                    response.DistrictID = data.DistrictID;
+                    response.PAN = data.PAN;
+                    response.PersonName = data.PersonName;
 
-                    string selectBankQuery = @" SELECT * FROM tblRefererBankDetails WHERE referenceLinkID = @referenceLinkID;";
-                    var data1 = await _connection.QuerySingleOrDefaultAsync<GenRefBankDetail>(selectBankQuery, new { data.referenceLinkID });
-                    if (data1 != null)
-                    {
-                        resposne.GenRefBankdetail = data1;
-                        return new ServiceResponse<GenerateReferenceDTO>(true, "record found", resposne, 200);
-                    }
-                    else
-                    {
-                        resposne.GenRefBankdetail = new GenRefBankDetail();
-                        return new ServiceResponse<GenerateReferenceDTO>(true, "record found", resposne, 200);
-                    }
+                    string selectBankQuery = @"SELECT * FROM tblRefererBankDetails WHERE referenceLinkID = @referenceLinkID;";
+                    var data1 = await _connection.QuerySingleOrDefaultAsync<GenRefBankDetailResponse>(selectBankQuery, new { referenceLinkID = data.referenceLinkID });
+
+                    response.GenRefBankdetail = data1 ?? new GenRefBankDetailResponse();
+
+                    return new ServiceResponse<GenerateReferenceResponseDTO>(true, "Record found", response, 200);
                 }
                 else
                 {
-                    return new ServiceResponse<GenerateReferenceDTO>(false, "No record found", new GenerateReferenceDTO(), 500);
+                    return new ServiceResponse<GenerateReferenceResponseDTO>(false, "No record found", new GenerateReferenceResponseDTO(), 500);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<GenerateReferenceDTO>(false, ex.Message, new GenerateReferenceDTO(), 500);
+                return new ServiceResponse<GenerateReferenceResponseDTO>(false, ex.Message, new GenerateReferenceResponseDTO(), 500);
             }
         }
-        public async Task<ServiceResponse<List<GenerateReferenceDTO>>> GetGenerateReferenceList(GetAllReferralsRequest request)
+        public async Task<ServiceResponse<List<GenerateReferenceResponseDTO>>> GetGenerateReferenceList(GetAllReferralsRequest request)
         {
             try
             {
-                List<GenerateReferenceDTO> resposne = [];
-                string selectQuery = @"SELECT * FROM tblReferenceLinkMaster";
-                var data = await _connection.QueryAsync<GenerateReference>(selectQuery);
-                if (data.Count() > 0)
+                List<GenerateReferenceResponseDTO> response = [];
+                string countSql = @"SELECT COUNT(*) FROM [tblReferenceLinkMaster]";
+                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
+                var queryBuilder = new StringBuilder();
+                queryBuilder.Append(@"
+                SELECT 
+                    gl.*, 
+                    s.StateName, 
+                    d.DistrictName
+                FROM tblReferenceLinkMaster gl
+                LEFT JOIN tblStateName s ON gl.StateId = s.StateId
+                LEFT JOIN tblDistricts d ON gl.DistrictID = d.DistrictID
+                WHERE 1 = 1");
+
+                var parameters = new DynamicParameters();
+
+                // Add filters based on DTO properties
+                if (request.StateId > 0)
+                {
+                    queryBuilder.Append(" AND gl.StateId = @StateId");
+                    parameters.Add("StateId", request.StateId);
+                }
+                if (request.District > 0)
+                {
+                    queryBuilder.Append(" AND gl.DistrictID = @DistrictID");
+                    parameters.Add("DistrictID", request.District);
+                }
+                if (!string.IsNullOrEmpty(request.SearchText))
+                {
+                    queryBuilder.Append(" AND (gl.PersonName LIKE @SearchText)");
+                    parameters.Add("SearchText", "%" + request.SearchText + "%");
+                }
+
+                // Execute the query
+                var data = await _connection.QueryAsync<dynamic>(queryBuilder.ToString(), parameters);
+
+                if (data.Any())
                 {
                     foreach (var item in data)
                     {
+                        string selectBankQuery = @"SELECT * FROM tblRefererBankDetails WHERE referenceLinkID = @referenceLinkID;";
+                        var bankDetails = await _connection.QuerySingleOrDefaultAsync<GenRefBankDetailResponse>(selectBankQuery, new { item.referenceLinkID });
 
-                        string selectBankQuery = @" SELECT * FROM tblRefererBankDetails WHERE referenceLinkID = @referenceLinkID;";
-                        var data1 = await _connection.QuerySingleOrDefaultAsync<GenRefBankDetail>(selectBankQuery, new { item.referenceLinkID });
-                        var record = new GenerateReferenceDTO
+                        var record = new GenerateReferenceResponseDTO
                         {
                             referenceLinkID = item.referenceLinkID,
                             ReferenceID = item.ReferenceID,
@@ -236,23 +268,49 @@ namespace UserManagement_API.Repository.Implementations
                             DistrictID = item.DistrictID,
                             PAN = item.PAN,
                             PersonName = item.PersonName,
-                            GenRefBankdetail = data1
+                            GenRefBankdetail = bankDetails
                         };
-                        resposne.Add(record);
+
+                        response.Add(record);
                     }
-                    var paginatedList = resposne.Skip((request.PageNumber - 1) * request.PageSize)
-                   .Take(request.PageSize)
-                   .ToList();
-                    return new ServiceResponse<List<GenerateReferenceDTO>>(true, "Records found", paginatedList, 500);
+
+                    var paginatedList = response
+                        .Skip((request.PageNumber - 1) * request.PageSize)
+                        .Take(request.PageSize)
+                        .ToList();
+
+                    return new ServiceResponse<List<GenerateReferenceResponseDTO>>(true, "Records found", paginatedList, 200, totalCount);
                 }
                 else
                 {
-                    return new ServiceResponse<List<GenerateReferenceDTO>>(false, "Records not found", [], 500);
+                    return new ServiceResponse<List<GenerateReferenceResponseDTO>>(false, "Records not found", [], 204);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<GenerateReferenceDTO>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<GenerateReferenceResponseDTO>>(false, ex.Message, [], 500);
+            }
+        }
+        public async Task<ServiceResponse<List<Bank>>> GetBankListMasters()
+        {
+            try
+            {
+                var Query = @"Select * from [tblBank]";
+                // Execute the query
+                var data = await _connection.QueryAsync<Bank>(Query);
+
+                if (data.Any())
+                {
+                    return new ServiceResponse<List<Bank>>(true, "Records found", data.ToList(), 200);
+                }
+                else
+                {
+                    return new ServiceResponse<List<Bank>>(false, "Records not found", [], 204);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<Bank>>(false, ex.Message, [], 500);
             }
         }
     }

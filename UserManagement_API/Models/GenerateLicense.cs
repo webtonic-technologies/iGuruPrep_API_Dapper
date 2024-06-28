@@ -5,7 +5,7 @@
         public int GenerateLicenseID { get; set; }
         public string SchoolName { get; set; }= string.Empty;
         public string SchoolCode { get; set; } = string.Empty;
-        public int? BranchName { get; set; }
+        public string BranchName { get; set; } = string.Empty;
         public string BranchCode { get; set; } = string.Empty;
         public string StateName { get; set; } = string.Empty;
         public string DistrictName { get; set; } = string.Empty;

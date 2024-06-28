@@ -51,6 +51,18 @@ namespace ControlPanel_API.Services.Implementations
             }
         }
 
+        public async Task<ServiceResponse<List<Category>>> GetCategoryList()
+        {
+            try
+            {
+                return await _storyOfTheDayRepository.GetCategoryList();
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<Category>>(false, ex.Message, [], 500);
+            }
+        }
+
         public async Task<ServiceResponse<List<EventType>>> GetEventtypeList()
         {
             try

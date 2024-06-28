@@ -7,4 +7,9 @@
         public int PageNumber { get; set; }
         public int PageSize { get; set; }
     }
+    public class ContentIndexMastersDTO
+    {
+        public int APID { get; set; }
+        public int SubjectId { get; set; }
+    }
 }

@@ -37,6 +37,18 @@ namespace Config_API.Services.Implementations
             }
         }
 
+        public async Task<ServiceResponse<List<ContentIndexRequest>>> GetAllContentIndexListMasters(ContentIndexMastersDTO request)
+        {
+            try
+            {
+                return await _contentIndexRepository.GetAllContentIndexListMasters(request);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<ContentIndexRequest>>(false, ex.Message, [], 500);
+            }
+        }
+
         public async Task<ServiceResponse<ContentIndexRequest>> GetContentIndexById(int id)
         {
             try

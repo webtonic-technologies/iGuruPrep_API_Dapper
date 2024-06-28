@@ -331,6 +331,62 @@ namespace Config_API.Repository.Implementations
                 _connection.Close();
             }
         }
+        public async Task<ServiceResponse<List<ContentIndexRequest>>> GetAllContentIndexListMasters(ContentIndexMastersDTO request)
+        {
+            try
+            {
+                // Base query to fetch the content indexes
+                string query = @"SELECT * FROM [tblContentIndexChapters] WHERE 1 = 1";
+
+                // Add filters based on DTO properties
+                if (request.APID > 0)
+                {
+                    query += " AND [APID] = @APID";
+                }
+                if (request.SubjectId > 0)
+                {
+                    query += " AND [SubjectId] = @SubjectId";
+                }
+
+                var contentIndexes = await _connection.QueryAsync<ContentIndexRequest>(query, new { request.APID, request.SubjectId });
+
+                if (contentIndexes.Any())
+                {
+                    // Fetch related topics and subtopics for each content index
+                    foreach (var contentIndex in contentIndexes)
+                    {
+                        string topicsSql = @"SELECT * FROM [tblContentIndexTopics] WHERE [ContentIndexId] = @contentIndexId";
+                        var topics = (await _connection.QueryAsync<ContentIndexTopics>(topicsSql, new { contentIndexId = contentIndex.ContentIndexId })).ToList();
+
+                        string subTopicsSql = @"
+                    SELECT st.*
+                    FROM [tblContentIndexSubTopics] st
+                    INNER JOIN [tblContentIndexTopics] t ON st.ContInIdTopic = t.ContInIdTopic
+                    WHERE t.ContentIndexId = @contentIndexId";
+                        var subTopics = (await _connection.QueryAsync<ContentIndexSubTopic>(subTopicsSql, new { contentIndexId = contentIndex.ContentIndexId })).ToList();
+
+                        // Assign the subtopics to the respective topics
+                        foreach (var topic in topics)
+                        {
+                            topic.ContentIndexSubTopics = subTopics.Where(st => st.ContInIdTopic == topic.ContInIdTopic).ToList();
+                        }
+
+                        // Assign the topics to the content index
+                        contentIndex.ContentIndexTopics = topics;
+                    }
+
+                    return new ServiceResponse<List<ContentIndexRequest>>(true, "Records found", contentIndexes.AsList(), StatusCodes.Status302Found);
+                }
+                else
+                {
+                    return new ServiceResponse<List<ContentIndexRequest>>(false, "Records not found", [], StatusCodes.Status204NoContent);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<ContentIndexRequest>>(false, ex.Message, [], StatusCodes.Status500InternalServerError);
+            }
+        }
         private async Task InsertOrUpdateContentIndexTopics(int contentIndexId, List<ContentIndexTopics>? topics, IDbTransaction transaction)
         {
             if (topics != null)

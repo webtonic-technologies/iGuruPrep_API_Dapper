@@ -8,11 +8,11 @@
         public int? ClassID { get; set; }
         public int? CourseID { get; set; }
         public int? NoOfLicense { get; set; }
-        public string ValidityID { get; set; } = string.Empty;
+        public int ValidityID { get; set; }
         public int APID { get; set; }
-        public string BoardName { get; set; } = string.Empty;
-        public string ClassName { get; set; } = string.Empty;
-        public string CourseName { get; set; } = string.Empty;
-        public string CategoryName { get; set; } = string.Empty;
+        //public string BoardName { get; set; } = string.Empty;
+        //public string ClassName { get; set; } = string.Empty;
+        //public string CourseName { get; set; } = string.Empty;
+        //public string CategoryName { get; set; } = string.Empty;
     }
 }

@@ -1,4 +1,4 @@
-﻿using UserManagement_API.DTOs.Registration;
+﻿using UserManagement_API.DTOs.Requests;
 using UserManagement_API.DTOs.ServiceResponse;
 using UserManagement_API.Repository.Interfaces;
 

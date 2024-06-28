@@ -1,6 +1,7 @@
 ﻿using Dapper;
 using System.Data;
-using UserManagement_API.DTOs;
+using UserManagement_API.DTOs.Requests;
+using UserManagement_API.DTOs.Response;
 using UserManagement_API.DTOs.ServiceResponse;
 using UserManagement_API.Models;
 using UserManagement_API.Repository.Interfaces;
@@ -22,36 +23,31 @@ namespace UserManagement_API.Repository.Implementations
                 if (request.GenerateLicenseID == 0)
                 {
                     string query = @"
-        INSERT INTO [tblGenerateLicense] (SchoolName, SchoolCode, BranchName, BranchCode, StateName, DistrictName, ChairmanEmail, ChairmanMobile, PrincipalEmail, PrincipalMobile, StateId, DistrictId, ClassName, CourseName, createdon, createdby, EmployeeID, EmpFirstName)
-        VALUES (@SchoolName, @SchoolCode, @BranchName, @BranchCode, @StateName, @DistrictName, @ChairmanEmail, @ChairmanMobile, @PrincipalEmail, @PrincipalMobile, @StateId, @DistrictId, @ClassName, @CourseName, @CreatedOn, @CreatedBy, @EmployeeID, @EmpFirstName);
-        SELECT SCOPE_IDENTITY();";
+                    INSERT INTO [tblGenerateLicense] (SchoolName, SchoolCode, BranchName, BranchCode, ChairmanEmail, ChairmanMobile, PrincipalEmail, PrincipalMobile, StateId, DistrictId, createdon, createdby, EmployeeID)
+                    VALUES (@SchoolName, @SchoolCode, @BranchName, @BranchCode, @ChairmanEmail, @ChairmanMobile, @PrincipalEmail, @PrincipalMobile, @StateId, @DistrictId, @CreatedOn, @CreatedBy, @EmployeeID);
+                    SELECT SCOPE_IDENTITY();";
                     var newLicense = new GenerateLicense
                     {
                         SchoolName = request.SchoolName,
                         SchoolCode = request.SchoolCode,
                         BranchName = request.BranchName,
                         BranchCode = request.BranchCode,
-                        StateName = request.StateName,
-                        DistrictName = request.DistrictName,
                         ChairmanEmail = request.ChairmanEmail,
                         ChairmanMobile = request.ChairmanMobile,
                         PrincipalEmail = request.PrincipalEmail,
                         PrincipalMobile = request.PrincipalMobile,
                         stateid = request.stateid,
                         DistrictID = request.DistrictID,
-                        ClassName = request.ClassName,
-                        CourseName = request.CourseName,
                         createdon = DateTime.Now,
                         createdby = request.createdby,
-                        EmployeeID = request.EmployeeID,
-                        EmpFirstName = request.EmpFirstName
+                        EmployeeID = request.EmployeeID
                     };
                     var generatedId = await _connection.QueryFirstOrDefaultAsync<int>(query, newLicense);
                     if (generatedId != 0)
                     {
                         string insertQuery = @"
-        INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID, BoardName, ClassName, CourseName, CategoryName)
-        VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID, @BoardName, @ClassName, @CourseName, @CategoryName);";
+                        INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID)
+                        VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID);";
                         if (request.LicenseDetails != null)
                         {
                             foreach (var item in request.LicenseDetails)
@@ -78,46 +74,36 @@ namespace UserManagement_API.Repository.Implementations
                 else
                 {
                     string updateQuery = @"
-        UPDATE [tblGenerateLicense]
-        SET SchoolName = @SchoolName, 
-            SchoolCode = @SchoolCode, 
-            BranchName = @BranchName, 
-            BranchCode = @BranchCode, 
-            StateName = @StateName, 
-            DistrictName = @DistrictName, 
-            ChairmanEmail = @ChairmanEmail, 
-            ChairmanMobile = @ChairmanMobile, 
-            PrincipalEmail = @PrincipalEmail, 
-            PrincipalMobile = @PrincipalMobile, 
-            StateId = @StateId, 
-            DistrictId = @DistrictId, 
-            ClassName = @ClassName, 
-            CourseName = @CourseName, 
-            modifiedon = @ModifiedOn, 
-            modifiedby = @ModifiedBy,  
-            EmployeeID = @EmployeeID, 
-            EmpFirstName = @EmpFirstName
-        WHERE GenerateLicenseID = @GenerateLicenseID;";
+                    UPDATE [tblGenerateLicense]
+                    SET SchoolName = @SchoolName, 
+                        SchoolCode = @SchoolCode, 
+                        BranchName = @BranchName, 
+                        BranchCode = @BranchCode,  
+                        ChairmanEmail = @ChairmanEmail, 
+                        ChairmanMobile = @ChairmanMobile, 
+                        PrincipalEmail = @PrincipalEmail, 
+                        PrincipalMobile = @PrincipalMobile, 
+                        StateId = @StateId, 
+                        DistrictId = @DistrictId,  
+                        modifiedon = @ModifiedOn, 
+                        modifiedby = @ModifiedBy,  
+                        EmployeeID = @EmployeeID
+                    WHERE GenerateLicenseID = @GenerateLicenseID;";
                     var newLicense = new GenerateLicense
                     {
                         SchoolName = request.SchoolName,
                         SchoolCode = request.SchoolCode,
                         BranchName = request.BranchName,
                         BranchCode = request.BranchCode,
-                        StateName = request.StateName,
-                        DistrictName = request.DistrictName,
                         ChairmanEmail = request.ChairmanEmail,
                         ChairmanMobile = request.ChairmanMobile,
                         PrincipalEmail = request.PrincipalEmail,
                         PrincipalMobile = request.PrincipalMobile,
                         stateid = request.stateid,
                         DistrictID = request.DistrictID,
-                        ClassName = request.ClassName,
-                        CourseName = request.CourseName,
                         modifiedon = DateTime.Now,
                         modifiedby = request.createdby,
                         EmployeeID = request.EmployeeID,
-                        EmpFirstName = request.EmpFirstName,
                         GenerateLicenseID = request.GenerateLicenseID
                     };
                     int rowsAffected = await _connection.ExecuteAsync(updateQuery, newLicense);
@@ -126,15 +112,13 @@ namespace UserManagement_API.Repository.Implementations
                         int count = await _connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM tblLicenseDetail WHERE GenerateLicenseID = @GenerateLicenseID", new { request.GenerateLicenseID });
                         if (count > 0)
                         {
-                            string deleteQuery = @"
-        DELETE FROM tblLicenseDetail
-        WHERE GenerateLicenseID = @GenerateLicenseID";
+                            string deleteQuery = @" DELETE FROM tblLicenseDetail WHERE GenerateLicenseID = @GenerateLicenseID";
                             int rowsAffected1 = await _connection.ExecuteAsync(deleteQuery, new { request.GenerateLicenseID });
                             if (rowsAffected1 > 0)
                             {
                                 string insertQuery = @"
-        INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID, BoardName, ClassName, CourseName, CategoryName)
-        VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID, @BoardName, @ClassName, @CourseName, @CategoryName);";
+                                INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID)
+                                VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID);";
 
                                 if (request.LicenseDetails != null)
                                     foreach (var item in request.LicenseDetails)
@@ -160,8 +144,8 @@ namespace UserManagement_API.Repository.Implementations
                         else
                         {
                             string insertQuery = @"
-        INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID, BoardName, ClassName, CourseName, CategoryName)
-        VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID, @BoardName, @ClassName, @CourseName, @CategoryName);";
+                            INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID)
+                            VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID);";
                             if (request.LicenseDetails != null)
                                 foreach (var item in request.LicenseDetails)
                                 {
@@ -190,17 +174,20 @@ namespace UserManagement_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-
-        public async Task<ServiceResponse<GenerateLicenseDTO>> GetGenerateLicenseById(int GenerateLicenseID)
+        public async Task<ServiceResponse<GenerateLicenseResponseDTO>> GetGenerateLicenseById(int GenerateLicenseID)
         {
             try
             {
-                GenerateLicenseDTO response = new();
+                GenerateLicenseResponseDTO response = new();
                 string selectQuery = @"
-        SELECT * 
-        FROM tblGenerateLicense
-        WHERE GenerateLicenseID = @GenerateLicenseID;";
-                var generateLicense = await _connection.QueryFirstOrDefaultAsync<GenerateLicense>(selectQuery, new { GenerateLicenseID });
+                SELECT gl.*, e.EmpFirstName, s.StateName, d.DistrictName
+                FROM tblGenerateLicense gl
+                LEFT JOIN tblEmployee e ON gl.EmployeeID = e.Employeeid
+                LEFT JOIN tblStateName s ON gl.stateid = s.StateId
+                LEFT JOIN tblDistricts d ON gl.DistrictID = d.DistrictID
+                WHERE gl.GenerateLicenseID = @GenerateLicenseID;";
+
+                var generateLicense = await _connection.QueryFirstOrDefaultAsync<dynamic>(selectQuery, new { GenerateLicenseID });
                 if (generateLicense != null)
                 {
                     response.GenerateLicenseID = generateLicense.GenerateLicenseID;
@@ -216,8 +203,6 @@ namespace UserManagement_API.Repository.Implementations
                     response.PrincipalMobile = generateLicense.PrincipalMobile;
                     response.stateid = generateLicense.stateid;
                     response.DistrictID = generateLicense.DistrictID;
-                    response.ClassName = generateLicense.ClassName;
-                    response.CourseName = generateLicense.CourseName;
                     response.modifiedby = generateLicense.modifiedby;
                     response.modifiedon = generateLicense.modifiedon;
                     response.createdon = generateLicense.createdon;
@@ -226,47 +211,95 @@ namespace UserManagement_API.Repository.Implementations
                     response.EmpFirstName = generateLicense.EmpFirstName;
 
                     string query = @"
-                    SELECT * 
-                    FROM tblLicenseDetail
-                    WHERE GenerateLicenseID = @GenerateLicenseID;";
-                    var data = await _connection.QueryAsync<LicenseDetail>(query, new { GenerateLicenseID });
-                    if (data != null)
-                    {
-                        response.LicenseDetails = data.AsList();
-                    }
-                    else
-                    {
-                        response.LicenseDetails = [];
-                    }
-                    return new ServiceResponse<GenerateLicenseDTO>(true, "Record found", response, 200);
+                    SELECT ld.*, 
+                           b.BoardName, 
+                           c.ClassName, 
+                           co.CourseName, 
+                           cat.APName as categoryName, 
+                           v.ValidityPeriod AS ValidityName
+                    FROM tblLicenseDetail ld
+                    LEFT JOIN tblBoard b ON ld.BoardID = b.BoardID
+                    LEFT JOIN tblClass c ON ld.ClassID = c.ClassID
+                    LEFT JOIN tblCourse co ON ld.CourseID = co.CourseID
+                    LEFT JOIN tblCategory cat ON ld.APID = cat.APId
+                    LEFT JOIN tblValidity v ON ld.ValidityID = v.ValidityID
+                    WHERE ld.GenerateLicenseID = @GenerateLicenseID;";
+
+                    var data = await _connection.QueryAsync<LicenseDetailResponse>(query, new { GenerateLicenseID });
+                    response.LicenseDetails = data != null ? data.AsList() : [];
+
+                    return new ServiceResponse<GenerateLicenseResponseDTO>(true, "Record found", response, 200);
                 }
                 else
                 {
-                    return new ServiceResponse<GenerateLicenseDTO>(false, "Record not found", new GenerateLicenseDTO(), 500);
+                    return new ServiceResponse<GenerateLicenseResponseDTO>(false, "Record not found", new GenerateLicenseResponseDTO(), 500);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<GenerateLicenseDTO>(false, ex.Message, new GenerateLicenseDTO(), 500);
+                return new ServiceResponse<GenerateLicenseResponseDTO>(false, ex.Message, new GenerateLicenseResponseDTO(), 500);
             }
         }
-        public async Task<ServiceResponse<List<GenerateLicenseDTO>>> GetGenerateLicenseList(GetAllLicensesListRequest request)
+        public async Task<ServiceResponse<List<GenerateLicenseResponseDTO>>> GetGenerateLicenseList(GetAllLicensesListRequest request)
         {
             try
             {
-                List<GenerateLicenseDTO> resposne = [];
-                string selectQuery = @"SELECT * FROM tblGenerateLicense";
-                var data = await _connection.QueryAsync<GenerateLicense>(selectQuery);
-                if (data != null)
+                string countSql = @"SELECT COUNT(*) FROM [tblGenerateLicense]";
+                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
+                List<GenerateLicenseResponseDTO> responseList = [];
+
+                // Main query to fetch GenerateLicense data with related names
+                string mainQuery = @"
+                SELECT gl.*, e.EmpFirstName, s.StateName, d.DistrictName
+                FROM tblGenerateLicense gl
+                LEFT JOIN tblEmployee e ON gl.EmployeeID = e.Employeeid
+                LEFT JOIN tblStateName s ON gl.stateid = s.StateId
+                LEFT JOIN tblDistricts d ON gl.DistrictID = d.DistrictID
+                WHERE 1 = 1";
+
+                var mainParameters = new DynamicParameters();
+
+                // Add filters based on DTO properties
+                if (request.District > 0)
                 {
-                    string query = @"
-                    SELECT * 
-                    FROM tblLicenseDetail
-                    WHERE GenerateLicenseID = @GenerateLicenseID;";
-                    foreach (var item in data)
+                    mainQuery += " AND gl.DistrictID = @District";
+                    mainParameters.Add("District", request.District);
+                }
+                if (request.StateId > 0)
+                {
+                    mainQuery += " AND gl.stateid = @StateId";
+                    mainParameters.Add("StateId", request.StateId);
+                }
+                if (!string.IsNullOrEmpty(request.SearchText))
+                {
+                    mainQuery += " AND gl.SchoolName LIKE @SearchText";
+                    mainParameters.Add("SearchText", "%" + request.SearchText + "%");
+                }
+
+                var generateLicenses = await _connection.QueryAsync<dynamic>(mainQuery, mainParameters);
+
+                if (generateLicenses != null)
+                {
+                    // Detail query to fetch LicenseDetail data with related names
+                    string detailQuery = @"
+                    SELECT ld.*, 
+                           b.BoardName, 
+                           c.ClassName, 
+                           co.CourseName, 
+                           cat.APName as categoryName, 
+                           v.ValidityPeriod AS ValidityName
+                    FROM tblLicenseDetail ld
+                    LEFT JOIN tblBoard b ON ld.BoardID = b.BoardID
+                    LEFT JOIN tblClass c ON ld.ClassID = c.ClassID
+                    LEFT JOIN tblCourse co ON ld.CourseID = co.CourseID
+                    LEFT JOIN tblCategory cat ON ld.APID = cat.APId
+                    LEFT JOIN tblValidity v ON ld.ValidityID = v.ValidityID
+                    WHERE ld.GenerateLicenseID = @GenerateLicenseID;";
+                    foreach (var item in generateLicenses)
                     {
-                        var data1 = await _connection.QueryAsync<LicenseDetail>(query, new { item.GenerateLicenseID });
-                        var record = new GenerateLicenseDTO
+                        var licenseDetails = await _connection.QueryAsync<LicenseDetailResponse>(detailQuery, new { item.GenerateLicenseID });
+
+                        var record = new GenerateLicenseResponseDTO
                         {
                             GenerateLicenseID = item.GenerateLicenseID,
                             SchoolName = item.SchoolName,
@@ -281,31 +314,34 @@ namespace UserManagement_API.Repository.Implementations
                             PrincipalMobile = item.PrincipalMobile,
                             stateid = item.stateid,
                             DistrictID = item.DistrictID,
-                            ClassName = item.ClassName,
-                            CourseName = item.CourseName,
                             modifiedby = item.modifiedby,
                             modifiedon = item.modifiedon,
                             createdon = item.createdon,
                             createdby = item.createdby,
                             EmployeeID = item.EmployeeID,
                             EmpFirstName = item.EmpFirstName,
-                            LicenseDetails = data1.AsList()
+                            LicenseDetails = licenseDetails.AsList()
                         };
-                        resposne.Add(record);
+
+                        responseList.Add(record);
                     }
-                    var paginatedList = resposne.Skip((request.PageNumber - 1) * request.PageSize)
-                     .Take(request.PageSize)
-                     .ToList();
-                    return new ServiceResponse<List<GenerateLicenseDTO>>(true, "Records found", paginatedList, 500);
+
+                    // Apply pagination
+                    var paginatedList = responseList
+                        .Skip((request.PageNumber - 1) * request.PageSize)
+                        .Take(request.PageSize)
+                        .ToList();
+
+                    return new ServiceResponse<List<GenerateLicenseResponseDTO>>(true, "Records found", paginatedList, 200, totalCount);
                 }
                 else
                 {
-                    return new ServiceResponse<List<GenerateLicenseDTO>>(false, "Records not found", [], 500);
+                    return new ServiceResponse<List<GenerateLicenseResponseDTO>>(false, "Records not found", [], 404);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<GenerateLicenseDTO>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<GenerateLicenseResponseDTO>>(false, ex.Message, [], 500);
             }
         }
     }
