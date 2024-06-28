@@ -15,11 +15,11 @@ namespace ControlPanel_API.Services.Implementations
         {
             _designationRepository = designationRepository;
         }
-        public async Task<ServiceResponse<string>> AddDesignation(Designation request)
+        public async Task<ServiceResponse<string>> AddUpdateDesignation(Designation request)
         {
             try
             {
-                return await _designationRepository.AddDesignation(request);
+                return await _designationRepository.AddUpdateDesignation(request);
             }
             catch (Exception ex)
             {
@@ -72,18 +72,6 @@ namespace ControlPanel_API.Services.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<bool>(false, ex.Message, false, 500);
-            }
-        }
-
-        public async Task<ServiceResponse<string>> UpdateDesignation(Designation request)
-        {
-            try
-            {
-                return await _designationRepository.UpdateDesignation(request);
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
     }

@@ -16,26 +16,12 @@ namespace ControlPanel_API.Controllers
             _storyOfTheDayService = storyOfTheDayServices;
         }
 
-        [HttpPost("AddStoryofTheDay")]
-        public async Task<IActionResult> AddNewStoryOfTheDay([FromBody] StoryOfTheDayDTO storyOfTheDayDTO)
+        [HttpPost("AddUpdateStoryofTheDay")]
+        public async Task<IActionResult> AddUpdateStoryOfTheDay([FromBody] StoryOfTheDayDTO storyOfTheDayDTO)
         {
             try
             {
-                var data = await _storyOfTheDayService.AddNewStoryOfTheDay(storyOfTheDayDTO);
-                return Ok(data);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
-
-        [HttpPut("UpdateStoryofTheDay")]
-        public async Task<IActionResult> UpdateStoryOfTheDay([FromBody] StoryOfTheDayDTO storyOfTheDayDTO)
-        {
-            try
-            {
-                var data = await _storyOfTheDayService.UpdateStoryOfTheDay(storyOfTheDayDTO);
+                var data = await _storyOfTheDayService.AddUpdateStoryOfTheDay(storyOfTheDayDTO);
                 return Ok(data);
             }
             catch (Exception ex)

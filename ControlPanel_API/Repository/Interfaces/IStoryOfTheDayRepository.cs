@@ -8,8 +8,7 @@ namespace ControlPanel_API.Repository.Interfaces
     public interface IStoryOfTheDayRepository
     {
 
-        Task<ServiceResponse<string>> AddNewStoryOfTheDay(StoryOfTheDayDTO storyOfTheDayDTO);
-        Task<ServiceResponse<string>> UpdateStoryOfTheDay(StoryOfTheDayDTO storyOfTheDayDTO);
+        Task<ServiceResponse<string>> AddUpdateStoryOfTheDay(StoryOfTheDayDTO storyOfTheDayDTO);
         Task<ServiceResponse<List<StoryOfTheDayResponseDTO>>> GetAllStoryOfTheDay(SOTDListDTO request);
         Task<ServiceResponse<StoryOfTheDayResponseDTO>> GetStoryOfTheDayById(int id);
         Task<ServiceResponse<bool>> DeleteStoryOfTheDay(int id);

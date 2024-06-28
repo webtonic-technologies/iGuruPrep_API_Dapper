@@ -15,24 +15,48 @@ namespace ControlPanel_API.Repository.Implementations
         {
             _connection = connection;
         }
-        public async Task<ServiceResponse<string>> AddRole(Role request)
+        public async Task<ServiceResponse<string>> AddUpdateRole(Role request)
         {
             try
             {
-                var sql = @"
+                if (request.RoleId == 0)
+                {
+                    var sql = @"
             INSERT INTO tblRole (RoleName, RoleCode, RoleNumber, Status, createdon, createdby)
             VALUES (@RoleName, @RoleCode, @RoleNumber, @Status, @createdon, @createdby);";
 
-                int rowsAffected = await _connection.ExecuteAsync(sql, request);
+                    int rowsAffected = await _connection.ExecuteAsync(sql, request);
 
-                if (rowsAffected > 0)
-                {
-                    return new ServiceResponse<string>(true, "Operation Successful", "Role Added Successfully", 200);
+                    if (rowsAffected > 0)
+                    {
+                        return new ServiceResponse<string>(true, "Operation Successful", "Role Added Successfully", 200);
+                    }
+                    else
+                    {
+                        return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
+                    }
                 }
                 else
                 {
-                    return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
+                    var sql = @"
+            UPDATE tblRole 
+            SET RoleName = @RoleName, RoleCode = @RoleCode, RoleNumber = @RoleNumber, Status = @Status,
+            modifiedon = @modifiedon, modifiedby = @modifiedby
+            WHERE RoleId = @RoleId;";
+
+
+                    int rowsAffected = await _connection.ExecuteAsync(sql, request);
+
+                    if (rowsAffected > 0)
+                    {
+                        return new ServiceResponse<string>(true, "Operation Successful", "Role Updated Successfully", 200);
+                    }
+                    else
+                    {
+                        return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
+                    }
                 }
+
             }
             catch (Exception ex)
             {
@@ -104,34 +128,6 @@ namespace ControlPanel_API.Repository.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<List<Role>>(false, ex.Message, [], 500);
-            }
-        }
-        public async Task<ServiceResponse<string>> UpdateRole(Role role)
-        {
-            try
-            {
-                var sql = @"
-            UPDATE tblRole 
-            SET RoleName = @RoleName, RoleCode = @RoleCode, RoleNumber = @RoleNumber, Status = @Status,
-            modifiedon = @modifiedon, modifiedby = @modifiedby
-            WHERE RoleId = @RoleId;";
-
-
-                int rowsAffected = await _connection.ExecuteAsync(sql, role);
-
-                if (rowsAffected > 0)
-                {
-                    return new ServiceResponse<string>(true, "Operation Successful", "Role Updated Successfully", 200);
-                }
-                else
-                {
-                    return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
-                }
-
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
         public async Task<ServiceResponse<bool>> StatusActiveInactive(int id)

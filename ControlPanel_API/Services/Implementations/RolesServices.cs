@@ -14,11 +14,11 @@ namespace ControlPanel_API.Services.Implementations
         {
             _rolesRepository = rolesRepository;
         }
-        public async Task<ServiceResponse<string>> AddRole(Role role)
+        public async Task<ServiceResponse<string>> AddUpdateRole(Role role)
         {
             try
             {
-                return await _rolesRepository.AddRole(role);
+                return await _rolesRepository.AddUpdateRole(role);
             }
             catch (Exception ex)
             {
@@ -71,18 +71,6 @@ namespace ControlPanel_API.Services.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<bool>(false, ex.Message, false, 500);
-            }
-        }
-
-        public async Task<ServiceResponse<string>> UpdateRole(Role role)
-        {
-            try
-            {
-                return await _rolesRepository.UpdateRole(role);
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
     }

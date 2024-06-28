@@ -15,11 +15,11 @@ namespace Course_API.Services.Implementations
         {
             _bookRepository = bookRepository;
         }
-        public async Task<ServiceResponse<string>> Add(BookDTO request)
+        public async Task<ServiceResponse<string>> AddUpdate(BookDTO request)
         {
             try
             {
-                return await _bookRepository.Add(request);
+                return await _bookRepository.AddUpdate(request);
             }
             catch (Exception ex)
             {
@@ -60,18 +60,6 @@ namespace Course_API.Services.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<List<BookResponseDTO>>(false, ex.Message, [], 500);
-            }
-        }
-
-        public async Task<ServiceResponse<string>> Update(BookDTO request)
-        {
-            try
-            {
-                return await _bookRepository.Update(request);
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
     }

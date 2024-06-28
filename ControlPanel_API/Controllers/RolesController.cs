@@ -58,12 +58,12 @@ namespace ControlPanel_API.Controllers
 
         }
 
-        [HttpPost("AddRole")]
-        public async Task<ActionResult> AddRole(Role role)
+        [HttpPost("AddUpdateRole")]
+        public async Task<ActionResult> AddUpdateRole(Role role)
         {
             try
             {
-                return new OkObjectResult(new { data = await _rolesService.AddRole(role) });
+                return new OkObjectResult(new { data = await _rolesService.AddUpdateRole(role) });
             }
             catch (Exception ex)
             {
@@ -73,26 +73,6 @@ namespace ControlPanel_API.Controllers
                 };
             }
 
-        }
-        [HttpPost("UpdateRole")]
-        public async Task<ActionResult> UpdateRole(Role role)
-        {
-            try
-            {
-                if (role.RoleId != 0)
-                {
-                    return new OkObjectResult(new { data = await _rolesService.UpdateRole(role) });
-
-                }
-                return NotFound();
-            }
-            catch (Exception ex)
-            {
-                return new JsonResult(ex.Message)
-                {
-                    StatusCode = (int)HttpStatusCode.NotAcceptable
-                };
-            }
         }
         [HttpPut("Status/{RoleId}")]
         public async Task<IActionResult> StatusActiveInactive(int RoleId)

@@ -67,33 +67,12 @@ namespace ControlPanel_API.Controllers
 
         }
 
-        [HttpPost("AddDesignation")]
-        public async Task<IActionResult> AddDesignation(Designation designation)
+        [HttpPost("AddUpdateDesignation")]
+        public async Task<IActionResult> AddUpdateDesignation(Designation designation)
         {
             try
             {
-                return new OkObjectResult(await _designationService.AddDesignation(designation));
-            }
-            catch (Exception ex)
-            {
-                return new JsonResult(ex.Message)
-                {
-                    StatusCode = (int)HttpStatusCode.NotAcceptable
-                };
-            }
-
-        }
-        [HttpPut("UpdateDesignation")]
-        public async Task<ActionResult> UpdateDesignation(Designation designation)
-        {
-            try
-            {
-                if (designation.DesgnID != 0)
-                {
-                    return new OkObjectResult(await _designationService.UpdateDesignation(designation));
-
-                }
-                return NotFound();
+                return new OkObjectResult(await _designationService.AddUpdateDesignation(designation));
             }
             catch (Exception ex)
             {

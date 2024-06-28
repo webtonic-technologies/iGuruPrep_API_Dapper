@@ -15,25 +15,47 @@ namespace ControlPanel_API.Repository.Implementations
         {
             _connection = connection;
         }
-        public async Task<ServiceResponse<string>> AddDesignation(Designation request)
-        { 
+        public async Task<ServiceResponse<string>> AddUpdateDesignation(Designation request)
+        {
             try
             {
-                // Construct the SQL insert query
-                string sql = @"INSERT INTO tblDesignation (DesignationName, DesgnCode, Status, createdon, createdby) 
+                if (request.DesgnID == 0)
+                {
+                    // Construct the SQL insert query
+                    string sql = @"INSERT INTO tblDesignation (DesignationName, DesgnCode, Status, createdon, createdby) 
                        VALUES (@DesignationName, @DesgnCode, @Status, @createdon, @createdby);";
 
-                // Execute the insert query asynchronously using Dapper
-                int rowsAffected = await _connection.ExecuteAsync(sql, request);
+                    // Execute the insert query asynchronously using Dapper
+                    int rowsAffected = await _connection.ExecuteAsync(sql, request);
 
-                if (rowsAffected > 0)
-                {
-                    return new ServiceResponse<string>(true, "Operation Successful", "Desgnation Added Successfully", 200);
+                    if (rowsAffected > 0)
+                    {
+                        return new ServiceResponse<string>(true, "Operation Successful", "Desgnation Added Successfully", 200);
+                    }
+                    else
+                    {
+                        return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
+                    }
                 }
                 else
                 {
-                    return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
+                    string sql = @"UPDATE tblDesignation 
+                       SET DesgnCode = @DesgnCode, DesignationName = @DesignationName, Status = @Status,
+                       modifiedon = @modifiedon, modifiedby = @modifiedby
+                       WHERE DesgnID = @DesgnID";
+                    request.modifiedon = DateTime.Now;
+                    int rowsAffected = await _connection.ExecuteAsync(sql, request);
+
+                    if (rowsAffected > 0)
+                    {
+                        return new ServiceResponse<string>(true, "Operation Successful", "Desgnation Updated Successfully", 200);
+                    }
+                    else
+                    {
+                        return new ServiceResponse<string>(false, "Opertion Failed", "Record not found", 204);
+                    }
                 }
+
             }
             catch (Exception ex)
             {
@@ -109,31 +131,6 @@ namespace ControlPanel_API.Repository.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<List<Designation>>(false, ex.Message, [], 500);
-            }
-        }
-        public async Task<ServiceResponse<string>> UpdateDesignation(Designation request)
-        {
-            try
-            {
-                string sql = @"UPDATE tblDesignation 
-                       SET DesgnCode = @DesgnCode, DesignationName = @DesignationName, Status = @Status,
-                       modifiedon = @modifiedon, modifiedby = @modifiedby
-                       WHERE DesgnID = @DesgnID";
-                request.modifiedon = DateTime.Now;
-                int rowsAffected = await _connection.ExecuteAsync(sql, request);
-
-                if (rowsAffected > 0)
-                {
-                    return new ServiceResponse<string>(true, "Operation Successful", "Desgnation Updated Successfully", 200);
-                }
-                else
-                {
-                    return new ServiceResponse<string>(false, "Opertion Failed", "Record not found", 204);
-                }
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
         public async Task<ServiceResponse<bool>> StatusActiveInactive(int id)

@@ -6,8 +6,7 @@ namespace ControlPanel_API.Services.Interfaces
 {
     public interface IMagazineServices
     {
-        Task<ServiceResponse<string>> AddNewMagazine(MagazineDTO magazineDTO);
-        Task<ServiceResponse<string>> UpdateMagazine(MagazineDTO magazineDTO);
+        Task<ServiceResponse<string>> AddUpdateMagazine(MagazineDTO magazineDTO);
         Task<ServiceResponse<List<MagazineResponseDTO>>> GetAllMagazines(MagazineListDTO request);
         Task<ServiceResponse<MagazineResponseDTO>> GetMagazineById(int id);
         Task<ServiceResponse<bool>> StatusActiveInactive(int id);

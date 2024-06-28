@@ -15,11 +15,11 @@ namespace ControlPanel_API.Services.Implementations
         {
             _storyOfTheDayRepository = storyOfTheDayRepository;
         }
-        public async Task<ServiceResponse<string>> AddNewStoryOfTheDay(StoryOfTheDayDTO storyOfTheDayDTO)
+        public async Task<ServiceResponse<string>> AddUpdateStoryOfTheDay(StoryOfTheDayDTO storyOfTheDayDTO)
         {
             try
             {
-                return await _storyOfTheDayRepository.AddNewStoryOfTheDay(storyOfTheDayDTO);
+                return await _storyOfTheDayRepository.AddUpdateStoryOfTheDay(storyOfTheDayDTO);
             }
             catch (Exception ex)
             {
@@ -84,18 +84,6 @@ namespace ControlPanel_API.Services.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<bool>(false, ex.Message, false, 500);
-            }
-        }
-
-        public async Task<ServiceResponse<string>> UpdateStoryOfTheDay(StoryOfTheDayDTO storyOfTheDayDTO)
-        {
-            try
-            {
-                return await _storyOfTheDayRepository.UpdateStoryOfTheDay(storyOfTheDayDTO);
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
     }

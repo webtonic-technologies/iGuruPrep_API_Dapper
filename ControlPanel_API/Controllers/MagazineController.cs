@@ -15,26 +15,12 @@ namespace ControlPanel_API.Controllers
         {
             _magazineService = magazineServices;
         }
-        [HttpPost("AddMagazine")]
-        public async Task<IActionResult> AddNewMagazine([FromBody] MagazineDTO magazineDTO)
+        [HttpPost("AddUpdateMagazine")]
+        public async Task<IActionResult> AddUpdateMagazine([FromBody] MagazineDTO magazineDTO)
         {
             try
             {
-                var data = await _magazineService.AddNewMagazine(magazineDTO);
-                return Ok(data);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
-
-        [HttpPut("UpdateMagazine")]
-        public async Task<IActionResult> UpdateMagazine([FromBody] MagazineDTO magazineDTO)
-        {
-            try
-            {
-                var data = await _magazineService.UpdateMagazine(magazineDTO);
+                var data = await _magazineService.AddUpdateMagazine(magazineDTO);
                 return Ok(data);
             }
             catch (Exception ex)

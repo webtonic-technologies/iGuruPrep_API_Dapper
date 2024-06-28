@@ -19,26 +19,28 @@ namespace ControlPanel_API.Repository.Implementations
             _hostingEnvironment = hostingEnvironment;
             _connectionString = configuration.GetConnectionString("DefaultConnection");
         }
-        public async Task<ServiceResponse<string>> AddNewStoryOfTheDay(StoryOfTheDayDTO request)
+        public async Task<ServiceResponse<string>> AddUpdateStoryOfTheDay(StoryOfTheDayDTO request)
         {
             try
             {
-                var storyOfTheDay = new StoryOfTheDay
+                if (request.StoryId == 0)
                 {
-                    createdby = request.createdby,
-                    createdon = DateTime.Now,
-                    Event1Posttime = request.Event1Posttime,
-                    Event2Posttime = request.Event2Posttime,
-                    EmployeeID = request.EmployeeID,
-                    Event1PostDate = request.Event1PostDate,
-                    Event2PostDate = request.Event2PostDate,
-                    EventTypeID = request.EventTypeID,
-                    eventtypename = request.eventtypename,
-                    Status = true,
-                    Filename1 = request.Filename1 != null ? ImageUpload(request.Filename1) : string.Empty,
-                    Filename2 = request.Filename2 != null ? ImageUpload(request.Filename2) : string.Empty,
-                };
-                var query = @"
+                    var storyOfTheDay = new StoryOfTheDay
+                    {
+                        createdby = request.createdby,
+                        createdon = DateTime.Now,
+                        Event1Posttime = request.Event1Posttime,
+                        Event2Posttime = request.Event2Posttime,
+                        EmployeeID = request.EmployeeID,
+                        Event1PostDate = request.Event1PostDate,
+                        Event2PostDate = request.Event2PostDate,
+                        EventTypeID = request.EventTypeID,
+                        eventtypename = request.eventtypename,
+                        Status = true,
+                        Filename1 = request.Filename1 != null ? ImageUpload(request.Filename1) : string.Empty,
+                        Filename2 = request.Filename2 != null ? ImageUpload(request.Filename2) : string.Empty,
+                    };
+                    var query = @"
                 INSERT INTO [tblSOTD] (
                     createdby, createdon, Event1Posttime, Event2Posttime, 
                     EmployeeID, Event1PostDate, Event2PostDate, EventTypeID, 
@@ -48,40 +50,33 @@ namespace ControlPanel_API.Repository.Implementations
                     @EmployeeID, @Event1PostDate, @Event2PostDate, @EventTypeID, 
                     @eventtypename, @Status, @Filename1, @Filename2);
                     SELECT CAST(SCOPE_IDENTITY() AS INT);";
-                // Execute the SQL insert command with parameters
-                int insertedValue = await _connection.QueryFirstOrDefaultAsync<int>(query, storyOfTheDay);
-                if (insertedValue > 0)
-                {
-                    int category = SOTDCategoryMapping(request.SOTDCategories ??= ([]), insertedValue);
-                    int classes = SOTDClassMapping(request.SOTDClasses ??= ([]), insertedValue);
-                    int board = SOTDBoardMapping(request.SOTDBoards ??= ([]), insertedValue);
-                    int course = SOTDCourseMapping(request.SOTDCourses ??= ([]), insertedValue);
-                    int exam = SOTDExamTypeMapping(request.SOTDExamTypes ??= ([]), insertedValue);
-                    if(category > 0 && classes > 0 && board > 0 && course > 0 && exam > 0)
+                    // Execute the SQL insert command with parameters
+                    int insertedValue = await _connection.QueryFirstOrDefaultAsync<int>(query, storyOfTheDay);
+                    if (insertedValue > 0)
                     {
-                        return new ServiceResponse<string>(true, "Operation Successful", "SOTD Added Successfully", 200);
+                        int category = SOTDCategoryMapping(request.SOTDCategories ??= ([]), insertedValue);
+                        int classes = SOTDClassMapping(request.SOTDClasses ??= ([]), insertedValue);
+                        int board = SOTDBoardMapping(request.SOTDBoards ??= ([]), insertedValue);
+                        int course = SOTDCourseMapping(request.SOTDCourses ??= ([]), insertedValue);
+                        int exam = SOTDExamTypeMapping(request.SOTDExamTypes ??= ([]), insertedValue);
+                        if (category > 0 && classes > 0 && board > 0 && course > 0 && exam > 0)
+                        {
+                            return new ServiceResponse<string>(true, "Operation Successful", "SOTD Added Successfully", 200);
+                        }
+                        else
+                        {
+                            return new ServiceResponse<string>(false, "Operation failed", string.Empty, 500);
+                        }
+
                     }
                     else
                     {
-                        return new ServiceResponse<string>(false, "Operation failed", string.Empty, 500);
+                        return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
                     }
-                    
                 }
                 else
                 {
-                    return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
-                }
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
-            }
-        }
-        public async Task<ServiceResponse<string>> UpdateStoryOfTheDay(StoryOfTheDayDTO request)
-        {
-            try
-            {
-                var query = @"
+                    var query = @"
                 UPDATE [tblSOTD]
                 SET 
                     modifiedby = @modifiedby,
@@ -98,45 +93,47 @@ namespace ControlPanel_API.Repository.Implementations
                     Filename2 = @Filename2
                 WHERE StoryId = @StoryId;"; // Add condition for the specific record to update
 
-                var storyOfTheDay = new StoryOfTheDay
-                {
-                    modifiedby = request.modifiedby,
-                    modifiedon = DateTime.Now,
-                    Event1Posttime = request.Event1Posttime,
-                    Event2Posttime = request.Event2Posttime,
-                    EmployeeID = request.EmployeeID,
-                    Event1PostDate = request.Event1PostDate,
-                    Event2PostDate = request.Event2PostDate,
-                    EventTypeID = request.EventTypeID,
-                    eventtypename = request.eventtypename,
-                    Status = request.Status,
-                    Filename1 = request.Filename1 != null ? ImageUpload(request.Filename1) : string.Empty,
-                    Filename2 = request.Filename2 != null ? ImageUpload(request.Filename2) : string.Empty,
-                    StoryId = request.StoryId
-                };
-                // Execute the SQL update command with parameters
-                int rowsAffected = await _connection.ExecuteAsync(query, storyOfTheDay);
-
-                if (rowsAffected > 0)
-                {
-                    int category = SOTDCategoryMapping(request.SOTDCategories ??= ([]), request.StoryId);
-                    int classes = SOTDClassMapping(request.SOTDClasses ??= ([]), request.StoryId);
-                    int board = SOTDBoardMapping(request.SOTDBoards ??= ([]), request.StoryId);
-                    int course = SOTDCourseMapping(request.SOTDCourses ??= ([]), request.StoryId);
-                    int exam = SOTDExamTypeMapping(request.SOTDExamTypes ??= ([]), request.StoryId);
-                    if (category > 0 && classes > 0 && board > 0 && course > 0 && exam > 0)
+                    var storyOfTheDay = new StoryOfTheDay
                     {
-                        return new ServiceResponse<string>(true, "Operation Successful", "SOTD updated Successfully", 200);
+                        modifiedby = request.modifiedby,
+                        modifiedon = DateTime.Now,
+                        Event1Posttime = request.Event1Posttime,
+                        Event2Posttime = request.Event2Posttime,
+                        EmployeeID = request.EmployeeID,
+                        Event1PostDate = request.Event1PostDate,
+                        Event2PostDate = request.Event2PostDate,
+                        EventTypeID = request.EventTypeID,
+                        eventtypename = request.eventtypename,
+                        Status = request.Status,
+                        Filename1 = request.Filename1 != null ? ImageUpload(request.Filename1) : string.Empty,
+                        Filename2 = request.Filename2 != null ? ImageUpload(request.Filename2) : string.Empty,
+                        StoryId = request.StoryId
+                    };
+                    // Execute the SQL update command with parameters
+                    int rowsAffected = await _connection.ExecuteAsync(query, storyOfTheDay);
+
+                    if (rowsAffected > 0)
+                    {
+                        int category = SOTDCategoryMapping(request.SOTDCategories ??= ([]), request.StoryId);
+                        int classes = SOTDClassMapping(request.SOTDClasses ??= ([]), request.StoryId);
+                        int board = SOTDBoardMapping(request.SOTDBoards ??= ([]), request.StoryId);
+                        int course = SOTDCourseMapping(request.SOTDCourses ??= ([]), request.StoryId);
+                        int exam = SOTDExamTypeMapping(request.SOTDExamTypes ??= ([]), request.StoryId);
+                        if (category > 0 && classes > 0 && board > 0 && course > 0 && exam > 0)
+                        {
+                            return new ServiceResponse<string>(true, "Operation Successful", "SOTD updated Successfully", 200);
+                        }
+                        else
+                        {
+                            return new ServiceResponse<string>(false, "Operation failed", string.Empty, 500);
+                        }
                     }
                     else
                     {
-                        return new ServiceResponse<string>(false, "Operation failed", string.Empty, 500);
+                        return new ServiceResponse<string>(false, "Opertion Failed", "Record not found", 500);
                     }
                 }
-                else
-                {
-                    return new ServiceResponse<string>(false, "Opertion Failed", "Record not found", 500);
-                }
+
             }
             catch (Exception ex)
             {

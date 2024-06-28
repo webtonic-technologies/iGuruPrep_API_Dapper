@@ -8,8 +8,7 @@ namespace Course_API.Repository.Interfaces
     {
         Task<ServiceResponse<BookResponseDTO>> Get(int id);
         Task<ServiceResponse<List<BookResponseDTO>>> GetAllBooks(BookListDTO request);
-        Task<ServiceResponse<string>> Add(BookDTO request);
-        Task<ServiceResponse<string>> Update(BookDTO request);
+        Task<ServiceResponse<string>> AddUpdate(BookDTO request);
         Task<ServiceResponse<bool>> Delete(int id);
     }
 }

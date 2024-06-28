@@ -20,94 +20,90 @@ namespace ControlPanel_API.Repository.Implementations
             _hostingEnvironment = hostingEnvironment;
             _connectionString = configuration.GetConnectionString("DefaultConnection");
         }
-        public async Task<ServiceResponse<string>> AddNewMagazine(MagazineDTO request)
+        public async Task<ServiceResponse<string>> AddUpdateMagazine(MagazineDTO request)
         {
             try
             {
-                var magazine = new Magazine
+                if (request.MagazineId == 0)
                 {
-                  createdby = request.createdby,
-                  createdon = DateTime.Now,
-                  Link = PDFUpload(request.Link),
-                  MagazineTitle = request.MagazineTitle,
-                  PathURL = ImageUpload(request.PathURL),
-                  Status = true,
-                  EmployeeID = request.EmployeeID,
-                  Time = request.Time,
-                  Date = request.Date
-                };
-                string sql = @"INSERT INTO [tblMagazine] 
+                    var magazine = new Magazine
+                    {
+                        createdby = request.createdby,
+                        createdon = DateTime.Now,
+                        Link = PDFUpload(request.Link),
+                        MagazineTitle = request.MagazineTitle,
+                        PathURL = ImageUpload(request.PathURL),
+                        Status = true,
+                        EmployeeID = request.EmployeeID,
+                        Time = request.Time,
+                        Date = request.Date
+                    };
+                    string sql = @"INSERT INTO [tblMagazine] 
                    ([Date], [Time], [PathURL], [MagazineTitle], [Status], [Link], [EmployeeID], [createdon], [createdby]) 
                    VALUES 
                    (GETDATE(), @Time, @PathURL, @MagazineTitle, @Status, @Link, @EmployeeID, GETDATE(), @createdby);
                     SELECT CAST(SCOPE_IDENTITY() AS INT);";
-                int insertedValue = await _connection.QueryFirstOrDefaultAsync<int>(sql, magazine);
+                    int insertedValue = await _connection.QueryFirstOrDefaultAsync<int>(sql, magazine);
 
-                if (insertedValue > 0)
-                {
-                    int category = MagazineCategoryMapping(request.MagazineCategories ??= ([]), insertedValue);
-                    int classes = MagazineClassMapping(request.MagazineClasses ??= ([]), insertedValue);
-                    int board = MagazineBoardMapping(request.MagazineBoards ??= ([]), insertedValue);
-                    int course = MagazineCourseMapping(request.MagazineCourses ??= ([]), insertedValue);
-                    int exam = MagazineExamTypeMapping(request.MagazineExamTypes ??= ([]), insertedValue);
-                    if (category > 0 && classes > 0 && board > 0 && course > 0 && exam > 0)
+                    if (insertedValue > 0)
                     {
-                        return new ServiceResponse<string>(true, "Operation Successful", "Magazine Added Successfully", 200);
+                        int category = MagazineCategoryMapping(request.MagazineCategories ??= ([]), insertedValue);
+                        int classes = MagazineClassMapping(request.MagazineClasses ??= ([]), insertedValue);
+                        int board = MagazineBoardMapping(request.MagazineBoards ??= ([]), insertedValue);
+                        int course = MagazineCourseMapping(request.MagazineCourses ??= ([]), insertedValue);
+                        int exam = MagazineExamTypeMapping(request.MagazineExamTypes ??= ([]), insertedValue);
+                        if (category > 0 && classes > 0 && board > 0 && course > 0 && exam > 0)
+                        {
+                            return new ServiceResponse<string>(true, "Operation Successful", "Magazine Added Successfully", 200);
+                        }
+                        else
+                        {
+                            return new ServiceResponse<string>(false, "Operation failed", string.Empty, 500);
+                        }
                     }
                     else
                     {
-                        return new ServiceResponse<string>(false, "Operation failed", string.Empty, 500);
+                        return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
                     }
                 }
                 else
                 {
-                    return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
-                }
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
-            }
-        }
-        public async Task<ServiceResponse<string>> UpdateMagazine(MagazineDTO request)
-        {
-            try
-            {
-                string query = @"UPDATE [tblMagazine] 
+                    string query = @"UPDATE [tblMagazine] 
                    SET [MagazineTitle] = @MagazineTitle, [PathURL] = @PathURL, [Link] = @Link, [EmployeeID] = @EmployeeID, [modifiedon] = GETDATE(), [modifiedby] = @modifiedby
                    WHERE [MagazineId] = @MagazineId";
-                var magazine = new Magazine
-                {
-                    modifiedby = request.modifiedby,
-                    modifiedon = DateTime.Now,
-                    Link = PDFUpload(request.Link),
-                    MagazineTitle = request.MagazineTitle,
-                    PathURL = ImageUpload(request.PathURL),
-                    Status = true,
-                    EmployeeID = request.EmployeeID,
-                    Time = request.Time,
-                    MagazineId = request.MagazineId
-                };
-                int rowsAffected = await _connection.ExecuteAsync(query, magazine);
-                if (rowsAffected > 0)
-                {
-                    int category = MagazineCategoryMapping(request.MagazineCategories ??= ([]), request.MagazineId);
-                    int classes = MagazineClassMapping(request.MagazineClasses ??= ([]), request.MagazineId);
-                    int board = MagazineBoardMapping(request.MagazineBoards ??= ([]), request.MagazineId);
-                    int course = MagazineCourseMapping(request.MagazineCourses ??= ([]), request.MagazineId);
-                    int exam = MagazineExamTypeMapping(request.MagazineExamTypes ??= ([]), request.MagazineId);
-                    if (category > 0 && classes > 0 && board > 0 && course > 0 && exam > 0)
+                    var magazine = new Magazine
                     {
-                        return new ServiceResponse<string>(true, "Operation Successful", "Magazine updated Successfully", 200);
+                        modifiedby = request.modifiedby,
+                        modifiedon = DateTime.Now,
+                        Link = PDFUpload(request.Link),
+                        MagazineTitle = request.MagazineTitle,
+                        PathURL = ImageUpload(request.PathURL),
+                        Status = true,
+                        EmployeeID = request.EmployeeID,
+                        Time = request.Time,
+                        MagazineId = request.MagazineId
+                    };
+                    int rowsAffected = await _connection.ExecuteAsync(query, magazine);
+                    if (rowsAffected > 0)
+                    {
+                        int category = MagazineCategoryMapping(request.MagazineCategories ??= ([]), request.MagazineId);
+                        int classes = MagazineClassMapping(request.MagazineClasses ??= ([]), request.MagazineId);
+                        int board = MagazineBoardMapping(request.MagazineBoards ??= ([]), request.MagazineId);
+                        int course = MagazineCourseMapping(request.MagazineCourses ??= ([]), request.MagazineId);
+                        int exam = MagazineExamTypeMapping(request.MagazineExamTypes ??= ([]), request.MagazineId);
+                        if (category > 0 && classes > 0 && board > 0 && course > 0 && exam > 0)
+                        {
+                            return new ServiceResponse<string>(true, "Operation Successful", "Magazine updated Successfully", 200);
+                        }
+                        else
+                        {
+                            return new ServiceResponse<string>(false, "Operation failed", string.Empty, 500);
+                        }
                     }
                     else
                     {
-                        return new ServiceResponse<string>(false, "Operation failed", string.Empty, 500);
+                        return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
                     }
-                }
-                else
-                {
-                    return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
                 }
             }
             catch (Exception ex)
@@ -187,9 +183,9 @@ namespace ControlPanel_API.Repository.Implementations
 
                 // Fetch filtered and paginated records
                 var mainResult = await _connection.QueryAsync<dynamic>(baseQuery, parameters);
-
+                var today = DateTime.Today;
                 // Map results to response DTO
-                var response = mainResult.Select(item => new MagazineResponseDTO
+                var response = mainResult.Where(item => item.Date <= today).Select(item => new MagazineResponseDTO
                 {
                     MagazineId = item.MagazineId,
                     Date = item.Date,
@@ -240,29 +236,36 @@ namespace ControlPanel_API.Repository.Implementations
             WHERE m.[MagazineId] = @MagazineId";
 
                 var magazine = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new { MagazineId = id });
-
+                var today = DateTime.Today;
                 if (magazine != null)
                 {
-                    response.Link = GetPDF(magazine.Link);
-                    response.PathURL = GetImage(magazine.PathURL);
-                    response.MagazineId = magazine.MagazineId;
-                    response.Date = magazine.Date;
-                    response.Time = magazine.Time;
-                    response.MagazineTitle = magazine.MagazineTitle;
-                    response.Status = magazine.Status;
-                    response.EmpFirstName = magazine.EmpFirstName;
-                    response.EmployeeID = magazine.EmployeeID;
-                    response.createdby = magazine.createdby;
-                    response.createdon = magazine.createdon;
-                    response.modifiedon = magazine.modifiedon;
-                    response.modifiedby = magazine.modifiedby;
-                    response.MagazineCategories = GetListOfMagazineCategory(magazine.MagazineId);
-                    response.MagazineBoards = GetListOfMagazineBoards(magazine.MagazineId);
-                    response.MagazineClasses = GetListOfMagazineClass(magazine.MagazineId);
-                    response.MagazineCourses = GetListOfMagazineCourse(magazine.MagazineId);
-                    response.MagazineExamTypes = GetListOfMagazineExamType(magazine.MagazineId);
+                    if (magazine.Date <= today)
+                    {
+                        response.Link = GetPDF(magazine.Link);
+                        response.PathURL = GetImage(magazine.PathURL);
+                        response.MagazineId = magazine.MagazineId;
+                        response.Date = magazine.Date;
+                        response.Time = magazine.Time;
+                        response.MagazineTitle = magazine.MagazineTitle;
+                        response.Status = magazine.Status;
+                        response.EmpFirstName = magazine.EmpFirstName;
+                        response.EmployeeID = magazine.EmployeeID;
+                        response.createdby = magazine.createdby;
+                        response.createdon = magazine.createdon;
+                        response.modifiedon = magazine.modifiedon;
+                        response.modifiedby = magazine.modifiedby;
+                        response.MagazineCategories = GetListOfMagazineCategory(magazine.MagazineId);
+                        response.MagazineBoards = GetListOfMagazineBoards(magazine.MagazineId);
+                        response.MagazineClasses = GetListOfMagazineClass(magazine.MagazineId);
+                        response.MagazineCourses = GetListOfMagazineCourse(magazine.MagazineId);
+                        response.MagazineExamTypes = GetListOfMagazineExamType(magazine.MagazineId);
 
-                    return new ServiceResponse<MagazineResponseDTO>(true, "Record Found", response, 200);
+                        return new ServiceResponse<MagazineResponseDTO>(true, "Record Found", response, 200);
+                    }
+                    else
+                    {
+                        return new ServiceResponse<MagazineResponseDTO>(false, "Record not Found", new MagazineResponseDTO(), 500);
+                    }
                 }
                 else
                 {

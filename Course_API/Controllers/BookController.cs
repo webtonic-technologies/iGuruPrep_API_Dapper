@@ -59,35 +59,12 @@ namespace Course_API.Controllers
             }
 
         }
-        [HttpPost("AddBook")]
+        [HttpPost("AddUpdateBook")]
         public async Task<IActionResult> AddBook([FromBody] BookDTO bookDTO)
         {
             try
             {
-                var data = await _bookServices.Add(bookDTO);
-                if (data != null)
-                {
-                    return Ok(data);
-
-                }
-                else
-                {
-                    return BadRequest("Bad Request");
-                }
-
-            }
-            catch (Exception e)
-            {
-                return this.BadRequest(e.Message);
-            }
-
-        }
-        [HttpPut("UpdateBook")]
-        public async Task<IActionResult> UpdateBook([FromBody] BookDTO bookDTO)
-        {
-            try
-            {
-                var data = await _bookServices.Update(bookDTO);
+                var data = await _bookServices.AddUpdate(bookDTO);
                 if (data != null)
                 {
                     return Ok(data);

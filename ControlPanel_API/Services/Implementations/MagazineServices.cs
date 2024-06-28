@@ -14,11 +14,11 @@ namespace ControlPanel_API.Services.Implementations
         {
             _magazineRepository = magazineRepository;
         }
-        public async Task<ServiceResponse<string>> AddNewMagazine(MagazineDTO request)
+        public async Task<ServiceResponse<string>> AddUpdateMagazine(MagazineDTO request)
         {
             try
             {
-                return await _magazineRepository.AddNewMagazine(request);
+                return await _magazineRepository.AddUpdateMagazine(request);
             }
             catch (Exception ex)
             {
@@ -59,18 +59,6 @@ namespace ControlPanel_API.Services.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<bool>(false, ex.Message, false, 500);
-            }
-        }
-
-        public async Task<ServiceResponse<string>> UpdateMagazine(MagazineDTO request)
-        {
-            try
-            {
-                return await _magazineRepository.UpdateMagazine(request);
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
     }

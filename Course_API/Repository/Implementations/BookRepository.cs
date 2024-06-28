@@ -20,58 +20,111 @@ namespace Course_API.Repository.Implementations
             _hostingEnvironment = hostingEnvironment;
             _connectionString = configuration.GetConnectionString("DefaultConnection");
         }
-        public async Task<ServiceResponse<string>> Add(BookDTO request)
+        public async Task<ServiceResponse<string>> AddUpdate(BookDTO request)
         {
 
             try
             {
-                var book = new Book
+                if (request.BookId == 0)
                 {
-                    BookName = request.BookName,
-                    Status = true,
-                    pathURL = ImageUpload(request.pathURL),
-                    link = AudioVideoUpload(request.link),
-                    createdon = DateTime.Now,
-                    createdby = request.createdby,
-                    EmployeeID = request.EmployeeID,
-                    FileTypeId = request.FileTypeId
-                };
-                string insertQuery = @"
+                    var book = new Book
+                    {
+                        BookName = request.BookName,
+                        Status = true,
+                        pathURL = ImageUpload(request.pathURL),
+                        link = AudioVideoUpload(request.link),
+                        createdon = DateTime.Now,
+                        createdby = request.createdby,
+                        EmployeeID = request.EmployeeID,
+                        FileTypeId = request.FileTypeId
+                    };
+                    string insertQuery = @"
         INSERT INTO [tblLibrary] 
             (BookName, Status, pathURL, link, createdon, createdby, EmployeeID, FileTypeId)
         VALUES 
             (@BookName, @Status, @pathURL, @link, @createdon, @createdby, @EmployeeID, @FileTypeId);
         SELECT CAST(SCOPE_IDENTITY() AS INT);";
-                int insertedId = await _connection.QueryFirstOrDefaultAsync<int>(insertQuery, book);
-                if (insertedId > 0)
-                {
-                    int category = BookCategoryMapping(request.BookCategories ??= ([]), insertedId);
-                    int classes = BookClassMapping(request.BookClasses ??= ([]), insertedId);
-                    int board = BookBoardMapping(request.BookBoards ??= ([]), insertedId);
-                    int course = BookCourseMapping(request.BookCourses ??= ([]), insertedId);
-                    int exam = BookExamTypeMapping(request.BookExamTypes ??= ([]), insertedId);
-                    int subject = BookSubjectMapping(request.BookSubjects ??= ([]), insertedId);
-                    int author = BookAuthorMapping(request.BookAuthorDetails ??= ([]), insertedId);
-                    if (category > 0 && classes > 0 && board > 0 && course > 0 && exam > 0 && subject > 0 && author > 0)
+                    int insertedId = await _connection.QueryFirstOrDefaultAsync<int>(insertQuery, book);
+                    if (insertedId > 0)
                     {
-                        return new ServiceResponse<string>(true, "Operation Successful", "Book Added Successfully", 200);
+                        int category = BookCategoryMapping(request.BookCategories ??= ([]), insertedId);
+                        int classes = BookClassMapping(request.BookClasses ??= ([]), insertedId);
+                        int board = BookBoardMapping(request.BookBoards ??= ([]), insertedId);
+                        int course = BookCourseMapping(request.BookCourses ??= ([]), insertedId);
+                        int exam = BookExamTypeMapping(request.BookExamTypes ??= ([]), insertedId);
+                        int subject = BookSubjectMapping(request.BookSubjects ??= ([]), insertedId);
+                        int author = BookAuthorMapping(request.BookAuthorDetails ??= ([]), insertedId);
+                        if (category > 0 && classes > 0 && board > 0 && course > 0 && exam > 0 && subject > 0 && author > 0)
+                        {
+                            return new ServiceResponse<string>(true, "Operation Successful", "Book Added Successfully", 200);
+                        }
+                        else
+                        {
+                            return new ServiceResponse<string>(false, "Operation failed", string.Empty, 500);
+                        }
+
                     }
                     else
                     {
-                        return new ServiceResponse<string>(false, "Operation failed", string.Empty, 500);
+                        return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
                     }
-
                 }
                 else
                 {
-                    return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
+                    var book = new Book
+                    {
+                        BookName = request.BookName,
+                        Status = true,
+                        pathURL = ImageUpload(request.pathURL),
+                        link = AudioVideoUpload(request.link),
+                        modifiedon = DateTime.Now,
+                        modifiedby = request.modifiedby,
+                        EmployeeID = request.EmployeeID,
+                        FileTypeId = request.FileTypeId,
+                        BookId = request.BookId
+                    };
+                    string updateQuery = @"
+        UPDATE [tblLibrary]
+        SET 
+            BookName = @BookName,
+            Status = @Status,
+            pathURL = @pathURL,
+            link = @link,
+            modifiedon = @modifiedon,
+            modifiedby = @modifiedby,
+            EmployeeID = @EmployeeID,
+            FileTypeId = @FileTypeId
+        WHERE
+            BookId = @BookId";
+                    int rowsAffected = await _connection.ExecuteAsync(updateQuery, book);
+                    if (rowsAffected > 0)
+                    {
+                        int category = BookCategoryMapping(request.BookCategories ??= ([]), request.BookId);
+                        int classes = BookClassMapping(request.BookClasses ??= ([]), request.BookId);
+                        int board = BookBoardMapping(request.BookBoards ??= ([]), request.BookId);
+                        int course = BookCourseMapping(request.BookCourses ??= ([]), request.BookId);
+                        int exam = BookExamTypeMapping(request.BookExamTypes ??= ([]), request.BookId);
+                        int subject = BookSubjectMapping(request.BookSubjects ??= ([]), request.BookId);
+                        int author = BookAuthorMapping(request.BookAuthorDetails ??= ([]), request.BookId);
+                        if (category > 0 && classes > 0 && board > 0 && course > 0 && exam > 0 && subject > 0 && author > 0)
+                        {
+                            return new ServiceResponse<string>(true, "Operation Successful", "Book Updated Successfully", 200);
+                        }
+                        else
+                        {
+                            return new ServiceResponse<string>(false, "Operation failed", string.Empty, 500);
+                        }
+                    }
+                    else
+                    {
+                        return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
+                    }
                 }
             }
             catch (Exception ex)
             {
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
-
         }
         public async Task<ServiceResponse<bool>> Delete(int id)
         {
@@ -318,64 +371,6 @@ namespace Course_API.Repository.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<List<BookResponseDTO>>(false, ex.Message, new List<BookResponseDTO>(), 500);
-            }
-        }
-        public async Task<ServiceResponse<string>> Update(BookDTO request)
-        {
-            try
-            {
-                var book = new Book
-                {
-                    BookName = request.BookName,
-                    Status = true,
-                    pathURL = ImageUpload(request.pathURL),
-                    link = AudioVideoUpload(request.link),
-                    modifiedon = DateTime.Now,
-                    modifiedby = request.modifiedby,
-                    EmployeeID = request.EmployeeID,
-                    FileTypeId = request.FileTypeId,
-                    BookId = request.BookId
-                };
-                string updateQuery = @"
-        UPDATE [tblLibrary]
-        SET 
-            BookName = @BookName,
-            Status = @Status,
-            pathURL = @pathURL,
-            link = @link,
-            modifiedon = @modifiedon,
-            modifiedby = @modifiedby,
-            EmployeeID = @EmployeeID,
-            FileTypeId = @FileTypeId
-        WHERE
-            BookId = @BookId";
-                int rowsAffected = await _connection.ExecuteAsync(updateQuery, book);
-                if (rowsAffected > 0)
-                {
-                    int category = BookCategoryMapping(request.BookCategories ??= ([]), request.BookId);
-                    int classes = BookClassMapping(request.BookClasses ??= ([]), request.BookId);
-                    int board = BookBoardMapping(request.BookBoards ??= ([]), request.BookId);
-                    int course = BookCourseMapping(request.BookCourses ??= ([]), request.BookId);
-                    int exam = BookExamTypeMapping(request.BookExamTypes ??= ([]), request.BookId);
-                    int subject = BookSubjectMapping(request.BookSubjects ??= ([]), request.BookId);
-                    int author = BookAuthorMapping(request.BookAuthorDetails ??= ([]), request.BookId);
-                    if (category > 0 && classes > 0 && board > 0 && course > 0 && exam > 0 && subject > 0 && author > 0)
-                    {
-                        return new ServiceResponse<string>(true, "Operation Successful", "Book Updated Successfully", 200);
-                    }
-                    else
-                    {
-                        return new ServiceResponse<string>(false, "Operation failed", string.Empty, 500);
-                    }
-                }
-                else
-                {
-                    return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
-                }
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
         private int BookCategoryMapping(List<BookCategory> request, int BookId)
