@@ -1,6 +1,7 @@
 ﻿using ControlPanel_API.DTOs.Requests;
 using ControlPanel_API.DTOs.Response;
 using ControlPanel_API.DTOs.ServiceResponse;
+using ControlPanel_API.Models;
 using ControlPanel_API.Repository.Interfaces;
 using ControlPanel_API.Services.Interfaces;
 
@@ -46,6 +47,18 @@ namespace ControlPanel_API.Services.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<NotificationResponseDTO>(false, ex.Message, new NotificationResponseDTO(), 500);
+            }
+        }
+
+        public async Task<ServiceResponse<bool>> StatusActiveInactive(int id)
+        {
+            try
+            {
+                return await _notificationRepository.StatusActiveInactive(id);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<bool>(false, ex.Message, false, 500);
             }
         }
     }

@@ -39,6 +39,18 @@ namespace UserManagement_API.Services.Implementations
             }
         }
 
+        public async Task<ServiceResponse<List<Districts>>> GetDistrictsListMasters(int StateID)
+        {
+            try
+            {
+                return await _generateReferenceRepository.GetDistrictsListMasters(StateID);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<Districts>>(false, ex.Message, [], 500);
+            }
+        }
+
         public async Task<ServiceResponse<GenerateReferenceResponseDTO>> GetGenerateReferenceById(int GenerateReferenceID)
         {
             try
@@ -60,6 +72,18 @@ namespace UserManagement_API.Services.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<List<GenerateReferenceResponseDTO>>(false, ex.Message, [], 500);
+            }
+        }
+
+        public async Task<ServiceResponse<List<States>>> GetStatesListMasters()
+        {
+            try
+            {
+                return await _generateReferenceRepository.GetStatesListMasters();
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<States>>(false, ex.Message, [], 500);
             }
         }
     }

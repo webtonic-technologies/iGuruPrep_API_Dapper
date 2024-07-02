@@ -50,6 +50,19 @@ namespace ControlPanel_API.Services.Implementations
                 return new ServiceResponse<MagazineResponseDTO>(false, ex.Message, new MagazineResponseDTO(), 500);
             }
         }
+
+        public async Task<ServiceResponse<List<MagazineResponseDTO>>> GetMagazineByPublishDate(PublishMagazineDTO request)
+        {
+            try
+            {
+                return await _magazineRepository.GetMagazineByPublishDate(request);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<MagazineResponseDTO>>(false, ex.Message, [], 500);
+            }
+        }
+
         public async Task<ServiceResponse<bool>> StatusActiveInactive(int id)
         {
             try

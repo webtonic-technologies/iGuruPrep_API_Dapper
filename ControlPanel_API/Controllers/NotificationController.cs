@@ -1,4 +1,5 @@
 using ControlPanel_API.DTOs.Requests;
+using ControlPanel_API.Services.Implementations;
 using ControlPanel_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -57,6 +58,29 @@ namespace ControlPanel_API.Controllers
             {
                 return BadRequest(ex.Message);
             }
+        }
+        [HttpPut("Status/{NBNotificationID}")]
+        public async Task<IActionResult> StatusActiveInactive(int NBNotificationID)
+        {
+            try
+            {
+                var data = await _notificationServices.StatusActiveInactive(NBNotificationID);
+                if (data != null)
+                {
+                    return Ok(data);
+
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+
         }
 
     }

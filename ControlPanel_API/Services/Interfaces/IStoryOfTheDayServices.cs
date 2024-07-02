@@ -14,5 +14,6 @@ namespace ControlPanel_API.Services.Interfaces
         Task<ServiceResponse<bool>> StatusActiveInactive(int id);
         Task<ServiceResponse<List<EventType>>> GetEventtypeList();
         Task<ServiceResponse<List<Category>>> GetCategoryList();
+        Task<ServiceResponse<List<StoryOfTheDayResponseDTO>>> GetStoryOfTheDayByPublishDateAndTime(PublishStoryDTO request);
     }
 }

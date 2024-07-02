@@ -1,6 +1,7 @@
 ﻿using UserManagement_API.DTOs.Requests;
 using UserManagement_API.DTOs.Response;
 using UserManagement_API.DTOs.ServiceResponse;
+using UserManagement_API.Models;
 using UserManagement_API.Repository.Interfaces;
 using UserManagement_API.Services.Interfaces;
 
@@ -46,6 +47,18 @@ namespace UserManagement_API.Services.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<List<GenerateLicenseResponseDTO>>(false, ex.Message, [], 500);
+            }
+        }
+
+        public async Task<ServiceResponse<List<Validity>>> GetValidityList()
+        {
+            try
+            {
+                return await _generateLicenseRepository.GetValidityList();
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<Validity>>(false, ex.Message, [], 500);
             }
         }
     }

@@ -306,6 +306,38 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<NotificationResponseDTO>(false, ex.Message, new NotificationResponseDTO(), 500);
             }
         }
+        public async Task<ServiceResponse<bool>> StatusActiveInactive(int id)
+        {
+            try
+            {
+                var data = await GetNotificationById(id);
+
+                if (data.Data != null)
+                {
+                    data.Data.status = !data.Data.status;
+
+                    string sql = "UPDATE tblNbNotification SET status = @Status WHERE NBNotificationID = @NBNotificationID";
+
+                    int rowsAffected = await _connection.ExecuteAsync(sql, new { data.Data.status, NBNotificationID = id });
+                    if (rowsAffected > 0)
+                    {
+                        return new ServiceResponse<bool>(true, "Operation Successful", true, 200);
+                    }
+                    else
+                    {
+                        return new ServiceResponse<bool>(false, "Opertion Failed", false, 500);
+                    }
+                }
+                else
+                {
+                    return new ServiceResponse<bool>(false, "Record not Found", false, 204);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<bool>(false, ex.Message, false, 500);
+            }
+        }
         private async Task<int> AddUpdateNotificationDetailsMaster(List<NotificationDetail>? request, int notificationId)
         {
             int rowsAffected = 0;
@@ -396,7 +428,8 @@ namespace ControlPanel_API.Repository.Implementations
             {
                 Directory.CreateDirectory(directoryPath);
             }
-            string fileName = Guid.NewGuid().ToString() + ".pdf";
+            string fileExtension = IsPdf(imageData) == true ? ".pdf" : string.Empty;
+            string fileName = Guid.NewGuid().ToString() + fileExtension;
             string filePath = Path.Combine(directoryPath, fileName);
 
             // Write the byte array to the image file
@@ -414,6 +447,11 @@ namespace ControlPanel_API.Repository.Implementations
             byte[] fileBytes = File.ReadAllBytes(filePath);
             string base64String = Convert.ToBase64String(fileBytes);
             return base64String;
+        }
+        private bool IsPdf(byte[] fileData)
+        {
+            return fileData.Length > 4 &&
+                   fileData[0] == 0x25 && fileData[1] == 0x50 && fileData[2] == 0x44 && fileData[3] == 0x46;
         }
         private int NBCategoryMapping(List<NbNotificationCategory> request, int notificationId)
         {

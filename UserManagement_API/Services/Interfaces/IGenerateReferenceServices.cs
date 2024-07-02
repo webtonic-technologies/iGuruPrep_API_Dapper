@@ -11,5 +11,7 @@ namespace UserManagement_API.Services.Interfaces
         Task<ServiceResponse<GenerateReferenceResponseDTO>> GetGenerateReferenceById(int GenerateReferenceID);
         Task<ServiceResponse<List<GenerateReferenceResponseDTO>>> GetGenerateReferenceList(GetAllReferralsRequest request);
         Task<ServiceResponse<List<Bank>>> GetBankListMasters();
+        Task<ServiceResponse<List<States>>> GetStatesListMasters();
+        Task<ServiceResponse<List<Districts>>> GetDistrictsListMasters(int StateID);
     }
 }

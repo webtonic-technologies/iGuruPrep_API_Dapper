@@ -8,9 +8,9 @@ namespace UserManagement_API.Models
         public int referenceLinkID { get; set; }
         public string BranchName { get; set; } = string.Empty;
         [Required(ErrorMessage = "Bank name cannot be empty")]
-        public string BankName { get; set; } = string.Empty;
+        public int BankName { get; set; }
         [Required(ErrorMessage = "Acc number cannot be empty")]
-        public string ACNo { get; set; } = string.Empty;
+        public int ACNo { get; set; }
         [Required(ErrorMessage = "IFSC code cannot be empty")]
         public string IFSC { get; set; } = string.Empty;
         public int? ReferenceID { get; set; }

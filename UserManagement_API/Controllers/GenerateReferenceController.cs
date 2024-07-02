@@ -95,5 +95,45 @@ namespace UserManagement_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
+        [HttpGet("GetStatesList")]
+        public async Task<IActionResult> GetStatesList()
+        {
+            try
+            {
+                var data = await _generateReferenceServices.GetStatesListMasters();
+                if (data != null)
+                {
+                    return Ok(data);
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
+        [HttpGet("GetDistrictsList/{StateId}")]
+        public async Task<IActionResult> GetDistrictsList(int StateId)
+        {
+            try
+            {
+                var data = await _generateReferenceServices.GetDistrictsListMasters(StateId);
+                if (data != null)
+                {
+                    return Ok(data);
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
     }
 }

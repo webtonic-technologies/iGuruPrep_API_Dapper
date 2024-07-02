@@ -81,4 +81,11 @@ namespace ControlPanel_API.DTOs.Requests
         public int PageNumber { get; set; }
         public int PageSize { get; set; }
     }
+    public class PublishStoryDTO
+    {
+        public string? Event1Posttime { get; set; } = string.Empty;
+        public DateTime? Event1PostDate { get; set; }
+        public DateTime? Event2PostDate { get; set; }
+        public string? Event2Posttime { get; set; } = string.Empty;
+    }
 }

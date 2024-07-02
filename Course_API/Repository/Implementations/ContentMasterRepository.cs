@@ -158,8 +158,9 @@ namespace Course_API.Repository.Implementations
             {
                 string countSql = @"SELECT COUNT(*) FROM [tblContentMaster]";
                 int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
-            
-                string selectQuery = @"
+
+                // Base query
+                string baseQuery = @"
                 SELECT cm.contentid, cm.boardId, b.BoardName, cm.classId, cl.ClassName, cm.courseId, c.CourseName, cm.subjectId, s.SubjectName, cm.fileName, cm.PathURL, cm.createdon, cm.createdby, cm.modifiedon, cm.modifiedby,
                        cm.IndexTypeId, it.IndexType as IndexTypeName, cm.ExamTypeId, et.ExamTypeName, cm.APId, a.APName, cm.EmployeeId, e.EmpFirstName as EmployeeName , cm.ContentIndexId,
                        CASE 
@@ -179,13 +180,56 @@ namespace Course_API.Repository.Implementations
                 LEFT JOIN tblContentIndexChapters ci ON cm.ContentIndexId = ci.ContentIndexId AND cm.IndexTypeId = 1
                 LEFT JOIN tblContentIndexTopics ct ON cm.ContentIndexId = ct.ContInIdTopic AND cm.IndexTypeId = 2
                 LEFT JOIN tblContentIndexSubTopics cst ON cm.ContentIndexId = cst.ContInIdSubTopic AND cm.IndexTypeId = 3
-                ORDER BY cm.contentid
-                OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
+                WHERE 1=1";
+
+                // Applying filters
+                if (request.ClassID > 0)
+                {
+                    baseQuery += " AND cm.classId = @ClassID";
+                }
+                if (request.BoardID > 0)
+                {
+                    baseQuery += " AND cm.boardId = @BoardID";
+                }
+                if (request.CourseID > 0)
+                {
+                    baseQuery += " AND cm.courseId = @CourseID";
+                }
+                if (request.ExamTypeID > 0)
+                {
+                    baseQuery += " AND cm.ExamTypeId = @ExamTypeID";
+                }
+                if (request.APId > 0)
+                {
+                    baseQuery += " AND cm.APId = @APId";
+                }
+                if (request.SubjectID > 0)
+                {
+                    baseQuery += " AND cm.subjectId = @SubjectID";
+                }
+
+                // Pagination
+                baseQuery += " ORDER BY cm.contentid OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
 
                 int offset = (request.PageNumber - 1) * request.PageSize;
 
-                var data = await _connection.QueryAsync<ContentMasterResponseDTO>(selectQuery, new { Offset = offset, request.PageSize });
+                // Parameters for the query
+                var parameters = new
+                {
+                    ClassID = request.ClassID,
+                    BoardID = request.BoardID,
+                    CourseID = request.CourseID,
+                    ExamTypeID = request.ExamTypeID,
+                    APId = request.APId,
+                    SubjectID = request.SubjectID,
+                    Offset = offset,
+                    PageSize = request.PageSize
+                };
 
+                // Fetch filtered and paginated records
+                var data = await _connection.QueryAsync<ContentMasterResponseDTO>(baseQuery, parameters);
+
+                // Update fileName and PathURL
                 if (data != null && data.Any())
                 {
                     foreach (var item in data)
@@ -198,14 +242,69 @@ namespace Course_API.Repository.Implementations
                 }
                 else
                 {
-                    return new ServiceResponse<List<ContentMasterResponseDTO>>(false, "No Records Found", [], 204);
+                    return new ServiceResponse<List<ContentMasterResponseDTO>>(false, "No Records Found", new List<ContentMasterResponseDTO>(), 204);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<ContentMasterResponseDTO>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<ContentMasterResponseDTO>>(false, ex.Message, new List<ContentMasterResponseDTO>(), 500);
             }
         }
+
+        //public async Task<ServiceResponse<List<ContentMasterResponseDTO>>> GetContentList(GetAllContentListRequest request)
+        //{
+        //    try
+        //    {
+        //        string countSql = @"SELECT COUNT(*) FROM [tblContentMaster]";
+        //        int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
+
+        //        string selectQuery = @"
+        //        SELECT cm.contentid, cm.boardId, b.BoardName, cm.classId, cl.ClassName, cm.courseId, c.CourseName, cm.subjectId, s.SubjectName, cm.fileName, cm.PathURL, cm.createdon, cm.createdby, cm.modifiedon, cm.modifiedby,
+        //               cm.IndexTypeId, it.IndexType as IndexTypeName, cm.ExamTypeId, et.ExamTypeName, cm.APId, a.APName, cm.EmployeeId, e.EmpFirstName as EmployeeName , cm.ContentIndexId,
+        //               CASE 
+        //                   WHEN cm.IndexTypeId = 1 THEN ci.ContentName_Chapter
+        //                   WHEN cm.IndexTypeId = 2 THEN ct.ContentName_Topic
+        //                   WHEN cm.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+        //               END AS ContentIndexName
+        //        FROM tblContentMaster cm
+        //        LEFT JOIN tblBoard b ON cm.boardId = b.BoardId
+        //        LEFT JOIN tblClass cl ON cm.classId = cl.ClassId
+        //        LEFT JOIN tblCourse c ON cm.courseId = c.CourseId
+        //        LEFT JOIN tblSubject s ON cm.subjectId = s.SubjectId
+        //        LEFT JOIN tblExamType et ON cm.ExamTypeId = et.ExamTypeId
+        //        LEFT JOIN tblCategory a ON cm.APId = a.APId
+        //        LEFT JOIN tblEmployee e ON cm.EmployeeId = e.EmployeeId
+        //        LEFT JOIN tblQBIndexType it ON cm.IndexTypeId = it.IndexId
+        //        LEFT JOIN tblContentIndexChapters ci ON cm.ContentIndexId = ci.ContentIndexId AND cm.IndexTypeId = 1
+        //        LEFT JOIN tblContentIndexTopics ct ON cm.ContentIndexId = ct.ContInIdTopic AND cm.IndexTypeId = 2
+        //        LEFT JOIN tblContentIndexSubTopics cst ON cm.ContentIndexId = cst.ContInIdSubTopic AND cm.IndexTypeId = 3
+        //        ORDER BY cm.contentid
+        //        OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
+
+        //        int offset = (request.PageNumber - 1) * request.PageSize;
+
+        //        var data = await _connection.QueryAsync<ContentMasterResponseDTO>(selectQuery, new { Offset = offset, request.PageSize });
+
+        //        if (data != null && data.Any())
+        //        {
+        //            foreach (var item in data)
+        //            {
+        //                item.fileName = GetPDF(item.fileName);
+        //                item.PathURL = GetVideo(item.PathURL);
+        //            }
+
+        //            return new ServiceResponse<List<ContentMasterResponseDTO>>(true, "Operation Successful", data.ToList(), 200, totalCount);
+        //        }
+        //        else
+        //        {
+        //            return new ServiceResponse<List<ContentMasterResponseDTO>>(false, "No Records Found", [], 204);
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new ServiceResponse<List<ContentMasterResponseDTO>>(false, ex.Message, [], 500);
+        //    }
+        //}
         public async Task<ServiceResponse<List<ContentIndexResponse>>> GetAllContentIndexList(ContentIndexRequestDTO request)
         {
             try
@@ -308,7 +407,8 @@ namespace Course_API.Repository.Implementations
             {
                 Directory.CreateDirectory(directoryPath);
             }
-            string fileName = Guid.NewGuid().ToString() + ".pdf";
+            string fileExtension = IsPdf(imageData) == true ? ".pdf" : string.Empty;
+            string fileName = Guid.NewGuid().ToString() + fileExtension;
             string filePath = Path.Combine(directoryPath, fileName);
 
             // Write the byte array to the image file
@@ -354,6 +454,11 @@ namespace Course_API.Repository.Implementations
             // MOV magic number: "moov"
             return bytes.Length > 3 &&
                    bytes[0] == 0x6D && bytes[1] == 0x6F && bytes[2] == 0x6F && bytes[3] == 0x76;
+        }
+        private bool IsPdf(byte[] fileData)
+        {
+            return fileData.Length > 4 &&
+                   fileData[0] == 0x25 && fileData[1] == 0x50 && fileData[2] == 0x44 && fileData[3] == 0x46;
         }
         private string GetVideo(string Filename)
         {

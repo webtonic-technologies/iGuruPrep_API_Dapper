@@ -10,6 +10,7 @@
         public int? NoOfLicense { get; set; }
         public int ValidityID { get; set; }
         public int APID { get; set; }
+        public int ExamTypeId {  get; set; }
         //public string BoardName { get; set; } = string.Empty;
         //public string ClassName { get; set; } = string.Empty;
         //public string CourseName { get; set; } = string.Empty;

@@ -75,5 +75,25 @@ namespace UserManagement_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
+        [HttpGet("GetValidityList")]
+        public async Task<IActionResult> GetValidity()
+        {
+            try
+            {
+                var data = await _generateLicenseServices.GetValidityList();
+                if (data != null)
+                {
+                    return Ok(data);
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
     }
 }

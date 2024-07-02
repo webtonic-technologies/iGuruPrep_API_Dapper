@@ -73,4 +73,9 @@ namespace ControlPanel_API.DTOs.Requests
         public int PageNumber { get; set; }
         public int PageSize { get; set; }
     }
+    public class PublishMagazineDTO
+    {
+        public DateTime? Date { get; set; }
+        public string Time { get; set; } = string.Empty;
+    }
 }

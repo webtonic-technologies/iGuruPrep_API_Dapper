@@ -20,8 +20,9 @@
         public int refBankID { get; set; }
         public int referenceLinkID { get; set; }
         public string BranchName { get; set; } = string.Empty;
+        public int BankId {  get; set; }
         public string BankName { get; set; } = string.Empty;
-        public string ACNo { get; set; } = string.Empty;
+        public int ACNo { get; set; }
         public string IFSC { get; set; } = string.Empty;
         public int? ReferenceID { get; set; }
     }

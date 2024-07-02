@@ -1,4 +1,5 @@
 using ControlPanel_API.DTOs.Requests;
+using ControlPanel_API.Services.Implementations;
 using ControlPanel_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
@@ -101,6 +102,19 @@ namespace ControlPanel_API.Controllers
             {
                 var storyOfTheDay = await _storyOfTheDayService.GetCategoryList();
                 return Ok(storyOfTheDay);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+        [HttpPost("PublishStory")]
+        public async Task<IActionResult> GetStoryOfTheDayByPublishDateAndTime(PublishStoryDTO request)
+        {
+            try
+            {
+                var magazine = await _storyOfTheDayService.GetStoryOfTheDayByPublishDateAndTime(request);
+                return Ok(magazine);
             }
             catch (Exception ex)
             {

@@ -80,5 +80,18 @@ namespace ControlPanel_API.Controllers
             }
 
         }
+        [HttpPost("PublishMagazine")]
+        public async Task<IActionResult> GetMagazineByPublishDate(PublishMagazineDTO request)
+        {
+            try
+            {
+                var magazine = await _magazineService.GetMagazineByPublishDate(request);
+                return Ok(magazine);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
     }
 }

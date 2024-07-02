@@ -87,6 +87,18 @@ namespace ControlPanel_API.Services.Implementations
             }
         }
 
+        public async Task<ServiceResponse<List<StoryOfTheDayResponseDTO>>> GetStoryOfTheDayByPublishDateAndTime(PublishStoryDTO request)
+        {
+            try
+            {
+                return await _storyOfTheDayRepository.GetStoryOfTheDayByPublishDateAndTime(request);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<StoryOfTheDayResponseDTO>>(false, ex.Message, [], 500);
+            }
+        }
+
         public async Task<ServiceResponse<bool>> StatusActiveInactive(int id)
         {
             try

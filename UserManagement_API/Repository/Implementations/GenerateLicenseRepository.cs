@@ -46,8 +46,8 @@ namespace UserManagement_API.Repository.Implementations
                     if (generatedId != 0)
                     {
                         string insertQuery = @"
-                        INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID)
-                        VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID);";
+                        INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID, ExamTypeId)
+                        VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID, @ExamTypeId);";
                         if (request.LicenseDetails != null)
                         {
                             foreach (var item in request.LicenseDetails)
@@ -117,8 +117,8 @@ namespace UserManagement_API.Repository.Implementations
                             if (rowsAffected1 > 0)
                             {
                                 string insertQuery = @"
-                                INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID)
-                                VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID);";
+                                INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID, ExamTypeId)
+                                VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID, @ExamTypeId);";
 
                                 if (request.LicenseDetails != null)
                                     foreach (var item in request.LicenseDetails)
@@ -144,8 +144,8 @@ namespace UserManagement_API.Repository.Implementations
                         else
                         {
                             string insertQuery = @"
-                            INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID)
-                            VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID);";
+                            INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID, ExamTypeId)
+                            VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID, @ExamTypeId);";
                             if (request.LicenseDetails != null)
                                 foreach (var item in request.LicenseDetails)
                                 {
@@ -216,13 +216,15 @@ namespace UserManagement_API.Repository.Implementations
                            c.ClassName, 
                            co.CourseName, 
                            cat.APName as categoryName, 
-                           v.ValidityPeriod AS ValidityName
+                           v.ValidityPeriod AS ValidityName,
+                           ex.ExamTypeName as ExamTypeName
                     FROM tblLicenseDetail ld
                     LEFT JOIN tblBoard b ON ld.BoardID = b.BoardID
                     LEFT JOIN tblClass c ON ld.ClassID = c.ClassID
                     LEFT JOIN tblCourse co ON ld.CourseID = co.CourseID
                     LEFT JOIN tblCategory cat ON ld.APID = cat.APId
                     LEFT JOIN tblValidity v ON ld.ValidityID = v.ValidityID
+                    LEFT JOIN tblExamType ex ON ld.ExamTypeId = ex.ExamTypeID
                     WHERE ld.GenerateLicenseID = @GenerateLicenseID;";
 
                     var data = await _connection.QueryAsync<LicenseDetailResponse>(query, new { GenerateLicenseID });
@@ -287,13 +289,15 @@ namespace UserManagement_API.Repository.Implementations
                            c.ClassName, 
                            co.CourseName, 
                            cat.APName as categoryName, 
-                           v.ValidityPeriod AS ValidityName
+                           v.ValidityPeriod AS ValidityName,
+                           ex.ExamTypeName as ExamTypeName
                     FROM tblLicenseDetail ld
                     LEFT JOIN tblBoard b ON ld.BoardID = b.BoardID
                     LEFT JOIN tblClass c ON ld.ClassID = c.ClassID
                     LEFT JOIN tblCourse co ON ld.CourseID = co.CourseID
                     LEFT JOIN tblCategory cat ON ld.APID = cat.APId
                     LEFT JOIN tblValidity v ON ld.ValidityID = v.ValidityID
+                    LEFT JOIN tblExamType ex ON ld.ExamTypeId = ex.ExamTypeID
                     WHERE ld.GenerateLicenseID = @GenerateLicenseID;";
                     foreach (var item in generateLicenses)
                     {
@@ -342,6 +346,28 @@ namespace UserManagement_API.Repository.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<List<GenerateLicenseResponseDTO>>(false, ex.Message, [], 500);
+            }
+        }
+        public async Task<ServiceResponse<List<Validity>>> GetValidityList()
+        {
+            try
+            {
+                var Query = @"Select * from [tblValidity]";
+                // Execute the query
+                var data = await _connection.QueryAsync<Validity>(Query);
+
+                if (data.Any())
+                {
+                    return new ServiceResponse<List<Validity>>(true, "Records found", data.ToList(), 200);
+                }
+                else
+                {
+                    return new ServiceResponse<List<Validity>>(false, "Records not found", [], 204);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<Validity>>(false, ex.Message, [], 500);
             }
         }
     }

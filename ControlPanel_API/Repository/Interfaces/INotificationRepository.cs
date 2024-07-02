@@ -9,5 +9,6 @@ namespace ControlPanel_API.Repository.Interfaces
         Task<ServiceResponse<string>> AddUpdateNotification(NotificationDTO request);
         Task<ServiceResponse<List<NotificationResponseDTO>>> GetAllNotificationsList(NotificationsListDTO request);
         Task<ServiceResponse<NotificationResponseDTO>> GetNotificationById(int NotificationId);
+        Task<ServiceResponse<bool>> StatusActiveInactive(int id);
     }
 }

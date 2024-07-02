@@ -309,6 +309,55 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<bool>(false, ex.Message, false, 500);
             }
         }
+        public async Task<ServiceResponse<List<MagazineResponseDTO>>> GetMagazineByPublishDate(PublishMagazineDTO request)
+        {
+            try
+            {
+                var responseList = new List<MagazineResponseDTO>();
+                string query = @"
+            SELECT m.[MagazineId], m.[Date], m.[Time], m.[PathURL], m.[MagazineTitle], m.[Status], m.[Link], m.[EmployeeID],
+            m.[createdon], m.[createdby], m.[modifiedby], m.[modifiedon],
+            e.[EmpFirstName]
+            FROM [tblMagazine] m
+            LEFT JOIN [tblEmployee] e ON m.EmployeeID = e.Employeeid
+            WHERE m.[Date] = @Date AND m.[Time] = @Time";
+
+                var magazines = await _connection.QueryAsync<dynamic>(query, new { Date = request.Date, Time = request.Time });
+
+                foreach (var magazine in magazines)
+                {
+                    var response = new MagazineResponseDTO
+                    {
+                        Link = GetPDF(magazine.Link),
+                        PathURL = GetImage(magazine.PathURL),
+                        MagazineId = magazine.MagazineId,
+                        Date = magazine.Date,
+                        Time = magazine.Time,
+                        MagazineTitle = magazine.MagazineTitle,
+                        Status = magazine.Status,
+                        EmpFirstName = magazine.EmpFirstName,
+                        EmployeeID = magazine.EmployeeID,
+                        createdby = magazine.createdby,
+                        createdon = magazine.createdon,
+                        modifiedon = magazine.modifiedon,
+                        modifiedby = magazine.modifiedby,
+                        MagazineCategories = GetListOfMagazineCategory(magazine.MagazineId),
+                        MagazineBoards = GetListOfMagazineBoards(magazine.MagazineId),
+                        MagazineClasses = GetListOfMagazineClass(magazine.MagazineId),
+                        MagazineCourses = GetListOfMagazineCourse(magazine.MagazineId),
+                        MagazineExamTypes = GetListOfMagazineExamType(magazine.MagazineId)
+                    };
+
+                    responseList.Add(response);
+                }
+
+                return new ServiceResponse<List<MagazineResponseDTO>>(true, "Operation Successful", responseList, 200);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<MagazineResponseDTO>>(false, ex.Message, new List<MagazineResponseDTO>(), 500);
+            }
+        }
         private string ImageUpload(string image)
         {
             if (string.IsNullOrEmpty(image) || image == "string")
@@ -343,7 +392,8 @@ namespace ControlPanel_API.Repository.Implementations
             {
                 Directory.CreateDirectory(directoryPath);
             }
-            string fileName = Guid.NewGuid().ToString() + ".pdf";
+            string fileExtension = IsPdf(imageData) == true ? ".pdf" : string.Empty;
+            string fileName = Guid.NewGuid().ToString() + fileExtension;
             string filePath = Path.Combine(directoryPath, fileName);
 
             // Write the byte array to the image file
@@ -608,6 +658,11 @@ namespace ControlPanel_API.Repository.Implementations
         {
             // GIF magic number: "GIF"
             return bytes.Length > 2 && bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46;
+        }
+        private bool IsPdf(byte[] fileData)
+        {
+            return fileData.Length > 4 &&
+                   fileData[0] == 0x25 && fileData[1] == 0x50 && fileData[2] == 0x44 && fileData[3] == 0x46;
         }
     }
 }
