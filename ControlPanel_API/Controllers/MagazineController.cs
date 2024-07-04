@@ -80,12 +80,12 @@ namespace ControlPanel_API.Controllers
             }
 
         }
-        [HttpPost("PublishMagazine")]
-        public async Task<IActionResult> GetMagazineByPublishDate(PublishMagazineDTO request)
+        [HttpGet("PublishMagazine")]
+        public async Task<IActionResult> GetMagazineByPublishDate()
         {
             try
             {
-                var magazine = await _magazineService.GetMagazineByPublishDate(request);
+                var magazine = await _magazineService.GetMagazineByPublishDate();
                 return Ok(magazine);
             }
             catch (Exception ex)

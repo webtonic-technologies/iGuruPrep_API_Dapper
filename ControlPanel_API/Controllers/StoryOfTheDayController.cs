@@ -108,12 +108,12 @@ namespace ControlPanel_API.Controllers
                 return BadRequest(ex.Message);
             }
         }
-        [HttpPost("PublishStory")]
-        public async Task<IActionResult> GetStoryOfTheDayByPublishDateAndTime(PublishStoryDTO request)
+        [HttpGet("PublishStory")]
+        public async Task<IActionResult> GetStoryOfTheDayByPublishDateAndTime()
         {
             try
             {
-                var magazine = await _storyOfTheDayService.GetStoryOfTheDayByPublishDateAndTime(request);
+                var magazine = await _storyOfTheDayService.GetStoryOfTheDayByPublishDateAndTime();
                 return Ok(magazine);
             }
             catch (Exception ex)

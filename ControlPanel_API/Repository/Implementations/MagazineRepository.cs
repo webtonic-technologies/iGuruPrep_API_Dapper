@@ -309,20 +309,36 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<bool>(false, ex.Message, false, 500);
             }
         }
-        public async Task<ServiceResponse<List<MagazineResponseDTO>>> GetMagazineByPublishDate(PublishMagazineDTO request)
+        public async Task<ServiceResponse<List<MagazineResponseDTO>>> GetMagazineByPublishDate()
         {
             try
             {
                 var responseList = new List<MagazineResponseDTO>();
-                string query = @"
-            SELECT m.[MagazineId], m.[Date], m.[Time], m.[PathURL], m.[MagazineTitle], m.[Status], m.[Link], m.[EmployeeID],
-            m.[createdon], m.[createdby], m.[modifiedby], m.[modifiedon],
-            e.[EmpFirstName]
-            FROM [tblMagazine] m
-            LEFT JOIN [tblEmployee] e ON m.EmployeeID = e.Employeeid
-            WHERE m.[Date] = @Date AND m.[Time] = @Time";
 
-                var magazines = await _connection.QueryAsync<dynamic>(query, new { Date = request.Date, Time = request.Time });
+                // Get current UTC date and time
+                var utcNow = DateTime.UtcNow;
+
+                // Convert UTC time to Indian Standard Time (IST)
+                var istTimeZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
+                var istNow = TimeZoneInfo.ConvertTimeFromUtc(utcNow, istTimeZone);
+
+                var currentDate = istNow.Date;
+                var currentTime = new TimeSpan(istNow.Hour, istNow.Minute, 0); // Only consider hours and minutes
+
+                // Convert current time to a comparable format for SQL query
+                var currentTimeString = istNow.ToString("HH:mm");
+
+                string query = @"
+                SELECT m.[MagazineId], m.[Date], m.[Time], m.[PathURL], m.[MagazineTitle], m.[Status], m.[Link], m.[EmployeeID],
+                m.[createdon], m.[createdby], m.[modifiedby], m.[modifiedon],
+                e.[EmpFirstName]
+                FROM [tblMagazine] m
+                LEFT JOIN [tblEmployee] e ON m.EmployeeID = e.Employeeid
+                WHERE m.[Date] = @Date AND 
+                RIGHT('0' + LTRIM(CONVERT(VARCHAR(2), DATEPART(HOUR, m.[Time]))), 2) + ':' + 
+                RIGHT('0' + LTRIM(CONVERT(VARCHAR(2), DATEPART(MINUTE, m.[Time]))), 2) = @Time";
+
+                var magazines = await _connection.QueryAsync<dynamic>(query, new { Date = currentDate, Time = currentTimeString });
 
                 foreach (var magazine in magazines)
                 {
@@ -350,8 +366,14 @@ namespace ControlPanel_API.Repository.Implementations
 
                     responseList.Add(response);
                 }
-
-                return new ServiceResponse<List<MagazineResponseDTO>>(true, "Operation Successful", responseList, 200);
+                if (responseList.Count > 0)
+                {
+                    return new ServiceResponse<List<MagazineResponseDTO>>(true, "Operation Successful", responseList, 200);
+                }
+                else
+                {
+                    return new ServiceResponse<List<MagazineResponseDTO>>(true, "No records found", [], 404);
+                }
             }
             catch (Exception ex)
             {

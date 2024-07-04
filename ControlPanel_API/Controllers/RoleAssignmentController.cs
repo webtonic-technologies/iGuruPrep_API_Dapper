@@ -35,11 +35,11 @@ namespace ControlPanel_API.Controllers
             }
         }
         [HttpPost("AddUpdateRoleAssignment")]
-        public async Task<IActionResult> AddUpdateRoleAssignment(List<RoleAssignmentMapping> request, int EmployeeId)
+        public async Task<IActionResult> AddUpdateRoleAssignment(List<RoleAssignmentMapping> request)
         {
             try
             {
-                return new OkObjectResult(await _roleAssignmentServices.AddUpdateRoleAssignment(request, EmployeeId));
+                return new OkObjectResult(await _roleAssignmentServices.AddUpdateRoleAssignment(request));
             }
             catch (Exception ex)
             {
@@ -49,12 +49,12 @@ namespace ControlPanel_API.Controllers
                 };
             }
         }
-        [HttpPut("RemoveRoleAssignment/{RAMappingId}")]
-        public async Task<IActionResult> RemoveRoleAssignment(int RAMappingId)
+        [HttpPut("RemoveRoleAssignment/{roleId},{designationId}/{RAMappingId}")]
+        public async Task<IActionResult> RemoveRoleAssignment(int RAMappingId, int roleId, int designationId)
         {
             try
             {
-                var data = await _roleAssignmentServices.RemoveRoleAssignment(RAMappingId);
+                var data = await _roleAssignmentServices.RemoveRoleAssignment(RAMappingId, roleId, designationId);
                 if (data != null)
                 {
                     return Ok(data);

@@ -10,6 +10,6 @@ namespace ControlPanel_API.Services.Interfaces
         Task<ServiceResponse<List<MagazineResponseDTO>>> GetAllMagazines(MagazineListDTO request);
         Task<ServiceResponse<MagazineResponseDTO>> GetMagazineById(int id);
         Task<ServiceResponse<bool>> StatusActiveInactive(int id);
-        Task<ServiceResponse<List<MagazineResponseDTO>>> GetMagazineByPublishDate(PublishMagazineDTO request);
+        Task<ServiceResponse<List<MagazineResponseDTO>>> GetMagazineByPublishDate();
     }
 }

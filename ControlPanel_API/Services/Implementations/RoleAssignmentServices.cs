@@ -15,11 +15,11 @@ namespace ControlPanel_API.Services.Implementations
         {
             _roleAssignmentRepository = roleAssignmentRepository;
         }
-        public async Task<ServiceResponse<string>> AddUpdateRoleAssignment(List<RoleAssignmentMapping> request, int EmployeeId)
+        public async Task<ServiceResponse<string>> AddUpdateRoleAssignment(List<RoleAssignmentMapping> request)
         {
             try
             {
-                return await _roleAssignmentRepository.AddUpdateRoleAssignment(request, EmployeeId);
+                return await _roleAssignmentRepository.AddUpdateRoleAssignment(request);
             }
             catch (Exception ex)
             {
@@ -61,12 +61,12 @@ namespace ControlPanel_API.Services.Implementations
                 return new ServiceResponse<RoleAssignmentResponse>(false, ex.Message, new RoleAssignmentResponse(), 500);
             }
         }
-        public async Task<ServiceResponse<string>> RemoveRoleAssignment(int RAMappingId)
+        public async Task<ServiceResponse<string>> RemoveRoleAssignment(int RAMappingId, int roleId, int designationId)
         {
 
             try
             {
-                return await _roleAssignmentRepository.RemoveRoleAssignment(RAMappingId);
+                return await _roleAssignmentRepository.RemoveRoleAssignment(RAMappingId, roleId, designationId);
             }
             catch (Exception ex)
             {

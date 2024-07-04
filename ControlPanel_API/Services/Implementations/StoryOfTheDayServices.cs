@@ -87,11 +87,11 @@ namespace ControlPanel_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<StoryOfTheDayResponseDTO>>> GetStoryOfTheDayByPublishDateAndTime(PublishStoryDTO request)
+        public async Task<ServiceResponse<List<StoryOfTheDayResponseDTO>>> GetStoryOfTheDayByPublishDateAndTime()
         {
             try
             {
-                return await _storyOfTheDayRepository.GetStoryOfTheDayByPublishDateAndTime(request);
+                return await _storyOfTheDayRepository.GetStoryOfTheDayByPublishDateAndTime();
             }
             catch (Exception ex)
             {

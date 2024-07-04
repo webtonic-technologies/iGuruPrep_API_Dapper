@@ -51,11 +51,11 @@ namespace ControlPanel_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<MagazineResponseDTO>>> GetMagazineByPublishDate(PublishMagazineDTO request)
+        public async Task<ServiceResponse<List<MagazineResponseDTO>>> GetMagazineByPublishDate()
         {
             try
             {
-                return await _magazineRepository.GetMagazineByPublishDate(request);
+                return await _magazineRepository.GetMagazineByPublishDate();
             }
             catch (Exception ex)
             {

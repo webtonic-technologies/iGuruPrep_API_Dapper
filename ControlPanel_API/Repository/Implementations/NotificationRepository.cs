@@ -121,124 +121,109 @@ namespace ControlPanel_API.Repository.Implementations
         {
             try
             {
+                // Count query
                 string countSql = @"SELECT COUNT(*) FROM [tblNbNotification]";
                 int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
+
                 var notificationIds = new HashSet<int>();
 
-                // Define the queries
-                string categoriesQuery = @"SELECT [NBNotificationID] FROM [tblNbNotificationCategory] WHERE [APID] = @APId";
-                string boardsQuery = @"SELECT [NBNotificationID] FROM [tblNbNotificationBoard] WHERE [BoardID] = @BoardID";
-                string classesQuery = @"SELECT [NBNotificationID] FROM [tblNbNotificationClass] WHERE [ClassID] = @ClassID";
-                string coursesQuery = @"SELECT [NBNotificationID] FROM [tblNbNotificationCourse] WHERE [CourseID] = @CourseID";
-                string examsQuery = @"SELECT [NBNotificationID] FROM [tblNbNotificationExamType] WHERE [ExamTypeID] = @ExamTypeID";
-                // string subjectQuery = @"SELECT [bookID] FROM [tbllibrarySubject] WHERE [SubjectID] = @SubjectID";
+                // Base query
+                string baseQuery = @"
+            SELECT 
+                n.NBNotificationID, 
+                n.NotificationTitle, 
+                n.PathURL, 
+                n.status, 
+                n.createdon, 
+                n.createdby, 
+                n.modifiedon, 
+                n.modifiedby, 
+                n.EmployeeID,
+                e.EmpFirstName as EmpFirstName
+            FROM tblNbNotification n
+            LEFT JOIN tblEmployee e ON n.EmployeeID = e.Employeeid
+            WHERE 1=1";
 
-                var categoryTask = Task.Run(async () =>
+                // Applying filters
+                if (request.APId > 0)
                 {
-                    using var connection = new SqlConnection(_connectionString);
-                    await connection.OpenAsync();
-                    return await connection.QueryAsync<int>(categoriesQuery, new { request.APId });
-                });
-
-                var boardTask = Task.Run(async () =>
+                    baseQuery += " AND n.NBNotificationID IN (SELECT [NBNotificationID] FROM [tblNbNotificationCategory] WHERE [APID] = @APId)";
+                }
+                if (request.BoardID > 0)
                 {
-                    using var connection = new SqlConnection(_connectionString);
-                    await connection.OpenAsync();
-                    return await connection.QueryAsync<int>(boardsQuery, new { request.BoardID });
-                });
-
-                var classTask = Task.Run(async () =>
+                    baseQuery += " AND n.NBNotificationID IN (SELECT [NBNotificationID] FROM [tblNbNotificationBoard] WHERE [BoardID] = @BoardID)";
+                }
+                if (request.ClassID > 0)
                 {
-                    using var connection = new SqlConnection(_connectionString);
-                    await connection.OpenAsync();
-                    return await connection.QueryAsync<int>(classesQuery, new { request.ClassID });
-                });
-
-                var courseTask = Task.Run(async () =>
+                    baseQuery += " AND n.NBNotificationID IN (SELECT [NBNotificationID] FROM [tblNbNotificationClass] WHERE [ClassID] = @ClassID)";
+                }
+                if (request.CourseID > 0)
                 {
-                    using var connection = new SqlConnection(_connectionString);
-                    await connection.OpenAsync();
-                    return await connection.QueryAsync<int>(coursesQuery, new { request.CourseID });
-                });
-
-                var examTask = Task.Run(async () =>
+                    baseQuery += " AND n.NBNotificationID IN (SELECT [NBNotificationID] FROM [tblNbNotificationCourse] WHERE [CourseID] = @CourseID)";
+                }
+                if (request.ExamTypeID > 0)
                 {
-                    using var connection = new SqlConnection(_connectionString);
-                    await connection.OpenAsync();
-                    return await connection.QueryAsync<int>(examsQuery, new { request.ExamTypeID });
-                });
-
-                // Wait for all tasks to complete
-                var results = await Task.WhenAll(categoryTask, boardTask, classTask, courseTask, examTask);
-
-                // Add all results to the HashSet to ensure uniqueness
-                foreach (var result in results)
-                {
-                    foreach (var id in result)
-                    {
-                        notificationIds.Add(id);
-                    }
+                    baseQuery += " AND n.NBNotificationID IN (SELECT [NBNotificationID] FROM [tblNbNotificationExamType] WHERE [ExamTypeID] = @ExamTypeID)";
                 }
 
-                // Prepare the list of IDs for the final query
-                var parameters = new { Ids = notificationIds.ToList() };
+                // Pagination
+                baseQuery += " ORDER BY n.NBNotificationID OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
 
-                // Main query to fetch magazine details
-                string mainQuery = @"
-        SELECT 
-            n.NBNotificationID, 
-            n.NotificationTitle, 
-            n.PathURL, 
-            n.status, 
-            n.createdon, 
-            n.createdby, 
-            n.modifiedon, 
-            n.modifiedby, 
-            n.EmployeeID,
-            e.EmpFirstName as EmpFirstName
-        FROM tblNbNotification n
-        LEFT JOIN tblEmployee e ON n.EmployeeID = e.Employeeid
-        WHERE n.NBNotificationID IN @Ids";
+                var offset = (request.PageNumber - 1) * request.PageSize;
 
-                var data = await _connection.QueryAsync<dynamic>(mainQuery, parameters);
-
-                var response = data.Select(item => new NotificationResponseDTO
+                // Parameters for the query
+                var parameters = new
                 {
+                    APId = request.APId,
+                    BoardID = request.BoardID,
+                    ClassID = request.ClassID,
+                    CourseID = request.CourseID,
+                    ExamTypeID = request.ExamTypeID,
+                    Offset = offset,
+                    PageSize = request.PageSize
+                };
+
+                // Fetch filtered and paginated records
+                var mainResult = await _connection.QueryAsync<dynamic>(baseQuery, parameters);
+
+                // Map results to response DTO
+                var response = mainResult.Select(item => new NotificationResponseDTO
+                {
+                    NBNotificationID = item.NBNotificationID,
+                    NotificationTitle = item.NotificationTitle,
+                    PathURL = GetPDF(item.PathURL ?? string.Empty),
+                    status = item.status,
+                    createdon = item.createdon,
+                    createdby = item.createdby,
+                    modifiedon = item.modifiedon,
+                    modifiedby = item.modifiedby,
+                    EmployeeID = item.EmployeeID,
+                    EmpFirstName = item.EmpFirstName,
                     NbNotificationCategories = GetListOfNBCategory(item.NBNotificationID),
                     NbNotificationBoards = GetListOfNBBoards(item.NBNotificationID),
                     NbNotificationClasses = GetListOfNBClass(item.NBNotificationID),
                     NbNotificationCourses = GetListOfNBCourse(item.NBNotificationID),
                     NbNotificationExamTypes = GetListOfNBExamType(item.NBNotificationID),
-                    NotificationTitle = item.NotificationTitle,
-                    PathURL = GetPDF(item.PathURL ??= string.Empty),
-                    status = item.status,
-                    createdon = item.createdon,
-                    createdby = item.createdby,
-                    EmployeeID = item.EmployeeID,
-                    EmpFirstName = item.EmpFirstName,
-                    modifiedby = item.modifiedby,
-                    modifiedon = item.modifiedon,
-                    NBNotificationID = item.NBNotificationID,
                     NotificationDetails = GetListOfNotificationDetails(item.NBNotificationID),
                     NotificationLinkMasters = GetListOfNotificationLink(item.NBNotificationID)
                 }).ToList();
-                var paginatedList = response.Skip((request.PageNumber - 1) * request.PageSize)
-              .Take(request.PageSize)
-              .ToList();
-                if (paginatedList.Count != 0)
+
+                // Check if there are records
+                if (response.Count != 0)
                 {
-                    return new ServiceResponse<List<NotificationResponseDTO>>(true, "Records found", paginatedList, 200, totalCount);
+                    return new ServiceResponse<List<NotificationResponseDTO>>(true, "Records found", response, 200, totalCount);
                 }
                 else
                 {
-                    return new ServiceResponse<List<NotificationResponseDTO>>(false, "Records not found", [], 404);
+                    return new ServiceResponse<List<NotificationResponseDTO>>(false, "Records not found", new List<NotificationResponseDTO>(), 404);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<NotificationResponseDTO>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<NotificationResponseDTO>>(false, ex.Message, new List<NotificationResponseDTO>(), 500);
             }
         }
+
         public async Task<ServiceResponse<NotificationResponseDTO>> GetNotificationById(int NotificationId)
         {
             try
