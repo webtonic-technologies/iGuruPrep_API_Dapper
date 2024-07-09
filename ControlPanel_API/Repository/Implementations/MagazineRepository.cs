@@ -115,32 +115,30 @@ namespace ControlPanel_API.Repository.Implementations
         {
             try
             {
-                string countSql = @"SELECT COUNT(*) FROM [tblMagazine]";
-                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
-                // Base query
+                // Base query to fetch all matching records
                 string baseQuery = @"
-                SELECT DISTINCT
-                    m.[MagazineId], 
-                    m.[Date], 
-                    m.[Time], 
-                    m.[PathURL], 
-                    m.[MagazineTitle], 
-                    m.[Status], 
-                    m.[Link], 
-                    m.[EmployeeID],
-                    m.[createdon], 
-                    m.[createdby], 
-                    m.[modifiedby], 
-                    m.[modifiedon],
-                    e.[EmpFirstName]
-                FROM [tblMagazine] m
-                LEFT JOIN [tblEmployee] e ON m.EmployeeID = e.Employeeid
-                LEFT JOIN [tblMagazineCategory] mc ON m.MagazineId = mc.MagazineId
-                LEFT JOIN [tblMagazineBoard] mb ON m.MagazineId = mb.MagazineId
-                LEFT JOIN [tblMagazineClass] mcl ON m.MagazineId = mcl.MagazineId
-                LEFT JOIN [tblMagazineCourse] mco ON m.MagazineId = mco.MagazineId
-                LEFT JOIN [tblMagazineExamType] met ON m.MagazineId = met.MagazineId
-                WHERE 1=1";
+        SELECT DISTINCT
+            m.[MagazineId], 
+            m.[Date], 
+            m.[Time], 
+            m.[PathURL], 
+            m.[MagazineTitle], 
+            m.[Status], 
+            m.[Link], 
+            m.[EmployeeID],
+            m.[createdon], 
+            m.[createdby], 
+            m.[modifiedby], 
+            m.[modifiedon],
+            e.[EmpFirstName]
+        FROM [tblMagazine] m
+        LEFT JOIN [tblEmployee] e ON m.EmployeeID = e.Employeeid
+        LEFT JOIN [tblMagazineCategory] mc ON m.MagazineId = mc.MagazineId
+        LEFT JOIN [tblMagazineBoard] mb ON m.MagazineId = mb.MagazineId
+        LEFT JOIN [tblMagazineClass] mcl ON m.MagazineId = mcl.MagazineId
+        LEFT JOIN [tblMagazineCourse] mco ON m.MagazineId = mco.MagazineId
+        LEFT JOIN [tblMagazineExamType] met ON m.MagazineId = met.MagazineId
+        WHERE 1=1";
 
                 // Applying filters
                 if (request.ClassID > 0)
@@ -164,11 +162,6 @@ namespace ControlPanel_API.Repository.Implementations
                     baseQuery += " AND mc.APID = @APID";
                 }
 
-                // Pagination
-                baseQuery += " ORDER BY m.MagazineId OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
-
-                var offset = (request.PageNumber - 1) * request.PageSize;
-
                 // Parameters for the query
                 var parameters = new
                 {
@@ -176,15 +169,15 @@ namespace ControlPanel_API.Repository.Implementations
                     BoardIDID = request.BoardIDID,
                     CourseID = request.CourseID,
                     ExamTypeID = request.ExamTypeID,
-                    APID = request.APID,
-                    Offset = offset,
-                    PageSize = request.PageSize
+                    APID = request.APID
                 };
 
-                // Fetch filtered and paginated records
-                var mainResult = await _connection.QueryAsync<dynamic>(baseQuery, parameters);
+                // Fetch all matching records
+                var mainResult = (await _connection.QueryAsync<dynamic>(baseQuery, parameters)).ToList();
+
                 var today = DateTime.Today;
-                // Map results to response DTO
+
+                // Map results to response DTO and filter by date
                 var response = mainResult.Where(item => item.Date <= today).Select(item => new MagazineResponseDTO
                 {
                     MagazineId = item.MagazineId,
@@ -207,14 +200,23 @@ namespace ControlPanel_API.Repository.Implementations
                     MagazineExamTypes = GetListOfMagazineExamType(item.MagazineId)
                 }).ToList();
 
+                // Total count before pagination
+                int totalCount = response.Count;
+
+                // Apply logical pagination
+                var paginatedResponse = response
+                    .Skip((request.PageNumber - 1) * request.PageSize)
+                    .Take(request.PageSize)
+                    .ToList();
+
                 // Check if there are records
-                if (response.Count != 0)
+                if (paginatedResponse.Any())
                 {
-                    return new ServiceResponse<List<MagazineResponseDTO>>(true, "Records found", response, 200, totalCount);
+                    return new ServiceResponse<List<MagazineResponseDTO>>(true, "Records found", paginatedResponse, 200, totalCount);
                 }
                 else
                 {
-                    return new ServiceResponse<List<MagazineResponseDTO>>(false, "Records not found", [], 404);
+                    return new ServiceResponse<List<MagazineResponseDTO>>(false, "Records not found", new List<MagazineResponseDTO>(), 404);
                 }
             }
             catch (Exception ex)

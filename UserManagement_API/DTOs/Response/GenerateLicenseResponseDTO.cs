@@ -1,4 +1,6 @@
-﻿namespace UserManagement_API.DTOs.Response
+﻿using UserManagement_API.Models;
+
+namespace UserManagement_API.DTOs.Response
 {
     public class GenerateLicenseResponseDTO
     {
@@ -40,5 +42,6 @@
         public string CourseName { get; set; } = string.Empty;
         public string CategoryName { get; set; } = string.Empty;
         public string ValidityName { get; set; } = string.Empty;
+        public List<LicenseNumbers>? LicenseNumbers { get; set; }
     }
 }

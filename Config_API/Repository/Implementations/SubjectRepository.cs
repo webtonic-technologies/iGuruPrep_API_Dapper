@@ -80,9 +80,6 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
-                string countSql = @"SELECT COUNT(*) FROM [tblSubject]";
-                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
-
                 // Construct the SQL query to select all subjects
                 string query = "SELECT [SubjectId], [SubjectName], [SubjectCode], [Status], [createdby], [createdon], [displayorder], [modifiedby], [modifiedon], [groupname], [icon], [colorcode], [subjecttype], [EmployeeID], EmpFirstName FROM [tblSubject]";
 
@@ -93,7 +90,7 @@ namespace Config_API.Repository.Implementations
         .ToList();
                 if (paginatedList.Count != 0)
                 {
-                    return new ServiceResponse<List<Subject>>(true, "Records Found", paginatedList.AsList(), StatusCodes.Status302Found, totalCount);
+                    return new ServiceResponse<List<Subject>>(true, "Records Found", paginatedList.AsList(), StatusCodes.Status302Found, data.Count());
                 }
                 else
                 {

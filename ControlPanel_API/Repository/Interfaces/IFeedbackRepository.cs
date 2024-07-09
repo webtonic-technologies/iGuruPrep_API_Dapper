@@ -7,5 +7,6 @@ namespace ControlPanel_API.Repository.Interfaces
     public interface IFeedbackRepository
     {
         Task<ServiceResponse<List<GetAllFeedbackResponse>>> GetAllFeedBackList(GetAllFeedbackRequest request);
+        Task<ServiceResponse<GetAllFeedbackResponse>> GetFeedbackById(int feedbackId);
     }
 }

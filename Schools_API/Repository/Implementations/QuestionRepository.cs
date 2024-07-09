@@ -274,47 +274,47 @@ namespace Schools_API.Repository.Implementations
         {
             try
             {
-                string countSql = @"SELECT COUNT(*) FROM [tblQuestion]";
-                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
+                // SQL query to fetch all filtered records
                 string sql = @"
-                SELECT q.*, 
-                       c.CourseName, 
-                       b.BoardName, 
-                       cl.ClassName, 
-                       s.SubjectName,
-                       et.ExamTypeName,
-                       e.EmpFirstName, 
-                       qt.QuestionType as QuestionTypeName,
-                       it.IndexType as IndexTypeName,
-                   CASE 
+        SELECT q.*, 
+               c.CourseName, 
+               b.BoardName, 
+               cl.ClassName, 
+               s.SubjectName,
+               et.ExamTypeName,
+               e.EmpFirstName, 
+               qt.QuestionType as QuestionTypeName,
+               it.IndexType as IndexTypeName,
+               CASE 
                    WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
                    WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
                    WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
                END AS ContentIndexName
-                FROM tblQuestion q
-                 LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
-                LEFT JOIN tblCourse c ON q.courseid = c.CourseID
-                LEFT JOIN tblBoard b ON q.boardid = b.BoardID
-                LEFT JOIN tblClass cl ON q.classid = cl.ClassID
-                LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
-                LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
-                LEFT JOIN tblEmployee e ON q.EmployeeId = e.Employeeid
-                LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
-                 LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
+        FROM tblQuestion q
+        LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
+        LEFT JOIN tblCourse c ON q.courseid = c.CourseID
+        LEFT JOIN tblBoard b ON q.boardid = b.BoardID
+        LEFT JOIN tblClass cl ON q.classid = cl.ClassID
+        LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
+        LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
+        LEFT JOIN tblEmployee e ON q.EmployeeId = e.Employeeid
+        LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
+        LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
         LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
         LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
-                WHERE (@ContentIndexId = 0 OR q.ContentIndexId = @ContentIndexId)
-                  AND (@IndexTypeId = 0 OR q.IndexTypeId = @IndexTypeId)
-                  AND q.IsRejected = 0
-                  AND q.IsApproved = 0";
+        WHERE (@ContentIndexId = 0 OR q.ContentIndexId = @ContentIndexId)
+          AND (@IndexTypeId = 0 OR q.IndexTypeId = @IndexTypeId)
+          AND q.IsRejected = 0
+          AND q.IsApproved = 0";
 
-
+                // Parameters for the query
                 var parameters = new
                 {
-                    ContentIndexId = request.ContentIndexId == 0 ? 0 : request.ContentIndexId,
-                    IndexTypeId = request.IndexTypeId == 0 ? 0 : request.IndexTypeId
+                    ContentIndexId = request.ContentIndexId,
+                    IndexTypeId = request.IndexTypeId
                 };
 
+                // Fetch all filtered records
                 var data = await _connection.QueryAsync<dynamic>(sql, parameters);
 
                 if (data != null)
@@ -346,6 +346,8 @@ namespace Schools_API.Repository.Implementations
                         IsRejected = item.IsRejected
                     }).ToList();
 
+                    int totalCount = response.Count;
+
                     var paginatedList = response.Skip((request.PageNumber - 1) * request.PageSize)
                                                 .Take(request.PageSize)
                                                 .ToList();
@@ -356,19 +358,20 @@ namespace Schools_API.Repository.Implementations
                     }
                     else
                     {
-                        return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", [], 404);
+                        return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
                     }
                 }
                 else
                 {
-                    return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", [], 404);
+                    return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, new List<QuestionResponseDTO>(), 500);
             }
         }
+
         public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetApprovedQuestionsList(GetAllQuestionListRequest request)
         {
             try

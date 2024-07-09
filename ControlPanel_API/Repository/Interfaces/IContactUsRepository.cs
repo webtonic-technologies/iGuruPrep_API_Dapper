@@ -7,5 +7,6 @@ namespace ControlPanel_API.Repository.Interfaces
     public interface IContactUsRepository
     {
         Task<ServiceResponse<List<GetAllContactUsResponse>>> GetAllContactUs(GeAllContactUsRequest request);
+        Task<ServiceResponse<GetAllContactUsResponse>> GetContactUsById(int contactusId);
     }
 }

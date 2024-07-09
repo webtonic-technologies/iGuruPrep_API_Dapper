@@ -1,6 +1,7 @@
 using ControlPanel_API.DTOs.Requests;
 using ControlPanel_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using System.Net;
 
 namespace ControlPanel_API.Controllers
 {
@@ -34,6 +35,21 @@ namespace ControlPanel_API.Controllers
             catch (Exception e)
             {
                 return this.BadRequest(e.Message);
+            }
+        }
+        [HttpGet("GetContectUsById/{contactusId}")]
+        public async Task<IActionResult> GetContectUsById(int contactusId)
+        {
+            try
+            {
+                return new OkObjectResult(await _contactUsServices.GetContactUsById(contactusId));
+            }
+            catch (Exception ex)
+            {
+                return new JsonResult(ex.Message)
+                {
+                    StatusCode = (int)HttpStatusCode.NotFound
+                };
             }
         }
     }

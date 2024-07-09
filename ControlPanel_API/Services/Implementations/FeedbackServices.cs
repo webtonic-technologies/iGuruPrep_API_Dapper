@@ -25,5 +25,17 @@ namespace ControlPanel_API.Services.Implementations
                 return new ServiceResponse<List<GetAllFeedbackResponse>>(false, ex.Message, new List<GetAllFeedbackResponse>(), 500);
             }
         }
+
+        public async Task<ServiceResponse<GetAllFeedbackResponse>> GetFeedbackById(int feedbackId)
+        {
+            try
+            {
+                return await _feedbackRepository.GetFeedbackById(feedbackId);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<GetAllFeedbackResponse>(false, ex.Message, new GetAllFeedbackResponse(), 500);
+            }
+        }
     }
 }

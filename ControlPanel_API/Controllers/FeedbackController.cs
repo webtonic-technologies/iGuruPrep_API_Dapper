@@ -1,6 +1,7 @@
 using ControlPanel_API.DTOs.Requests;
 using ControlPanel_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using System.Net;
 
 namespace ControlPanel_API.Controllers
 {
@@ -38,6 +39,21 @@ namespace ControlPanel_API.Controllers
                 return this.BadRequest(e.Message);
             }
 
+        }
+        [HttpGet("GetFeedbackById/{feedbackId}")]
+        public async Task<IActionResult> GetFeedbackById(int feedbackId)
+        {
+            try
+            {
+                return new OkObjectResult(await _feedbackService.GetFeedbackById(feedbackId));
+            }
+            catch (Exception ex)
+            {
+                return new JsonResult(ex.Message)
+                {
+                    StatusCode = (int)HttpStatusCode.NotFound
+                };
+            }
         }
     }
 }

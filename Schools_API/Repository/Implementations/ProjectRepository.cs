@@ -125,34 +125,31 @@ namespace Schools_API.Repository.Implementations
         {
             try
             {
-                string countSql = @"SELECT COUNT(*) FROM [tblProject]";
-                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
-
                 // Base query
                 string baseQuery = @"
-                SELECT
-                    p.ProjectId,
-                    p.ProjectName,
-                    p.ProjectDescription,
-                    p.PathURL,
-                    p.createdby,
-                    p.ReferenceLink,
-                    p.EmployeeID,
-                    p.status,
-                    p.modifiedby,
-                    p.modifiedon,
-                    p.createdon,
-                    e.EmpFirstName,
-                    p.pdfVideoFile
-                FROM [tblProject] p
-                LEFT JOIN [tblEmployee] e ON p.EmployeeID = e.Employeeid
-                LEFT JOIN [tblProjectCategory] pc ON p.ProjectId = pc.ProjectId
-                LEFT JOIN [tblProjectBoard] pb ON p.ProjectId = pb.ProjectID
-                LEFT JOIN [tblProjectClass] pcl ON p.ProjectId = pcl.ProjectID
-                LEFT JOIN [tblProjectCourse] pco ON p.ProjectId = pco.ProjectID
-                LEFT JOIN [tblProjectExamType] pet ON p.ProjectId = pet.ProjectID
-                LEFT JOIN [tblProjectSubject] ps ON p.ProjectId = ps.ProjectID
-                WHERE 1=1";
+            SELECT
+                p.ProjectId,
+                p.ProjectName,
+                p.ProjectDescription,
+                p.PathURL,
+                p.createdby,
+                p.ReferenceLink,
+                p.EmployeeID,
+                p.status,
+                p.modifiedby,
+                p.modifiedon,
+                p.createdon,
+                e.EmpFirstName,
+                p.pdfVideoFile
+            FROM [tblProject] p
+            LEFT JOIN [tblEmployee] e ON p.EmployeeID = e.Employeeid
+            LEFT JOIN [tblProjectCategory] pc ON p.ProjectId = pc.ProjectId
+            LEFT JOIN [tblProjectBoard] pb ON p.ProjectId = pb.ProjectID
+            LEFT JOIN [tblProjectClass] pcl ON p.ProjectId = pcl.ProjectID
+            LEFT JOIN [tblProjectCourse] pco ON p.ProjectId = pco.ProjectID
+            LEFT JOIN [tblProjectExamType] pet ON p.ProjectId = pet.ProjectID
+            LEFT JOIN [tblProjectSubject] ps ON p.ProjectId = ps.ProjectID
+            WHERE 1=1";
 
                 // Applying filters dynamically
                 if (request.ClassID > 0)
@@ -180,11 +177,6 @@ namespace Schools_API.Repository.Implementations
                     baseQuery += " AND ps.SubjectID = @SubjectID";
                 }
 
-                // Pagination
-                baseQuery += " ORDER BY p.ProjectId OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
-
-                var offset = (request.PageNumber - 1) * request.PageSize;
-
                 // Parameters for the query
                 var parameters = new
                 {
@@ -193,16 +185,14 @@ namespace Schools_API.Repository.Implementations
                     CourseID = request.CourseID,
                     ExamTypeID = request.ExamTypeID,
                     APID = request.APID,
-                    SubjectID = request.SubjectID,
-                    Offset = offset,
-                    PageSize = request.PageSize
+                    SubjectID = request.SubjectID
                 };
 
-                // Fetch filtered and paginated records
+                // Fetch all filtered records
                 var mainResult = await _connection.QueryAsync<dynamic>(baseQuery, parameters);
 
-                // Map results to response DTO
-                var response = mainResult.Select(item => new ProjectResponseDTO
+                // Filter and paginate in memory
+                var filteredResults = mainResult.Select(item => new ProjectResponseDTO
                 {
                     ProjectId = item.ProjectId,
                     ProjectName = item.ProjectName,
@@ -224,13 +214,22 @@ namespace Schools_API.Repository.Implementations
                     ProjectExamTypes = GetListOfProjectExamType(item.ProjectId),
                     ProjectSubjects = GetListOfProjectSubject(item.ProjectId)
                 }).ToList();
-                if (response.Count != 0)
+
+                // Apply pagination after fetching
+                int totalCount = filteredResults.Count;
+
+                var paginatedResults = filteredResults
+                    .Skip((request.PageNumber - 1) * request.PageSize)
+                    .Take(request.PageSize)
+                    .ToList();
+
+                if (paginatedResults.Count != 0)
                 {
-                    return new ServiceResponse<List<ProjectResponseDTO>>(true, "Records found", response, 200, totalCount);
+                    return new ServiceResponse<List<ProjectResponseDTO>>(true, "Records found", paginatedResults, 200, totalCount);
                 }
                 else
                 {
-                    return new ServiceResponse<List<ProjectResponseDTO>>(false, "Records not found", [], 404);
+                    return new ServiceResponse<List<ProjectResponseDTO>>(false, "Records not found", new List<ProjectResponseDTO>(), 404);
                 }
             }
             catch (Exception ex)
@@ -238,6 +237,7 @@ namespace Schools_API.Repository.Implementations
                 return new ServiceResponse<List<ProjectResponseDTO>>(false, ex.Message, new List<ProjectResponseDTO>(), 500);
             }
         }
+
         public async Task<ServiceResponse<ProjectResponseDTO>> GetProjectByIdAsync(int projectId)
         {
             try

@@ -44,13 +44,13 @@ namespace ControlPanel_API.Repository.Implementations
                     int notificationId = await _connection.QuerySingleOrDefaultAsync<int>(insertQuery, newNotification);
                     if (notificationId > 0)
                     {
-                        var data = await AddUpdateNotificationDetailsMaster(request.NotificationDetails, request.NBNotificationID);
-                        var data1 = await AddUpdateNotificationLinkMaster(request.NotificationLinkMasters, request.NBNotificationID);
-                        int category = NBCategoryMapping(request.NbNotificationCategories ??= ([]), request.NBNotificationID);
-                        int classes = NBClassMapping(request.NbNotificationClasses ??= ([]), request.NBNotificationID);
-                        int board = NBBoardMapping(request.NbNotificationBoards ??= ([]), request.NBNotificationID);
-                        int course = NBCourseMapping(request.NbNotificationCourses ??= ([]), request.NBNotificationID);
-                        int exam = NBExamTypeMapping(request.NbNotificationExamTypes ??= ([]), request.NBNotificationID);
+                        var data = await AddUpdateNotificationDetailsMaster(request.NotificationDetails, notificationId);
+                        var data1 = await AddUpdateNotificationLinkMaster(request.NotificationLinkMasters, notificationId);
+                        int category = NBCategoryMapping(request.NbNotificationCategories ??= ([]), notificationId);
+                        int classes = NBClassMapping(request.NbNotificationClasses ??= ([]), notificationId);
+                        int board = NBBoardMapping(request.NbNotificationBoards ??= ([]), notificationId);
+                        int course = NBCourseMapping(request.NbNotificationCourses ??= ([]), notificationId);
+                        int exam = NBExamTypeMapping(request.NbNotificationExamTypes ??= ([]), notificationId);
                         if (category > 0 && classes > 0 && board > 0 && course > 0 && exam > 0 && data > 0 && data1 > 0)
                         {
                             return new ServiceResponse<string>(true, "Operation Successful", "Notice Board Notification Added Successfully", 200);
@@ -121,28 +121,22 @@ namespace ControlPanel_API.Repository.Implementations
         {
             try
             {
-                // Count query
-                string countSql = @"SELECT COUNT(*) FROM [tblNbNotification]";
-                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
-
-                var notificationIds = new HashSet<int>();
-
-                // Base query
+                // Base query to fetch all matching records
                 string baseQuery = @"
-            SELECT 
-                n.NBNotificationID, 
-                n.NotificationTitle, 
-                n.PathURL, 
-                n.status, 
-                n.createdon, 
-                n.createdby, 
-                n.modifiedon, 
-                n.modifiedby, 
-                n.EmployeeID,
-                e.EmpFirstName as EmpFirstName
-            FROM tblNbNotification n
-            LEFT JOIN tblEmployee e ON n.EmployeeID = e.Employeeid
-            WHERE 1=1";
+        SELECT 
+            n.NBNotificationID, 
+            n.NotificationTitle, 
+            n.PathURL, 
+            n.status, 
+            n.createdon, 
+            n.createdby, 
+            n.modifiedon, 
+            n.modifiedby, 
+            n.EmployeeID,
+            e.EmpFirstName as EmpFirstName
+        FROM tblNbNotification n
+        LEFT JOIN tblEmployee e ON n.EmployeeID = e.Employeeid
+        WHERE 1=1";
 
                 // Applying filters
                 if (request.APId > 0)
@@ -166,11 +160,6 @@ namespace ControlPanel_API.Repository.Implementations
                     baseQuery += " AND n.NBNotificationID IN (SELECT [NBNotificationID] FROM [tblNbNotificationExamType] WHERE [ExamTypeID] = @ExamTypeID)";
                 }
 
-                // Pagination
-                baseQuery += " ORDER BY n.NBNotificationID OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
-
-                var offset = (request.PageNumber - 1) * request.PageSize;
-
                 // Parameters for the query
                 var parameters = new
                 {
@@ -178,13 +167,11 @@ namespace ControlPanel_API.Repository.Implementations
                     BoardID = request.BoardID,
                     ClassID = request.ClassID,
                     CourseID = request.CourseID,
-                    ExamTypeID = request.ExamTypeID,
-                    Offset = offset,
-                    PageSize = request.PageSize
+                    ExamTypeID = request.ExamTypeID
                 };
 
-                // Fetch filtered and paginated records
-                var mainResult = await _connection.QueryAsync<dynamic>(baseQuery, parameters);
+                // Fetch all matching records
+                var mainResult = (await _connection.QueryAsync<dynamic>(baseQuery, parameters)).ToList();
 
                 // Map results to response DTO
                 var response = mainResult.Select(item => new NotificationResponseDTO
@@ -208,10 +195,19 @@ namespace ControlPanel_API.Repository.Implementations
                     NotificationLinkMasters = GetListOfNotificationLink(item.NBNotificationID)
                 }).ToList();
 
+                // Total count before pagination
+                int totalCount = response.Count;
+
+                // Apply logical pagination
+                var paginatedResponse = response
+                    .Skip((request.PageNumber - 1) * request.PageSize)
+                    .Take(request.PageSize)
+                    .ToList();
+
                 // Check if there are records
-                if (response.Count != 0)
+                if (paginatedResponse.Any())
                 {
-                    return new ServiceResponse<List<NotificationResponseDTO>>(true, "Records found", response, 200, totalCount);
+                    return new ServiceResponse<List<NotificationResponseDTO>>(true, "Records found", paginatedResponse, 200, totalCount);
                 }
                 else
                 {
@@ -223,7 +219,6 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<List<NotificationResponseDTO>>(false, ex.Message, new List<NotificationResponseDTO>(), 500);
             }
         }
-
         public async Task<ServiceResponse<NotificationResponseDTO>> GetNotificationById(int NotificationId)
         {
             try

@@ -97,9 +97,6 @@ namespace ControlPanel_API.Repository.Implementations
         {
             try
             {
-                string countSql = @"SELECT COUNT(*) FROM [tblHelpFAQ]";
-                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
-
                 var sql = "SELECT [HelpFAQId],[FAQName],[FAQAnswer],[Status],[modifiedon],[modifiedby],[createdon],[createdby],[EmployeeID] FROM [tblHelpFAQ]";
                 var data = await _connection.QueryAsync<HelpFAQ>(sql);
                 var paginatedList = data.Skip((request.PageNumber - 1) * request.PageSize)
@@ -107,7 +104,7 @@ namespace ControlPanel_API.Repository.Implementations
                     .ToList();
                 if (paginatedList.Count != 0)
                 {
-                    return new ServiceResponse<List<HelpFAQ>>(true, "Records Found", paginatedList.AsList(), 200, totalCount);
+                    return new ServiceResponse<List<HelpFAQ>>(true, "Records Found", paginatedList.AsList(), 200, data.Count());
                 }
                 else
                 {

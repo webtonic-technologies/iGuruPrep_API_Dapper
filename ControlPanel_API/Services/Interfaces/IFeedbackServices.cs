@@ -7,5 +7,6 @@ namespace ControlPanel_API.Services.Interfaces
     public interface IFeedbackServices
     {
         Task<ServiceResponse<List<GetAllFeedbackResponse>>> GetAllFeedBackList(GetAllFeedbackRequest request);
+        Task<ServiceResponse<GetAllFeedbackResponse>> GetFeedbackById(int feedbackId);
     }
 }

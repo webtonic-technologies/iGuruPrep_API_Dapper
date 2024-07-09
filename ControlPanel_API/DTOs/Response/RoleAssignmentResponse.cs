@@ -19,7 +19,9 @@
     {
         public int RoleAssID { get; set; }
         public int RoleID { get; set; }
+        public string Rolename { get; set; } = string.Empty;
         public int DesignationId { get; set; }
+        public string DesignationName { get; set; } = string.Empty;
         public DateTime CreatedOn { get; set; }
         public string CreatedBy { get; set; } = string.Empty;
         public DateTime ModifiedOn { get; set; }
@@ -30,6 +32,8 @@
     public class ModuleSelectionResponse
     {
         public int ModuleId { get; set; }
+        public string ModuleName { get; set; } = string.Empty;
+        public bool Status {  get; set; }
         public List<ModuleSubmoduleResponse> ModuleSubmodule { get; set; } = new List<ModuleSubmoduleResponse>();
     }
 
@@ -37,7 +41,9 @@
     {
         public int ModuleSubID { get; set; }
         public int SubModuleId { get; set; }
+        public string SubModuleName { get; set; } = string.Empty;
         public int ModuleID { get; set; }
+        public string ModuleName { get; set; } = string.Empty;
+        public bool Status { get; set; }
     }
-
 }

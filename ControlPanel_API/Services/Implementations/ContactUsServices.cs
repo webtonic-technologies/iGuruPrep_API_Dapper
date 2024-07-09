@@ -25,5 +25,17 @@ namespace ControlPanel_API.Services.Implementations
                 return new ServiceResponse<List<GetAllContactUsResponse>>(false, ex.Message, [], 500);
             }
         }
+
+        public async Task<ServiceResponse<GetAllContactUsResponse>> GetContactUsById(int contactusId)
+        {
+            try
+            {
+                return await _contactUsRepository.GetContactUsById(contactusId);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<GetAllContactUsResponse>(false, ex.Message, new GetAllContactUsResponse(), 500);
+            }
+        }
     }
 }

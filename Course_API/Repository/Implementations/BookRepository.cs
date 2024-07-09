@@ -256,35 +256,32 @@ namespace Course_API.Repository.Implementations
         {
             try
             {
-                string countSql = @"SELECT COUNT(*) FROM [tblLibrary]";
-                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
-
                 // Base query
                 string baseQuery = @"
-                SELECT DISTINCT
-                    l.BookId,
-                    l.BookName,
-                    l.Status,
-                    l.pathURL,
-                    l.link,
-                    l.modifiedon,
-                    l.modifiedby,
-                    l.createdon,
-                    l.createdby,
-                    l.EmployeeID,
-                    e.EmpFirstName,
-                    l.FileTypeId,
-                    f.FileType
-                FROM [tblLibrary] l
-                LEFT JOIN [tblEmployee] e ON l.EmployeeID = e.Employeeid
-                LEFT JOIN [tblLibraryFileType] f ON l.FileTypeId = f.tblLibraryFileType
-                LEFT JOIN [tbllibraryCategory] lc ON l.BookId = lc.BookId
-                LEFT JOIN [tbllibraryBoard] lb ON l.BookId = lb.BookId
-                LEFT JOIN [tbllibraryClass] lc2 ON l.BookId = lc2.BookId
-                LEFT JOIN [tbllibraryCourse] lco ON l.BookId = lco.BookId
-                LEFT JOIN [tbllibraryExamType] le ON l.BookId = le.BookId
-                LEFT JOIN [tbllibrarySubject] ls ON l.BookId = ls.BookId
-                WHERE 1=1";
+        SELECT DISTINCT
+            l.BookId,
+            l.BookName,
+            l.Status,
+            l.pathURL,
+            l.link,
+            l.modifiedon,
+            l.modifiedby,
+            l.createdon,
+            l.createdby,
+            l.EmployeeID,
+            e.EmpFirstName,
+            l.FileTypeId,
+            f.FileType
+        FROM [tblLibrary] l
+        LEFT JOIN [tblEmployee] e ON l.EmployeeID = e.Employeeid
+        LEFT JOIN [tblLibraryFileType] f ON l.FileTypeId = f.tblLibraryFileType
+        LEFT JOIN [tbllibraryCategory] lc ON l.BookId = lc.BookId
+        LEFT JOIN [tbllibraryBoard] lb ON l.BookId = lb.BookId
+        LEFT JOIN [tbllibraryClass] lc2 ON l.BookId = lc2.BookId
+        LEFT JOIN [tbllibraryCourse] lco ON l.BookId = lco.BookId
+        LEFT JOIN [tbllibraryExamType] le ON l.BookId = le.BookId
+        LEFT JOIN [tbllibrarySubject] ls ON l.BookId = ls.BookId
+        WHERE 1=1";
 
                 // Applying filters
                 if (request.ClassID > 0)
@@ -312,11 +309,6 @@ namespace Course_API.Repository.Implementations
                     baseQuery += " AND ls.SubjectID = @SubjectID";
                 }
 
-                // Pagination
-                baseQuery += " ORDER BY l.BookId OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
-
-                var offset = (request.PageNumber - 1) * request.PageSize;
-
                 // Parameters for the query
                 var parameters = new
                 {
@@ -325,13 +317,14 @@ namespace Course_API.Repository.Implementations
                     CourseID = request.CourseID,
                     ExamTypeID = request.ExamTypeID,
                     APId = request.APId,
-                    SubjectID = request.SubjectID,
-                    Offset = offset,
-                    PageSize = request.PageSize
+                    SubjectID = request.SubjectID
                 };
 
-                // Fetch filtered and paginated records
-                var mainResult = await _connection.QueryAsync<dynamic>(baseQuery, parameters);
+                // Fetch all matching records
+                var mainResult = (await _connection.QueryAsync<dynamic>(baseQuery, parameters)).ToList();
+
+                // Total count before pagination
+                int totalCount = mainResult.Count;
 
                 // Map results to response DTO
                 var response = mainResult.Select(item => new BookResponseDTO
@@ -348,7 +341,7 @@ namespace Course_API.Repository.Implementations
                     EmployeeID = item.EmployeeID,
                     EmpFirstName = item.EmpFirstName,
                     FileTypeId = item.FileTypeId,
-                    FileTypeName = item.FileTypeName, // Make sure this property is correctly retrieved
+                    FileTypeName = item.FileType, // Ensure this property is correctly retrieved
                     BookAuthorDetails = GetListOfAuthorDetails(item.BookId),
                     BookCategories = GetListOfBookCategory(item.BookId),
                     BookBoards = GetListOfBookBoards(item.BookId),
@@ -358,10 +351,16 @@ namespace Course_API.Repository.Implementations
                     BookSubjects = GetListOfBookSubject(item.BookId)
                 }).ToList();
 
+                // Apply logical pagination
+                var paginatedResponse = response
+                    .Skip((request.PageNumber - 1) * request.PageSize)
+                    .Take(request.PageSize)
+                    .ToList();
+
                 // Check if there are records
-                if (response.Count != 0)
+                if (paginatedResponse.Any())
                 {
-                    return new ServiceResponse<List<BookResponseDTO>>(true, "Records found", response, 200, totalCount);
+                    return new ServiceResponse<List<BookResponseDTO>>(true, "Records found", paginatedResponse, 200, totalCount);
                 }
                 else
                 {

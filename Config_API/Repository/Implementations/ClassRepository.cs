@@ -81,8 +81,6 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
-                string countSql = @"SELECT COUNT(*) FROM [tblClass]";
-                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
                 string query = @"SELECT [ClassId]
                                   ,[ClassName]
                                   ,[ClassCode]
@@ -101,7 +99,7 @@ namespace Config_API.Repository.Implementations
                          .ToList();
                 if (paginatedList.Count != 0)
                 {
-                    return new ServiceResponse<List<Class>>(true, "Records Found", paginatedList.AsList(), StatusCodes.Status302Found, totalCount);
+                    return new ServiceResponse<List<Class>>(true, "Records Found", paginatedList.AsList(), StatusCodes.Status302Found, classes.Count());
                 }
                 else
                 {

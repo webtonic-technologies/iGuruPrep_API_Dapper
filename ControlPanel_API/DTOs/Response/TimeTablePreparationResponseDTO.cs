@@ -12,10 +12,6 @@
         public string createdby { get; set; } = string.Empty;
         public int EmployeeID { get; set; }
         public string EmployeeName { get; set; } = string.Empty;
-        public int IndexTypeId { get; set; }
-        public string IndexTypeName { get; set; } = string.Empty;
-        public int ContentIndexId { get; set; }
-        public string ContentIndexName { get; set; } = string.Empty;
         public List<TimeTableBoardResponse>? TimeTableBoards { get; set; }
         public List<TimeTableSubjectResponse>? TimeTableSubjects { get; set; }
         public List<TimeTableExamTypeResponse>? TimeTableExamTypes { get; set; }
@@ -36,7 +32,18 @@
         public int PreparationTimeTableId { get; set; }
         public int SubjectId { get; set; }
         public string Name { get; set; } = string.Empty;
+        public List<TTSubjectContentMappingResponse>? TTSubjectContentMappings { get; set; }
+    }
+    public class TTSubjectContentMappingResponse
+    {
 
+        public int NBTTSubContMappingId { get; set; }
+        public int PreparationTimeTableId { get; set; }
+        public int NBTimeTableSubjectId { get; set; }
+        public int IndexTypeId { get; set; }
+        public string IndexTypeName { get; set; } = string.Empty;
+        public int ContentIndexId { get; set; }
+        public string ContentIndexName { get; set; } = string.Empty;
     }
     public class TimeTableExamTypeResponse
     {

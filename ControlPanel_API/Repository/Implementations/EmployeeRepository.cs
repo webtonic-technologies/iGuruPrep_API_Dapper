@@ -231,7 +231,7 @@ namespace ControlPanel_API.Repository.Implementations
                         EmployeeSubjectsList = GetListOfEmployeeSubject(employee.Employeeid)
                     }).ToList();
 
-                    return new ServiceResponse<List<EmployeeResponseDTO>>(true, "Records found", responseList, StatusCodes.Status302Found, totalCount);
+                    return new ServiceResponse<List<EmployeeResponseDTO>>(true, "Records found", responseList, StatusCodes.Status302Found, data.Count());
                 }
                 else
                 {

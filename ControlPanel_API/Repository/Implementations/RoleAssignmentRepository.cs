@@ -50,15 +50,18 @@ namespace ControlPanel_API.Repository.Implementations
                             {
                                 // Insert if no duplicate
                                 string insertSql = @"
-                        INSERT INTO tblRoleAssignmentMapping (MenuMasterId, DesignationId, RoleId)
-                        VALUES (@MenuMasterId, @DesignationId, @RoleId);
+                        INSERT INTO tblRoleAssignmentMapping (MenuMasterId, DesignationId, RoleId, CreatedBy, CreatedOn, Status)
+                        VALUES (@MenuMasterId, @DesignationId, @RoleId, @CreatedBy, @CreatedOn, @Status);
                         SELECT CAST(SCOPE_IDENTITY() as int);";
 
                                 var newId = await _connection.QuerySingleAsync<int>(insertSql, new
                                 {
                                     MenuMasterId = menuMasterId,
                                     DesignationId = roleAssignment.DesignationId,
-                                    RoleId = roleAssignment.RoleId
+                                    RoleId = roleAssignment.RoleId,
+                                    CreatedBy = roleAssignment.CreatedBy,
+                                    CreatedOn = roleAssignment.CreatedOn ?? DateTime.UtcNow,
+                                    Status = roleAssignment.Status
                                 });
 
                                 newIds.Add(newId);
@@ -69,7 +72,10 @@ namespace ControlPanel_API.Repository.Implementations
                         UPDATE tblRoleAssignmentMapping
                         SET MenuMasterId = @MenuMasterId,
                             DesignationId = @DesignationId,
-                            RoleId = @RoleId
+                            RoleId = @RoleId,
+                            ModifiedBy = @ModifiedBy,
+                            ModifiedOn = @ModifiedOn,
+                            Status = @Status
                         WHERE RAMappingId = @RAMappingId;";
 
                                 await _connection.ExecuteAsync(updateSql, new
@@ -77,6 +83,9 @@ namespace ControlPanel_API.Repository.Implementations
                                     MenuMasterId = menuMasterId,
                                     DesignationId = roleAssignment.DesignationId,
                                     RoleId = roleAssignment.RoleId,
+                                    ModifiedBy = roleAssignment.ModifiedBy,
+                                    ModifiedOn = roleAssignment.ModifiedOn ?? DateTime.UtcNow,
+                                    Status = roleAssignment.Status,
                                     roleAssignment.RAMappingId
                                 });
 
@@ -88,11 +97,11 @@ namespace ControlPanel_API.Repository.Implementations
 
                 if (newIds.Count > 0)
                 {
-                    return new ServiceResponse<string>(true, "Records inserted successfully.", "Operation successful", 200);
+                    return new ServiceResponse<string>(true, "Records inserted/updated successfully.", "Operation successful", 200);
                 }
                 else
                 {
-                    return new ServiceResponse<string>(true, "Operation failed. No new records were inserted.", string.Empty, 200);
+                    return new ServiceResponse<string>(true, "Operation failed. No new records were inserted or updated.", string.Empty, 200);
                 }
             }
             catch (Exception ex)
@@ -117,12 +126,21 @@ namespace ControlPanel_API.Repository.Implementations
             ram.MenuMasterId,
             ram.RoleId,
             ram.DesignationId,
+            ram.CreatedOn,
+            ram.CreatedBy,
+            ram.ModifiedOn,
+            ram.ModifiedBy,
+            ram.Status,
             mm.MenuName AS MenuMasterName,
-            mm.ParentId AS ModuleId
+            mm.ParentId AS ModuleId,
+            mm.MenuName AS ModuleName,
+            smm.MenuName AS SubModuleName
         FROM 
             tblRoleAssignmentMapping ram
         INNER JOIN 
             tblRoleAssiMenuMaster mm ON ram.MenuMasterId = mm.MenuMasterId
+        LEFT JOIN 
+            tblRoleAssiMenuMaster smm ON mm.ParentId = smm.MenuMasterId
         WHERE 
             ram.RoleId = @RoleId
             AND ram.DesignationId = @DesignationId";
@@ -134,31 +152,35 @@ namespace ControlPanel_API.Repository.Implementations
                     return new ServiceResponse<List<RoleAssignmentResponse>>(false, "No role assignments found", new List<RoleAssignmentResponse>(), StatusCodes.Status204NoContent);
                 }
 
-                // Group the role assignments by RAMappingId (if needed) or ModuleId
+                // Group the role assignments by RAMappingId
                 var groupedAssignments = roleAssignments
-                    .GroupBy(ra => ra.RAMappingId) // Assuming RAMappingId is the unique identifier for each role assignment
+                    .GroupBy(ra => ra.RAMappingId)
                     .Select(g => new RoleAssignmentResponse
                     {
-                        RoleAssID = g.Key, // Use RAMappingId or appropriate identifier
+                        RoleAssID = g.Key,
                         RoleID = g.First().RoleId,
                         DesignationId = g.First().DesignationId,
+                        CreatedOn = g.First().CreatedOn,
+                        CreatedBy = g.First().CreatedBy,
+                        ModifiedOn = g.First().ModifiedOn,
+                        ModifiedBy = g.First().ModifiedBy,
                         ModuleSelection = g.GroupBy(ra => ra.ModuleId)
                                            .Select(mg => new ModuleSelectionResponse
                                            {
                                                ModuleId = mg.Key,
+                                               ModuleName = mg.First().ModuleName,
+                                               Status = mg.First().Status,
                                                ModuleSubmodule = mg.Select(sm => new ModuleSubmoduleResponse
                                                {
                                                    ModuleSubID = sm.RAMappingId,
                                                    SubModuleId = sm.MenuMasterId,
-                                                   ModuleID = sm.ModuleId
+                                                   SubModuleName = sm.SubModuleName,
+                                                   ModuleID = sm.ModuleId,
+                                                   ModuleName = sm.ModuleName,
+                                                   Status = sm.Status
                                                }).ToList()
                                            }).ToList()
                     }).ToList();
-
-                if (groupedAssignments == null || !groupedAssignments.Any())
-                {
-                    return new ServiceResponse<List<RoleAssignmentResponse>>(false, "Grouping failed or no data found", new List<RoleAssignmentResponse>(), StatusCodes.Status500InternalServerError);
-                }
 
                 return new ServiceResponse<List<RoleAssignmentResponse>>(true, "Role assignments retrieved successfully", groupedAssignments, StatusCodes.Status200OK);
             }
@@ -167,15 +189,13 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<List<RoleAssignmentResponse>>(false, ex.Message, new List<RoleAssignmentResponse>(), StatusCodes.Status500InternalServerError);
             }
         }
-
         public async Task<ServiceResponse<List<MenuMasterDTOResponse>>> GetMasterMenu()
         {
             try
             {
-
                 string sql = @"
-                SELECT MenuMasterId, MenuName, ParentId
-                FROM tblRoleAssiMenuMaster";
+        SELECT MenuMasterId, MenuName, ParentId, Status
+        FROM tblRoleAssiMenuMaster";
 
                 var menuData = await _connection.QueryAsync<RoleAssiMenuMaster>(sql);
 
@@ -185,12 +205,14 @@ namespace ControlPanel_API.Repository.Implementations
                     {
                         ParentId = p.MenuMasterId,
                         ParentName = p.MenuName,
+                        Status = p.Status,
                         MenuMasterChildren = menuData
                             .Where(c => c.ParentId == p.MenuMasterId)
                             .Select(c => new MenuMasterChild
                             {
                                 ChildId = c.MenuMasterId,
-                                ChildName = c.MenuName
+                                ChildName = c.MenuName,
+                                Status = c.Status
                             })
                             .ToList()
                     })
@@ -200,7 +222,7 @@ namespace ControlPanel_API.Repository.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<MenuMasterDTOResponse>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<MenuMasterDTOResponse>>(false, ex.Message, new List<MenuMasterDTOResponse>(), 500);
             }
         }
         public async Task<ServiceResponse<string>> RemoveRoleAssignment(int menuMasterId, int roleId, int designationId)
@@ -266,189 +288,19 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-        //public async Task<ServiceResponse<string>> RemoveRoleAssignment(int menuMasterId)
-        //{
-        //    try
-        //    {
-        //        // Fetch the list of MenuMasterIds to delete (including children if parent is provided)
-        //        List<int> menuMasterIdsToDelete = new List<int> { menuMasterId };
-
-        //        // Query to fetch child MenuMasterIds if the provided ID is a parent
-        //        string fetchChildrenSql = @"
-        //    SELECT MenuMasterId
-        //    FROM tblRoleAssiMenuMaster
-        //    WHERE ParentId = @ParentId";
-
-        //        var childMenuMasterIds = await _connection.QueryAsync<int>(fetchChildrenSql, new { ParentId = menuMasterId });
-
-        //        if (childMenuMasterIds != null && childMenuMasterIds.Any())
-        //        {
-        //            menuMasterIdsToDelete.AddRange(childMenuMasterIds);
-        //        }
-
-        //        // Check if any role assignment mappings exist for these MenuMasterIds
-        //        string checkSql = @"
-        //    SELECT COUNT(*)
-        //    FROM tblRoleAssignmentMapping
-        //    WHERE MenuMasterId IN @MenuMasterIds";
-
-        //        bool exists = await _connection.ExecuteScalarAsync<bool>(checkSql, new { MenuMasterIds = menuMasterIdsToDelete });
-
-        //        if (exists)
-        //        {
-        //            // Delete the role assignment mappings
-        //            string deleteSql = @"
-        //        DELETE FROM tblRoleAssignmentMapping
-        //        WHERE MenuMasterId IN @MenuMasterIds";
-
-        //            await _connection.ExecuteAsync(deleteSql, new { MenuMasterIds = menuMasterIdsToDelete });
-
-        //            return new ServiceResponse<string>(true, "Records deleted successfully.", "Operation Successful", 200);
-        //        }
-        //        else
-        //        {
-        //            return new ServiceResponse<string>(false, "Records not found.", string.Empty, 404);
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
-        //    }
-        //}
-        //public async Task<ServiceResponse<RoleAssignmentResponse>> GetRoleAssignmentById(int EmployeeId)
-        //{
-        //    try
-        //    {
-        //        // Check if the employee exists
-        //        string checkEmployeeQuery = "SELECT COUNT(1) FROM tblEmployee WHERE Employeeid = @EmployeeId";
-        //        var employeeExists = await _connection.ExecuteScalarAsync<bool>(checkEmployeeQuery, new { EmployeeId });
-
-        //        if (!employeeExists)
-        //        {
-        //            return new ServiceResponse<RoleAssignmentResponse>(false, "Employee not found", new RoleAssignmentResponse(), 404);
-        //        }
-
-        //        // Fetch role assignments
-        //        string fetchRoleAssignmentsQuery = @"
-        //SELECT 
-        //    ram.RAMappingId,
-        //    ram.MenuMasterId,
-        //    mm.MenuName AS MenuMasterName
-        //FROM 
-        //    tblRoleAssignmentMapping ram
-        //INNER JOIN 
-        //    [tblRoleAssiMenuMaster] mm ON ram.MenuMasterId = mm.MenuMasterId
-        //WHERE 
-        //    ram.Employeeid = @EmployeeId";
-
-        //        var roleAssignments = await _connection.QueryAsync<RoleAssignmentMappingResponse>(fetchRoleAssignmentsQuery, new { EmployeeId });
-
-        //        var response = new RoleAssignmentResponse
-        //        {
-        //            Employeeid = EmployeeId,
-        //            RoleAssignmentMappings = roleAssignments.ToList()
-        //        };
-
-        //        return new ServiceResponse<RoleAssignmentResponse>(true, "Records Found", response, 200);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return new ServiceResponse<RoleAssignmentResponse>(false, ex.Message, new RoleAssignmentResponse(), 500);
-        //    }
-        //}
-        //public async Task<ServiceResponse<string>> AddUpdateRoleAssignment(List<RoleAssignmentMapping> request)
-        //{
-        //    try
-        //    {
-        //        List<int> newIds = [];
-        //        foreach (var roleAssignment in request)
-        //        {
-        //            roleAssignment.Employeeid = EmployeeId;
-
-        //            // Get all relevant MenuMasterIds (children if parent, otherwise just the ID)
-        //            var menuMasterIds = await GetMenuMasterIds(roleAssignment.MenuMasterId);
-
-        //            foreach (var menuMasterId in menuMasterIds)
-        //            {
-        //                // Check for duplicates
-        //                string checkSql = @"
-        //            SELECT COUNT(*) 
-        //            FROM tblRoleAssignmentMapping 
-        //            WHERE MenuMasterId = @MenuMasterId 
-        //            AND Employeeid = @EmployeeId";
-
-        //                bool exists = await _connection.ExecuteScalarAsync<bool>(checkSql, new
-        //                {
-        //                    MenuMasterId = menuMasterId,
-        //                    EmployeeId = roleAssignment.Employeeid
-        //                });
-
-        //                if (!exists)
-        //                {
-        //                    if (roleAssignment.RAMappingId == 0)
-        //                    {
-        //                        // Insert if no duplicate
-        //                        string insertSql = @"
-        //                INSERT INTO tblRoleAssignmentMapping (MenuMasterId, Employeeid)
-        //                VALUES (@MenuMasterId, @EmployeeId);
-        //                SELECT CAST(SCOPE_IDENTITY() as int);";
-
-        //                        var newId = await _connection.QuerySingleAsync<int>(insertSql, new
-        //                        {
-        //                            MenuMasterId = menuMasterId,
-        //                            EmployeeId = roleAssignment.Employeeid
-        //                        });
-
-        //                        newIds.Add(newId);
-        //                    }
-        //                    else
-        //                    {
-        //                        string updateSql = @"
-        //                        UPDATE tblRoleAssignmentMapping
-        //                        SET MenuMasterId = @MenuMasterId,
-        //                            Employeeid = @EmployeeId
-        //                        WHERE RAMappingId = @RAMappingId;";
-
-        //                        await _connection.ExecuteAsync(updateSql, new
-        //                        {
-        //                            MenuMasterId = menuMasterId,
-        //                            EmployeeId = roleAssignment.Employeeid,
-        //                            roleAssignment.RAMappingId
-        //                        });
-
-        //                        newIds.Add(roleAssignment.RAMappingId);
-        //                    }
-        //                }
-        //            }
-        //        }
-
-        //        if (newIds.Count > 0)
-        //        {
-        //            return new ServiceResponse<string>(true, "Records inserted successfully.", "Operation successful", 200);
-        //        }
-        //        else
-        //        {
-        //            return new ServiceResponse<string>(true, "Operation failed. No new records were inserted.", string.Empty, 200);
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
-        //    }
-        //}
         public async Task<ServiceResponse<RoleAssignmentResponse>> GetRoleAssignmentById(int employeeId)
         {
             try
             {
                 // Check if the employee exists and fetch DesignationId and RoleId
                 string checkEmployeeQuery = @"
-            SELECT COUNT(1) 
-            FROM tblEmployee 
-            WHERE Employeeid = @EmployeeId;
+        SELECT COUNT(1) 
+        FROM tblEmployee 
+        WHERE Employeeid = @EmployeeId;
 
-            SELECT Employeeid, DesignationId, RoleId, CreatedOn, CreatedBy, ModifiedOn, ModifiedBy 
-            FROM tblEmployee 
-            WHERE Employeeid = @EmployeeId";
+        SELECT Employeeid, DesignationId, RoleId, CreatedOn, CreatedBy, ModifiedOn, ModifiedBy 
+        FROM tblEmployee 
+        WHERE Employeeid = @EmployeeId";
 
                 using (var multi = await _connection.QueryMultipleAsync(checkEmployeeQuery, new { EmployeeId = employeeId }))
                 {
@@ -469,33 +321,42 @@ namespace ControlPanel_API.Repository.Implementations
 
                     // Fetch role assignments using DesignationId and RoleId
                     string fetchRoleAssignmentsQuery = @"
-                SELECT 
-                    ram.*,
-                    mm.MenuName AS MenuMasterName,
-                    mm.ParentId AS ModuleId
-                FROM 
-                    tblRoleAssignmentMapping ram
-                INNER JOIN 
-                    tblRoleAssiMenuMaster mm ON ram.MenuMasterId = mm.MenuMasterId
-                WHERE 
-                    ram.DesignationId = @DesignationId
-                    AND ram.RoleId = @RoleId";
+            SELECT 
+                ram.RAMappingId,
+                ram.MenuMasterId,
+                ram.Status,
+                mm.MenuName AS ModuleName,
+                mm.ParentId AS ModuleId,
+                smm.MenuName AS SubModuleName
+            FROM 
+                tblRoleAssignmentMapping ram
+            INNER JOIN 
+                tblRoleAssiMenuMaster mm ON ram.MenuMasterId = mm.MenuMasterId
+            LEFT JOIN 
+                tblRoleAssiMenuMaster smm ON mm.ParentId = smm.MenuMasterId
+            WHERE 
+                ram.DesignationId = @DesignationId
+                AND ram.RoleId = @RoleId";
 
                     var roleAssignments = await _connection.QueryAsync<dynamic>(fetchRoleAssignmentsQuery, new { DesignationId, RoleId });
 
-                    // Group the role assignments by ModuleId
+                    // Group the role assignments by ModuleId and SubModuleId
                     var moduleSelections = roleAssignments
-                        .GroupBy(ra => ra.ModuleId)
+                        .GroupBy(ra => new { ra.ModuleId, ra.ModuleName })
                         .Select(g => new ModuleSelectionResponse
                         {
-                            ModuleId = g.Key,
-                            ModuleSubmodule = g.Where(sm => sm.ModuleId != 0)
-                                               .Select(sm => new ModuleSubmoduleResponse
-                                               {
-                                                   ModuleSubID = sm.RAMappingId,
-                                                   SubModuleId = sm.MenuMasterId,
-                                                   ModuleID = sm.ModuleId
-                                               }).ToList()
+                            ModuleId = g.Key.ModuleId,
+                            ModuleName = g.Key.ModuleName,
+                            Status = g.First().Status,
+                            ModuleSubmodule = g.Select(sm => new ModuleSubmoduleResponse
+                            {
+                                ModuleSubID = sm.RAMappingId,
+                                SubModuleId = sm.MenuMasterId,
+                                SubModuleName = sm.SubModuleName,
+                                ModuleID = sm.ModuleId,
+                                ModuleName = sm.ModuleName,
+                                Status = sm.Status
+                            }).ToList()
                         }).ToList();
 
                     var response = new RoleAssignmentResponse

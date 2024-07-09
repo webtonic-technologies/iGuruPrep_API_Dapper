@@ -87,9 +87,6 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
-                string countSql = @"SELECT COUNT(*) FROM [tblCourse]";
-                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
-
                 string query = @"SELECT [CourseId], [CourseName], [CourseCode], [Status], [createdby], [createdon], [displayorder], [modifiedby], [modifiedon], [EmployeeID], [EmpFirstName]
                            FROM [tblCourse]";
                 var data = await _connection.QueryAsync<Course>(query);
@@ -98,7 +95,7 @@ namespace Config_API.Repository.Implementations
                     .ToList();
                 if (paginatedList.Count != 0)
                 {
-                    return new ServiceResponse<List<Course>>(true, "Records Found", paginatedList.AsList(), StatusCodes.Status302Found, totalCount);
+                    return new ServiceResponse<List<Course>>(true, "Records Found", paginatedList.AsList(), StatusCodes.Status302Found, data.Count());
                 }
                 else
                 {

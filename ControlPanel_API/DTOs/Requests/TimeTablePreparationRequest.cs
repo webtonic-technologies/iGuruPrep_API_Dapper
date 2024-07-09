@@ -1,4 +1,7 @@
-﻿namespace ControlPanel_API.DTOs.Requests
+﻿using Microsoft.AspNetCore.DataProtection.KeyManagement;
+using Microsoft.AspNetCore.Http.HttpResults;
+
+namespace ControlPanel_API.DTOs.Requests
 {
     public class TimeTablePreparationRequest
     {
@@ -11,8 +14,6 @@
         public DateTime createdon { get; set; }
         public string createdby { get; set; } = string.Empty;
         public int EmployeeID { get; set; }
-        public int IndexTypeId { get; set; }
-        public int ContentIndexId { get; set; }
         public List<TimeTableBoard>? TimeTableBoards { get; set; }
         public List<TimeTableSubject>? TimeTableSubjects { get; set; }
         public List<TimeTableExamType>? TimeTableExamTypes { get; set; }
@@ -31,6 +32,7 @@
         public int NBTimeTableSubjectId { get; set; }
         public int PreparationTimeTableId { get; set; }
         public int SubjectId { get; set; }
+        public List<TTSubjectContentMapping>? TTSubjectContentMappings { get; set; }
 
     }
     public class TimeTableExamType
@@ -56,6 +58,15 @@
         public int NBTimeTableCategoryId { get; set; }
         public int PreparationTimeTableId { get; set; }
         public int CategoryId { get; set; }
+    }
+    public class TTSubjectContentMapping
+    {
+
+        public int NBTTSubContMappingId { get; set; }
+        public int PreparationTimeTableId { get; set; }
+        public int NBTimeTableSubjectId { get; set; }
+        public int IndexTypeId { get; set; }
+        public int ContentIndexId { get; set; }
     }
     public class TimeTableListRequestDTO
     {

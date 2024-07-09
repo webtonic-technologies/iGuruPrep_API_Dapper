@@ -47,23 +47,36 @@ namespace UserManagement_API.Repository.Implementations
                     {
                         string insertQuery = @"
                         INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID, ExamTypeId)
-                        VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID, @ExamTypeId);";
-                        if (request.LicenseDetails != null)
+                        VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID, @ExamTypeId);
+                        SELECT SCOPE_IDENTITY();";
+
+                        bool operationSuccessful = true;
+                        foreach (var item in request.LicenseDetails ??= ([]))
                         {
-                            foreach (var item in request.LicenseDetails)
+                            item.GenerateLicenseID = generatedId;
+                            int licenseDetailId = await _connection.QueryFirstOrDefaultAsync<int>(insertQuery, item);
+                            if (licenseDetailId > 0)
                             {
-                                item.GenerateLicenseID = generatedId;
+                                int licenses = GenerateLicenseNumbersAsync(item.NoOfLicense, licenseDetailId);
+                                if (licenses <= 0)
+                                {
+                                    operationSuccessful = false;
+                                    break; // Exit the loop if any license generation fails
+                                }
+                            }
+                            else
+                            {
+                                operationSuccessful = false;
+                                break; // Exit the loop if any license detail insertion fails
                             }
                         }
-                        int rowsAffected = await _connection.ExecuteAsync(insertQuery, request.LicenseDetails);
-
-                        if (rowsAffected > 0)
+                        if (operationSuccessful)
                         {
                             return new ServiceResponse<string>(true, "Operation Successful", "License Generated Successfully.", 200);
                         }
                         else
                         {
-                            return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
+                            return new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
                         }
                     }
                     else
@@ -118,22 +131,36 @@ namespace UserManagement_API.Repository.Implementations
                             {
                                 string insertQuery = @"
                                 INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID, ExamTypeId)
-                                VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID, @ExamTypeId);";
+                                VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID, @ExamTypeId);
+                                SELECT SCOPE_IDENTITY();";
 
-                                if (request.LicenseDetails != null)
-                                    foreach (var item in request.LicenseDetails)
-                                    {
-                                        item.GenerateLicenseID = request.GenerateLicenseID;
-                                    }
-                                int addedRecords = await _connection.ExecuteAsync(insertQuery, request.LicenseDetails);
-
-                                if (addedRecords > 0)
+                                bool operationSuccessful = true;
+                                foreach (var item in request.LicenseDetails ??= ([]))
                                 {
-                                    return new ServiceResponse<string>(true, "Operation Successful", "License Details Added Successfully", 200);
+                                    item.GenerateLicenseID = request.GenerateLicenseID;
+                                    int licenseDetailId = await _connection.QueryFirstOrDefaultAsync<int>(insertQuery, item);
+                                    if (licenseDetailId > 0)
+                                    {
+                                        int licenses = GenerateLicenseNumbersAsync(item.NoOfLicense, licenseDetailId);
+                                        if (licenses <= 0)
+                                        {
+                                            operationSuccessful = false;
+                                            break; // Exit the loop if any license generation fails
+                                        }
+                                    }
+                                    else
+                                    {
+                                        operationSuccessful = false;
+                                        break; // Exit the loop if any license detail insertion fails
+                                    }
+                                }
+                                if (operationSuccessful)
+                                {
+                                    return new ServiceResponse<string>(true, "Operation Successful", "License Updated Successfully.", 200);
                                 }
                                 else
                                 {
-                                    return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
+                                    return new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
                                 }
                             }
                             else
@@ -145,21 +172,35 @@ namespace UserManagement_API.Repository.Implementations
                         {
                             string insertQuery = @"
                             INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID, ExamTypeId)
-                            VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID, @ExamTypeId);";
-                            if (request.LicenseDetails != null)
-                                foreach (var item in request.LicenseDetails)
-                                {
-                                    item.GenerateLicenseID = request.GenerateLicenseID;
-                                }
-                            int addedRecords = await _connection.ExecuteAsync(insertQuery, request.LicenseDetails);
-
-                            if (addedRecords > 0)
+                            VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID, @ExamTypeId);
+                            SELECT SCOPE_IDENTITY();";
+                            bool operationSuccessful = true;
+                            foreach (var item in request.LicenseDetails ??= ([]))
                             {
-                                return new ServiceResponse<string>(true, "Operation Successful", "License Details Added Successfully", 200);
+                                item.GenerateLicenseID = request.GenerateLicenseID;
+                                int licenseDetailId = await _connection.QueryFirstOrDefaultAsync<int>(insertQuery, item);
+                                if (licenseDetailId > 0)
+                                {
+                                    int licenses = GenerateLicenseNumbersAsync(item.NoOfLicense, licenseDetailId);
+                                    if (licenses <= 0)
+                                    {
+                                        operationSuccessful = false;
+                                        break; // Exit the loop if any license generation fails
+                                    }
+                                }
+                                else
+                                {
+                                    operationSuccessful = false;
+                                    break; // Exit the loop if any license detail insertion fails
+                                }
+                            }
+                            if (operationSuccessful)
+                            {
+                                return new ServiceResponse<string>(true, "Operation Successful", "License Updated Successfully.", 200);
                             }
                             else
                             {
-                                return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
+                                return new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
                             }
                         }
                     }
@@ -229,7 +270,10 @@ namespace UserManagement_API.Repository.Implementations
 
                     var data = await _connection.QueryAsync<LicenseDetailResponse>(query, new { GenerateLicenseID });
                     response.LicenseDetails = data != null ? data.AsList() : [];
-
+                    foreach(var item in data ??= ([]))
+                    {
+                        item.LicenseNumbers = GetGenerateLicenseNumbersAsync(item.LicenseDetailID);
+                    }
                     return new ServiceResponse<GenerateLicenseResponseDTO>(true, "Record found", response, 200);
                 }
                 else
@@ -246,8 +290,6 @@ namespace UserManagement_API.Repository.Implementations
         {
             try
             {
-                string countSql = @"SELECT COUNT(*) FROM [tblGenerateLicense]";
-                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
                 List<GenerateLicenseResponseDTO> responseList = [];
 
                 // Main query to fetch GenerateLicense data with related names
@@ -336,7 +378,7 @@ namespace UserManagement_API.Repository.Implementations
                         .Take(request.PageSize)
                         .ToList();
 
-                    return new ServiceResponse<List<GenerateLicenseResponseDTO>>(true, "Records found", paginatedList, 200, totalCount);
+                    return new ServiceResponse<List<GenerateLicenseResponseDTO>>(true, "Records found", paginatedList, 200, responseList.Count);
                 }
                 else
                 {
@@ -369,6 +411,88 @@ namespace UserManagement_API.Repository.Implementations
             {
                 return new ServiceResponse<List<Validity>>(false, ex.Message, [], 500);
             }
+        }
+        private List<LicenseNumbers> GetGenerateLicenseNumbersAsync(int licenseDetailId)
+        {
+            string Query = @"SELECT * from tblLicenseNumbers WHERE LicenseDetailID = @LicenseDetailID";
+            var data = _connection.Query<LicenseNumbers>(Query, new { LicenseDetailID = licenseDetailId });
+            return data != null ? data.AsList() : [];
+        }
+        private int GenerateLicenseNumbersAsync(int numberOfLicenses, int licenseDetailId)
+        {
+            // Check if the table has any records against licenseDetailId
+            string checkQuery = "SELECT COUNT(*) FROM tblLicenseNumbers WHERE LicenseDetailID = @LicenseDetailID";
+            int existingRecordsCount = _connection.ExecuteScalar<int>(checkQuery, new { LicenseDetailID = licenseDetailId });
+
+            // If count is greater than 1, delete the existing records
+            if (existingRecordsCount > 0)
+            {
+                string deleteQuery = "DELETE FROM tblLicenseNumbers WHERE LicenseDetailID = @LicenseDetailID";
+                _connection.Execute(deleteQuery, new { LicenseDetailID = licenseDetailId });
+            }
+
+            // Generate new licenses
+            var licenses = new List<LicenseNumbers>();
+            var random = new Random();
+
+            for (int i = 0; i < numberOfLicenses; i++)
+            {
+                string licenseNo;
+                string licensePassword;
+
+                // Ensure unique license number
+                do
+                {
+                    licenseNo = GenerateRandomString(4, random) + GenerateRandomNumber(4, random);
+                } while (IsLicenseNoExists(licenseNo));
+
+                // Ensure unique license password
+                do
+                {
+                    licensePassword = GenerateRandomString(4, random) + GenerateRandomNumber(4, random);
+                } while (IsLicensePasswordExists(licensePassword));
+
+                var license = new LicenseNumbers
+                {
+                    LicenseDetailID = licenseDetailId,
+                    LicenseNo = licenseNo,
+                    LicensePassword = licensePassword
+                };
+
+                licenses.Add(license);
+            }
+
+            // Insert new licenses into the table
+            var query = @"
+            INSERT INTO tblLicenseNumbers (LicenseDetailID, LicenseNo, LicensePassword) 
+            VALUES (@LicenseDetailID, @LicenseNo, @LicensePassword)";
+
+            int insertedRecords = _connection.Execute(query, licenses);
+            return insertedRecords;
+        }
+        private bool IsLicenseNoExists(string licenseNo)
+        {
+            string checkQuery = "SELECT COUNT(*) FROM tblLicenseNumbers WHERE LicenseNo = @LicenseNo";
+            int count = _connection.ExecuteScalar<int>(checkQuery, new { LicenseNo = licenseNo });
+            return count > 0;
+        }
+        private bool IsLicensePasswordExists(string licensePassword)
+        {
+            string checkQuery = "SELECT COUNT(*) FROM tblLicenseNumbers WHERE LicensePassword = @LicensePassword";
+            int count = _connection.ExecuteScalar<int>(checkQuery, new { LicensePassword = licensePassword });
+            return count > 0;
+        }
+        private string GenerateRandomString(int length, Random random)
+        {
+            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            return new string(Enumerable.Repeat(chars, length)
+              .Select(s => s[random.Next(s.Length)]).ToArray());
+        }
+        private string GenerateRandomNumber(int length, Random random)
+        {
+            const string numbers = "0123456789";
+            return new string(Enumerable.Repeat(numbers, length)
+              .Select(s => s[random.Next(s.Length)]).ToArray());
         }
     }
 }

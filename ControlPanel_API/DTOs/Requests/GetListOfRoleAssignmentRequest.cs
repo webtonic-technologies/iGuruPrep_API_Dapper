@@ -9,11 +9,13 @@
     {
         public int ParentId { get; set; }
         public string ParentName { get; set; } = string.Empty;
+        public bool Status {  get; set; }
         public List<MenuMasterChild>? MenuMasterChildren { get; set; }
     }
     public class MenuMasterChild
     {
         public int ChildId { get; set; }
         public string ChildName { get; set; } = string.Empty;
+        public bool Status { get; set; }
     }
 }

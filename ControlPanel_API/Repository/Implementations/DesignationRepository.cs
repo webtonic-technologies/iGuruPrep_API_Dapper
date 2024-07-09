@@ -110,9 +110,6 @@ namespace ControlPanel_API.Repository.Implementations
         {
             try
             {
-                string countSql = @"SELECT COUNT(*) FROM [tblDesignation]";
-                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
-
                 string sql = "SELECT * FROM tblDesignation";
 
                 var designations = await _connection.QueryAsync<Designation>(sql);
@@ -121,7 +118,7 @@ namespace ControlPanel_API.Repository.Implementations
                     .ToList();
                 if (paginatedList.Count != 0)
                 {
-                    return new ServiceResponse<List<Designation>>(true, "Records Found", paginatedList.AsList(), 200, totalCount);
+                    return new ServiceResponse<List<Designation>>(true, "Records Found", paginatedList.AsList(), 200, designations.Count());
                 }
                 else
                 {

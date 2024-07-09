@@ -216,8 +216,6 @@ namespace UserManagement_API.Repository.Implementations
             try
             {
                 List<GenerateReferenceResponseDTO> response = [];
-                string countSql = @"SELECT COUNT(*) FROM [tblReferenceLinkMaster]";
-                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
                 var queryBuilder = new StringBuilder();
                 queryBuilder.Append(@"
                 SELECT 
@@ -287,7 +285,7 @@ namespace UserManagement_API.Repository.Implementations
                         .Take(request.PageSize)
                         .ToList();
 
-                    return new ServiceResponse<List<GenerateReferenceResponseDTO>>(true, "Records found", paginatedList, 200, totalCount);
+                    return new ServiceResponse<List<GenerateReferenceResponseDTO>>(true, "Records found", paginatedList, 200, response.Count);
                 }
                 else
                 {

@@ -401,9 +401,6 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
-
-                string countSql = @"SELECT COUNT(*) FROM [tblNotificationTemplate]";
-                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
                 string notificationQuery = @"
         SELECT 
             nt.NotificationTemplateID,
@@ -479,7 +476,7 @@ namespace Config_API.Repository.Implementations
 
                 if (paginatedList.Count != 0)
                 {
-                    return new ServiceResponse<List<NotificationResponseDTO>>(true, "Records found", paginatedList, 200, totalCount);
+                    return new ServiceResponse<List<NotificationResponseDTO>>(true, "Records found", paginatedList, 200, groupedNotifications.Count);
                 }
                 else
                 {

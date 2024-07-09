@@ -21,9 +21,6 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
-
-                string countSql = @"SELECT COUNT(*) FROM [tblContentIndexChapters]";
-                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
                 // Base query to fetch the content indexes
                 string query = @"SELECT * FROM [tblContentIndexChapters] WHERE 1 = 1";
 
@@ -37,11 +34,8 @@ namespace Config_API.Repository.Implementations
                     query += " AND [SubjectId] = @SubjectId";
                 }
 
-                // Apply pagination
-                int offset = (request.PageNumber - 1) * request.PageSize;
-                query += " ORDER BY [ContentIndexId] OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
-
-                var contentIndexes = await _connection.QueryAsync<ContentIndexRequest>(query, new { request.APID, request.SubjectId, Offset = offset, PageSize = request.PageSize });
+                // Fetch all matching records
+                var contentIndexes = (await _connection.QueryAsync<ContentIndexRequest>(query, new { request.APID, request.SubjectId })).ToList();
 
                 if (contentIndexes.Any())
                 {
@@ -52,10 +46,10 @@ namespace Config_API.Repository.Implementations
                         var topics = (await _connection.QueryAsync<ContentIndexTopics>(topicsSql, new { contentIndexId = contentIndex.ContentIndexId })).ToList();
 
                         string subTopicsSql = @"
-                    SELECT st.*
-                    FROM [tblContentIndexSubTopics] st
-                    INNER JOIN [tblContentIndexTopics] t ON st.ContInIdTopic = t.ContInIdTopic
-                    WHERE t.ContentIndexId = @contentIndexId";
+                SELECT st.*
+                FROM [tblContentIndexSubTopics] st
+                INNER JOIN [tblContentIndexTopics] t ON st.ContInIdTopic = t.ContInIdTopic
+                WHERE t.ContentIndexId = @contentIndexId";
                         var subTopics = (await _connection.QueryAsync<ContentIndexSubTopic>(subTopicsSql, new { contentIndexId = contentIndex.ContentIndexId })).ToList();
 
                         // Assign the subtopics to the respective topics
@@ -67,19 +61,24 @@ namespace Config_API.Repository.Implementations
                         // Assign the topics to the content index
                         contentIndex.ContentIndexTopics = topics;
                     }
+                    var paginatedContentIndexes = contentIndexes
+                        .Skip((request.PageNumber - 1) * request.PageSize)
+                        .Take(request.PageSize)
+                        .ToList();
 
-                    return new ServiceResponse<List<ContentIndexRequest>>(true, "Records found", contentIndexes.AsList(), StatusCodes.Status302Found, totalCount);
+                    return new ServiceResponse<List<ContentIndexRequest>>(true, "Records found", paginatedContentIndexes, StatusCodes.Status302Found, contentIndexes.Count);
                 }
                 else
                 {
-                    return new ServiceResponse<List<ContentIndexRequest>>(false, "Records not found", [], StatusCodes.Status204NoContent);
+                    return new ServiceResponse<List<ContentIndexRequest>>(false, "Records not found", new List<ContentIndexRequest>(), StatusCodes.Status204NoContent);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<ContentIndexRequest>>(false, ex.Message, [], StatusCodes.Status500InternalServerError);
+                return new ServiceResponse<List<ContentIndexRequest>>(false, ex.Message, new List<ContentIndexRequest>(), StatusCodes.Status500InternalServerError);
             }
         }
+
         public async Task<ServiceResponse<ContentIndexRequest>> GetContentIndexById(int id)
         {
             try

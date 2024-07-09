@@ -19,38 +19,50 @@ namespace ControlPanel_API.Repository.Implementations
         {
             try
             {
-                string countSql = @"SELECT COUNT(*) FROM [tblHelpContactUs]";
-                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
                 string sql = @"
-                SELECT 
-                    cu.ContactusID, 
-                    cu.QuerytypeDescription AS QuerytypeDescription,
-                    cu.phonenumber AS phonenumber,
-                    cu.username AS username,
-                    cu.DateTime AS DateTime,
-                    e.EmpFirstName AS EmpFirstName,
-                    b.BoardName AS Board,
-                    c.ClassName AS Class,
-                    cr.CourseName AS Course,
-                    ct.APName AS Category,
-                    q.[QueryType] AS QueryTypeName,
-                    e.EMPEmail AS Email
-                FROM 
-                    [tblHelpContactUs] cu
-                LEFT JOIN 
-                    [dbo].[tblBoard] b ON b.BoardId = cu.BoardId
-                LEFT JOIN 
-                    [dbo].[tblClass] c ON c.ClassId = cu.ClassId
-                LEFT JOIN 
-                    [dbo].[tblCourse] cr ON cr.CourseId = cu.CourseId
-                LEFT JOIN 
-                    [dbo].[tblCategory] ct ON ct.APId = cu.APId
-                LEFT JOIN 
-                    [dbo].[tblQuery] q ON q.QueryID = cu.QueryType
-                LEFT JOIN 
-                    [dbo].[tblEmployee] e ON e.Employeeid = cu.[EmployeeID]
-                WHERE 
-                    1 = 1";
+        SELECT 
+            cu.ContactusID, 
+            cu.Querytype AS Querytype,
+            q.QueryType AS QueryTypeName,
+            cu.QuerytypeDescription AS QuerytypeDescription,
+            cu.EmployeeID AS EmployeeID,
+            e.EmpFirstName AS EmpFirstName,
+            cu.phonenumber AS phonenumber,
+            e.EMPEmail AS Email,
+            cu.boardid AS boardid,
+            b.BoardName AS Board,
+            cu.classid AS classid,
+            c.ClassName AS Class,
+            cu.courseid AS courseid,
+            cr.CourseName AS Course,
+            cu.APID AS APID,
+            ct.APName AS Category,
+            cu.username AS username,
+            cu.DateTime AS DateTime,
+            cu.RQSID AS RQSID,
+            s.RQSName AS RQSName,
+            cu.ExamTypeId as ExamTypeId,
+            ex.[ExamTypeName] as ExamTypeName
+        FROM 
+            [tblHelpContactUs] cu
+        LEFT JOIN 
+            [dbo].[tblBoard] b ON b.BoardId = cu.BoardId
+        LEFT JOIN 
+            [dbo].[tblClass] c ON c.ClassId = cu.ClassId
+        LEFT JOIN 
+            [dbo].[tblCourse] cr ON cr.CourseId = cu.CourseId
+        LEFT JOIN 
+            [dbo].[tblCategory] ct ON ct.APId = cu.APId
+        LEFT JOIN 
+            [dbo].[tblQuery] q ON q.QueryID = cu.QueryType
+        LEFT JOIN 
+            [dbo].[tblEmployee] e ON e.Employeeid = cu.EmployeeID
+        LEFT JOIN 
+            [dbo].[tblStatus] s ON s.RQSID = cu.RQSID
+        LEFT JOIN 
+            [dbo].[tblExamType] ex ON ex.[ExamTypeID] = cu.ExamTypeId
+        WHERE 
+            1 = 1";
 
                 var parameters = new DynamicParameters();
 
@@ -75,6 +87,11 @@ namespace ControlPanel_API.Repository.Implementations
                     sql += " AND cu.APID = @APID";
                     parameters.Add("APID", request.APID);
                 }
+                if (request.ExamTypeId > 0)
+                {
+                    sql += " AND cu.ExamTypeId = @ExamTypeId";
+                    parameters.Add("ExamTypeId", request.ExamTypeId);
+                }
                 if (request.StartDate.HasValue)
                 {
                     sql += " AND cu.[DateTime] >= @StartDate";
@@ -98,20 +115,87 @@ namespace ControlPanel_API.Repository.Implementations
 
                 var list = await _connection.QueryAsync<GetAllContactUsResponse>(sql, parameters);
                 var paginatedList = list.Skip((request.PageNumber - 1) * request.PageSize)
-                           .Take(request.PageSize)
-                           .ToList();
+                             .Take(request.PageSize)
+                             .ToList();
                 if (paginatedList.Count != 0)
                 {
-                    return new ServiceResponse<List<GetAllContactUsResponse>>(true, "Records Found", paginatedList.AsList(), 200, totalCount);
+                    return new ServiceResponse<List<GetAllContactUsResponse>>(true, "Records Found", paginatedList, 200, list.Count());
                 }
                 else
                 {
-                    return new ServiceResponse<List<GetAllContactUsResponse>>(false, "Records Not Found", [], 204);
+                    return new ServiceResponse<List<GetAllContactUsResponse>>(false, "Records Not Found", new List<GetAllContactUsResponse>(), 204);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<GetAllContactUsResponse>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<GetAllContactUsResponse>>(false, ex.Message, new List<GetAllContactUsResponse>(), 500);
+            }
+        }
+        public async Task<ServiceResponse<GetAllContactUsResponse>> GetContactUsById(int contactusId)
+        {
+            try
+            {
+                string sql = @"
+        SELECT 
+            cu.ContactusID, 
+            cu.Querytype AS Querytype,
+            q.QueryType AS QueryTypeName,
+            cu.QuerytypeDescription AS QuerytypeDescription,
+            cu.EmployeeID AS EmployeeID,
+            e.EmpFirstName AS EmpFirstName,
+            cu.phonenumber AS phonenumber,
+            e.EMPEmail AS Email,
+            cu.boardid AS boardid,
+            b.BoardName AS Board,
+            cu.classid AS classid,
+            c.ClassName AS Class,
+            cu.courseid AS courseid,
+            cr.CourseName AS Course,
+            cu.APID AS APID,
+            ct.APName AS Category,
+            cu.username AS username,
+            cu.DateTime AS DateTime,
+            cu.RQSID AS RQSID,
+            s.RQSName AS RQSName,
+            cu.ExamTypeId as ExamTypeId,
+            ex.[ExamTypeName] as ExamTypeName
+        FROM 
+            [tblHelpContactUs] cu
+        LEFT JOIN 
+            [dbo].[tblBoard] b ON b.BoardId = cu.BoardId
+        LEFT JOIN 
+            [dbo].[tblClass] c ON c.ClassId = cu.ClassId
+        LEFT JOIN 
+            [dbo].[tblCourse] cr ON cr.CourseId = cu.CourseId
+        LEFT JOIN 
+            [dbo].[tblCategory] ct ON ct.APId = cu.APId
+        LEFT JOIN 
+            [dbo].[tblQuery] q ON q.QueryID = cu.QueryType
+        LEFT JOIN 
+            [dbo].[tblEmployee] e ON e.Employeeid = cu.EmployeeID
+        LEFT JOIN 
+            [dbo].[tblStatus] s ON s.RQSID = cu.RQSID
+        LEFT JOIN 
+            [dbo].[tblExamType] ex ON ex.[ExamTypeID] = cu.ExamTypeId
+        WHERE 
+            cu.ContactusID = @ContactusID";
+
+                var parameters = new { ContactusID = contactusId };
+
+                var contact = await _connection.QueryFirstOrDefaultAsync<GetAllContactUsResponse>(sql, parameters);
+
+                if (contact != null)
+                {
+                    return new ServiceResponse<GetAllContactUsResponse>(true, "Record Found", contact, 200);
+                }
+                else
+                {
+                    return new ServiceResponse<GetAllContactUsResponse>(false, "Contact not found", new GetAllContactUsResponse(), 404);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<GetAllContactUsResponse>(false, ex.Message, new GetAllContactUsResponse(), 500);
             }
         }
     }

@@ -204,49 +204,46 @@ namespace ControlPanel_API.Repository.Implementations
         {
             try
             {
-                string countSql = @"SELECT COUNT(*) FROM [tblSOTD]";
-                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
-
-                // Base query
+                // Base query to fetch all matching records
                 string baseQuery = @"
-            SELECT DISTINCT
-                s.StoryId,
-                s.EventTypeID,
-                s.Event1PostDate,
-                s.Event1Posttime,
-                s.Event2PostDate,
-                s.Event2Posttime,
-                s.Filename1,
-                s.Filename2,
-                s.Status,
-                s.APName,
-                s.eventname,
-                s.modifiedon,
-                s.modifiedby,
-                s.createdon,
-                s.createdby,
-                s.EmployeeID,
-                ev.EventTypeName as eventtypename,
-                e.EmpFirstName,
-                CASE 
-                    WHEN DATEADD(HOUR, -24, GETDATE()) <= CAST(s.Event1PostDate AS DATETIME) + CAST(s.Event1Posttime AS DATETIME)
-                    THEN 1 
-                    ELSE 0 
-                END AS IsEvent1Valid,
-                CASE 
-                    WHEN DATEADD(HOUR, -24, GETDATE()) <= CAST(s.Event2PostDate AS DATETIME) + CAST(s.Event2Posttime AS DATETIME)
-                    THEN 1 
-                    ELSE 0 
-                END AS IsEvent2Valid
-            FROM [tblSOTD] s
-            LEFT JOIN [tblEmployee] e ON s.EmployeeID = e.Employeeid
-            LEFT JOIN tblSOTDEventtype ev ON s.EventTypeID = ev.EventTypeID
-            LEFT JOIN [tblSOTDCategory] sc ON s.StoryId = sc.SOTDID
-            LEFT JOIN [tblSOTDBoard] sb ON s.StoryId = sb.SOTDID
-            LEFT JOIN [tblSOTDClass] scl ON s.StoryId = scl.SOTDID
-            LEFT JOIN [tblSOTDCourse] sco ON s.StoryId = sco.SOTDID
-            LEFT JOIN [tblSOTDExamType] se ON s.StoryId = se.SOTDID
-            WHERE 1=1";
+        SELECT DISTINCT
+            s.StoryId,
+            s.EventTypeID,
+            s.Event1PostDate,
+            s.Event1Posttime,
+            s.Event2PostDate,
+            s.Event2Posttime,
+            s.Filename1,
+            s.Filename2,
+            s.Status,
+            s.APName,
+            s.eventname,
+            s.modifiedon,
+            s.modifiedby,
+            s.createdon,
+            s.createdby,
+            s.EmployeeID,
+            ev.EventTypeName as eventtypename,
+            e.EmpFirstName,
+            CASE 
+                WHEN DATEADD(HOUR, -24, GETDATE()) <= CAST(s.Event1PostDate AS DATETIME) + CAST(s.Event1Posttime AS DATETIME)
+                THEN 1 
+                ELSE 0 
+            END AS IsEvent1Valid,
+            CASE 
+                WHEN DATEADD(HOUR, -24, GETDATE()) <= CAST(s.Event2PostDate AS DATETIME) + CAST(s.Event2Posttime AS DATETIME)
+                THEN 1 
+                ELSE 0 
+            END AS IsEvent2Valid
+        FROM [tblSOTD] s
+        LEFT JOIN [tblEmployee] e ON s.EmployeeID = e.Employeeid
+        LEFT JOIN tblSOTDEventtype ev ON s.EventTypeID = ev.EventTypeID
+        LEFT JOIN [tblSOTDCategory] sc ON s.StoryId = sc.SOTDID
+        LEFT JOIN [tblSOTDBoard] sb ON s.StoryId = sb.SOTDID
+        LEFT JOIN [tblSOTDClass] scl ON s.StoryId = scl.SOTDID
+        LEFT JOIN [tblSOTDCourse] sco ON s.StoryId = sco.SOTDID
+        LEFT JOIN [tblSOTDExamType] se ON s.StoryId = se.SOTDID
+        WHERE 1=1";
 
                 // Applying filters
                 if (request.ClassID > 0)
@@ -274,11 +271,6 @@ namespace ControlPanel_API.Repository.Implementations
                     baseQuery += " AND s.EventTypeID = @EventTypeID";
                 }
 
-                // Pagination
-                baseQuery += " ORDER BY s.StoryId OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
-
-                var offset = (request.PageNumber - 1) * request.PageSize;
-
                 // Parameters for the query
                 var parameters = new
                 {
@@ -287,76 +279,72 @@ namespace ControlPanel_API.Repository.Implementations
                     CourseID = request.CourseID,
                     ExamTypeID = request.ExamTypeID,
                     APID = request.APID,
-                    EventTypeID = request.EventTypeID,
-                    Offset = offset,
-                    PageSize = request.PageSize
+                    EventTypeID = request.EventTypeID
                 };
 
-                // Fetch filtered and paginated records
-                var mainResult = await _connection.QueryAsync<dynamic>(baseQuery, parameters);
+                // Fetch all matching records
+                var mainResult = (await _connection.QueryAsync<dynamic>(baseQuery, parameters)).ToList();
 
                 // Map results to response DTO
-                var response = new List<StoryOfTheDayResponseDTO>();
-
-                foreach (var item in mainResult)
-                {
-                    bool isEvent1Valid = item.IsEvent1Valid == 1;
-                    bool isEvent2Valid = item.IsEvent2Valid == 1;
-
-                    if (isEvent1Valid || isEvent2Valid)
+                var response = mainResult
+                    .Select(item => new
                     {
-                        var storyResponse = new StoryOfTheDayResponseDTO
-                        {
-                            StoryId = item.StoryId,
-                            EventTypeID = item.EventTypeID,
-                            modifiedby = item.modifiedby,
-                            createdby = item.createdby,
-                            eventtypename = item.eventtypename,
-                            modifiedon = item.modifiedon,
-                            createdon = item.createdon,
-                            Status = item.Status,
-                            EmployeeID = item.EmployeeID,
-                            EmpFirstName = item.EmpFirstName,
-                            SOTDCategories = GetListOfSOTDCategory(item.StoryId),
-                            SOTDBoards = GetListOfSOTDBoards(item.StoryId),
-                            SOTDClasses = GetListOfSOTDClass(item.StoryId),
-                            SOTDCourses = GetListOfSOTDCourse(item.StoryId),
-                            SOTDExamTypes = GetListOfSOTDExamType(item.StoryId)
-                        };
+                        item,
+                        IsEvent1Valid = item.IsEvent1Valid == 1,
+                        IsEvent2Valid = item.IsEvent2Valid == 1
+                    })
+                    .Where(item => item.IsEvent1Valid || item.IsEvent2Valid)
+                    .Select(item => new StoryOfTheDayResponseDTO
+                    {
+                        StoryId = item.item.StoryId,
+                        EventTypeID = item.item.EventTypeID,
+                        modifiedby = item.item.modifiedby,
+                        createdby = item.item.createdby,
+                        eventtypename = item.item.eventtypename,
+                        modifiedon = item.item.modifiedon,
+                        createdon = item.item.createdon,
+                        Status = item.item.Status,
+                        EmployeeID = item.item.EmployeeID,
+                        EmpFirstName = item.item.EmpFirstName,
+                        SOTDCategories = GetListOfSOTDCategory(item.item.StoryId),
+                        SOTDBoards = GetListOfSOTDBoards(item.item.StoryId),
+                        SOTDClasses = GetListOfSOTDClass(item.item.StoryId),
+                        SOTDCourses = GetListOfSOTDCourse(item.item.StoryId),
+                        SOTDExamTypes = GetListOfSOTDExamType(item.item.StoryId),
+                        Event1Posttime = item.IsEvent1Valid ? item.item.Event1Posttime : string.Empty,
+                        Event1PostDate = item.IsEvent1Valid ? item.item.Event1PostDate : null,
+                        Filename1 = item.IsEvent1Valid ? GetStoryOfTheDayFileById(item.item.Filename1) : string.Empty,
+                        Event2Posttime = item.IsEvent2Valid ? item.item.Event2Posttime : string.Empty,
+                        Event2PostDate = item.IsEvent2Valid ? item.item.Event2PostDate : null,
+                        Filename2 = item.IsEvent2Valid ? GetStoryOfTheDayFileById(item.item.Filename2) : string.Empty
+                    })
+                    .ToList();
 
-                        if (isEvent1Valid)
-                        {
-                            storyResponse.Event1Posttime = item.Event1Posttime;
-                            storyResponse.Event1PostDate = item.Event1PostDate;
-                            storyResponse.Filename1 = !string.IsNullOrEmpty(item.Filename1) ? GetStoryOfTheDayFileById(item.Filename1) : string.Empty;
-                        }
+                // Total count before pagination
+                int totalCount = response.Count;
 
-                        if (isEvent2Valid)
-                        {
-                            storyResponse.Event2Posttime = item.Event2Posttime;
-                            storyResponse.Event2PostDate = item.Event2PostDate;
-                            storyResponse.Filename2 = !string.IsNullOrEmpty(item.Filename2) ? GetStoryOfTheDayFileById(item.Filename2) : string.Empty;
-                        }
-
-                        response.Add(storyResponse);
-                    }
-                }
+                // Apply logical pagination
+                var paginatedResponse = response
+                    .Skip((request.PageNumber - 1) * request.PageSize)
+                    .Take(request.PageSize)
+                    .ToList();
 
                 // Check if there are records
-                if (response.Count != 0)
+                if (paginatedResponse.Any())
                 {
-                    return new ServiceResponse<List<StoryOfTheDayResponseDTO>>(true, "Records found", response, 200, totalCount);
+                    return new ServiceResponse<List<StoryOfTheDayResponseDTO>>(true, "Records found", paginatedResponse, 200, totalCount);
                 }
                 else
                 {
-                    return new ServiceResponse<List<StoryOfTheDayResponseDTO>>(false, "Records not found", [], 404);
+                    return new ServiceResponse<List<StoryOfTheDayResponseDTO>>(false, "Records not found", new List<StoryOfTheDayResponseDTO>(), 404);
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<StoryOfTheDayResponseDTO>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<StoryOfTheDayResponseDTO>>(false, ex.Message, new List<StoryOfTheDayResponseDTO>(), 500);
             }
         }
+
         public async Task<ServiceResponse<StoryOfTheDayResponseDTO>> GetStoryOfTheDayById(int id)
         {
             try
@@ -556,7 +544,7 @@ namespace ControlPanel_API.Repository.Implementations
                 }
                 else
                 {
-                    return new ServiceResponse<List<StoryOfTheDayResponseDTO>>(false, "No event within the last 24 hours", new List<StoryOfTheDayResponseDTO>(), 404);
+                    return new ServiceResponse<List<StoryOfTheDayResponseDTO>>(false, "No event within the last 24 hours", [], 404);
                 }
             }
             catch (SqlException sqlEx)

@@ -23,9 +23,9 @@ namespace ControlPanel_API.Repository.Implementations
                 {
                     string insertTimeTableQuery = @"
                     INSERT INTO [tblNBPreparationTimeTable] 
-                    ([TTTitle], [Date], [Status], [createdon], [createdby], [EmployeeID], [IndexTypeId], [ContentIndexId]) 
+                    ([TTTitle], [Date], [Status], [createdon], [createdby], [EmployeeID]) 
                     VALUES 
-                    (@TTTitle, @Date, @Status, @createdon, @createdby, @EmployeeID, @IndexTypeId, @ContentIndexId);
+                    (@TTTitle, @Date, @Status, @createdon, @createdby, @EmployeeID);
                     SELECT CAST(SCOPE_IDENTITY() as int);";
 
                     int newId = await _connection.QuerySingleAsync<int>(insertTimeTableQuery, new
@@ -35,9 +35,7 @@ namespace ControlPanel_API.Repository.Implementations
                         request.createdby,
                         Status = true,
                         createdon = DateTime.Now,
-                        request.EmployeeID,
-                        request.IndexTypeId,
-                        request.ContentIndexId
+                        request.EmployeeID
                     });
                     if (newId > 0)
                     {
@@ -67,7 +65,7 @@ namespace ControlPanel_API.Repository.Implementations
                     string updateTimeTableQuery = @"
                     UPDATE [tblNBPreparationTimeTable] 
                     SET [TTTitle] = @TTTitle, [Date] = @Date, [Status] = @Status, [modifiedon] = @modifiedon, [modifiedby] = @modifiedby, 
-                        [EmployeeID] = @EmployeeID, [IndexTypeId] = @IndexTypeId, [ContentIndexId] = @ContentIndexId 
+                        [EmployeeID] = @EmployeeID 
                     WHERE [PreparationTimeTableId] = @PreparationTimeTableId;";
 
                     int rowsAffected = await _connection.ExecuteAsync(updateTimeTableQuery, new
@@ -78,8 +76,6 @@ namespace ControlPanel_API.Repository.Implementations
                         request.modifiedby,
                         modifiedon = DateTime.Now,
                         request.EmployeeID,
-                        request.IndexTypeId,
-                        request.ContentIndexId,
                         request.PreparationTimeTableId
                     });
 
@@ -115,41 +111,29 @@ namespace ControlPanel_API.Repository.Implementations
         {
             try
             {
+                // Base query to fetch all matching records
                 string baseQuery = @"
-                SELECT 
-                    tt.PreparationTimeTableId, 
-                    tt.TTTitle, 
-                    tt.Date, 
-                    tt.Status, 
-                    tt.modifiedon, 
-                    tt.modifiedby, 
-                    tt.createdon, 
-                    tt.createdby, 
-                    tt.EmployeeID, 
-                    e.EmpFirstName AS EmployeeName, 
-                    tt.IndexTypeId, 
-                    it.IndexType AS IndexTypeName, 
-                    tt.ContentIndexId,
-                    CASE 
-                        WHEN tt.IndexTypeId = 1 THEN ci.ContentName_Chapter
-                        WHEN tt.IndexTypeId = 2 THEN ct.ContentName_Topic
-                        WHEN tt.IndexTypeId = 3 THEN cst.ContentName_SubTopic
-                    END AS ContentIndexName
-                FROM tblNBPreparationTimeTable tt
-                LEFT JOIN tblEmployee e ON tt.EmployeeID = e.Employeeid
-                LEFT JOIN tblQBIndexType it ON tt.IndexTypeId = it.IndexId
-                LEFT JOIN tblContentIndexChapters ci ON tt.ContentIndexId = ci.ContentIndexId AND tt.IndexTypeId = 1
-                LEFT JOIN tblContentIndexTopics ct ON tt.ContentIndexId = ct.ContInIdTopic AND tt.IndexTypeId = 2
-                LEFT JOIN tblContentIndexSubTopics cst ON tt.ContentIndexId = cst.ContInIdSubTopic AND tt.IndexTypeId = 3
-                LEFT JOIN tblNBTimeTableClass tc ON tt.PreparationTimeTableId = tc.PreparationTimeTableId
-                LEFT JOIN tblNBTimeTableBoard tb ON tt.PreparationTimeTableId = tb.PreparationTimeTableId
-                LEFT JOIN tblNBTimeTableCourse tco ON tt.PreparationTimeTableId = tco.PreparationTimeTableId
-                LEFT JOIN tblNBTimeTableExamType tet ON tt.PreparationTimeTableId = tet.PreparationTimeTableId
-                LEFT JOIN tblNBTimeTableCategory tca ON tt.PreparationTimeTableId = tca.PreparationTimeTableId
-                WHERE 1=1";
-                string countSql = @"SELECT COUNT(*) FROM [tblNBPreparationTimeTable]";
-                int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
+        SELECT 
+            tt.PreparationTimeTableId, 
+            tt.TTTitle, 
+            tt.Date, 
+            tt.Status, 
+            tt.modifiedon, 
+            tt.modifiedby, 
+            tt.createdon, 
+            tt.createdby, 
+            tt.EmployeeID, 
+            e.EmpFirstName AS EmployeeName
+        FROM tblNBPreparationTimeTable tt
+        LEFT JOIN tblEmployee e ON tt.EmployeeID = e.Employeeid
+        LEFT JOIN tblNBTimeTableClass tc ON tt.PreparationTimeTableId = tc.PreparationTimeTableId
+        LEFT JOIN tblNBTimeTableBoard tb ON tt.PreparationTimeTableId = tb.PreparationTimeTableId
+        LEFT JOIN tblNBTimeTableCourse tco ON tt.PreparationTimeTableId = tco.PreparationTimeTableId
+        LEFT JOIN tblNBTimeTableExamType tet ON tt.PreparationTimeTableId = tet.PreparationTimeTableId
+        LEFT JOIN tblNBTimeTableCategory tca ON tt.PreparationTimeTableId = tca.PreparationTimeTableId
+        WHERE 1=1";
 
+                // Applying filters
                 if (request.ClassID > 0)
                 {
                     baseQuery += " AND tc.ClassId = @ClassID";
@@ -171,39 +155,57 @@ namespace ControlPanel_API.Repository.Implementations
                     baseQuery += " AND tca.CategoryId = @APID";
                 }
 
-                baseQuery += " ORDER BY tt.PreparationTimeTableId OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
-
-                var offset = (request.PageNumber - 1) * request.PageSize;
-
-                var mainResult = await _connection.QueryAsync<TimeTablePreparationResponseDTO>(baseQuery, new
+                // Parameters for the query
+                var parameters = new
                 {
                     ClassID = request.ClassID,
                     BoardIDID = request.BoardIDID,
                     CourseID = request.CourseID,
                     ExamTypeID = request.ExamTypeID,
-                    APID = request.APID,
-                    Offset = offset,
-                    PageSize = request.PageSize
-                });
+                    APID = request.APID
+                };
 
-                var resultList = mainResult.ToList();
+                // Fetch all matching records
+                var mainResult = (await _connection.QueryAsync<TimeTablePreparationResponseDTO>(baseQuery, parameters)).ToList();
 
-                foreach (var result in resultList)
+                // Map results to response DTO
+                var resultList = mainResult.Select(result => new TimeTablePreparationResponseDTO
                 {
-                    result.TimeTableBoards = GetListOfTimeTableBoards(result.PreparationTimeTableId);
-                    result.TimeTableSubjects = GetListOfTimeTableSubject(result.PreparationTimeTableId);
-                    result.TimeTableExamTypes = GetListOfTimeTableExamType(result.PreparationTimeTableId);
-                    result.TimeTableCourses = GetListOfTimeTableCourse(result.PreparationTimeTableId);
-                    result.TimeTableClasses = GetListOfTimeTableClass(result.PreparationTimeTableId);
-                    result.TimeTableCategories = GetListOfTimeTableCategory(result.PreparationTimeTableId);
-                }
-                if (resultList.Count > 0)
+                    PreparationTimeTableId = result.PreparationTimeTableId,
+                    TTTitle = result.TTTitle,
+                    Date = result.Date,
+                    Status = result.Status,
+                    modifiedon = result.modifiedon,
+                    modifiedby = result.modifiedby,
+                    createdon = result.createdon,
+                    createdby = result.createdby,
+                    EmployeeID = result.EmployeeID,
+                    EmployeeName = result.EmployeeName,
+                    TimeTableBoards = GetListOfTimeTableBoards(result.PreparationTimeTableId),
+                    TimeTableSubjects = GetListOfTimeTableSubjects(result.PreparationTimeTableId),
+                    TimeTableExamTypes = GetListOfTimeTableExamType(result.PreparationTimeTableId),
+                    TimeTableCourses = GetListOfTimeTableCourse(result.PreparationTimeTableId),
+                    TimeTableClasses = GetListOfTimeTableClass(result.PreparationTimeTableId),
+                    TimeTableCategories = GetListOfTimeTableCategory(result.PreparationTimeTableId)
+                }).ToList();
+
+                // Total count before pagination
+                int totalCount = resultList.Count;
+
+                // Apply logical pagination
+                var paginatedResponse = resultList
+                    .Skip((request.PageNumber - 1) * request.PageSize)
+                    .Take(request.PageSize)
+                    .ToList();
+
+                // Check if there are records
+                if (paginatedResponse.Any())
                 {
-                    return new ServiceResponse<List<TimeTablePreparationResponseDTO>>(true, "Success", resultList, 200, totalCount);
+                    return new ServiceResponse<List<TimeTablePreparationResponseDTO>>(true, "Success", paginatedResponse, 200, totalCount);
                 }
                 else
                 {
-                    return new ServiceResponse<List<TimeTablePreparationResponseDTO>>(false, "No records found", [], 404);
+                    return new ServiceResponse<List<TimeTablePreparationResponseDTO>>(false, "No records found", new List<TimeTablePreparationResponseDTO>(), 404);
                 }
             }
             catch (Exception ex)
@@ -215,32 +217,21 @@ namespace ControlPanel_API.Repository.Implementations
         {
             try
             {
-                string mainQuery = @"SELECT 
-                tt.PreparationTimeTableId, 
-                tt.TTTitle, 
-                tt.Date, 
-                tt.Status, 
-                tt.modifiedon, 
-                tt.modifiedby, 
-                tt.createdon, 
-                tt.createdby, 
-                tt.EmployeeID, 
-                e.EmpFirstName AS EmployeeName, 
-                tt.IndexTypeId, 
-                it.IndexType AS IndexTypeName, 
-                tt.ContentIndexId,
-                CASE 
-                    WHEN tt.IndexTypeId = 1 THEN ci.ContentName_Chapter
-                    WHEN tt.IndexTypeId = 2 THEN ct.ContentName_Topic
-                    WHEN tt.IndexTypeId = 3 THEN cst.ContentName_SubTopic
-                END AS ContentIndexName
-            FROM tblNBPreparationTimeTable tt
-            LEFT JOIN tblEmployee e ON tt.EmployeeID = e.Employeeid
-            LEFT JOIN tblQBIndexType it ON tt.IndexTypeId = it.IndexId
-            LEFT JOIN tblContentIndexChapters ci ON tt.ContentIndexId = ci.ContentIndexId AND tt.IndexTypeId = 1
-            LEFT JOIN tblContentIndexTopics ct ON tt.ContentIndexId = ct.ContInIdTopic AND tt.IndexTypeId = 2
-            LEFT JOIN tblContentIndexSubTopics cst ON tt.ContentIndexId = cst.ContInIdSubTopic AND tt.IndexTypeId = 3
-            WHERE tt.PreparationTimeTableId = @PreparationTimeTableId;";
+                string mainQuery = @"
+        SELECT 
+            tt.PreparationTimeTableId, 
+            tt.TTTitle, 
+            tt.Date, 
+            tt.Status, 
+            tt.modifiedon, 
+            tt.modifiedby, 
+            tt.createdon, 
+            tt.createdby, 
+            tt.EmployeeID, 
+            e.EmpFirstName AS EmployeeName
+        FROM tblNBPreparationTimeTable tt
+        LEFT JOIN tblEmployee e ON tt.EmployeeID = e.Employeeid
+        WHERE tt.PreparationTimeTableId = @PreparationTimeTableId;";
 
                 var mainResult = await _connection.QuerySingleOrDefaultAsync<TimeTablePreparationResponseDTO>(mainQuery, new { PreparationTimeTableId });
 
@@ -250,7 +241,7 @@ namespace ControlPanel_API.Repository.Implementations
                 }
 
                 mainResult.TimeTableBoards = GetListOfTimeTableBoards(PreparationTimeTableId);
-                mainResult.TimeTableSubjects = GetListOfTimeTableSubject(PreparationTimeTableId);
+                mainResult.TimeTableSubjects = GetListOfTimeTableSubjects(PreparationTimeTableId);
                 mainResult.TimeTableExamTypes = GetListOfTimeTableExamType(PreparationTimeTableId);
                 mainResult.TimeTableCourses = GetListOfTimeTableCourse(PreparationTimeTableId);
                 mainResult.TimeTableClasses = GetListOfTimeTableClass(PreparationTimeTableId);
@@ -437,14 +428,20 @@ namespace ControlPanel_API.Repository.Implementations
             int count = _connection.QueryFirstOrDefault<int>(query, new { PreparationTimeTableId });
             if (count > 0)
             {
-                var deleteDuery = @"DELETE FROM [tblNBTimeTableSubject]
-                          WHERE [PreparationTimeTableId] = @PreparationTimeTableId;";
-                var rowsAffected = _connection.Execute(deleteDuery, new { PreparationTimeTableId });
+                var deleteQuery = @"DELETE FROM [tblNBTimeTableSubject] WHERE [PreparationTimeTableId] = @PreparationTimeTableId;";
+                var rowsAffected = _connection.Execute(deleteQuery, new { PreparationTimeTableId });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblNBTimeTableSubject] ([PreparationTimeTableId], [SubjectId])
-                          VALUES (@PreparationTimeTableId, @SubjectId);";
-                    var valuesInserted = _connection.Execute(insertquery, request);
+                    var insertQuery = @"INSERT INTO [tblNBTimeTableSubject] ([PreparationTimeTableId], [SubjectId])
+                  VALUES (@PreparationTimeTableId, @SubjectId);";
+                    var valuesInserted = _connection.Execute(insertQuery, request);
+
+                    foreach (var subject in request)
+                    {
+                        var contentMapping = TTSubjectContentMapping(subject.TTSubjectContentMappings ?? new List<TTSubjectContentMapping>(), subject.NBTimeTableSubjectId, PreparationTimeTableId);
+                        if (contentMapping < 0) return 0;
+                    }
+
                     return valuesInserted;
                 }
                 else
@@ -454,9 +451,50 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblNBTimeTableSubject] ([PreparationTimeTableId], [SubjectId])
-                          VALUES (@PreparationTimeTableId, @SubjectId);";
-                var valuesInserted = _connection.Execute(insertquery, request);
+                var insertQuery = @"INSERT INTO [tblNBTimeTableSubject] ([PreparationTimeTableId], [SubjectId])
+                  VALUES (@PreparationTimeTableId, @SubjectId);";
+                var valuesInserted = _connection.Execute(insertQuery, request);
+
+                foreach (var subject in request)
+                {
+                    var contentMapping = TTSubjectContentMapping(subject.TTSubjectContentMappings ?? new List<TTSubjectContentMapping>(), subject.NBTimeTableSubjectId, PreparationTimeTableId);
+                    if (contentMapping < 0) return 0;
+                }
+
+                return valuesInserted;
+            }
+        }
+        private int TTSubjectContentMapping(List<TTSubjectContentMapping> request, int NBTimeTableSubjectId, int PreparationTimeTableId)
+        {
+            foreach (var data in request)
+            {
+                data.PreparationTimeTableId = PreparationTimeTableId;
+                data.NBTimeTableSubjectId = NBTimeTableSubjectId;
+            }
+            string query = "SELECT COUNT(*) FROM [tblNBTTSubjectContentMapping] WHERE [NBTimeTableSubjectId] = @NBTimeTableSubjectId";
+            int count = _connection.QueryFirstOrDefault<int>(query, new { NBTimeTableSubjectId });
+            if (count > 0)
+            {
+                var deleteQuery = @"DELETE FROM [tblNBTTSubjectContentMapping]
+                  WHERE [NBTimeTableSubjectId] = @NBTimeTableSubjectId;";
+                var rowsAffected = _connection.Execute(deleteQuery, new { NBTimeTableSubjectId });
+                if (rowsAffected > 0)
+                {
+                    var insertQuery = @"INSERT INTO [tblNBTTSubjectContentMapping] ([PreparationTimeTableId], [NBTimeTableSubjectId], [IndexTypeId], [ContentIndexId])
+                  VALUES (@PreparationTimeTableId, @NBTimeTableSubjectId, @IndexTypeId, @ContentIndexId);";
+                    var valuesInserted = _connection.Execute(insertQuery, request);
+                    return valuesInserted;
+                }
+                else
+                {
+                    return 0;
+                }
+            }
+            else
+            {
+                var insertQuery = @"INSERT INTO [tblNBTTSubjectContentMapping] ([PreparationTimeTableId], [NBTimeTableSubjectId], [IndexTypeId], [ContentIndexId])
+                  VALUES (@PreparationTimeTableId, @NBTimeTableSubjectId, @IndexTypeId, @ContentIndexId);";
+                var valuesInserted = _connection.Execute(insertQuery, request);
                 return valuesInserted;
             }
         }
@@ -514,16 +552,51 @@ namespace ControlPanel_API.Repository.Implementations
             var data = _connection.Query<TimeTableExamTypeResponse>(examTypeQuery, new { PreparationTimeTableId });
             return data != null ? data.AsList() : [];
         }
-        private List<TimeTableSubjectResponse> GetListOfTimeTableSubject(int PreparationTimeTableId)
+        private List<TimeTableSubjectResponse> GetListOfTimeTableSubjects(int PreparationTimeTableId)
         {
-            string Query = @"
-            SELECT ts.*, s.[SubjectName] AS Name
-            FROM [tblNBTimeTableSubject] ts
-            LEFT JOIN [tblSubject] s ON ts.SubjectId = s.SubjectId
-            WHERE ts.[PreparationTimeTableId] = @PreparationTimeTableId";
+            string query = @"
+    SELECT 
+        ts.NBTimeTableSubjectId, 
+        ts.PreparationTimeTableId, 
+        ts.SubjectId, 
+        s.SubjectName AS Name
+    FROM tblNBTimeTableSubject ts
+    LEFT JOIN tblSubject s ON ts.SubjectId = s.SubjectId
+    WHERE ts.PreparationTimeTableId = @PreparationTimeTableId";
 
-            var data = _connection.Query<TimeTableSubjectResponse>(Query, new { PreparationTimeTableId });
-            return data != null ? data.AsList() : [];
+            var data = _connection.Query<TimeTableSubjectResponse>(query, new { PreparationTimeTableId }).ToList();
+
+            foreach (var subject in data)
+            {
+                subject.TTSubjectContentMappings = GetListOfTTSubjectContentMappings(subject.NBTimeTableSubjectId);
+            }
+
+            return data;
+        }
+        private List<TTSubjectContentMappingResponse> GetListOfTTSubjectContentMappings(int NBTimeTableSubjectId)
+        {
+            string query = @"
+    SELECT 
+        tscm.NBTTSubContMappingId, 
+        tscm.PreparationTimeTableId, 
+        tscm.NBTimeTableSubjectId, 
+        tscm.IndexTypeId, 
+        it.IndexType AS IndexTypeName, 
+        tscm.ContentIndexId, 
+        CASE 
+            WHEN tscm.IndexTypeId = 1 THEN ci.ContentName_Chapter
+            WHEN tscm.IndexTypeId = 2 THEN ct.ContentName_Topic
+            WHEN tscm.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+        END AS ContentIndexName
+    FROM tblNBTTSubContMapping tscm
+    LEFT JOIN tblQBIndexType it ON tscm.IndexTypeId = it.IndexId
+    LEFT JOIN tblContentIndexChapters ci ON tscm.ContentIndexId = ci.ContentIndexId AND tscm.IndexTypeId = 1
+    LEFT JOIN tblContentIndexTopics ct ON tscm.ContentIndexId = ct.ContInIdTopic AND tscm.IndexTypeId = 2
+    LEFT JOIN tblContentIndexSubTopics cst ON tscm.ContentIndexId = cst.ContInIdSubTopic AND tscm.IndexTypeId = 3
+    WHERE tscm.NBTimeTableSubjectId = @NBTimeTableSubjectId";
+
+            var data = _connection.Query<TTSubjectContentMappingResponse>(query, new { NBTimeTableSubjectId });
+            return data.ToList();
         }
     }
 }
