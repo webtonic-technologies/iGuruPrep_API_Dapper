@@ -25,6 +25,18 @@ namespace ControlPanel_API.Services.Implementations
             }
         }
 
+        public async Task<ServiceResponse<EmployeeLoginResponse>> EmployeeLogin(EmployeeLoginRequest request)
+        {
+            try
+            {
+                return await _employeeRepository.EmployeeLogin(request);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<EmployeeLoginResponse>(false, ex.Message, new EmployeeLoginResponse(), 500);
+            }
+        }
+
         public async Task<ServiceResponse<EmployeeResponseDTO>> GetEmployeeByID(int ID)
         {
             try

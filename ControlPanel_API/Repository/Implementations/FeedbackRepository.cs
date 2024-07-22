@@ -68,7 +68,8 @@ namespace ControlPanel_API.Repository.Implementations
                     request.APID,
                     request.StartDate,
                     request.EndDate,
-                    request.Today
+                    request.Today,
+                    request.ExamTypeId
                 };
 
                 var list = await _connection.QueryAsync<GetAllFeedbackResponse>(sql, parameters);

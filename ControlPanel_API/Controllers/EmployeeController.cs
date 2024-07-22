@@ -89,5 +89,20 @@ namespace ControlPanel_API.Controllers
             }
 
         }
+        [HttpPost("EmployeeLogin")]
+        public async Task<IActionResult> EmployeeLogin(EmployeeLoginRequest request)
+        {
+            try
+            {
+                return new OkObjectResult(await _employeeServices.EmployeeLogin(request));
+            }
+            catch (Exception ex)
+            {
+                return new JsonResult(ex.Message)
+                {
+                    StatusCode = (int)HttpStatusCode.NotFound
+                };
+            }
+        }
     }
 }

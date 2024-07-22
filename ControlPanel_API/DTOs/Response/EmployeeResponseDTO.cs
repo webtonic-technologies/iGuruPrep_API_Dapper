@@ -34,6 +34,8 @@ namespace ControlPanel_API.DTOs.Response
         public DateTime? Createdon { get; set; }
         public string Createdby { get; set; } = string.Empty;
         public bool? Status { get; set; }
+        public string EmpMiddleName { get; set; } = string.Empty;
+        public bool IsSuperAdmin {  get; set; }
 
         public class EmployeeSubjectResponse
         {
@@ -42,5 +44,15 @@ namespace ControlPanel_API.DTOs.Response
             public string SubjectName { get; set; } = string.Empty;
             public int Employeeid { get; set; }
         }
+    }
+    public class EmployeeLoginResponse
+    {
+        public int Employeeid { get; set; }
+        public string EmpFullName { get; set; } = string.Empty;
+        public int DesignationId {  get; set; }
+        public string DesignationName {  get; set; } = string.Empty;
+        public string RoleName {  get; set; } = string.Empty;
+        public bool IsSuperAdmin {  get; set; }
+        public int RoleId { get; set; }
     }
 }

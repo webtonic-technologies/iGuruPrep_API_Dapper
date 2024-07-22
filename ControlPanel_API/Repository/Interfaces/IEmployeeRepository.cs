@@ -10,5 +10,6 @@ namespace ControlPanel_API.Repository.Interfaces
         Task<ServiceResponse<EmployeeResponseDTO>> GetEmployeeByID(int ID);
         Task<ServiceResponse<string>> AddUpdateEmployee(EmployeeDTO request);
         Task<ServiceResponse<bool>> StatusActiveInactive(int id);
+        Task<ServiceResponse<EmployeeLoginResponse>> EmployeeLogin(EmployeeLoginRequest request);
     }
 }

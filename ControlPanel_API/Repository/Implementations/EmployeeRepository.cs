@@ -4,6 +4,8 @@ using ControlPanel_API.DTOs.ServiceResponse;
 using ControlPanel_API.Repository.Interfaces;
 using Dapper;
 using System.Data;
+using System.Security.Cryptography;
+using System.Text;
 using static ControlPanel_API.DTOs.Response.EmployeeResponseDTO;
 
 namespace ControlPanel_API.Repository.Implementations
@@ -26,13 +28,13 @@ namespace ControlPanel_API.Repository.Implementations
                 INSERT INTO [tblEmployee] (UserCode, RoleId, DesignationID, EmpFirstName, EmpLastName,
                                              EmpPhoneNumber, EmpEmail, EmpDOB, ZipCode, DistrictName,
                                              StateName, VcName,
-                                             CreatedOn, CreatedBy, Status)
+                                             CreatedOn, CreatedBy, Status, Password, EmpMiddleName, IsSuperAdmin)
                 VALUES (@UserCode, @RoleId, @DesignationID, @EmpFirstName, @EmpLastName,
                         @EmpPhoneNumber, @EmpEmail, @EmpDOB, @ZipCode, @DistrictName,
                         @StateName, @VcName,
-                        @CreatedOn, @CreatedBy, @Status);
+                        @CreatedOn, @CreatedBy, @Status, @Password, @EmpMiddleName, @IsSuperAdmin);
                         SELECT CAST(SCOPE_IDENTITY() AS INT);";
-
+                    string encryptedPassword = EncryptionHelper.EncryptString(request.Password);
                     var insertedValue = await _connection.QueryFirstOrDefaultAsync<int>(insertQuery, new
                     {
                         request.Usercode,
@@ -49,7 +51,10 @@ namespace ControlPanel_API.Repository.Implementations
                         request.VcName,
                         request.Createdby,
                         CreatedOn = DateTime.Now,
-                        Status = true
+                        Password  = encryptedPassword,
+                        request.EmpMiddleName,
+                        Status = true,
+                        IsSuperAdmin = false
                     });
                     if (insertedValue > 0)
                     {
@@ -79,9 +84,12 @@ namespace ControlPanel_API.Repository.Implementations
                     VcName = @VcName,
                     ModifiedOn = @ModifiedOn,
                     ModifiedBy = @ModifiedBy,
-                    Status = @Status
+                    Status = @Status,
+                    Password = @Password,
+                    EmpMiddleName = @EmpMiddleName,
+                    IsSuperAdmin = @IsSuperAdmin
                 WHERE Employeeid = @Employeeid;";
-
+                    string encryptedPassword = EncryptionHelper.EncryptString(request.Password);
                     var rowsAffected = await _connection.ExecuteAsync(updateQuery, new
                     {
                         request.Employeeid,
@@ -99,7 +107,10 @@ namespace ControlPanel_API.Repository.Implementations
                         request.VcName,
                         request.Modifiedby,
                         ModifiedOn = DateTime.Now,
-                        request.Status
+                        Password = encryptedPassword,
+                        request.EmpMiddleName,
+                        request.Status,
+                        request.IsSuperAdmin
                     });
                     if (rowsAffected > 0)
                     {
@@ -151,7 +162,9 @@ namespace ControlPanel_API.Repository.Implementations
                     response.Createdon = data.Createdon;
                     response.Createdby = data.Createdby;
                     response.Status = data.Status;
+                    response.EmpMiddleName = data.EmpMiddleName;
                     response.EmployeeSubjectsList = GetListOfEmployeeSubject(Id);
+                    response.IsSuperAdmin = data.IsSuperAdmin;
                     return new ServiceResponse<EmployeeResponseDTO>(true, "Records found", response, StatusCodes.Status302Found);
                 }
                 else
@@ -178,7 +191,7 @@ namespace ControlPanel_API.Repository.Implementations
                 LEFT JOIN [tblDesignation] d ON e.DesignationID = d.DesgnID
                 LEFT JOIN [tblRole] r ON e.RoleID = r.RoleID
                 WHERE 1 = 1";
-             
+
                 var mainParameters = new DynamicParameters();
 
                 // Add filters based on DTO properties
@@ -221,13 +234,15 @@ namespace ControlPanel_API.Repository.Implementations
                         DistrictName = employee.DistrictName,
                         StateName = employee.StateName,
                         VcName = employee.VcName,
-                        Rolename = employee.Rolename, 
-                        Designationname = employee.Designationname, 
+                        Rolename = employee.Rolename,
+                        Designationname = employee.Designationname,
                         Modifiedon = employee.Modifiedon,
                         Modifiedby = employee.Modifiedby,
                         Createdon = employee.Createdon,
                         Createdby = employee.Createdby,
                         Status = employee.Status,
+                        IsSuperAdmin = employee.IsSuperAdmin,
+                        EmpMiddleName = employee.EmpMiddleName,
                         EmployeeSubjectsList = GetListOfEmployeeSubject(employee.Employeeid)
                     }).ToList();
 
@@ -275,6 +290,55 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<bool>(false, ex.Message, false, 500);
             }
         }
+        public async Task<ServiceResponse<EmployeeLoginResponse>> EmployeeLogin(EmployeeLoginRequest request)
+        {
+            try
+            {
+                // Step 1: Retrieve stored password and employee details
+                string query = @"
+        SELECT e.Employeeid, e.Password, e.EmpFirstName, e.EmpLastName, e.DesignationID, d.DesignationName, r.RoleName, e.IsSuperAdmin, e.RoleID
+        FROM tblEmployee e
+        LEFT JOIN tblDesignation d ON e.DesignationID = d.DesgnID
+        LEFT JOIN tblRole r ON e.RoleID = r.RoleID
+        WHERE e.EmpEmail = @EmpEmail";
+
+                var employee = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new { request.EmpEmail });
+
+                if (employee == null)
+                {
+                    return new ServiceResponse<EmployeeLoginResponse>(false, "Invalid email or password", null, 404);
+                }
+
+                // Step 2: Decrypt the stored password
+                var decryptedPassword = EncryptionHelper.DecryptString(employee.Password);
+
+                // Step 3: Compare passwords (case-insensitive, ignoring whitespace)
+                if (string.Equals(decryptedPassword.Trim().ToUpper(), request.Password.Trim().ToUpper(), StringComparison.OrdinalIgnoreCase))
+                {
+                    // Successful login, return employee details
+                    var response = new EmployeeLoginResponse
+                    {
+                        Employeeid = employee.Employeeid,
+                        EmpFullName = $"{employee.EmpFirstName} {employee.EmpLastName}".Trim(),
+                        DesignationId = employee.DesignationID,
+                        DesignationName = employee.DesignationName,
+                        RoleName = employee.RoleName,
+                        IsSuperAdmin = employee.IsSuperAdmin,
+                        RoleId = employee.RoleID
+                    };
+
+                    return new ServiceResponse<EmployeeLoginResponse>(true, "Login successful", response, 200);
+                }
+                else
+                {
+                    return new ServiceResponse<EmployeeLoginResponse>(false, "Invalid email or password", null, 401);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<EmployeeLoginResponse>(false, ex.Message, null, 500);
+            }
+        }
         private List<EmployeeSubjectResponse> GetListOfEmployeeSubject(int EmployeeId)
         {
             string query = @"
@@ -317,6 +381,15 @@ namespace ControlPanel_API.Repository.Implementations
                           VALUES (@SubjectID, @Employeeid);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
+            }
+        }
+        private string HashPassword(string password)
+        {
+            using (var sha256 = SHA256.Create())
+            {
+                var bytes = Encoding.UTF8.GetBytes(password);
+                var hash = sha256.ComputeHash(bytes);
+                return Convert.ToBase64String(hash);
             }
         }
     }

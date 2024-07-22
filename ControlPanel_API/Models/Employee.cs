@@ -26,5 +26,7 @@ namespace ControlPanel_API.Models
         public DateTime? Createdon { get; set; }
         public string Createdby { get; set; } = string.Empty;
         public bool? Status { get; set; }
+        public string Password {  get; set; } = string.Empty;
+        public string EmpMiddleName { get; set; } = string.Empty;
     }
 }
