@@ -121,5 +121,27 @@ namespace Course_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
+        [HttpPost("GetSyllabusList")]
+        public async Task<IActionResult> GetSyllabusList([FromBody] GetAllSyllabusList request)
+        {
+            try
+            {
+                var data = await _syllabusServices.GetSyllabusList(request);
+                if (data != null)
+                {
+                    return Ok(data);
+
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
     }
 }

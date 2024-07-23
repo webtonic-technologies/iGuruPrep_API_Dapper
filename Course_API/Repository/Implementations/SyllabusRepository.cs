@@ -10,10 +10,12 @@ namespace Course_API.Repository.Implementations
     public class SyllabusRepository : ISyllabusRepository
     {
         private readonly IDbConnection _connection;
+        private readonly IWebHostEnvironment _hostingEnvironment;
 
-        public SyllabusRepository(IDbConnection connection)
+        public SyllabusRepository(IDbConnection connection, IWebHostEnvironment hostingEnvironment)
         {
             _connection = connection;
+            _hostingEnvironment = hostingEnvironment;
         }
         public async Task<ServiceResponse<int>> AddUpdateSyllabus(SyllabusDTO request)
         {
@@ -178,13 +180,62 @@ namespace Course_API.Repository.Implementations
                 return new ServiceResponse<SyllabusResponseDTO>(false, ex.Message, new SyllabusResponseDTO(), 500);
             }
         }
+        public async Task<ServiceResponse<List<SyllabusResponseDTO>>> GetSyllabusList(GetAllSyllabusList request)
+        {
+            try
+            {
+                // Adjusted query to include more filters
+                string selectQuery = @"
+            SELECT 
+                s.SyllabusId, s.BoardID, b.BoardName, s.CourseId, c.CourseName, 
+                s.ClassId, cl.ClassName, s.SyllabusName, s.Status, 
+                s.createdby, s.createdon, s.modifiedby, s.modifiedon, 
+                s.APID, a.APName, s.EmployeeID, e.EmpFirstName as EmpFirstName, 
+                s.ExamTypeId, et.ExamTypeName
+            FROM 
+                tblSyllabus s
+            LEFT JOIN 
+                tblBoard b ON s.BoardID = b.BoardId
+            LEFT JOIN 
+                tblClass cl ON s.ClassId = cl.ClassId
+            LEFT JOIN 
+                tblCourse c ON s.CourseId = c.CourseId
+            LEFT JOIN 
+                tblEmployee e ON s.EmployeeID = e.Employeeid
+            LEFT JOIN 
+                tblExamType et ON s.ExamTypeId = et.ExamTypeId
+            LEFT JOIN 
+                tblCategory a ON s.APID = a.APId
+            WHERE 
+                (@BoardId IS NULL OR s.BoardID = @BoardId) AND 
+                (@CourseId IS NULL OR s.CourseId = @CourseId) AND
+                (@ClassId IS NULL OR s.ClassId = @ClassId) AND
+                (@APID IS NULL OR s.APID = @APID) AND
+                (@ExamTypeId IS NULL OR s.ExamTypeId = @ExamTypeId)";
+
+                var syllabusList = await _connection.QueryAsync<SyllabusResponseDTO>(selectQuery, new
+                {
+                    BoardId = request.BoardId > 0 ? (int?)request.BoardId : null,
+                    CourseId = request.CourseId > 0 ? (int?)request.CourseId : null,
+                    ClassId = request.ClassId > 0 ? (int?)request.ClassId : null,
+                    APID = request.APID > 0 ? (int?)request.APID : null,
+                    ExamTypeId = request.ExamTypeId > 0 ? (int?)request.ExamTypeId : null
+                });
+
+                return new ServiceResponse<List<SyllabusResponseDTO>>(true, "Operation Successful", syllabusList.ToList(), 200);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<SyllabusResponseDTO>>(false, ex.Message, new List<SyllabusResponseDTO>(), 500);
+            }
+        }
         public async Task<ServiceResponse<string>> AddUpdateSyllabusDetails(SyllabusDetailsDTO request)
         {
             try
             {
                 string insertQuery = @"
-            INSERT INTO tblSyllabusDetails (SyllabusID, ContentIndexId, IndexTypeId, Status, IsVerson)
-            VALUES (@SyllabusID, @ContentIndexId, @IndexTypeId, @Status, @IsVerson)";
+            INSERT INTO tblSyllabusDetails (SyllabusID, ContentIndexId, IndexTypeId, Status, IsVerson, Synopsis)
+            VALUES (@SyllabusID, @ContentIndexId, @IndexTypeId, @Status, @IsVerson, @Synopsis)";
 
                 string deleteQuery = "DELETE FROM tblSyllabusDetails WHERE SyllabusID = @SyllabusID";
 
@@ -210,6 +261,7 @@ namespace Course_API.Repository.Implementations
                     foreach (var detail in request.SyllabusDetails)
                     {
                         detail.SyllabusID = request.SyllabusId;
+                        detail.Synopsis = PDFUpload(detail.Synopsis);
                     }
                 }
 
@@ -241,6 +293,7 @@ namespace Course_API.Repository.Implementations
             sd.IndexTypeId, 
             sd.Status, 
             sd.IsVerson,
+            sd.Synopsis,
             CASE 
                 WHEN sd.IndexTypeId = 1 THEN cic.ContentName_Chapter
                 WHEN sd.IndexTypeId = 2 THEN cit.ContentName_Topic
@@ -270,7 +323,10 @@ namespace Course_API.Repository.Implementations
                         SyllabusId = syllabusId,
                         SyllabusDetails = syllabusDetails.ToList()
                     };
-
+                    foreach (var data in syllabusDetailsResponseDTO.SyllabusDetails)
+                    {
+                        data.Synopsis = GetPDF(data.Synopsis);
+                    }
                     return new ServiceResponse<SyllabusDetailsResponseDTO>(true, "Operation Successful", syllabusDetailsResponseDTO, 200);
                 }
                 else
@@ -293,30 +349,30 @@ namespace Course_API.Repository.Implementations
                 if (request.IndexTypeId == 1)
                 {
                     updateQuery = @"
-                UPDATE tblContentIndexChapters
-                SET ContentName_Chapter = @NewContentIndexName
-                WHERE ContentIndexId = @ContentIndexId";
+            UPDATE tblContentIndexChapters
+            SET DisplayName = @NewContentIndexName
+            WHERE ChapterCode = @ContentCode AND IsActive = 1";
                 }
                 else if (request.IndexTypeId == 2)
                 {
                     updateQuery = @"
-                UPDATE tblContentIndexTopics
-                SET ContentName_Topic = @NewContentIndexName
-                WHERE ContInIdTopic = @ContentIndexId";
+            UPDATE tblContentIndexTopics
+            SET DisplayName = @NewContentIndexName
+            WHERE TopicCode = @ContentCode AND IsActive = 1";
                 }
                 else if (request.IndexTypeId == 3)
                 {
                     updateQuery = @"
-                UPDATE tblContentIndexSubTopics
-                SET ContentName_SubTopic = @NewContentIndexName
-                WHERE ContInIdSubTopic = @ContentIndexId";
+            UPDATE tblContentIndexSubTopics
+            SET DisplayName = @NewContentIndexName
+            WHERE SubTopicCode = @ContentCode AND IsActive = 1";
                 }
                 else
                 {
                     return new ServiceResponse<string>(false, "Invalid IndexTypeId", string.Empty, 400);
                 }
 
-                int rowsAffected = await _connection.ExecuteAsync(updateQuery, new { request.NewContentIndexName, request.ContentIndexId });
+                int rowsAffected = await _connection.ExecuteAsync(updateQuery, new { request.NewContentIndexName, request.ContentCode });
 
                 if (rowsAffected > 0)
                 {
@@ -332,51 +388,6 @@ namespace Course_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-
-        //private async Task<int> SyllabusSubjectMapping(List<SyllabusSubject> subjects, int syllabusId)
-        //{
-        //    int rowsAffected = 0;
-        //    foreach (var subject in subjects)
-        //    {
-        //        subject.SyllabusID = syllabusId;
-        //        if (subject.SyllabusSubjectID == 0)
-        //        {
-        //            // Insert new SyllabusSubject
-        //            string insertQuery = @"
-        //        INSERT INTO tblSyllabusSubjects (SyllabusID, SubjectID, Status, CreatedBy, CreatedDate)
-        //        VALUES (@SyllabusID, @SubjectID, @Status, @CreatedBy, @CreatedDate);";
-        //            rowsAffected += await _connection.ExecuteAsync(insertQuery, new
-        //            {
-        //                subject.SyllabusID,
-        //                subject.SubjectID,
-        //                subject.Status,
-        //                subject.CreatedBy,
-        //                CreatedDate = DateTime.Now
-        //            });
-        //        }
-        //        else
-        //        {
-        //            // Update existing SyllabusSubject
-        //            string updateQuery = @"
-        //        UPDATE tblSyllabusSubjects
-        //        SET 
-        //            SubjectID = @SubjectID,
-        //            Status = @Status,
-        //            ModifiedBy = @ModifiedBy,
-        //            ModifiedDate = @ModifiedDate
-        //        WHERE SyllabusSubjectID = @SyllabusSubjectID;";
-        //            rowsAffected += await _connection.ExecuteAsync(updateQuery, new
-        //            {
-        //                subject.SubjectID,
-        //                subject.Status,
-        //                subject.ModifiedBy,
-        //                ModifiedDate = DateTime.Now,
-        //                subject.SyllabusSubjectID
-        //            });
-        //        }
-        //    }
-        //    return rowsAffected;
-        //}
         private int SyllabusSubjectMapping(List<SyllabusSubject> request, int SyllabusId)
         {
             foreach (var data in request)
@@ -410,6 +421,48 @@ namespace Course_API.Repository.Implementations
                 var valuesInserted = _connection.Execute(insertQuery, request);
                 return valuesInserted;
             }
+        }
+        private string PDFUpload(string pdf)
+        {
+            if (string.IsNullOrEmpty(pdf) || pdf == "string")
+            {
+                return string.Empty;
+            }
+            byte[] imageData = Convert.FromBase64String(pdf);
+            string directoryPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "Syllabus");
+
+            if (!Directory.Exists(directoryPath))
+            {
+                Directory.CreateDirectory(directoryPath);
+            }
+            string fileExtension = IsPdf(imageData) == true ? ".pdf" : string.Empty;
+            if (string.IsNullOrEmpty(fileExtension))
+            {
+                throw new InvalidOperationException("Incorrect file uploaded");
+            }
+            string fileName = Guid.NewGuid().ToString() + fileExtension;
+            string filePath = Path.Combine(directoryPath, fileName);
+
+            // Write the byte array to the image file
+            File.WriteAllBytes(filePath, imageData);
+            return filePath;
+        }
+        private bool IsPdf(byte[] fileData)
+        {
+            return fileData.Length > 4 &&
+                   fileData[0] == 0x25 && fileData[1] == 0x50 && fileData[2] == 0x44 && fileData[3] == 0x46;
+        }
+        private string GetPDF(string Filename)
+        {
+            var filePath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "Syllabus", Filename);
+
+            if (!File.Exists(filePath))
+            {
+                return string.Empty;
+            }
+            byte[] fileBytes = File.ReadAllBytes(filePath);
+            string base64String = Convert.ToBase64String(fileBytes);
+            return base64String;
         }
     }
 }

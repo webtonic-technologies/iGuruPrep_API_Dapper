@@ -1,5 +1,7 @@
 ﻿using Config_API.DTOs.Requests;
+using Config_API.DTOs.Response;
 using Config_API.DTOs.ServiceResponse;
+using Config_API.Models;
 using Config_API.Repository.Interfaces;
 using Config_API.Services.Interfaces;
 
@@ -25,7 +27,60 @@ namespace Config_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<ContentIndexRequest>>> GetAllContentIndexList(ContentIndexListDTO request)
+        public async Task<ServiceResponse<string>> AddUpdateContentIndexChapter(ContentIndexRequestdto request)
+        {
+
+            try
+            {
+                return await _contentIndexRepository.AddUpdateContentIndexChapter(request);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+            }
+        }
+
+        public async Task<ServiceResponse<string>> AddUpdateContentIndexSubTopics(ContentIndexSubTopic request)
+        {
+            try
+            {
+                return await _contentIndexRepository.AddUpdateContentIndexSubTopics(request);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+            }
+        }
+
+        public async Task<ServiceResponse<string>> AddUpdateContentIndexTopics(ContentIndexTopicsdto request)
+        {
+            {
+                try
+                {
+                    return await _contentIndexRepository.AddUpdateContentIndexTopics(request);
+                }
+                catch (Exception ex)
+                {
+                    return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+                }
+            }
+        }
+
+        public async Task<ServiceResponse<byte[]>> DownloadContentIndexBySubjectId(int subjectId)
+        {
+            {
+                try
+                {
+                    return await _contentIndexRepository.DownloadContentIndexBySubjectId(subjectId);
+                }
+                catch (Exception ex)
+                {
+                    return new ServiceResponse<byte[]>(false, ex.Message, [], 500);
+                }
+            }
+        }
+
+        public async Task<ServiceResponse<List<ContentIndexResponse>>> GetAllContentIndexList(ContentIndexListDTO request)
         {
             try
             {
@@ -33,11 +88,11 @@ namespace Config_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<ContentIndexRequest>> (false, ex.Message, [], 500);
+                return new ServiceResponse<List<ContentIndexResponse>> (false, ex.Message, [], 500);
             }
         }
 
-        public async Task<ServiceResponse<List<ContentIndexRequest>>> GetAllContentIndexListMasters(ContentIndexMastersDTO request)
+        public async Task<ServiceResponse<List<ContentIndexResponse>>> GetAllContentIndexListMasters(ContentIndexMastersDTO request)
         {
             try
             {
@@ -45,11 +100,11 @@ namespace Config_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<ContentIndexRequest>>(false, ex.Message, [], 500);
+                return new ServiceResponse<List<ContentIndexResponse>>(false, ex.Message, [], 500);
             }
         }
 
-        public async Task<ServiceResponse<ContentIndexRequest>> GetContentIndexById(int id)
+        public async Task<ServiceResponse<ContentIndexResponse>> GetContentIndexById(int id)
         {
             try
             {
@@ -57,7 +112,7 @@ namespace Config_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<ContentIndexRequest>(false, ex.Message, new ContentIndexRequest(), 500);
+                return new ServiceResponse<ContentIndexResponse>(false, ex.Message, new ContentIndexResponse(), 500);
             }
         }
 
@@ -70,6 +125,18 @@ namespace Config_API.Services.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<bool>(false, ex.Message, false, 500);
+            }
+        }
+
+        public async Task<ServiceResponse<string>> UploadContentIndex(IFormFile file)
+        {
+            try
+            {
+                return await _contentIndexRepository.UploadContentIndex(file);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
     }

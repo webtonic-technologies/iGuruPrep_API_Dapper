@@ -40,5 +40,9 @@
         public int ContentIndexId { get; set; }
         public bool? IsRejected { get; set; }
         public bool? IsApproved { get; set; }
+        public string QuestionCode { get; set; } = string.Empty;
+        public string Explanation { get; set; } = string.Empty;
+        public string ExtraInformation { get; set; } = string.Empty;
+        public bool IsActive { get; set; } = true;
     }
 }

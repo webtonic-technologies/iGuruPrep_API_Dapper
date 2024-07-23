@@ -6,7 +6,7 @@ namespace Schools_API.Repository.Interfaces
 {
     public interface IQuestionRepository
     {
-        Task<ServiceResponse<QuestionResponseDTO>> GetQuestionById(int questionId);
+        Task<ServiceResponse<QuestionResponseDTO>> GetQuestionByCode(string questionCode);
         Task<ServiceResponse<List<QuestionResponseDTO>>> GetAllQuestionsList(GetAllQuestionListRequest request);
         Task<ServiceResponse<List<QuestionResponseDTO>>> GetApprovedQuestionsList(GetAllQuestionListRequest request);
         Task<ServiceResponse<List<QuestionResponseDTO>>> GetRejectedQuestionsList(GetAllQuestionListRequest request);
@@ -15,6 +15,8 @@ namespace Schools_API.Repository.Interfaces
         Task<ServiceResponse<string>> RejectQuestion(QuestionRejectionRequestDTO request);
         Task<ServiceResponse<string>> ApproveQuestion(QuestionApprovalRequestDTO request);
         Task<ServiceResponse<string>> AssignQuestionToProfiler(QuestionProfilerRequest request);
-        Task<ServiceResponse<QuestionProfilerResponse>> GetQuestionProfilerDetails(int QuestionId);
+        Task<ServiceResponse<QuestionProfilerResponse>> GetQuestionProfilerDetails(string QuestionCode);
+        Task<ServiceResponse<object>> CompareQuestionVersions(string questionCode);
+        Task<ServiceResponse<List<QuestionResponseDTO>>> GetAssignedQuestionsList(int employeeId);
     }
 }

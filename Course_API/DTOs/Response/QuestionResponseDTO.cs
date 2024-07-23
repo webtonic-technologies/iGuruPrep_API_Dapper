@@ -33,11 +33,11 @@
         public string IndexTypeName { get; set; } = string.Empty;
         public int ContentIndexId { get; set; }
         public string ContentIndexName { get; set; } = string.Empty;
-        public List<QIDCourseResponse>? QIDCourses { get; set; }
-        public List<QuestionSubjectMappingResponse>? QuestionSubjectMappings { get; set; }
-        public List<AnswerMultipleChoiceCategory>? AnswerMultipleChoiceCategories { get; set; }
-        public Answersingleanswercategory? Answersingleanswercategories { get; set; }
-        public Reference? References { get; set; }
+        //public List<QIDCourseResponse>? QIDCourses { get; set; }
+        //public List<QuestionSubjectMappingResponse>? QuestionSubjectMappings { get; set; }
+        //public List<AnswerMultipleChoiceCategory>? AnswerMultipleChoiceCategories { get; set; }
+        //public Answersingleanswercategory? Answersingleanswercategories { get; set; }
+        //public Reference? References { get; set; }
     }
     public class QIDCourseResponse
     {

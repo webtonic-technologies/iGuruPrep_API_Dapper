@@ -16,7 +16,7 @@ namespace Course_API.Repository.Implementations
         {
             _connection = connection;
         }
-        public async Task<ServiceResponse<string>> AddUpdateTestSeries(TestSeriesDTO request)
+        public async Task<ServiceResponse<int>> AddUpdateTestSeries(TestSeriesDTO request)
         {
             try
             {
@@ -25,14 +25,14 @@ namespace Course_API.Repository.Implementations
                     string insertQuery = @"
                     INSERT INTO tblTestSeries 
                     (
-                        TestPatternName, Duration, Status, APID, TotalNoOfQuestions, 
+                        TestPatternName, Duration, Status, APID, TotalNoOfQuestions, ExamTypeID,
                         MethodofAddingType, StartDate, StartTime, ResultDate, ResultTime, 
                         EmployeeID, NameOfExam, RepeatedExams, TypeOfTestSeries, 
                         createdon, createdby
                     ) 
                     VALUES 
                     (
-                        @TestPatternName, @Duration, @Status, @APID, @TotalNoOfQuestions, 
+                        @TestPatternName, @Duration, @Status, @APID, @TotalNoOfQuestions, @ExamTypeID,
                         @MethodofAddingType, @StartDate, @StartTime, @ResultDate, @ResultTime, 
                         @EmployeeID, @NameOfExam, @RepeatedExams, @TypeOfTestSeries, 
                         @createdon, @createdby
@@ -55,7 +55,8 @@ namespace Course_API.Repository.Implementations
                         request.RepeatedExams,
                         request.TypeOfTestSeries,
                         createdon = DateTime.Now,
-                        request.createdby
+                        request.createdby,
+                        request.ExamTypeID
                     };
                     int newId = await _connection.QuerySingleAsync<int>(insertQuery, parameters);
                     if (newId > 0)
@@ -64,24 +65,24 @@ namespace Course_API.Repository.Implementations
                         int cla = TestSeriesClassMapping(request.TestSeriesClasses ??= ([]), newId);
                         int board = TestSeriesBoardMapping(request.TestSeriesBoard ??= ([]), newId);
                         int course = TestSeriesCourseMapping(request.TestSeriesCourses ??= ([]), newId);
-                        int subIn = TestSeriesContentIndexMapping(request.TestSeriesContentIndexes ??= ([]), newId);
-                        int quesSec = TestSeriesQuestionSectionMapping(request.TestSeriesQuestionsSection ??= new TestSeriesQuestionSection(), newId);
-                        int queType = TestSeriesQuestionTypeMapping(request.TestSeriesQuestionTypes ??= ([]), newId);
-                        int inst = TestSeriesInstructionsMapping(request.TestSeriesInstruction ??= ([]), newId);
-                        int que = TestSeriesQuestionsMapping(request.TestSeriesQuestions ??= ([]), newId, quesSec);
+                        //int subIn = TestSeriesContentIndexMapping(request.TestSeriesContentIndexes ??= ([]), newId);
+                        //int quesSec = TestSeriesQuestionSectionMapping(request.TestSeriesQuestionsSection ??= new TestSeriesQuestionSection(), newId);
+                        //int queType = TestSeriesQuestionTypeMapping(request.TestSeriesQuestionTypes ??= ([]), newId);
+                        //int inst = TestSeriesInstructionsMapping(request.TestSeriesInstruction ??= ([]), newId);
+                        // int que = TestSeriesQuestionsMapping(request.TestSeriesQuestions ??= ([]), newId, quesSec);
 
-                        if (sub > 0 && cla > 0 && board > 0 && course > 0 && subIn > 0 && quesSec > 0 && queType > 0 && inst > 0 && que > 0)
+                        if (sub > 0 && cla > 0 && board > 0 && course > 0)
                         {
-                            return new ServiceResponse<string>(true, "operation successful", "Test series added successfully", 200);
+                            return new ServiceResponse<int>(true, "operation successful", newId, 200);
                         }
                         else
                         {
-                            return new ServiceResponse<string>(false, "Some error occured", string.Empty, 500);
+                            return new ServiceResponse<int>(false, "Some error occured", 0, 500);
                         }
                     }
                     else
                     {
-                        return new ServiceResponse<string>(false, "Some error occured", string.Empty, 500);
+                        return new ServiceResponse<int>(false, "Some error occured", 0, 500);
                     }
                 }
                 else
@@ -104,7 +105,8 @@ namespace Course_API.Repository.Implementations
                         RepeatedExams = @RepeatedExams,
                         TypeOfTestSeries = @TypeOfTestSeries,
                         modifiedon = @modifiedon,
-                        modifiedby = @modifiedby
+                        modifiedby = @modifiedby,
+                        ExamTypeID = @ExamTypeID
                     WHERE TestSeriesId = @TestSeriesId;";
                     var parameters = new
                     {
@@ -124,7 +126,8 @@ namespace Course_API.Repository.Implementations
                         request.TypeOfTestSeries,
                         modifiedon = DateTime.Now,
                         request.modifiedby,
-                        request.TestSeriesId
+                        request.TestSeriesId,
+                        request.ExamTypeID
                     };
                     int rowsAffected = await _connection.ExecuteAsync(updateQuery, parameters);
                     if (rowsAffected > 0)
@@ -133,31 +136,31 @@ namespace Course_API.Repository.Implementations
                         int cla = TestSeriesClassMapping(request.TestSeriesClasses ??= ([]), request.TestSeriesId);
                         int board = TestSeriesBoardMapping(request.TestSeriesBoard ??= ([]), request.TestSeriesId);
                         int course = TestSeriesCourseMapping(request.TestSeriesCourses ??= ([]), request.TestSeriesId);
-                        int subIn = TestSeriesContentIndexMapping(request.TestSeriesContentIndexes ??= ([]), request.TestSeriesId);
-                        int quesSec = TestSeriesQuestionSectionMapping(request.TestSeriesQuestionsSection ??= new TestSeriesQuestionSection(), request.TestSeriesId);
-                        int queType = TestSeriesQuestionTypeMapping(request.TestSeriesQuestionTypes ??= ([]), request.TestSeriesId);
-                        int inst = TestSeriesInstructionsMapping(request.TestSeriesInstruction ??= ([]), request.TestSeriesId);
-                        int que = TestSeriesQuestionsMapping(request.TestSeriesQuestions ??= ([]), request.TestSeriesId, quesSec);
+                        //int subIn = TestSeriesContentIndexMapping(request.TestSeriesContentIndexes ??= ([]), request.TestSeriesId);
+                        //int quesSec = TestSeriesQuestionSectionMapping(request.TestSeriesQuestionsSection ??= new TestSeriesQuestionSection(), request.TestSeriesId);
+                        //int queType = TestSeriesQuestionTypeMapping(request.TestSeriesQuestionTypes ??= ([]), request.TestSeriesId);
+                        //int inst = TestSeriesInstructionsMapping(request.TestSeriesInstruction ??= ([]), request.TestSeriesId);
+                        //int que = TestSeriesQuestionsMapping(request.TestSeriesQuestions ??= ([]), request.TestSeriesId, quesSec);
 
-                        if (sub > 0 && cla > 0 && board > 0 && course > 0 && subIn > 0 && quesSec > 0 && queType > 0 && inst > 0 && que > 0)
+                        if (sub > 0 && cla > 0 && board > 0 && course > 0)
                         {
-                            return new ServiceResponse<string>(true, "operation successful", "Test series updated successfully", 200);
+                            return new ServiceResponse<int>(true, "operation successful", request.TestSeriesId, 200);
                         }
                         else
                         {
-                            return new ServiceResponse<string>(false, "Some error occured", string.Empty, 500);
+                            return new ServiceResponse<int>(false, "Some error occured", 0, 500);
                         }
                     }
                     else
                     {
-                        return new ServiceResponse<string>(false, "Some error occured", string.Empty, 500);
+                        return new ServiceResponse<int>(false, "Some error occured", 0, 500);
                     }
 
                 }
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+                return new ServiceResponse<int>(false, ex.Message, 0, 500);
             }
         }
         public async Task<ServiceResponse<TestSeriesResponseDTO>> GetTestSeriesById(int TestSeriesId)
@@ -208,13 +211,15 @@ namespace Course_API.Repository.Implementations
                 testSeries.TestSeriesCourses = GetListOfTestSeriesCourse(TestSeriesId);
                 testSeries.TestSeriesContentIndexes = GetListOfTestSeriesSubjectIndex(TestSeriesId);
                 testSeries.TestSeriesQuestionsSection = GetTestSeriesQuestionSection(TestSeriesId);
-                testSeries.TestSeriesQuestionTypes = GetListOfTestSeriesQuestionType(TestSeriesId);
                 testSeries.TestSeriesInstruction = GetListOfTestSeriesInstructions(TestSeriesId);
 
                 // Fetch TestSeriesQuestions based on sectionId if TestSeriesQuestionsSection is not null
                 if (testSeries.TestSeriesQuestionsSection != null)
                 {
-                    testSeries.TestSeriesQuestions = GetListOfTestSeriesQuestion(testSeries.TestSeriesQuestionsSection.testseriesQuestionSectionid);
+                    foreach(var data in testSeries.TestSeriesQuestionsSection)
+                    {
+                        testSeries.TestSeriesQuestions = GetListOfTestSeriesQuestion(data.testseriesQuestionSectionid);
+                    }
                 }
 
                 return new ServiceResponse<TestSeriesResponseDTO>(true, "Success", testSeries, 200);
@@ -223,6 +228,299 @@ namespace Course_API.Repository.Implementations
             {
                 return new ServiceResponse<TestSeriesResponseDTO>(false, ex.Message, new TestSeriesResponseDTO(), 500);
             }
+        }
+        public async Task<ServiceResponse<string>> TestSeriesContentIndexMapping(List<TestSeriesContentIndex> request, int TestSeriesId)
+        {
+            foreach (var data in request)
+            {
+                data.TestSeriesID = TestSeriesId;
+            }
+            string query = "SELECT COUNT(*) FROM [tblTestSeriesContentIndex] WHERE [TestSeriesID] = @TestSeriesId";
+            int count = await _connection.QueryFirstOrDefaultAsync<int>(query, new { TestSeriesId });
+            if (count > 0)
+            {
+                var deleteDuery = @"DELETE FROM [tblTestSeriesContentIndex] WHERE [TestSeriesID] = @TestSeriesId;";
+                var rowsAffected = await _connection.ExecuteAsync(deleteDuery, new { TestSeriesId });
+                if (rowsAffected > 0)
+                {
+                    string insertQuery = @"
+                    INSERT INTO tblTestSeriesContentIndex (IndexTypeId, ContentIndexId, TestSeriesID, SubjectId)
+                    VALUES (@IndexTypeId, @ContentIndexId, @TestSeriesID, @SubjectId);";
+
+                    var valuesInserted = await _connection.ExecuteAsync(insertQuery, request);
+
+                    return new ServiceResponse<string>(true, "Success", "Data added successfully", 200);
+                }
+                else
+                {
+                    return new ServiceResponse<string>(true, "failure", "Data addition failed", 500);
+                }
+            }
+            else
+            {
+                string insertQuery = @"
+                    INSERT INTO tblTestSeriesContentIndex (IndexTypeId, ContentIndexId, TestSeriesID, SubjectId)
+                    VALUES (@IndexTypeId, @ContentIndexId, @TestSeriesID, @SubjectId);";
+
+                var valuesInserted = await _connection.ExecuteAsync(insertQuery, request);
+                return new ServiceResponse<string>(true, "Success", "Data added successfully", 200);
+            }
+        }
+        public async Task<ServiceResponse<string>> TestSeriesQuestionSectionMapping(List<TestSeriesQuestionSection> request, int TestSeriesId)
+        {
+            // Update TestSeriesId for all items in the request list
+            foreach (var section in request)
+            {
+                section.TestSeriesid = TestSeriesId;
+            }
+            try
+            {
+                // Delete existing records for the given TestSeriesId
+                var deleteQuery = "DELETE FROM [tbltestseriesQuestionSection] WHERE [TestSeriesid] = @TestSeriesId";
+                await _connection.ExecuteAsync(deleteQuery, new { TestSeriesId });
+
+                // Insert new records
+                string insertQuery = @"
+            INSERT INTO tbltestseriesQuestionSection 
+            (TestSeriesid, DisplayOrder, SectionName, Status, LevelID1, QuesPerDifficulty1, LevelID2, QuesPerDifficulty2, LevelID3, QuesPerDifficulty3, QuestionTypeID, EntermarksperCorrectAnswer, EnterNegativeMarks, TotalNoofQuestions, NoofQuestionsforChoice)
+            VALUES 
+            (@TestSeriesid, @DisplayOrder, @SectionName, @Status, @LevelID1, @QuesPerDifficulty1, @LevelID2, @QuesPerDifficulty2, @LevelID3, @QuesPerDifficulty3, @QuestionTypeID, @EntermarksperCorrectAnswer, @EnterNegativeMarks, @TotalNoofQuestions, @NoofQuestionsforChoice);";
+
+                var valuesInserted = await _connection.ExecuteAsync(insertQuery, request);
+                return new ServiceResponse<string>(true, "operation successful", "values added successfully", 200);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("An error occurred while updating test series question sections", ex);
+            }
+        }
+        public async Task<ServiceResponse<string>> TestSeriesInstructionsMapping(List<TestSeriesInstructions> request, int TestSeriesId)
+        {
+            foreach (var data in request)
+            {
+                data.TestSeriesID = TestSeriesId;
+            }
+            string query = "SELECT COUNT(*) FROM [tblTestInstructions] WHERE [TestSeriesID] = @TestSeriesId";
+            int count =  await _connection.QueryFirstOrDefaultAsync<int>(query, new { TestSeriesId });
+            if (count > 0)
+            {
+                var deleteDuery = @"DELETE FROM [tblTestInstructions] WHERE [TestSeriesID] = @TestSeriesId;";
+                var rowsAffected = _connection.Execute(deleteDuery, new { TestSeriesId });
+                if (rowsAffected > 0)
+                {
+                    string insertQuery = @"
+                    INSERT INTO tblTestInstructions (Instructions,TestSeriesID)
+                    VALUES (@Instructions,@TestSeriesID);";
+                    var valuesInserted = _connection.ExecuteAsync(insertQuery, request);
+                    return new ServiceResponse<string>(true, "operation successful", "values added successfully", 200);
+                }
+                else
+                {
+                    return new ServiceResponse<string>(false, "operation failed", string.Empty, 200);
+                }
+            }
+            else
+            {
+                string insertQuery = @"
+                    INSERT INTO tblTestInstructions (Instructions,TestSeriesID)
+                    VALUES (@Instructions,@TestSeriesID);";
+                var valuesInserted = _connection.ExecuteAsync(insertQuery, request);
+                return new ServiceResponse<string>(true, "operation successful", "values added successfully", 200);
+            }
+        }
+        public async Task<ServiceResponse<string>> TestSeriesQuestionsMapping(List<TestSeriesQuestions> request, int TestSeriesId, int sectionId)
+        {
+            foreach (var data in request)
+            {
+                data.TestSeriesid = TestSeriesId;
+                data.testseriesQuestionSectionid = sectionId;
+            }
+            string query = "SELECT COUNT(*) FROM [tbltestseriesQuestions] WHERE [testseriesQuestionSectionid] = @testseriesQuestionSectionid";
+            int count = await _connection.QueryFirstOrDefaultAsync<int>(query, new { testseriesQuestionSectionid = sectionId });
+            if (count > 0)
+            {
+                var deleteDuery = @"DELETE FROM [tbltestseriesQuestions] WHERE [testseriesQuestionSectionid] = @testseriesQuestionSectionid;";
+                var rowsAffected = await _connection.ExecuteAsync(deleteDuery, new { testseriesQuestionSectionid = sectionId });
+                if (rowsAffected > 0)
+                {
+                    string insertQuery = @"
+                    INSERT INTO tbltestseriesQuestions (TestSeriesid, Questionid, DisplayOrder, Status, testseriesQuestionSectionid) 
+                    VALUES (@TestSeriesid, @Questionid, @DisplayOrder, @Status, @testseriesQuestionSectionid);";
+                    var valuesInserted = await _connection.ExecuteAsync(insertQuery, request);
+                    return new ServiceResponse<string>(true, "operation successful", "Data added successfully", 200);
+                }
+                else
+                {
+                    return new ServiceResponse<string>(false, "operation failed", string.Empty, 500);
+                }
+            }
+            else
+            {
+                string insertQuery = @"
+                    INSERT INTO tbltestseriesQuestions (TestSeriesid, Questionid, DisplayOrder, Status, testseriesQuestionSectionid) 
+                    VALUES (@TestSeriesid, @Questionid, @DisplayOrder, @Status, @testseriesQuestionSectionid);";
+                var valuesInserted = _connection.Execute(insertQuery, request);
+                return new ServiceResponse<string>(true, "operation successful", "Data added successfully", 200);
+            }
+        }
+        public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetQuestionsList(GetAllQuestionListRequest request)
+        {
+            try
+            {
+                string sql = @"
+    SELECT 
+        q.QuestionId, q.QuestionDescription, q.QuestionFormula, q.QuestionTypeId, q.ApprovedStatus, 
+        q.ApprovedBy, q.ReasonNote, q.Status, q.CreatedBy, q.CreatedOn, q.ModifiedBy, q.ModifiedOn, 
+        q.Verified, q.courseid, c.CourseName, q.boardid, b.BoardName, q.classid, cl.ClassName, 
+        q.subjectID, s.SubjectName, q.ExamTypeId, e.ExamTypeName, q.EmployeeId, emp.EmpFirstName as EmployeeName, 
+        q.Rejectedby, q.RejectedReason, q.IndexTypeId, it.IndexType as IndexTypeName, q.ContentIndexId,
+        CASE 
+            WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
+            WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
+            WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+        END AS ContentIndexName
+    FROM tblQuestion q
+    LEFT JOIN tblCourse c ON q.courseid = c.CourseId
+    LEFT JOIN tblBoard b ON q.boardid = b.BoardId
+    LEFT JOIN tblClass cl ON q.classid = cl.ClassId
+    LEFT JOIN tblSubject s ON q.subjectID = s.SubjectId
+    LEFT JOIN tblExamType e ON q.ExamTypeId = e.ExamTypeId
+    LEFT JOIN tblEmployee emp ON q.EmployeeId = emp.EmployeeId
+    LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
+    LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
+    LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
+    LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
+    WHERE q.subjectID = @Subjectid";
+
+
+                // Execute the query and retrieve the questions
+                var questions = await _connection.QueryAsync<QuestionResponseDTO>(sql, new { Subjectid = request.Subjectid });
+
+                // If no questions found, return empty response
+                if (!questions.Any())
+                {
+
+                    return new ServiceResponse<List<QuestionResponseDTO>>(true, "Operation Successful", [], 200);
+                }
+
+                return new ServiceResponse<List<QuestionResponseDTO>> (true, "Questions retrieved successfully", questions.ToList(), 200);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<QuestionResponseDTO>> (false, ex.Message, [], 500);
+            }
+        }
+        //get records
+        private List<TestSeriesSubjectsResponse> GetListOfTestSeriesSubjects(int TestSeriesId)
+        {
+            string query = @"
+        SELECT 
+            tss.TestSeriesSubjectId,
+            tss.SubjectID,
+            tss.TestSeriesID,
+            s.SubjectName AS SubjectName,
+            tss.NoOfQuestions
+        FROM tblTestSeriesSubjects tss
+        JOIN tblSubject s ON tss.SubjectID = s.SubjectID
+        WHERE tss.TestSeriesID = @TestSeriesID";
+
+            var data = _connection.Query<TestSeriesSubjectsResponse>(query, new { TestSeriesID = TestSeriesId });
+            return data != null ? data.AsList() : new List<TestSeriesSubjectsResponse>();
+        }
+        private List<TestSeriesClassResponse> GetListOfTestSeriesClasses(int TestSeriesId)
+        {
+            string query = @"
+        SELECT 
+            tsc.TestSeriesClassesId,
+            tsc.TestSeriesId,
+            tsc.ClassId,
+            c.ClassName AS Name
+        FROM tblTestSeriesClass tsc
+        JOIN tblClass c ON tsc.ClassId = c.ClassId
+        WHERE tsc.TestSeriesID = @TestSeriesID";
+
+            var data = _connection.Query<TestSeriesClassResponse>(query, new { TestSeriesID = TestSeriesId });
+            return data != null ? data.AsList() : new List<TestSeriesClassResponse>();
+        }
+        private List<TestSeriesBoardsResponse> GetListOfTestSeriesBoards(int TestSeriesId)
+        {
+            string query = @"
+        SELECT 
+            tsb.TestSeriesBoardsId,
+            tsb.TestSeriesId,
+            tsb.BoardId,
+            b.BoardName AS Name
+        FROM tblTestSeriesBoards tsb
+        JOIN tblBoard b ON tsb.BoardId = b.BoardId
+        WHERE tsb.TestSeriesID = @TestSeriesID";
+
+            var data = _connection.Query<TestSeriesBoardsResponse>(query, new { TestSeriesID = TestSeriesId });
+            return data != null ? data.AsList() : new List<TestSeriesBoardsResponse>();
+        }
+        private List<TestSeriesCourseResponse> GetListOfTestSeriesCourse(int TestSeriesId)
+        {
+            string query = @"
+        SELECT 
+            tsc.TestSeriesCourseId,
+            tsc.TestSeriesId,
+            tsc.CourseId,
+            c.CourseName AS Name
+        FROM tblTestSeriesCourse tsc
+        JOIN tblCourse c ON tsc.CourseId = c.CourseId
+        WHERE tsc.TestSeriesID = @TestSeriesID";
+
+            var data = _connection.Query<TestSeriesCourseResponse>(query, new { TestSeriesID = TestSeriesId });
+            return data != null ? data.AsList() : new List<TestSeriesCourseResponse>();
+        }
+        private List<TestSeriesContentIndexResponse> GetListOfTestSeriesSubjectIndex(int TestSeriesId)
+        {
+            string query = @"
+            SELECT 
+                tsci.TestSeriesContentIndexId,
+                tsci.IndexTypeId,
+                it.IndexType AS IndexTypeName,
+                tsci.SubjectId,
+                s.SubjectName as SubjectName,
+                tsci.ContentIndexId,
+                CASE 
+                    WHEN tsci.IndexTypeId = 1 THEN ci.ContentName_Chapter
+                    WHEN tsci.IndexTypeId = 2 THEN ct.ContentName_Topic
+                    WHEN tsci.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+                END AS ContentIndexName,
+                tsci.TestSeriesID
+            FROM tblTestSeriesContentIndex tsci
+            LEFT JOIN tblSubject s ON tsci.SubjectId = s.SubjectId
+            LEFT JOIN tblQBIndexType it ON tsci.IndexTypeId = it.IndexId
+            LEFT JOIN tblContentIndexChapters ci ON tsci.ContentIndexId = ci.ContentIndexId AND tsci.IndexTypeId = 1
+            LEFT JOIN tblContentIndexTopics ct ON tsci.ContentIndexId = ct.ContInIdTopic AND tsci.IndexTypeId = 2
+            LEFT JOIN tblContentIndexSubTopics cst ON tsci.ContentIndexId = cst.ContInIdSubTopic AND tsci.IndexTypeId = 3
+            WHERE tsci.TestSeriesID = @TestSeriesID";
+
+            var data = _connection.Query<TestSeriesContentIndexResponse>(query, new { TestSeriesID = TestSeriesId });
+            return data != null ? data.AsList() : new List<TestSeriesContentIndexResponse>();
+        }
+        private List<TestSeriesQuestionSection> GetTestSeriesQuestionSection(int TestSeriesId)
+        {
+            string query = "SELECT * FROM tbltestseriesQuestionSection WHERE [TestSeriesid] = @TestSeriesID";
+
+            var data = _connection.Query<TestSeriesQuestionSection>(query, new { TestSeriesID = TestSeriesId });
+            return data.AsList() ?? [];
+        }
+        private List<TestSeriesInstructions> GetListOfTestSeriesInstructions(int TestSeriesId)
+        {
+            string query = "SELECT * FROM tblTestInstructions WHERE [TestSeriesID] = @TestSeriesID";
+
+            // Execute the SQL query with the SOTDID parameter
+            var data = _connection.Query<TestSeriesInstructions>(query, new { TestSeriesID = TestSeriesId });
+            return data != null ? data.AsList() : [];
+        }
+        private List<TestSeriesQuestions> GetListOfTestSeriesQuestion(int sectionId)
+        {
+            string query = "SELECT * FROM tbltestseriesQuestions WHERE [testseriesQuestionSectionid] = @testseriesQuestionSectionid";
+
+            // Execute the SQL query with the SOTDID parameter
+            var data = _connection.Query<TestSeriesQuestions>(query, new { testseriesQuestionSectionid = sectionId });
+            return data != null ? data.AsList() : [];
         }
         private int TestSeriesSubjectMapping(List<TestSeriesSubjects> request, int TestSeriesId)
         {
@@ -359,442 +657,6 @@ namespace Course_API.Repository.Implementations
                 var valuesInserted = _connection.Execute(insertQuery, request);
                 return valuesInserted;
             }
-        }
-        private int TestSeriesContentIndexMapping(List<TestSeriesContentIndex> request, int TestSeriesId)
-        {
-            foreach (var data in request)
-            {
-                data.TestSeriesID = TestSeriesId;
-            }
-            string query = "SELECT COUNT(*) FROM [tblTestSeriesContentIndex] WHERE [TestSeriesID] = @TestSeriesId";
-            int count = _connection.QueryFirstOrDefault<int>(query, new { TestSeriesId });
-            if (count > 0)
-            {
-                var deleteDuery = @"DELETE FROM [tblTestSeriesContentIndex] WHERE [TestSeriesID] = @TestSeriesId;";
-                var rowsAffected = _connection.Execute(deleteDuery, new { TestSeriesId });
-                if (rowsAffected > 0)
-                {
-                    string insertQuery = @"
-                    INSERT INTO tblTestSeriesContentIndex (IndexTypeId, ContentIndexId, TestSeriesID)
-                    VALUES (@IndexTypeId, @ContentIndexId, @TestSeriesID);";
-
-                    var valuesInserted = _connection.Execute(insertQuery, request);
-                    return valuesInserted;
-                }
-                else
-                {
-                    return 0;
-                }
-            }
-            else
-            {
-                string insertQuery = @"
-                    INSERT INTO tblTestSeriesContentIndex (IndexTypeId, ContentIndexId, TestSeriesID)
-                    VALUES (@IndexTypeId, @ContentIndexId, @TestSeriesID);";
-
-                var valuesInserted = _connection.Execute(insertQuery, request);
-                return valuesInserted;
-            }
-        }
-        private int TestSeriesQuestionSectionMapping(TestSeriesQuestionSection request, int TestSeriesId)
-        {
-            if (request.testseriesQuestionSectionid == 0)
-            {
-                request.TestSeriesid = TestSeriesId;
-                string insertQuery = @"
-                INSERT INTO tbltestseriesQuestionSection (TestSeriesid, DisplayOrder, SectionName, Status)
-                VALUES (@TestSeriesid, @DisplayOrder, @SectionName, @Status);
-                SELECT CAST(SCOPE_IDENTITY() as int)";
-                int newId = _connection.QuerySingle<int>(insertQuery, request);
-                return newId;
-            }
-            else
-            {
-                string updateQuery = @"
-                UPDATE tbltestseriesQuestionSection
-                SET TestSeriesid = @TestSeriesid,
-                DisplayOrder = @DisplayOrder,
-                SectionName = @SectionName,
-                Status = @Status
-                WHERE testseriesQuestionSectionId = @testseriesQuestionSectionId;";
-
-                int rowsAffected = _connection.QuerySingle<int>(updateQuery, request);
-                return request.testseriesQuestionSectionid;
-            }
-        }
-        private int TestSeriesQuestionTypeMapping(List<TestSeriesQuestionType> request, int TestSeriesId)
-        {
-            foreach (var data in request)
-            {
-                data.TestSeriesID = TestSeriesId;
-            }
-
-            string query = "SELECT COUNT(*) FROM [tblTestSeriesQuestionType] WHERE [TestSeriesID] = @TestSeriesId";
-            int count = _connection.QueryFirstOrDefault<int>(query, new { TestSeriesId });
-
-            if (count > 0)
-            {
-                var deleteQuery = @"DELETE FROM [tblTestSeriesQuestionType] WHERE [TestSeriesID] = @TestSeriesId;";
-                var rowsAffected = _connection.Execute(deleteQuery, new { TestSeriesId });
-
-                if (rowsAffected > 0)
-                {
-                    int valuesInserted = 0;
-
-                    foreach (var questionType in request)
-                    {
-                        string insertQuery = @"
-                INSERT INTO tblTestSeriesQuestionType (
-                    QuestionTypeID,
-                    TestSeriesID,
-                    EnterMarksPerCorrectAnswer,
-                    EnterNegativeMarks,
-                    PerNoOfQuestions,
-                    NoOfQuestionsForChoice
-                )
-                VALUES (
-                    @QuestionTypeID,
-                    @TestSeriesID,
-                    @EnterMarksPerCorrectAnswer,
-                    @EnterNegativeMarks,
-                    @PerNoOfQuestions,
-                    @NoOfQuestionsForChoice
-                );
-                SELECT CAST(SCOPE_IDENTITY() as int);";
-
-                        int insertedId = _connection.QuerySingle<int>(insertQuery, questionType);
-                        valuesInserted++;
-
-                        if (questionType.TestSeriesQuestionDifficultyLevel != null && questionType.TestSeriesQuestionDifficultyLevel.Count != 0)
-                        {
-                            TestSeriesQuestionDifficultyMapping(questionType.TestSeriesQuestionDifficultyLevel, TestSeriesId, insertedId);
-                        }
-                    }
-
-                    return valuesInserted;
-                }
-                else
-                {
-                    return 0;
-                }
-            }
-            else
-            {
-                int valuesInserted = 0;
-
-                foreach (var questionType in request)
-                {
-                    string insertQuery = @"
-            INSERT INTO tblTestSeriesQuestionType (
-                QuestionTypeID,
-                TestSeriesID,
-                EnterMarksPerCorrectAnswer,
-                EnterNegativeMarks,
-                PerNoOfQuestions,
-                NoOfQuestionsForChoice
-            )
-            VALUES (
-                @QuestionTypeID,
-                @TestSeriesID,
-                @EnterMarksPerCorrectAnswer,
-                @EnterNegativeMarks,
-                @PerNoOfQuestions,
-                @NoOfQuestionsForChoice
-            );
-            SELECT CAST(SCOPE_IDENTITY() as int);";
-
-                    int insertedId = _connection.QuerySingle<int>(insertQuery, questionType);
-                    valuesInserted++;
-
-                    if (questionType.TestSeriesQuestionDifficultyLevel != null && questionType.TestSeriesQuestionDifficultyLevel.Count != 0)
-                    {
-                        TestSeriesQuestionDifficultyMapping(questionType.TestSeriesQuestionDifficultyLevel, TestSeriesId, insertedId);
-                    }
-                }
-
-                return valuesInserted;
-            }
-        }
-
-        private int TestSeriesQuestionDifficultyMapping(List<TestSeriesQuestionDifficulty> request, int TestSeriesId, int TestSeriesQuestionTypeId)
-        {
-            foreach (var data in request)
-            {
-                data.TestSeriesID = TestSeriesId;
-                data.TestSeriesQuestionTypeId = TestSeriesQuestionTypeId;
-            }
-
-            string query = "SELECT COUNT(*) FROM [tblTestSeriesQuestionDifficulty] WHERE [TestSeriesQuestionTypeId] = @TestSeriesQuestionTypeId";
-            int count = _connection.QueryFirstOrDefault<int>(query, new { TestSeriesQuestionTypeId });
-
-            if (count > 0)
-            {
-                var deleteQuery = @"DELETE FROM [tblTestSeriesQuestionDifficulty] WHERE [TestSeriesQuestionTypeId] = @TestSeriesQuestionTypeId;";
-                var rowsAffected = _connection.Execute(deleteQuery, new { TestSeriesQuestionTypeId });
-
-                if (rowsAffected > 0)
-                {
-                    string insertQuery = @"
-            INSERT INTO tblTestSeriesQuestionDifficulty (
-                LevelID,
-                TestSeriesID,
-                PercentagePerDifficulty,
-                TestSeriesQuestionTypeId
-            )
-            VALUES (
-                @LevelID,
-                @TestSeriesID,
-                @PercentagePerDifficulty,
-                @TestSeriesQuestionTypeId
-            );";
-
-                    var valuesInserted = _connection.Execute(insertQuery, request);
-                    return valuesInserted;
-                }
-                else
-                {
-                    return 0;
-                }
-            }
-            else
-            {
-                string insertQuery = @"
-        INSERT INTO tblTestSeriesQuestionDifficulty (
-            LevelID,
-            TestSeriesID,
-            PercentagePerDifficulty,
-            TestSeriesQuestionTypeId
-        )
-        VALUES (
-            @LevelID,
-            @TestSeriesID,
-            @PercentagePerDifficulty,
-            @TestSeriesQuestionTypeId
-        );";
-
-                var valuesInserted = _connection.Execute(insertQuery, request);
-                return valuesInserted;
-            }
-        }
-
-
-        private int TestSeriesInstructionsMapping(List<TestSeriesInstructions> request, int TestSeriesId)
-        {
-            foreach (var data in request)
-            {
-                data.TestSeriesID = TestSeriesId;
-            }
-            string query = "SELECT COUNT(*) FROM [tblTestInstructions] WHERE [TestSeriesID] = @TestSeriesId";
-            int count = _connection.QueryFirstOrDefault<int>(query, new { TestSeriesId });
-            if (count > 0)
-            {
-                var deleteDuery = @"DELETE FROM [tblTestInstructions] WHERE [TestSeriesID] = @TestSeriesId;";
-                var rowsAffected = _connection.Execute(deleteDuery, new { TestSeriesId });
-                if (rowsAffected > 0)
-                {
-                    string insertQuery = @"
-                    INSERT INTO tblTestInstructions (Instructions,TestSeriesID)
-                    VALUES (@Instructions,@TestSeriesID);";
-                    var valuesInserted = _connection.Execute(insertQuery, request);
-                    return valuesInserted;
-                }
-                else
-                {
-                    return 0;
-                }
-            }
-            else
-            {
-                string insertQuery = @"
-                    INSERT INTO tblTestInstructions (Instructions,TestSeriesID)
-                    VALUES (@Instructions,@TestSeriesID);";
-                var valuesInserted = _connection.Execute(insertQuery, request);
-                return valuesInserted;
-            }
-        }
-        private int TestSeriesQuestionsMapping(List<TestSeriesQuestions> request, int TestSeriesId, int sectionId)
-        {
-            foreach (var data in request)
-            {
-                data.TestSeriesid = TestSeriesId;
-                data.testseriesQuestionSectionid = sectionId;
-            }
-            string query = "SELECT COUNT(*) FROM [tbltestseriesQuestions] WHERE [testseriesQuestionSectionid] = @testseriesQuestionSectionid";
-            int count = _connection.QueryFirstOrDefault<int>(query, new { testseriesQuestionSectionid = sectionId });
-            if (count > 0)
-            {
-                var deleteDuery = @"DELETE FROM [tbltestseriesQuestions] WHERE [testseriesQuestionSectionid] = @testseriesQuestionSectionid;";
-                var rowsAffected = _connection.Execute(deleteDuery, new { testseriesQuestionSectionid = sectionId });
-                if (rowsAffected > 0)
-                {
-                    string insertQuery = @"
-                    INSERT INTO tbltestseriesQuestions (TestSeriesid, Questionid, DisplayOrder, Status, testseriesQuestionSectionid) 
-                    VALUES (@TestSeriesid, @Questionid, @DisplayOrder, @Status, @testseriesQuestionSectionid);";
-                    var valuesInserted = _connection.Execute(insertQuery, request);
-                    return valuesInserted;
-                }
-                else
-                {
-                    return 0;
-                }
-            }
-            else
-            {
-                string insertQuery = @"
-                    INSERT INTO tbltestseriesQuestions (TestSeriesid, Questionid, DisplayOrder, Status, testseriesQuestionSectionid) 
-                    VALUES (@TestSeriesid, @Questionid, @DisplayOrder, @Status, @testseriesQuestionSectionid);";
-                var valuesInserted = _connection.Execute(insertQuery, request);
-                return valuesInserted;
-            }
-        }
-        //get records
-        private List<TestSeriesSubjectsResponse> GetListOfTestSeriesSubjects(int TestSeriesId)
-        {
-            string query = @"
-        SELECT 
-            tss.TestSeriesSubjectId,
-            tss.SubjectID,
-            tss.TestSeriesID,
-            s.SubjectName AS SubjectName,
-            tss.NoOfQuestions
-        FROM tblTestSeriesSubjects tss
-        JOIN tblSubject s ON tss.SubjectID = s.SubjectID
-        WHERE tss.TestSeriesID = @TestSeriesID";
-
-            var data = _connection.Query<TestSeriesSubjectsResponse>(query, new { TestSeriesID = TestSeriesId });
-            return data != null ? data.AsList() : new List<TestSeriesSubjectsResponse>();
-        }
-        private List<TestSeriesClassResponse> GetListOfTestSeriesClasses(int TestSeriesId)
-        {
-            string query = @"
-        SELECT 
-            tsc.TestSeriesClassesId,
-            tsc.TestSeriesId,
-            tsc.ClassId,
-            c.ClassName AS Name
-        FROM tblTestSeriesClass tsc
-        JOIN tblClass c ON tsc.ClassId = c.ClassId
-        WHERE tsc.TestSeriesID = @TestSeriesID";
-
-            var data = _connection.Query<TestSeriesClassResponse>(query, new { TestSeriesID = TestSeriesId });
-            return data != null ? data.AsList() : new List<TestSeriesClassResponse>();
-        }
-        private List<TestSeriesBoardsResponse> GetListOfTestSeriesBoards(int TestSeriesId)
-        {
-            string query = @"
-        SELECT 
-            tsb.TestSeriesBoardsId,
-            tsb.TestSeriesId,
-            tsb.BoardId,
-            b.BoardName AS Name
-        FROM tblTestSeriesBoards tsb
-        JOIN tblBoard b ON tsb.BoardId = b.BoardId
-        WHERE tsb.TestSeriesID = @TestSeriesID";
-
-            var data = _connection.Query<TestSeriesBoardsResponse>(query, new { TestSeriesID = TestSeriesId });
-            return data != null ? data.AsList() : new List<TestSeriesBoardsResponse>();
-        }
-        private List<TestSeriesCourseResponse> GetListOfTestSeriesCourse(int TestSeriesId)
-        {
-            string query = @"
-        SELECT 
-            tsc.TestSeriesCourseId,
-            tsc.TestSeriesId,
-            tsc.CourseId,
-            c.CourseName AS Name
-        FROM tblTestSeriesCourse tsc
-        JOIN tblCourse c ON tsc.CourseId = c.CourseId
-        WHERE tsc.TestSeriesID = @TestSeriesID";
-
-            var data = _connection.Query<TestSeriesCourseResponse>(query, new { TestSeriesID = TestSeriesId });
-            return data != null ? data.AsList() : new List<TestSeriesCourseResponse>();
-        }
-        private List<TestSeriesContentIndexResponse> GetListOfTestSeriesSubjectIndex(int TestSeriesId)
-        {
-            string query = @"
-            SELECT 
-                tsci.TestSeriesContentIndexId,
-                tsci.IndexTypeId,
-                it.IndexType AS IndexTypeName,
-                tsci.ContentIndexId,
-                CASE 
-                    WHEN tsci.IndexTypeId = 1 THEN ci.ContentName_Chapter
-                    WHEN tsci.IndexTypeId = 2 THEN ct.ContentName_Topic
-                    WHEN tsci.IndexTypeId = 3 THEN cst.ContentName_SubTopic
-                END AS ContentIndexName,
-                tsci.TestSeriesID
-            FROM tblTestSeriesContentIndex tsci
-            LEFT JOIN tblQBIndexType it ON tsci.IndexTypeId = it.IndexId
-            LEFT JOIN tblContentIndexChapters ci ON tsci.ContentIndexId = ci.ContentIndexId AND tsci.IndexTypeId = 1
-            LEFT JOIN tblContentIndexTopics ct ON tsci.ContentIndexId = ct.ContInIdTopic AND tsci.IndexTypeId = 2
-            LEFT JOIN tblContentIndexSubTopics cst ON tsci.ContentIndexId = cst.ContInIdSubTopic AND tsci.IndexTypeId = 3
-            WHERE tsci.TestSeriesID = @TestSeriesID";
-
-            var data = _connection.Query<TestSeriesContentIndexResponse>(query, new { TestSeriesID = TestSeriesId });
-            return data != null ? data.AsList() : new List<TestSeriesContentIndexResponse>();
-        }
-
-        private TestSeriesQuestionSection GetTestSeriesQuestionSection(int TestSeriesId)
-        {
-            string query = "SELECT * FROM tbltestseriesQuestionSection WHERE [TestSeriesid] = @TestSeriesID";
-
-            var data = _connection.QueryFirstOrDefault<TestSeriesQuestionSection>(query, new { TestSeriesID = TestSeriesId });
-            return data ?? new TestSeriesQuestionSection();
-        }
-        private List<TestSeriesQuestionType> GetListOfTestSeriesQuestionType(int TestSeriesId)
-        {
-            string query = @"
-        SELECT 
-            tstqt.TestSeriesQuestionTypeId,
-            tstqt.QuestionTypeID,
-            tstqt.TestSeriesID,
-            tstqt.EnterMarksPerCorrectAnswer,
-            tstqt.EnterNegativeMarks,
-            tstqt.PerNoOfQuestions,
-            tstqt.NoOfQuestionsForChoice
-        FROM tblTestSeriesQuestionType tstqt
-        WHERE tstqt.TestSeriesID = @TestSeriesID";
-
-            var questionTypes = _connection.Query<TestSeriesQuestionType>(query, new { TestSeriesID = TestSeriesId }).ToList();
-
-            foreach (var questionType in questionTypes)
-            {
-                questionType.TestSeriesQuestionDifficultyLevel = GetListOfTestSeriesQuestionDifficulty(questionType.TestSeriesQuestionTypeId);
-            }
-
-            return questionTypes;
-        }
-        private List<TestSeriesQuestionDifficulty> GetListOfTestSeriesQuestionDifficulty(int TestSeriesQuestionTypeId)
-        {
-            string query = @"
-        SELECT 
-            tstqd.TestSeriesQuestionDifficultyId,
-            tstqd.LevelID,
-            tstqd.TestSeriesID,
-            tstqd.TestSeriesQuestionTypeId,
-            tstqd.PercentagePerDifficulty
-        FROM tblTestSeriesQuestionDifficulty tstqd
-        WHERE tstqd.TestSeriesQuestionTypeId = @TestSeriesQuestionTypeId";
-
-            var difficulties = _connection.Query<TestSeriesQuestionDifficulty>(query, new { TestSeriesQuestionTypeId }).ToList();
-
-            return difficulties;
-        }
-        private List<TestSeriesInstructions> GetListOfTestSeriesInstructions(int TestSeriesId)
-        {
-            string query = "SELECT * FROM tblTestInstructions WHERE [TestSeriesID] = @TestSeriesID";
-
-            // Execute the SQL query with the SOTDID parameter
-            var data = _connection.Query<TestSeriesInstructions>(query, new { TestSeriesID = TestSeriesId });
-            return data != null ? data.AsList() : [];
-        }
-        private List<TestSeriesQuestions> GetListOfTestSeriesQuestion(int sectionId)
-        {
-            string query = "SELECT * FROM tbltestseriesQuestions WHERE [testseriesQuestionSectionid] = @testseriesQuestionSectionid";
-
-            // Execute the SQL query with the SOTDID parameter
-            var data = _connection.Query<TestSeriesQuestions>(query, new { testseriesQuestionSectionid = sectionId });
-            return data != null ? data.AsList() : [];
         }
     }
 }

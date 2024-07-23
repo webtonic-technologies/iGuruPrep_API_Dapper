@@ -81,7 +81,7 @@ namespace Config_API.Repository.Implementations
             try
             {
                 // Construct the SQL query to select all subjects
-                string query = "SELECT [SubjectId], [SubjectName], [SubjectCode], [Status], [createdby], [createdon], [displayorder], [modifiedby], [modifiedon], [groupname], [icon], [colorcode], [subjecttype], [EmployeeID], EmpFirstName FROM [tblSubject]";
+                string query = "SELECT [SubjectId], [SubjectName], [SubjectCode], [Status], [createdby], [createdon], [modifiedby], [modifiedon], [EmployeeID] FROM [tblSubject]";
 
                 // Execute the select query asynchronously
                 var data = await _connection.QueryAsync<Subject>(query);
@@ -107,7 +107,7 @@ namespace Config_API.Repository.Implementations
             try
             {
                 // Construct the SQL query to select all subjects
-                string query = "SELECT [SubjectId], [SubjectName], [SubjectCode], [Status], [createdby], [createdon], [displayorder], [modifiedby], [modifiedon], [groupname], [icon], [colorcode], [subjecttype], [EmployeeID], EmpFirstName FROM [tblSubject]";
+                string query = "SELECT * FROM [tblSubject]";
 
                 // Execute the select query asynchronously
                 var data = await _connection.QueryAsync<Subject>(query);
@@ -131,7 +131,7 @@ namespace Config_API.Repository.Implementations
 
             try
             {
-                string query = "SELECT [SubjectId], [SubjectName], [SubjectCode], [Status], [createdby], [createdon], [displayorder], [modifiedby], [modifiedon], [groupname], [icon], [colorcode], [subjecttype], [EmployeeID], EmpFirstName FROM [tblSubject] WHERE [SubjectId] = @SubjectId";
+                string query = "SELECT [SubjectId], [SubjectName], [SubjectCode], [Status], [createdby], [createdon], [modifiedby], [modifiedon], [EmployeeID] FROM [tblSubject] WHERE [SubjectId] = @SubjectId";
 
                 var data = await _connection.QueryFirstOrDefaultAsync<Subject>(query, new { SubjectId = id });
 

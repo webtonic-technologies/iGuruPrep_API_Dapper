@@ -12,5 +12,10 @@
         public DateTime? ModifiedOn { get; set; }
         public string ModifiedBy { get; set; } = string.Empty;
         public int EmployeeId { get; set; }
+        public bool IsActive { get; set; }
+        public string SubTopicCode { get; set; } = string.Empty;
+        public string DisplayName { get; set; } = string.Empty;
+        public int DisplayOrder {  get; set; }
+        public string TopicCode {  get; set; } = string.Empty;
     }
 }

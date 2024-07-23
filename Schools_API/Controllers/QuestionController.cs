@@ -75,10 +75,10 @@ namespace Schools_API.Controllers
 
             return Ok(data);
         }
-        [HttpGet("GetQuestionById/{id}")]
-        public async Task<IActionResult> GetQuestionById(int id)
+        [HttpGet("GetQuestionById/{QuestionCode}")]
+        public async Task<IActionResult> GetQuestionById(string QuestionCode)
         {
-            var data = await _questionServices.GetQuestionById(id);
+            var data = await _questionServices.GetQuestionByCode(QuestionCode);
 
             if (data == null)
             {
@@ -135,10 +135,47 @@ namespace Schools_API.Controllers
 
             return Ok(data);
         }
-        [HttpGet("GetQuestionProfilerById/{QuestionId}")]
-        public async Task<IActionResult> GetQuestionProfilerDetails(int QuestionId)
+        [HttpGet("GetQuestionProfilerById/{QuestionCode}")]
+        public async Task<IActionResult> GetQuestionProfilerDetails(string QuestionCode)
         {
-            var data = await _questionServices.GetQuestionProfilerDetails(QuestionId);
+            var data = await _questionServices.GetQuestionProfilerDetails(QuestionCode);
+
+            if (data == null)
+            {
+                return NotFound("No data found.");
+            }
+
+            return Ok(data);
+        }
+        [HttpPost("QuestionComparison/{QuestionCode}")]
+        public async Task<IActionResult> CompareQuestionVersions(string QuestionCode)
+        {
+            try
+            {
+
+                if (QuestionCode == null)
+                {
+                    return BadRequest(" data is null.");
+                }
+
+                var data = await _questionServices.CompareQuestionVersions(QuestionCode);
+
+                if (data == null)
+                {
+                    return StatusCode(500, "A problem happened while handling your request.");
+                }
+
+                return Ok(data);
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
+        [HttpGet("GetAssignedQuestionsList/{EmployeeId}")]
+        public async Task<IActionResult> GetAssignedQuestionsList(int EmployeeId)
+        {
+            var data = await _questionServices.GetAssignedQuestionsList(EmployeeId);
 
             if (data == null)
             {

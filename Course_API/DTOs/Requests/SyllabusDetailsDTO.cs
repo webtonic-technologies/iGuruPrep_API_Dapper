@@ -30,6 +30,15 @@ namespace Course_API.DTOs.Requests
     {
         public int ContentIndexId { get; set; }
         public int IndexTypeId { get; set; }
+        public string ContentCode { get; set; } = string.Empty;
         public string NewContentIndexName { get; set; } = string.Empty;
+    }
+    public class GetAllSyllabusList
+    {
+        public int APID { get; set; }
+        public int ClassId { get; set; }
+        public int CourseId {  get; set; }
+        public int BoardId {  get; set; }
+        public int ExamTypeId { get; set; }
     }
 }

@@ -381,7 +381,6 @@ namespace Course_API.Repository.Implementations
                 return new ServiceResponse<List<ContentIndexResponse>>(false, ex.Message, new List<ContentIndexResponse>(), StatusCodes.Status500InternalServerError);
             }
         }
-
         private string PDFUpload(string pdf)
         {
             if (string.IsNullOrEmpty(pdf) || pdf == "string")

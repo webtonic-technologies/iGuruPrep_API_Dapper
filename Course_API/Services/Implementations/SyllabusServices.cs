@@ -62,6 +62,18 @@ namespace Course_API.Services.Implementations
             }
         }
 
+        public async Task<ServiceResponse<List<SyllabusResponseDTO>>> GetSyllabusList(GetAllSyllabusList request)
+        {
+            try
+            {
+                return await _syllabusRepository.GetSyllabusList(request);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<SyllabusResponseDTO>>(false, ex.Message, [], 500);
+            }
+        }
+
         public async Task<ServiceResponse<string>> UpdateContentIndexName(UpdateContentIndexNameDTO request)
         {
             try

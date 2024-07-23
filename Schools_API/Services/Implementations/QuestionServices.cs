@@ -59,6 +59,17 @@ namespace Schools_API.Services.Implementations
                 return new ServiceResponse<List<QuestionComparisonDTO>>(false, ex.Message, [], 500);
             }
         }
+        public async Task<ServiceResponse<object>> CompareQuestionVersions(string questionCode)
+        {
+            try
+            {
+                return await _questionRepository.CompareQuestionVersions(questionCode);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<object>(false, ex.Message, null, 500);
+            }
+        }
         public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetAllQuestionsList(GetAllQuestionListRequest request)
         {
             try
@@ -81,22 +92,33 @@ namespace Schools_API.Services.Implementations
                 return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, [], 500);
             }
         }
-        public async Task<ServiceResponse<QuestionResponseDTO>> GetQuestionById(int questionId)
+        public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetAssignedQuestionsList(int employeeId)
         {
             try
             {
-                return await _questionRepository.GetQuestionById(questionId);
+                return await _questionRepository.GetAssignedQuestionsList(employeeId);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, [], 500);
+            }
+        }
+        public async Task<ServiceResponse<QuestionResponseDTO>> GetQuestionByCode(string questionCode)
+        {
+            try
+            {
+                return await _questionRepository.GetQuestionByCode(questionCode);
             }
             catch (Exception ex)
             {
                 return new ServiceResponse<QuestionResponseDTO>(false, ex.Message, new QuestionResponseDTO(), 500);
             }
         }
-        public async Task<ServiceResponse<QuestionProfilerResponse>> GetQuestionProfilerDetails(int QuestionId)
+        public async Task<ServiceResponse<QuestionProfilerResponse>> GetQuestionProfilerDetails(string QuestionCode)
         {
             try
             {
-                return await _questionRepository.GetQuestionProfilerDetails(QuestionId);
+                return await _questionRepository.GetQuestionProfilerDetails(QuestionCode);
             }
             catch (Exception ex)
             {

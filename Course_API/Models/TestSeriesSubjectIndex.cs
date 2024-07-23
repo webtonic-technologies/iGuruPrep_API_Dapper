@@ -6,5 +6,6 @@
         public int IndexTypeId { get; set; }
         public int ContentIndexId { get; set; }
         public int TestSeriesID { get; set; }
+        public int SubjectId {  get; set; }
     }
 }

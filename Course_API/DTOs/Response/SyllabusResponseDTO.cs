@@ -52,5 +52,6 @@
         public string IndexTypeName { get; set; } = string.Empty;
         public int Status { get; set; }
         public int? IsVerson { get; set; }
+        public string Synopsis { get; set; } = string.Empty;
     }
 }

@@ -30,11 +30,15 @@ namespace Schools_API.DTOs.Requests
         public int ContentIndexId { get; set; }
         public bool? IsRejected { get; set; } = false;
         public bool? IsApproved { get; set; } = false;
+        public string QuestionCode { get; set; } = string.Empty;
+        public string Explanation {  get; set; } = string.Empty;
+        public string ExtraInformation { get; set; } = string.Empty;
+        public bool IsActive { get; set; } = true;
         public List<QIDCourse>? QIDCourses { get; set; }
         public List<QuestionSubjectMapping>? QuestionSubjectMappings { get; set; }
         public List<AnswerMultipleChoiceCategory>? AnswerMultipleChoiceCategories { get; set; }
         public Answersingleanswercategory? Answersingleanswercategories { get; set; }
-        public Reference? References { get; set; }
+        //public Reference? References { get; set; }
     }
     public class GetAllQuestionListRequest
     {
@@ -42,6 +46,7 @@ namespace Schools_API.DTOs.Requests
         public int PageSize { get; set; }
         public int ContentIndexId { get; set; }
         public int IndexTypeId { get; set; }
+        public int EmployeeId {  get; set; }
     }
     public class QuestionCompareRequest
     {

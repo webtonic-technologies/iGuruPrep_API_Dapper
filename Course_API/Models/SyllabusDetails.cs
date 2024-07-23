@@ -8,5 +8,6 @@
         public int IndexTypeId { get; set; }
         public int Status { get; set; }
         public int? IsVerson { get; set; }
+        public string Synopsis { get; set; } = string.Empty;
     }
 }

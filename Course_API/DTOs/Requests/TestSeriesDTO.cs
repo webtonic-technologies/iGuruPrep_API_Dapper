@@ -9,7 +9,6 @@ namespace Course_API.DTOs.Requests
         //public int boardid { get; set; }
         //public int classId { get; set; }
         //public int CourseId { get; set; }
-        //public int ExamTypeID { get; set; }
         public DateTime? createdon { get; set; }
         public string createdby { get; set; } = string.Empty;
         public DateTime? modifiedon { get; set; }
@@ -43,14 +42,19 @@ namespace Course_API.DTOs.Requests
         public string NameOfExam { get; set; } = string.Empty;
         public bool RepeatedExams { get; set; }
         public int TypeOfTestSeries {  get; set; }
+        public int ExamTypeID { get; set; }
         public List<TestSeriesBoards>? TestSeriesBoard { get; set; }
         public List<TestSeriesClass>? TestSeriesClasses { get; set; }
         public List<TestSeriesCourse>? TestSeriesCourses { get; set; }
         public List<TestSeriesSubjects>? TestSeriesSubject { get; set; }
-        public List<TestSeriesContentIndex>? TestSeriesContentIndexes { get; set; }
-        public TestSeriesQuestionSection? TestSeriesQuestionsSection { get; set; }
-        public List<TestSeriesQuestionType>? TestSeriesQuestionTypes { get; set; }
-        public List<TestSeriesInstructions>? TestSeriesInstruction { get; set; }
-        public List<TestSeriesQuestions>? TestSeriesQuestions { get; set; }
+       // public List<TestSeriesContentIndex>? TestSeriesContentIndexes { get; set; }
+       // public TestSeriesQuestionSection? TestSeriesQuestionsSection { get; set; }
+       // public List<TestSeriesQuestionType>? TestSeriesQuestionTypes { get; set; }
+       // public List<TestSeriesInstructions>? TestSeriesInstruction { get; set; }
+       // public List<TestSeriesQuestions>? TestSeriesQuestions { get; set; }
+    }
+    public class GetAllQuestionListRequest
+    {
+        public int Subjectid { get; set; }
     }
 }

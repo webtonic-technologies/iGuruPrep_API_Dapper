@@ -26,14 +26,16 @@ namespace Course_API.DTOs.Response
         public string NameOfExam { get; set; } = string.Empty;
         public bool RepeatedExams { get; set; }
         public int TypeOfTestSeries {  get; set; }
+        public int ExamTypeID { get; set; }
+        public string ExamTypeName {  get; set; } = string.Empty;
         public string TypeOfTestSeriesName {  get; set; } = string.Empty;
         public List<TestSeriesBoardsResponse>? TestSeriesBoard { get; set; }
         public List<TestSeriesClassResponse>? TestSeriesClasses { get; set; }
         public List<TestSeriesCourseResponse>? TestSeriesCourses { get; set; }
         public List<TestSeriesSubjectsResponse>? TestSeriesSubject { get; set; }
         public List<TestSeriesContentIndexResponse>? TestSeriesContentIndexes { get; set; }
-        public TestSeriesQuestionSection? TestSeriesQuestionsSection { get; set; }
-        public List<TestSeriesQuestionType>? TestSeriesQuestionTypes { get; set; }
+        public List<TestSeriesQuestionSection>? TestSeriesQuestionsSection { get; set; }
+       // public List<TestSeriesQuestionType>? TestSeriesQuestionTypes { get; set; }
         public List<TestSeriesInstructions>? TestSeriesInstruction { get; set; }
         public List<TestSeriesQuestions>? TestSeriesQuestions { get; set; }
     }
@@ -74,5 +76,7 @@ namespace Course_API.DTOs.Response
         public int ContentIndexId { get; set; }
         public string ContentIndexName { get; set; } = string.Empty;
         public int TestSeriesID { get; set; }
+        public int SubjectId { get; set; }
+        public string SubjectName { get; set; } = string.Empty;
     }
 }

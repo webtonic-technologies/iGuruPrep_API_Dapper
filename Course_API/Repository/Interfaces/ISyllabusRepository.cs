@@ -12,5 +12,6 @@ namespace Course_API.Repository.Interfaces
         Task<ServiceResponse<SyllabusDetailsResponseDTO>> GetSyllabusDetailsById(int syllabusId);
         Task<ServiceResponse<SyllabusResponseDTO>> GetSyllabusById(int syllabusId);
         Task<ServiceResponse<string>> UpdateContentIndexName(UpdateContentIndexNameDTO request);
+        Task<ServiceResponse<List<SyllabusResponseDTO>>> GetSyllabusList(GetAllSyllabusList request);
     }
 }
