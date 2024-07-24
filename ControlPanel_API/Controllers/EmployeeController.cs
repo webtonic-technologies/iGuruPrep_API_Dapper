@@ -1,27 +1,49 @@
 using ControlPanel_API.DTOs.Requests;
 using ControlPanel_API.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using System.Net;
 
 namespace ControlPanel_API.Controllers
 {
     [Route("iGuru/ControlPanel/[controller]")]
     [ApiController]
+    [Authorize]
     public class EmployeeController : ControllerBase
     {
 
         private readonly IEmployeeServices _employeeServices;
-
-        public EmployeeController(IEmployeeServices employeeServices)
+        private readonly IConfiguration _config;
+        public EmployeeController(IEmployeeServices employeeServices, IConfiguration configuration)
         {
             _employeeServices = employeeServices;
+            _config = configuration;
         }
 
         [HttpPost("GetEmployee")]
         public async Task<IActionResult> GetEmployeeList(GetEmployeeListDTO request)
         {
+            //try
+            //{
+            //    return new OkObjectResult(await _employeeServices.GetEmployeeList(request));
+            //}
+            //catch (Exception ex)
+            //{
+            //    return new JsonResult(ex.Message)
+            //    {
+            //        StatusCode = (int)HttpStatusCode.NotFound
+            //    };
+            //}
             try
             {
+                // Check if the user is a superadmin
+                var isSuperAdmin = User.Claims.FirstOrDefault(c => c.Type == "IsSuperAdmin")?.Value;
+                if (isSuperAdmin == null || !bool.Parse(isSuperAdmin))
+                {
+                    return Forbid(); // or return Unauthorized();
+                }
+
                 return new OkObjectResult(await _employeeServices.GetEmployeeList(request));
             }
             catch (Exception ex)
@@ -31,7 +53,6 @@ namespace ControlPanel_API.Controllers
                     StatusCode = (int)HttpStatusCode.NotFound
                 };
             }
-
         }
         [HttpGet("GetEmployeeById/{Employeeid}")]
         public async Task<IActionResult> GetEmployeeByID(int Employeeid)
@@ -90,11 +111,27 @@ namespace ControlPanel_API.Controllers
 
         }
         [HttpPost("EmployeeLogin")]
+        [AllowAnonymous]
         public async Task<IActionResult> EmployeeLogin(EmployeeLoginRequest request)
         {
             try
             {
-                return new OkObjectResult(await _employeeServices.EmployeeLogin(request));
+                var jwtToken = new JwtHelper(_config);
+                var result = await _employeeServices.EmployeeLogin(request);
+                if (result != null)
+                {
+                    var status = true;
+                    var message = "Login successful";
+                    var token = jwtToken.GenerateJwtToken(result.Data.Employeeid,result.Data.RoleName, true);
+                    var data = result;
+                    return this.Ok(new { status, message, data, token });
+                }
+                else
+                {
+                    var status = false;
+                    var message = "Login failed";
+                    return this.BadRequest(new { status, message });
+                }
             }
             catch (Exception ex)
             {

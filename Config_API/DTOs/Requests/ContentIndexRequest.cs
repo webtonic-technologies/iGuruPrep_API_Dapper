@@ -49,10 +49,10 @@ namespace Config_API.DTOs.Requests
     }
     public class ContentIndexSheet
     {
-        public string SubjectCode { get; set; }
-        public string Chapter { get; set; }
-        public string Topic { get; set; }
-        public string SubTopic { get; set; }
+        public string SubjectCode { get; set; } = string.Empty;
+        public string Chapter { get; set; } = string.Empty;
+        public string Topic { get; set; } = string.Empty;
+        public string SubTopic { get; set; } = string.Empty;
         public int DisplayOrder { get; set; }
     }
 }

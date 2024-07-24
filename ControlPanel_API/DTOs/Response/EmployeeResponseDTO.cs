@@ -35,7 +35,7 @@ namespace ControlPanel_API.DTOs.Response
         public string Createdby { get; set; } = string.Empty;
         public bool? Status { get; set; }
         public string EmpMiddleName { get; set; } = string.Empty;
-        public bool IsSuperAdmin {  get; set; }
+        public bool? IsSuperAdmin {  get; set; }
 
         public class EmployeeSubjectResponse
         {
