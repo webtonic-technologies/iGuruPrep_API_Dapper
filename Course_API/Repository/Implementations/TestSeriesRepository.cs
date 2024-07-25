@@ -167,6 +167,7 @@ namespace Course_API.Repository.Implementations
         {
             try
             {
+                // Fetch the main TestSeries data
                 var query = @"
             SELECT 
                 ts.TestSeriesId,
@@ -187,6 +188,8 @@ namespace Course_API.Repository.Implementations
                 ts.RepeatedExams,
                 ts.TypeOfTestSeries,
                 tts.TestSeriesName AS TypeOfTestSeriesName,
+                ts.ExamTypeID,
+                ttt.ExamTypeName AS ExamTypeName,
                 ts.createdon,
                 ts.createdby,
                 ts.modifiedon,
@@ -195,6 +198,7 @@ namespace Course_API.Repository.Implementations
             JOIN tblCategory ap ON ts.APID = ap.APID
             JOIN tblEmployee emp ON ts.EmployeeID = emp.EmployeeID
             JOIN tblTypeOfTestSeries tts ON ts.TypeOfTestSeries = tts.TTSId
+            JOIN tblExamType ttt ON ts.ExamTypeID = ttt.ExamTypeID
             WHERE ts.TestSeriesId = @TestSeriesId";
 
                 var testSeries = await _connection.QueryFirstOrDefaultAsync<TestSeriesResponseDTO>(query, new { TestSeriesId });
@@ -204,21 +208,58 @@ namespace Course_API.Repository.Implementations
                     return new ServiceResponse<TestSeriesResponseDTO>(false, "Test Series not found", new TestSeriesResponseDTO(), 404);
                 }
 
-                // Fetch related data using the existing methods
-                testSeries.TestSeriesSubject = GetListOfTestSeriesSubjects(TestSeriesId);
-                testSeries.TestSeriesClasses = GetListOfTestSeriesClasses(TestSeriesId);
-                testSeries.TestSeriesBoard = GetListOfTestSeriesBoards(TestSeriesId);
-                testSeries.TestSeriesCourses = GetListOfTestSeriesCourse(TestSeriesId);
-                testSeries.TestSeriesContentIndexes = GetListOfTestSeriesSubjectIndex(TestSeriesId);
-                testSeries.TestSeriesQuestionsSection = GetTestSeriesQuestionSection(TestSeriesId);
-                testSeries.TestSeriesInstruction = GetListOfTestSeriesInstructions(TestSeriesId);
+                // Fetch related data
+                var testSeriesBoards =  GetListOfTestSeriesBoards(TestSeriesId);
+                var testSeriesClasses =  GetListOfTestSeriesClasses(TestSeriesId);
+                var testSeriesCourses =  GetListOfTestSeriesCourse(TestSeriesId);
+                var testSeriesSubjects =  GetListOfTestSeriesSubjects(TestSeriesId);
+                var testSeriesContentIndexes =  GetListOfTestSeriesSubjectIndex(TestSeriesId);
+                var testSeriesQuestionsSections =  GetTestSeriesQuestionSection(TestSeriesId);
+                var testSeriesInstructions =  GetListOfTestSeriesInstructions(TestSeriesId);
 
-                // Fetch TestSeriesQuestions based on sectionId if TestSeriesQuestionsSection is not null
-                if (testSeries.TestSeriesQuestionsSection != null)
+                // Initialize the SubjectDetails list
+                var testSeriesSubjectDetailsList = new List<TestSeriesSubjectDetails>();
+
+                // Populate TestSeriesSubjectDetails with content indexes and questions section
+                foreach (var subject in testSeriesSubjects)
                 {
-                    foreach(var data in testSeries.TestSeriesQuestionsSection)
+                    var subjectContentIndexes = testSeriesContentIndexes
+                        .Where(ci => ci.SubjectId == subject.SubjectID)
+                        .ToList();
+
+                    var subjectQuestionsSections = testSeriesQuestionsSections
+                        .Where(qs => qs.SubjectId == subject.SubjectID)
+                        .ToList();
+
+                    var subjectDetails = new TestSeriesSubjectDetails
                     {
-                        testSeries.TestSeriesQuestions = GetListOfTestSeriesQuestion(data.testseriesQuestionSectionid);
+                        SubjectID = subject.SubjectID,
+                        SubjectName = subject.SubjectName,
+                        TestSeriesContentIndexes = subjectContentIndexes,
+                        TestSeriesQuestionsSection = subjectQuestionsSections
+                    };
+
+                    testSeriesSubjectDetailsList.Add(subjectDetails);
+                }
+
+                // Map the fetched data to the TestSeriesResponseDTO
+                testSeries.TestSeriesBoard = testSeriesBoards;
+                testSeries.TestSeriesClasses = testSeriesClasses;
+                testSeries.TestSeriesCourses = testSeriesCourses;
+                testSeries.TestSeriesSubjectDetails = testSeriesSubjectDetailsList; // Populate SubjectDetails
+                testSeries.TestSeriesInstruction = testSeriesInstructions;
+
+                // Fetch TestSeriesQuestions based on TestSeriesQuestionsSection
+                if (testSeriesQuestionsSections != null && testSeriesQuestionsSections.Any())
+                {
+                    testSeries.TestSeriesQuestions = new List<TestSeriesQuestions>();
+                    foreach (var section in testSeriesQuestionsSections)
+                    {
+                        var questions = GetListOfTestSeriesQuestion(section.testseriesQuestionSectionid);
+                        if (questions != null)
+                        {
+                            testSeries.TestSeriesQuestions.AddRange(questions);
+                        }
                     }
                 }
 
@@ -282,9 +323,9 @@ namespace Course_API.Repository.Implementations
                 // Insert new records
                 string insertQuery = @"
             INSERT INTO tbltestseriesQuestionSection 
-            (TestSeriesid, DisplayOrder, SectionName, Status, LevelID1, QuesPerDifficulty1, LevelID2, QuesPerDifficulty2, LevelID3, QuesPerDifficulty3, QuestionTypeID, EntermarksperCorrectAnswer, EnterNegativeMarks, TotalNoofQuestions, NoofQuestionsforChoice)
+            (TestSeriesid, DisplayOrder, SectionName, Status, LevelID1, QuesPerDifficulty1, LevelID2, QuesPerDifficulty2, LevelID3, QuesPerDifficulty3, QuestionTypeID, EntermarksperCorrectAnswer, EnterNegativeMarks, TotalNoofQuestions, NoofQuestionsforChoice, SubjectId)
             VALUES 
-            (@TestSeriesid, @DisplayOrder, @SectionName, @Status, @LevelID1, @QuesPerDifficulty1, @LevelID2, @QuesPerDifficulty2, @LevelID3, @QuesPerDifficulty3, @QuestionTypeID, @EntermarksperCorrectAnswer, @EnterNegativeMarks, @TotalNoofQuestions, @NoofQuestionsforChoice);";
+            (@TestSeriesid, @DisplayOrder, @SectionName, @Status, @LevelID1, @QuesPerDifficulty1, @LevelID2, @QuesPerDifficulty2, @LevelID3, @QuesPerDifficulty3, @QuestionTypeID, @EntermarksperCorrectAnswer, @EnterNegativeMarks, @TotalNoofQuestions, @NoofQuestionsforChoice, @SubjectId);";
 
                 var valuesInserted = await _connection.ExecuteAsync(insertQuery, request);
                 return new ServiceResponse<string>(true, "operation successful", "values added successfully", 200);

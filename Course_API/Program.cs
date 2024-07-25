@@ -19,6 +19,8 @@ builder.Services.AddTransient<ISyllabusRepository, SyllabusRepository>();
 builder.Services.AddTransient<ISyllabusServices, SyllabusServices>();
 builder.Services.AddTransient<ITestSeriesRepository, TestSeriesRepository>();
 builder.Services.AddTransient<ITestSeriesServices, TestSeriesServices>();
+builder.Services.AddTransient<IScholarshipTestServices, ScholarshipTestServices>();
+builder.Services.AddTransient<IScholarshipTestRepository, ScholarshipTestRepository>();
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

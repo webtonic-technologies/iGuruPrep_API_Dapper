@@ -677,7 +677,7 @@ namespace Course_API.Repository.Implementations
                 return string.Empty;
             }
             byte[] imageData = Convert.FromBase64String(image);
-            string directoryPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "Books");
+            string directoryPath = Path.Combine(_hostingEnvironment.WebRootPath, "Assets", "Books");
 
             if (!Directory.Exists(directoryPath))
             {
@@ -692,7 +692,7 @@ namespace Course_API.Repository.Implementations
             }
             // Write the byte array to the image file
             File.WriteAllBytes(filePath, imageData);
-            return filePath;
+            return $"/Assets/Books/{fileName}";
         }
         private bool IsJpeg(byte[] bytes)
         {

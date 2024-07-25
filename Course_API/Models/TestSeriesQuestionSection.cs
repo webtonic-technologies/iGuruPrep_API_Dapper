@@ -25,5 +25,6 @@ namespace Course_API.Models
         public decimal EnterNegativeMarks { get; set; }
         public int TotalNoofQuestions {  get; set; }
         public int NoofQuestionsforChoice {  get; set; }
+        public int SubjectId { get; set; }
     }
 }
