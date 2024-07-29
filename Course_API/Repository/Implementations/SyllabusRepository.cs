@@ -233,9 +233,29 @@ namespace Course_API.Repository.Implementations
         {
             try
             {
+                // Validate PDF format
+                foreach (var detail in request.SyllabusDetails)
+                {
+                    if (string.IsNullOrEmpty(detail.Synopsis) || detail.Synopsis == "string")
+                    {
+                        detail.Synopsis = string.Empty;
+                    }
+                    else
+                    {
+                        if (!IsPdf(Convert.FromBase64String(detail.Synopsis)))
+                        {
+                            throw new Exception("The provided synopsis is not a valid PDF file.");
+                        }
+                    }
+                    // If valid, you can optionally reassign the base64 string back
+                    detail.Synopsis = PDFUpload(detail.Synopsis); // If you still need to process the PDF
+                    detail.SyllabusID = request.SyllabusId;
+                    detail.SubjectId = request.SubjectId;
+                }
+
                 string insertQuery = @"
-            INSERT INTO tblSyllabusDetails (SyllabusID, ContentIndexId, IndexTypeId, Status, IsVerson, Synopsis)
-            VALUES (@SyllabusID, @ContentIndexId, @IndexTypeId, @Status, @IsVerson, @Synopsis)";
+        INSERT INTO tblSyllabusDetails (SyllabusID, ContentIndexId, IndexTypeId, Status, IsVerson, Synopsis, SubjectId)
+        VALUES (@SyllabusID, @ContentIndexId, @IndexTypeId, @Status, @IsVerson, @Synopsis, @SubjectId)";
 
                 string deleteQuery = "DELETE FROM tblSyllabusDetails WHERE SyllabusID = @SyllabusID";
 
@@ -256,15 +276,6 @@ namespace Course_API.Repository.Implementations
                 }
 
                 // Insert new or updated details
-                if (request.SyllabusDetails != null)
-                {
-                    foreach (var detail in request.SyllabusDetails)
-                    {
-                        detail.SyllabusID = request.SyllabusId;
-                        detail.Synopsis = PDFUpload(detail.Synopsis);
-                    }
-                }
-
                 int addedRecords = await _connection.ExecuteAsync(insertQuery, request.SyllabusDetails);
 
                 if (addedRecords > 0)
@@ -281,57 +292,217 @@ namespace Course_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-        public async Task<ServiceResponse<SyllabusDetailsResponseDTO>> GetSyllabusDetailsById(int syllabusId)
+        public async Task<ServiceResponse<SyllabusDetailsResponseDTO>> GetSyllabusDetailsById(int syllabusId, int subjectId)
         {
             try
             {
                 string selectQuery = @"
-        SELECT 
-            sd.SyllabusDetailID, 
-            sd.SyllabusID, 
-            sd.ContentIndexId, 
-            sd.IndexTypeId, 
-            sd.Status, 
-            sd.IsVerson,
-            sd.Synopsis,
-            CASE 
-                WHEN sd.IndexTypeId = 1 THEN cic.ContentName_Chapter
-                WHEN sd.IndexTypeId = 2 THEN cit.ContentName_Topic
-                WHEN sd.IndexTypeId = 3 THEN cist.ContentName_SubTopic
-                ELSE '' 
-            END AS ContentIndexName,
-            it.IndexType AS IndexTypeName
-        FROM 
-            tblSyllabusDetails sd
-        LEFT JOIN 
-            tblContentIndexChapters cic ON sd.ContentIndexId = cic.ContentIndexId AND sd.IndexTypeId = 1
-        LEFT JOIN 
-            tblContentIndexTopics cit ON sd.ContentIndexId = cit.ContInIdTopic AND sd.IndexTypeId = 2
-        LEFT JOIN 
-            tblContentIndexSubTopics cist ON sd.ContentIndexId = cist.ContInIdSubTopic AND sd.IndexTypeId = 3
-        LEFT JOIN 
-            tblQBIndexType it ON sd.IndexTypeId = it.IndexId
-        WHERE 
-            sd.SyllabusID = @SyllabusId";
+            SELECT 
+                sd.SyllabusDetailID, 
+                sd.SyllabusID, 
+                sd.ContentIndexId, 
+                sd.IndexTypeId, 
+                sd.Status, 
+                sd.IsVerson,
+                sd.Synopsis,
+                cic.ContentName_Chapter,
+                cit.ContentName_Topic,
+                cist.ContentName_SubTopic,
+                cic.ChapterCode AS ChapterCode,
+                cit.TopicCode AS TopicCode,
+                cic.CreatedOn AS ChapterCreatedOn,
+                cic.CreatedBy AS ChapterCreatedBy,
+                cic.ModifiedOn AS ChapterModifiedOn,
+                cic.ModifiedBy AS ChapterModifiedBy,
+                cit.CreatedOn AS TopicCreatedOn,
+                cit.CreatedBy AS TopicCreatedBy,
+                cit.ModifiedOn AS TopicModifiedOn,
+                cit.ModifiedBy AS TopicModifiedBy,
+                cist.CreatedOn AS SubTopicCreatedOn,
+                cist.CreatedBy AS SubTopicCreatedBy,
+                cist.ModifiedOn AS SubTopicModifiedOn,
+                cist.ModifiedBy AS SubTopicModifiedBy
+            FROM 
+                tblSyllabusDetails sd
+            LEFT JOIN 
+                tblContentIndexChapters cic ON sd.ContentIndexId = cic.ContentIndexId AND sd.IndexTypeId = 1
+            LEFT JOIN 
+                tblContentIndexTopics cit ON sd.ContentIndexId = cit.ContInIdTopic AND sd.IndexTypeId = 2
+            LEFT JOIN 
+                tblContentIndexSubTopics cist ON sd.ContentIndexId = cist.ContInIdSubTopic AND sd.IndexTypeId = 3
+            WHERE 
+                sd.SyllabusID = @SyllabusId";
 
-                var syllabusDetails = await _connection.QueryAsync<SyllabusDetailsResponse>(selectQuery, new { SyllabusId = syllabusId });
+                var syllabusDetails = await _connection.QueryAsync<dynamic>(selectQuery, new { SyllabusId = syllabusId });
+
+                var syllabusDetailsResponseDTO = new SyllabusDetailsResponseDTO
+                {
+                    SyllabusId = syllabusId,
+                    SubjectId = subjectId,
+                    SyllabusDetails = new List<SyllabusDetailsResponse>()
+                };
+
+                // List to store the chapters, topics, and subtopics
+                var contentIndexResponses = new List<ContentIndexResponse>();
 
                 if (syllabusDetails != null && syllabusDetails.Any())
                 {
-                    var syllabusDetailsResponseDTO = new SyllabusDetailsResponseDTO
+                    // Iterate through the results and populate the list
+                    foreach (var detail in syllabusDetails)
                     {
-                        SyllabusId = syllabusId,
-                        SyllabusDetails = syllabusDetails.ToList()
-                    };
-                    foreach (var data in syllabusDetailsResponseDTO.SyllabusDetails)
-                    {
-                        data.Synopsis = GetPDF(data.Synopsis);
+                        // Check for Chapters
+                        if (detail.IndexTypeId == 1) // Chapter
+                        {
+                            var chapterResponse = new ContentIndexResponse
+                            {
+                                ContentIndexId = detail.ContentIndexId,
+                                SubjectId = subjectId,
+                                ContentName_Chapter = detail.ContentName_Chapter,
+                                Status = detail.Status,
+                                IndexTypeId = detail.IndexTypeId,
+                                CreatedOn = detail.ChapterCreatedOn,
+                                CreatedBy = detail.ChapterCreatedBy,
+                                ModifiedOn = detail.ChapterModifiedOn,
+                                ModifiedBy = detail.ChapterModifiedBy,
+                                ChapterCode = detail.ChapterCode,
+                                ContentIndexTopics = new List<ContentIndexTopics>()
+                            };
+
+                            // Add chapter to the list
+                            contentIndexResponses.Add(chapterResponse);
+                        }
+                        // Check for Topics
+                        else if (detail.IndexTypeId == 2) // Topic
+                        {
+                            // Find the corresponding chapter
+                            var chapterResponse = contentIndexResponses
+                                .FirstOrDefault(c => c.ContentIndexId == detail.ContentIndexId);
+
+                            if (chapterResponse == null)
+                            {
+                                // Create a new chapter response with null values for topic
+                                chapterResponse = new ContentIndexResponse
+                                {
+                                    ContentIndexId = detail.ContentIndexId,
+                                    SubjectId = subjectId,
+                                    ContentName_Chapter = null, // No chapter
+                                    Status = detail.Status,
+                                    IndexTypeId = 1, // Set as chapter
+                                    CreatedOn = null,
+                                    CreatedBy = null,
+                                    ModifiedOn = null,
+                                    ModifiedBy = null,
+                                    ChapterCode = null,
+                                    ContentIndexTopics = new List<ContentIndexTopics>()
+                                };
+
+                                // Add the chapter response to the list
+                                contentIndexResponses.Add(chapterResponse);
+                            }
+
+                            var topicResponse = new ContentIndexTopics
+                            {
+                                ContInIdTopic = detail.ContInIdTopic,
+                                ContentIndexId = detail.ContentIndexId,
+                                ContentName_Topic = detail.ContentName_Topic,
+                                Status = detail.Status,
+                                IndexTypeId = detail.IndexTypeId,
+                                CreatedOn = detail.TopicCreatedOn,
+                                CreatedBy = detail.TopicCreatedBy,
+                                ModifiedOn = detail.TopicModifiedOn,
+                                ModifiedBy = detail.TopicModifiedBy,
+                                ChapterCode = detail.ChapterCode,
+                                TopicCode = detail.TopicCode,
+                                ContentIndexSubTopics = new List<ContentIndexSubTopic>()
+                            };
+
+                            // Add topic to the corresponding chapter
+                            chapterResponse.ContentIndexTopics.Add(topicResponse);
+                        }
+                        // Check for Subtopics
+                        else if (detail.IndexTypeId == 3) // Subtopic
+                        {
+                            var topicResponse = contentIndexResponses
+                                .SelectMany(c => c.ContentIndexTopics)
+                                .FirstOrDefault(t => t.ContInIdTopic == detail.ContInIdTopic);
+
+                            if (topicResponse == null)
+                            {
+                                // Create a new topic response with null values for subtopic
+                                topicResponse = new ContentIndexTopics
+                                {
+                                    ContInIdTopic = detail.ContInIdTopic,
+                                    ContentIndexId = detail.ContentIndexId,
+                                    ContentName_Topic = null, // No topic name
+                                    Status = detail.Status,
+                                    IndexTypeId = 2, // Set as topic
+                                    ChapterCode = detail.ChapterCode,
+                                    TopicCode = detail.TopicCode,
+                                    ContentIndexSubTopics = new List<ContentIndexSubTopic>()
+                                };
+
+                                // Add the topic to the chapter (if found) or to the list
+                                var chapterResponse = contentIndexResponses
+                                    .FirstOrDefault(c => c.ContentIndexId == detail.ContentIndexId);
+
+                                if (chapterResponse != null)
+                                {
+                                    chapterResponse.ContentIndexTopics.Add(topicResponse);
+                                }
+                                else
+                                {
+                                    contentIndexResponses.Add(new ContentIndexResponse
+                                    {
+                                        ContentIndexId = detail.ContentIndexId,
+                                        SubjectId = subjectId,
+                                        ContentName_Chapter = null, // No chapter
+                                        Status = detail.Status,
+                                        IndexTypeId = 1, // Set as chapter
+                                        CreatedOn = null,
+                                        CreatedBy = null,
+                                        ModifiedOn = null,
+                                        ModifiedBy = null,
+                                        ChapterCode = null,
+                                        ContentIndexTopics = new List<ContentIndexTopics> { topicResponse }
+                                    });
+                                }
+                            }
+
+                            if (topicResponse != null)
+                            {
+                                var subTopicResponse = new ContentIndexSubTopic
+                                {
+                                    ContInIdSubTopic = detail.ContInIdSubTopic,
+                                    ContInIdTopic = detail.ContInIdTopic,
+                                    ContentName_SubTopic = detail.ContentName_SubTopic,
+                                    Status = detail.Status,
+                                    IndexTypeId = detail.IndexTypeId,
+                                    CreatedOn = detail.SubTopicCreatedOn,
+                                    CreatedBy = detail.SubTopicCreatedBy,
+                                    ModifiedOn = detail.SubTopicModifiedOn,
+                                    ModifiedBy = detail.SubTopicModifiedBy,
+                                    TopicCode = detail.TopicCode,
+                                    SubTopicCode = detail.SubTopicCode
+                                };
+
+                                // Add subtopic to the corresponding topic
+                                topicResponse.ContentIndexSubTopics.Add(subTopicResponse);
+                            }
+                        }
                     }
+
+                    // Add the content index responses to syllabus details
+                    syllabusDetailsResponseDTO.SyllabusDetails.Add(new SyllabusDetailsResponse
+                    {
+                        SyllabusID = syllabusId,
+                        ContentIndexResponses = contentIndexResponses
+                    });
+
                     return new ServiceResponse<SyllabusDetailsResponseDTO>(true, "Operation Successful", syllabusDetailsResponseDTO, 200);
                 }
                 else
                 {
-                    return new ServiceResponse<SyllabusDetailsResponseDTO>(false, "Record not found", new SyllabusDetailsResponseDTO(), 404);
+                    return new ServiceResponse<SyllabusDetailsResponseDTO>(false, "No records found for the provided syllabus ID.", syllabusDetailsResponseDTO, 404);
                 }
             }
             catch (Exception ex)

@@ -54,5 +54,24 @@ namespace Config_API.DTOs.Requests
         public string Topic { get; set; } = string.Empty;
         public string SubTopic { get; set; } = string.Empty;
         public int DisplayOrder { get; set; }
+        public int DisplayOrderChapter { get; set; }
+        public int DisplayOrderTopic {  get; set; }
+        public int DisplayOrderSubTopic { get; set; }
+        public string ChapterCode { get; set; } = string.Empty;
+        public string TopicCode { get; set; } = string.Empty;
+        public string SubTopicCode { get; set; } = string.Empty;
+    }
+    public class ContentIndexEntry
+    {
+        public string SubjectCode { get; set; }
+        public string Chapter { get; set; }
+        public int DisplayOrderChapter { get; set; }
+        public string Topic { get; set; }
+        public int DisplayOrderTopic { get; set; }
+        public string SubTopic { get; set; }
+        public int DisplayOrderSubTopic { get; set; }
+        public string ChapterCode { get; set; }
+        public string TopicCode { get; set; }
+        public string SubTopicCode { get; set; }
     }
 }

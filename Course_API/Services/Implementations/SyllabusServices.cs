@@ -50,11 +50,11 @@ namespace Course_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<SyllabusDetailsResponseDTO>> GetSyllabusDetailsById(int syllabusId)
+        public async Task<ServiceResponse<SyllabusDetailsResponseDTO>> GetSyllabusDetailsById(int syllabusId, int subjectId)
         {
             try
             {
-                return await _syllabusRepository.GetSyllabusDetailsById(syllabusId);
+                return await _syllabusRepository.GetSyllabusDetailsById(syllabusId, subjectId);
             }
             catch (Exception ex)
             {

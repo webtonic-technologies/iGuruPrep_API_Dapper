@@ -40,18 +40,14 @@
     public class SyllabusDetailsResponseDTO
     {
         public int SyllabusId { get; set; }
+        public int SubjectId { get; set; }
         public List<SyllabusDetailsResponse>? SyllabusDetails { get; set; }
     }
     public class SyllabusDetailsResponse
     {
-        public int SyllabusDetailID { get; set; }
+       
         public int SyllabusID { get; set; }
-        public int ContentIndexId { get; set; }
-        public string ContentIndexName { get; set; } = string.Empty;
-        public int IndexTypeId { get; set; }
-        public string IndexTypeName { get; set; } = string.Empty;
-        public int Status { get; set; }
-        public int? IsVerson { get; set; }
-        public string Synopsis { get; set; } = string.Empty;
+        public List<ContentIndexResponse>? ContentIndexResponses { get; set; }
+     
     }
 }

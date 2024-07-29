@@ -9,5 +9,6 @@
         public int Status { get; set; }
         public int? IsVerson { get; set; }
         public string Synopsis { get; set; } = string.Empty;
+        public int SubjectId {  get; set; }
     }
 }

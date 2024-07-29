@@ -4,7 +4,6 @@ using Config_API.DTOs.ServiceResponse;
 using Config_API.Models;
 using Config_API.Repository.Interfaces;
 using Dapper;
-using iGuruPrep.Models;
 using OfficeOpenXml;
 using System.Data;
 
@@ -43,14 +42,18 @@ namespace Config_API.Repository.Implementations
                     // Fetch related topics and subtopics for each content index
                     foreach (var contentIndex in contentIndexes)
                     {
-                        string topicsSql = @"SELECT * FROM [tblContentIndexTopics] WHERE [ChapterCode] = @chapterCode AND [IsActive] = 1";
+                        string topicsSql = @"SELECT * FROM [tblContentIndexTopics] WHERE [ChapterCode] = @chapterCode AND [IsActive] = 1
+                                     ORDER BY CASE WHEN [DisplayOrder] = 0 THEN [ContentName_Topic] ELSE [DisplayOrder] END,
+                                              [ContentName_Topic]"; // Sort alphabetically if DisplayOrder is 0 or same
                         var topics = (await _connection.QueryAsync<ContentIndexTopicsResponse>(topicsSql, new { chapterCode = contentIndex.ChapterCode })).ToList();
 
                         string subTopicsSql = @"
-                SELECT st.*
-                FROM [tblContentIndexSubTopics] st
-                INNER JOIN [tblContentIndexTopics] t ON st.TopicCode = t.TopicCode
-                WHERE t.ChapterCode = @chapterCode AND st.[IsActive] = 1";
+            SELECT st.*
+            FROM [tblContentIndexSubTopics] st
+            INNER JOIN [tblContentIndexTopics] t ON st.TopicCode = t.TopicCode
+            WHERE t.ChapterCode = @chapterCode AND st.[IsActive] = 1
+            ORDER BY CASE WHEN st.DisplayOrder = 0 THEN st.ContentName_SubTopic ELSE st.DisplayOrder END,
+                     st.ContentName_SubTopic"; // Sort alphabetically if DisplayOrder is 0 or same
                         var subTopics = (await _connection.QueryAsync<ContentIndexSubTopicResponse>(subTopicsSql, new { chapterCode = contentIndex.ChapterCode })).ToList();
 
                         // Assign the subtopics to the respective topics
@@ -172,15 +175,19 @@ namespace Config_API.Repository.Implementations
                 }
 
                 // Fetch the related topics by ChapterCode
-                string topicsSql = @"SELECT * FROM [tblContentIndexTopics] WHERE [ChapterCode] = @chapterCode AND [IsActive] = 1";
+                string topicsSql = @"SELECT * FROM [tblContentIndexTopics] WHERE [ChapterCode] = @chapterCode AND [IsActive] = 1
+                             ORDER BY CASE WHEN [DisplayOrder] = 0 THEN [ContentName_Topic] ELSE [DisplayOrder] END,
+                                      [ContentName_Topic]"; // Sort alphabetically if DisplayOrder is 0 or same
                 var topics = await _connection.QueryAsync<ContentIndexTopicsResponse>(topicsSql, new { chapterCode = contentIndex.ChapterCode });
 
                 // Fetch the related subtopics by TopicCodes
                 string subTopicsSql = @"
-                SELECT st.* 
-                FROM [tblContentIndexSubTopics] st 
-                INNER JOIN [tblContentIndexTopics] t ON st.TopicCode = t.TopicCode 
-                WHERE t.ChapterCode = @chapterCode AND st.[IsActive] = 1";
+        SELECT st.* 
+        FROM [tblContentIndexSubTopics] st 
+        INNER JOIN [tblContentIndexTopics] t ON st.TopicCode = t.TopicCode 
+        WHERE t.ChapterCode = @chapterCode AND st.[IsActive] = 1
+        ORDER BY CASE WHEN st.DisplayOrder = 0 THEN st.ContentName_SubTopic ELSE st.DisplayOrder END,
+                 st.ContentName_SubTopic"; // Sort alphabetically if DisplayOrder is 0 or same
                 var subTopics = await _connection.QueryAsync<ContentIndexSubTopicResponse>(subTopicsSql, new { chapterCode = contentIndex.ChapterCode });
 
                 // Create a ContentIndexResponse object and assign the fetched data
@@ -470,8 +477,8 @@ namespace Config_API.Repository.Implementations
             {
                 // Base query to fetch the content indexes
                 string query = @"
-            SELECT * FROM [tblContentIndexChapters] 
-            WHERE [IsActive] = 1";
+        SELECT * FROM [tblContentIndexChapters] 
+        WHERE [IsActive] = 1";
 
                 // Add filters based on request properties
                 if (request.APID > 0)
@@ -482,7 +489,7 @@ namespace Config_API.Repository.Implementations
                 {
                     query += " AND [SubjectId] = @SubjectId";
                 }
-                query += " ORDER BY [DisplayOrder]";
+                query += " ORDER BY CASE WHEN [DisplayOrder] = 0 THEN [DisplayName] ELSE [DisplayOrder] END, [DisplayName]"; // Sort by DisplayOrder or DisplayName
 
                 // Fetch content indexes
                 var contentIndexes = (await _connection.QueryAsync<ContentIndexResponse>(query, new { request.APID, request.SubjectId })).ToList();
@@ -493,17 +500,17 @@ namespace Config_API.Repository.Implementations
                     foreach (var contentIndex in contentIndexes)
                     {
                         string topicsSql = @"
-                    SELECT * FROM [tblContentIndexTopics] 
-                    WHERE [ContentIndexId] = @contentIndexId AND [IsActive] = 1 
-                    ORDER BY [DisplayOrder]";
+                SELECT * FROM [tblContentIndexTopics] 
+                WHERE [ContentIndexId] = @contentIndexId AND [IsActive] = 1 
+                ORDER BY CASE WHEN [DisplayOrder] = 0 THEN [ContentName_Topic] ELSE [DisplayOrder] END, [ContentName_Topic]"; // Sort by DisplayOrder or ContentName_Topic
                         var topics = (await _connection.QueryAsync<ContentIndexTopicsResponse>(topicsSql, new { contentIndexId = contentIndex.ContentIndexId })).ToList();
 
                         string subTopicsSql = @"
-                    SELECT st.* 
-                    FROM [tblContentIndexSubTopics] st
-                    INNER JOIN [tblContentIndexTopics] t ON st.ContInIdTopic = t.ContInIdTopic
-                    WHERE t.ContentIndexId = @contentIndexId AND st.[IsActive] = 1
-                    ORDER BY st.[DisplayOrder]";
+                SELECT st.* 
+                FROM [tblContentIndexSubTopics] st
+                INNER JOIN [tblContentIndexTopics] t ON st.ContInIdTopic = t.ContInIdTopic
+                WHERE t.ContentIndexId = @contentIndexId AND st.[IsActive] = 1
+                ORDER BY CASE WHEN st.DisplayOrder = 0 THEN st.ContentName_SubTopic ELSE st.DisplayOrder END, st.ContentName_SubTopic"; // Sort by DisplayOrder or ContentName_SubTopic
                         var subTopics = (await _connection.QueryAsync<ContentIndexSubTopicResponse>(subTopicsSql, new { contentIndexId = contentIndex.ContentIndexId })).ToList();
 
                         // Assign subtopics to topics
@@ -754,9 +761,9 @@ namespace Config_API.Repository.Implementations
 
                 // Fetch the subject information
                 string subjectSql = @"
-        SELECT [SubjectCode]
-        FROM [tblSubject]
-        WHERE [SubjectId] = @subjectId";
+SELECT [SubjectCode]
+FROM [tblSubject]
+WHERE [SubjectId] = @subjectId";
                 var subject = await _connection.QuerySingleOrDefaultAsync<string>(subjectSql, new { subjectId });
 
                 if (subject == null)
@@ -766,87 +773,15 @@ namespace Config_API.Repository.Implementations
 
                 // Fetch the main content index chapters
                 string contentIndexSql = @"
-        SELECT * 
-        FROM [tblContentIndexChapters] 
-        WHERE [SubjectId] = @subjectId AND [IsActive] = 1 
-        ORDER BY [DisplayOrder]";
+SELECT * 
+FROM [tblContentIndexChapters] 
+WHERE [SubjectId] = @subjectId AND [IsActive] = 1 
+ORDER BY CASE WHEN [DisplayOrder] = 0 THEN [ContentName_Chapter] ELSE [DisplayOrder] END,
+         [ContentName_Chapter]"; // Sort alphabetically if DisplayOrder is 0 or same
+
                 var contentIndexes = await _connection.QueryAsync<ContentIndexResponse>(contentIndexSql, new { subjectId });
 
-                if (!contentIndexes.Any())
-                {
-                    return new ServiceResponse<byte[]>(false, "No records found", null, StatusCodes.Status204NoContent);
-                }
-
-                var contentIndexList = contentIndexes.ToList();
-                var exportData = new List<dynamic>();
-
-                foreach (var contentIndex in contentIndexList)
-                {
-                    // Fetch topics for each chapter
-                    string topicsSql = @"
-            SELECT * 
-            FROM [tblContentIndexTopics] 
-            WHERE [ChapterCode] = @chapterCode AND [IsActive] = 1 
-            ORDER BY [DisplayOrder]";
-                    var topics = await _connection.QueryAsync<ContentIndexTopicsResponse>(topicsSql, new { chapterCode = contentIndex.ChapterCode });
-
-                    if (!topics.Any())
-                    {
-                        // Add chapter-only rows
-                        exportData.Add(new
-                        {
-                            subjectcode = subject,  // Use the fetched SubjectCode
-                            chapter = string.IsNullOrEmpty(contentIndex.DisplayName) ? contentIndex.ContentName_Chapter : contentIndex.DisplayName,
-                            topic = "",
-                            subtopic = "",
-                            displayorder = ""
-                        });
-                    }
-                    else
-                    {
-                        foreach (var topic in topics)
-                        {
-                            // Fetch subtopics for each topic
-                            string subTopicsSql = @"
-                    SELECT * 
-                    FROM [tblContentIndexSubTopics] 
-                    WHERE [TopicCode] = @topicCode AND [IsActive] = 1 
-                    ORDER BY [DisplayOrder]";
-                            var subTopics = await _connection.QueryAsync<ContentIndexSubTopicResponse>(subTopicsSql, new { topicCode = topic.TopicCode });
-
-                            if (!subTopics.Any())
-                            {
-                                // Add topic-only rows
-                                exportData.Add(new
-                                {
-                                    subjectcode = subject,  // Use the fetched SubjectCode
-                                    chapter = string.IsNullOrEmpty(contentIndex.DisplayName) ? contentIndex.ContentName_Chapter : contentIndex.DisplayName,
-                                    topic = string.IsNullOrEmpty(topic.DisplayName) ? topic.ContentName_Topic : topic.DisplayName,
-                                    subtopic = "",
-                                    displayorder = ""
-                                });
-                            }
-                            else
-                            {
-                                foreach (var subTopic in subTopics)
-                                {
-                                    // Add rows for each subtopic
-                                    var row = new
-                                    {
-                                        subjectcode = subject,  // Use the fetched SubjectCode
-                                        chapter = string.IsNullOrEmpty(contentIndex.DisplayName) ? contentIndex.ContentName_Chapter : contentIndex.DisplayName,
-                                        topic = string.IsNullOrEmpty(topic.DisplayName) ? topic.ContentName_Topic : topic.DisplayName,
-                                        subtopic = string.IsNullOrEmpty(subTopic.DisplayName) ? subTopic.ContentName_SubTopic : subTopic.DisplayName,
-                                        displayorder = subTopic.DisplayOrder
-                                    };
-                                    exportData.Add(row);
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Convert to Excel
+                // Create an Excel sheet with headers
                 using (var package = new ExcelPackage())
                 {
                     var worksheet = package.Workbook.Worksheets.Add("ContentIndex");
@@ -854,19 +789,125 @@ namespace Config_API.Repository.Implementations
                     // Add header
                     worksheet.Cells[1, 1].Value = "subjectcode";
                     worksheet.Cells[1, 2].Value = "chapter";
-                    worksheet.Cells[1, 3].Value = "topic";
-                    worksheet.Cells[1, 4].Value = "subtopic";
-                    worksheet.Cells[1, 5].Value = "displayorder";
+                    worksheet.Cells[1, 3].Value = "displayorder_chapter";
+                    worksheet.Cells[1, 4].Value = "topic";
+                    worksheet.Cells[1, 5].Value = "displayorder_topic";
+                    worksheet.Cells[1, 6].Value = "subtopic";
+                    worksheet.Cells[1, 7].Value = "displayorder_subtopic";
+                    worksheet.Cells[1, 27].Value = "chaptercode"; // AA column
+                    worksheet.Cells[1, 28].Value = "topiccode";   // AB column
+                    worksheet.Cells[1, 29].Value = "subtopiccode"; // AC column
 
-                    // Add rows
+                    if (!contentIndexes.Any())
+                    {
+                        worksheet.Cells[2, 1].Value = subject;  // Use the fetched SubjectCode
+                        return new ServiceResponse<byte[]>(true, "No records found, but subject code provided", package.GetAsByteArray(), StatusCodes.Status200OK);
+                    }
+
+                    var contentIndexList = contentIndexes.ToList();
+                    var exportData = new List<dynamic>();
+
+                    foreach (var contentIndex in contentIndexList)
+                    {
+                        // Fetch topics for each chapter
+                        string topicsSql = @"
+        SELECT * 
+        FROM [tblContentIndexTopics] 
+        WHERE [ChapterCode] = @chapterCode AND [IsActive] = 1 
+        ORDER BY CASE WHEN [DisplayOrder] = 0 THEN [ContentName_Topic] ELSE [DisplayOrder] END,
+                 [ContentName_Topic]"; // Sort alphabetically if DisplayOrder is 0 or same
+                        var topics = await _connection.QueryAsync<ContentIndexTopicsResponse>(topicsSql, new { chapterCode = contentIndex.ChapterCode });
+
+                        if (!topics.Any())
+                        {
+                            // Add chapter-only rows
+                            exportData.Add(new
+                            {
+                                subjectcode = subject,
+                                chapter = string.IsNullOrEmpty(contentIndex.DisplayName) ? contentIndex.ContentName_Chapter : contentIndex.DisplayName,
+                                displayorder_chapter = contentIndex.DisplayOrder,
+                                topic = "",
+                                displayorder_topic = "",
+                                subtopic = "",
+                                displayorder_subtopic = "",
+                                chaptercode = contentIndex.ChapterCode,
+                                topiccode = "",
+                                subtopiccode = ""
+                            });
+                        }
+                        else
+                        {
+                            foreach (var topic in topics)
+                            {
+                                // Fetch subtopics for each topic
+                                string subTopicsSql = @"
+                SELECT * 
+                FROM [tblContentIndexSubTopics] 
+                WHERE [TopicCode] = @topicCode AND [IsActive] = 1 
+                ORDER BY CASE WHEN [DisplayOrder] = 0 THEN [ContentName_SubTopic] ELSE [DisplayOrder] END,
+                         [ContentName_SubTopic]"; // Sort alphabetically if DisplayOrder is 0 or same
+                                var subTopics = await _connection.QueryAsync<ContentIndexSubTopicResponse>(subTopicsSql, new { topicCode = topic.TopicCode });
+
+                                if (!subTopics.Any())
+                                {
+                                    // Add topic-only rows
+                                    exportData.Add(new
+                                    {
+                                        subjectcode = subject,
+                                        chapter = string.IsNullOrEmpty(contentIndex.DisplayName) ? contentIndex.ContentName_Chapter : contentIndex.DisplayName,
+                                        displayorder_chapter = contentIndex.DisplayOrder,
+                                        topic = string.IsNullOrEmpty(topic.DisplayName) ? topic.ContentName_Topic : topic.DisplayName,
+                                        displayorder_topic = topic.DisplayOrder,
+                                        subtopic = "",
+                                        displayorder_subtopic = "",
+                                        chaptercode = contentIndex.ChapterCode,
+                                        topiccode = topic.TopicCode,
+                                        subtopiccode = ""
+                                    });
+                                }
+                                else
+                                {
+                                    foreach (var subTopic in subTopics)
+                                    {
+                                        // Add rows for each subtopic
+                                        exportData.Add(new
+                                        {
+                                            subjectcode = subject,
+                                            chapter = string.IsNullOrEmpty(contentIndex.DisplayName) ? contentIndex.ContentName_Chapter : contentIndex.DisplayName,
+                                            displayorder_chapter = contentIndex.DisplayOrder,
+                                            topic = string.IsNullOrEmpty(topic.DisplayName) ? topic.ContentName_Topic : topic.DisplayName,
+                                            displayorder_topic = topic.DisplayOrder,
+                                            subtopic = string.IsNullOrEmpty(subTopic.DisplayName) ? subTopic.ContentName_SubTopic : subTopic.DisplayName,
+                                            displayorder_subtopic = subTopic.DisplayOrder,
+                                            chaptercode = contentIndex.ChapterCode,
+                                            topiccode = topic.TopicCode,
+                                            subtopiccode = subTopic.SubTopicCode
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Add rows if there is data
                     for (int i = 0; i < exportData.Count; i++)
                     {
                         worksheet.Cells[i + 2, 1].Value = exportData[i].subjectcode;
                         worksheet.Cells[i + 2, 2].Value = exportData[i].chapter;
-                        worksheet.Cells[i + 2, 3].Value = exportData[i].topic;
-                        worksheet.Cells[i + 2, 4].Value = exportData[i].subtopic;
-                        worksheet.Cells[i + 2, 5].Value = exportData[i].displayorder;
+                        worksheet.Cells[i + 2, 3].Value = exportData[i].displayorder_chapter;
+                        worksheet.Cells[i + 2, 4].Value = exportData[i].topic;
+                        worksheet.Cells[i + 2, 5].Value = exportData[i].displayorder_topic;
+                        worksheet.Cells[i + 2, 6].Value = exportData[i].subtopic;
+                        worksheet.Cells[i + 2, 7].Value = exportData[i].displayorder_subtopic;
+                        worksheet.Cells[i + 2, 27].Value = exportData[i].chaptercode;
+                        worksheet.Cells[i + 2, 28].Value = exportData[i].topiccode;
+                        worksheet.Cells[i + 2, 29].Value = exportData[i].subtopiccode;
                     }
+
+                    // Hide the code columns
+                    worksheet.Column(27).Hidden = true;  // chaptercode (AA)
+                    worksheet.Column(28).Hidden = true;  // topiccode (AB)
+                    worksheet.Column(29).Hidden = true;  // subtopiccode (AC)
 
                     return new ServiceResponse<byte[]>(true, "Records found", package.GetAsByteArray(), StatusCodes.Status200OK);
                 }
@@ -881,7 +922,7 @@ namespace Config_API.Repository.Implementations
             try
             {
                 ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
-                var contentIndexes = new List<ContentIndexSheet>();
+
                 using (var stream = new MemoryStream())
                 {
                     await file.CopyToAsync(stream);
@@ -890,119 +931,191 @@ namespace Config_API.Repository.Implementations
                         var worksheet = package.Workbook.Worksheets[0];
                         var rowCount = worksheet.Dimension.Rows;
 
+                        // Step 1: Import all entries into a list
+                        var entries = new List<ContentIndexEntry>();
+
                         for (int row = 2; row <= rowCount; row++)
                         {
                             var subjectCode = worksheet.Cells[row, 1].Text.Trim();
                             var chapter = worksheet.Cells[row, 2].Text.Trim();
-                            var topic = worksheet.Cells[row, 3].Text.Trim();
-                            var subTopic = worksheet.Cells[row, 4].Text.Trim();
-                            var displayOrderText = worksheet.Cells[row, 5].Text.Trim();
-
-                            var subjectCode1 = worksheet.Column(1).Hidden;
+                            var displayOrderChapterText = worksheet.Cells[row, 3].Text.Trim();
+                            var topic = worksheet.Cells[row, 4].Text.Trim();
+                            var displayOrderTopicText = worksheet.Cells[row, 5].Text.Trim();
+                            var subTopic = worksheet.Cells[row, 6].Text.Trim();
+                            var displayOrderSubTopicText = worksheet.Cells[row, 7].Text.Trim();
+                            var chapterCode = worksheet.Cells[row, 27].Text.Trim();
+                            var topicCode = worksheet.Cells[row, 28].Text.Trim();
+                            var subTopicCode = worksheet.Cells[row, 29].Text.Trim();
 
                             // Validate data
-                            if (string.IsNullOrEmpty(subjectCode) || string.IsNullOrEmpty(chapter) || string.IsNullOrEmpty(topic) || string.IsNullOrEmpty(subTopic) || string.IsNullOrEmpty(displayOrderText))
+                            if (string.IsNullOrEmpty(subjectCode) || string.IsNullOrEmpty(chapter) ||
+                                string.IsNullOrEmpty(topic) || string.IsNullOrEmpty(subTopic) ||
+                                string.IsNullOrEmpty(displayOrderChapterText) ||
+                                string.IsNullOrEmpty(displayOrderTopicText) ||
+                                string.IsNullOrEmpty(displayOrderSubTopicText))
                             {
                                 return new ServiceResponse<string>(false, $"Missing data in row {row}", null, StatusCodes.Status400BadRequest);
                             }
 
                             // Check if display order is a valid integer
-                            if (!int.TryParse(displayOrderText, out int displayOrder))
+                            if (!int.TryParse(displayOrderChapterText, out int displayOrderChapter) ||
+                                !int.TryParse(displayOrderTopicText, out int displayOrderTopic) ||
+                                !int.TryParse(displayOrderSubTopicText, out int displayOrderSubTopic))
                             {
                                 return new ServiceResponse<string>(false, $"Invalid display order in row {row}", null, StatusCodes.Status400BadRequest);
                             }
 
-                            // Check if subject exists
-                            var subject = await _connection.QuerySingleOrDefaultAsync<Subject>("SELECT * FROM tblSubject WHERE SubjectCode = @subjectCode", new { subjectCode });
-                            if (subject == null)
-                            {
-                                return new ServiceResponse<string>(false, $"Subject code {subjectCode} does not exist in row {row}", null, StatusCodes.Status400BadRequest);
-                            }
-
-                            // Process each row and add to the list
-                            contentIndexes.Add(new ContentIndexSheet
+                            // Add to entries list
+                            entries.Add(new ContentIndexEntry
                             {
                                 SubjectCode = subjectCode,
                                 Chapter = chapter,
+                                DisplayOrderChapter = displayOrderChapter,
                                 Topic = topic,
+                                DisplayOrderTopic = displayOrderTopic,
                                 SubTopic = subTopic,
-                                DisplayOrder = displayOrder
+                                DisplayOrderSubTopic = displayOrderSubTopic,
+                                ChapterCode = chapterCode,
+                                TopicCode = topicCode,
+                                SubTopicCode = subTopicCode
                             });
                         }
-                    }
-                }
 
-                // Insert/Update database
-                foreach (var contentIndex in contentIndexes)
-                {
-                    // Fetch existing chapters for the subject
-                    var existingChapters = await _connection.QueryAsync<ContentIndexResponse>(
-                        "SELECT * FROM [tblContentIndexChapters] WHERE [SubjectId] = @SubjectId AND [IsActive] = 1",
-                        new { SubjectId = GetSubjectIdByCode(contentIndex.SubjectCode) });
+                        // Step 2: Remove duplicates
+                        var distinctEntries = entries.GroupBy(x => new { x.Chapter, x.Topic, x.SubTopic })
+                                                      .Select(g => g.First())
+                                                      .ToList();
 
-                    var existingChapter = existingChapters.FirstOrDefault(ch => ch.ContentName_Chapter == contentIndex.Chapter);
+                        // Step 3: Process distinct entries
+                        foreach (var entry in distinctEntries)
+                        {
+                            // Fetch SubjectId based on SubjectCode
+                            var subjectId = await _connection.QueryFirstOrDefaultAsync<int?>(
+                                "SELECT SubjectId FROM tblSubject WHERE SubjectCode = @subjectCode",
+                                new { subjectCode = entry.SubjectCode });
 
-                    if (existingChapter != null)
-                    {
-                        // Update chapter
-                        var updateChapterSql = @"UPDATE [tblContentIndexChapters] SET [ContentName_Chapter] = @ContentName_Chapter, [DisplayOrder] = @DisplayOrder, [ModifiedOn] = GETDATE() WHERE [ChapterCode] = @ChapterCode";
-                        await _connection.ExecuteAsync(updateChapterSql, new { ContentName_Chapter = contentIndex.Chapter, DisplayOrder = contentIndex.DisplayOrder, ChapterCode = existingChapter.ChapterCode });
-                    }
-                    else
-                    {
-                        // Insert new chapter
-                        var insertChapterSql = @"INSERT INTO [tblContentIndexChapters] ([SubjectId], [ContentName_Chapter], [ChapterCode], [DisplayOrder], [IsActive]) VALUES (@SubjectId, @ContentName_Chapter, @ChapterCode, @DisplayOrder, 1)";
-                        await _connection.ExecuteAsync(insertChapterSql, new { SubjectId = GetSubjectIdByCode(contentIndex.SubjectCode), ContentName_Chapter = contentIndex.Chapter, ChapterCode = contentIndex.Chapter, DisplayOrder = contentIndex.DisplayOrder });
+                            if (!subjectId.HasValue)
+                            {
+                                return new ServiceResponse<string>(false, $"Subject code {entry.SubjectCode} does not exist", null, StatusCodes.Status400BadRequest);
+                            }
 
-                        // Fetch the newly inserted chapter to get its ID
-                        existingChapter = await _connection.QuerySingleOrDefaultAsync<ContentIndexResponse>(
-                            "SELECT * FROM [tblContentIndexChapters] WHERE [ChapterCode] = @ChapterCode",
-                            new { contentIndex.Chapter });
-                    }
+                            // Check if chapter exists
+                            var existingChapter = await _connection.QueryFirstOrDefaultAsync<ContentIndexRequestdto>(
+                                "SELECT * FROM tblContentIndexChapters WHERE ContentName_Chapter = @Chapter AND IsActive = 1",
+                                new { Chapter = entry.Chapter });
 
-                    // Fetch existing topics for the chapter
-                    var existingTopics = await _connection.QueryAsync<ContentIndexTopicsResponse>(
-                        "SELECT * FROM [tblContentIndexTopics] WHERE [ContentIndexId] = @ContentIndexId AND [IsActive] = 1",
-                        new { ContentIndexId = existingChapter.ContentIndexId });
+                            string chapterCode;
+                            if (existingChapter != null)
+                            {
+                                // Update existing chapter
+                                existingChapter.ContentName_Chapter = entry.Chapter;
+                                existingChapter.DisplayOrder = entry.DisplayOrderChapter;
+                                var chapterResponse = await AddUpdateContentIndexChapter(existingChapter);
+                                chapterCode = chapterResponse.Data; // Use updated chapter code
+                            }
+                            else
+                            {
+                                // Prepare and insert new chapter
+                                var chapterRequest = new ContentIndexRequestdto
+                                {
+                                    SubjectId = subjectId.Value,
+                                    ContentName_Chapter = entry.Chapter,
+                                    Status = true,
+                                    IndexTypeId = 1,
+                                    BoardId = 1,
+                                    ClassId = 1,
+                                    CourseId = 1,
+                                    APID = 1,
+                                    CreatedOn = DateTime.UtcNow,
+                                    CreatedBy = "Admin", // Replace with actual user
+                                    ModifiedOn = DateTime.UtcNow,
+                                    ModifiedBy = "Admin", // Replace with actual user
+                                    EmployeeId = 1,
+                                    ExamTypeId = 1,
+                                    DisplayOrder = entry.DisplayOrderChapter,
+                                    IsActive = true,
+                                    ChapterCode = entry.ChapterCode
+                                };
 
-                    var existingTopic = existingTopics.FirstOrDefault(t => t.ContentName_Topic == contentIndex.Topic);
+                                // Insert new chapter
+                                var chapterResponse = await AddUpdateContentIndexChapter(chapterRequest);
+                                chapterCode = chapterResponse.Data; // Use newly generated chapter code
+                            }
 
-                    if (existingTopic != null)
-                    {
-                        // Update topic
-                        var updateTopicSql = @"UPDATE [tblContentIndexTopics] SET [ContentName_Topic] = @ContentName_Topic, [DisplayOrder] = @DisplayOrder, [ModifiedOn] = GETDATE() WHERE [TopicCode] = @TopicCode";
-                        await _connection.ExecuteAsync(updateTopicSql, new { ContentName_Topic = contentIndex.Topic, DisplayOrder = contentIndex.DisplayOrder, TopicCode = existingTopic.TopicCode });
-                    }
-                    else
-                    {
-                        // Insert new topic
-                        var insertTopicSql = @"INSERT INTO [tblContentIndexTopics] ([ContentIndexId], [ContentName_Topic], [TopicCode], [DisplayOrder], [IsActive]) VALUES (@ContentIndexId, @ContentName_Topic, @TopicCode, @DisplayOrder, 1)";
-                        await _connection.ExecuteAsync(insertTopicSql, new { ContentIndexId = existingChapter.ContentIndexId, ContentName_Topic = contentIndex.Topic, TopicCode = contentIndex.Topic, DisplayOrder = contentIndex.DisplayOrder });
+                            // Check if topic exists
+                            var existingTopic = await _connection.QueryFirstOrDefaultAsync<ContentIndexTopicsdto>(
+                                "SELECT * FROM tblContentIndexTopics WHERE ContentName_Topic = @Topic AND ChapterCode = @ChapterCode AND IsActive = 1",
+                                new { Topic = entry.Topic, ChapterCode = chapterCode });
 
-                        // Fetch the newly inserted topic to get its ID
-                        existingTopic = await _connection.QuerySingleOrDefaultAsync<ContentIndexTopicsResponse>(
-                            "SELECT * FROM [tblContentIndexTopics] WHERE [TopicCode] = @TopicCode",
-                            new { contentIndex.Topic });
-                    }
+                            string topicCode;
+                            if (existingTopic != null)
+                            {
+                                // Update existing topic
+                                existingTopic.ContentName_Topic = entry.Topic;
+                                existingTopic.DisplayOrder = entry.DisplayOrderTopic;
+                                var topicResponse = await AddUpdateContentIndexTopics(existingTopic);
+                                topicCode = topicResponse.Data; // Use updated topic code
+                            }
+                            else
+                            {
+                                // Prepare and insert new topic
+                                var topicRequest = new ContentIndexTopicsdto
+                                {
+                                    ContentIndexId = 0, // Assuming this is the returned ContentIndexId
+                                    ContentName_Topic = entry.Topic,
+                                    Status = true,
+                                    IndexTypeId = 2,
+                                    CreatedOn = DateTime.UtcNow,
+                                    CreatedBy = "Admin", // Replace with actual user
+                                    ModifiedOn = DateTime.UtcNow,
+                                    ModifiedBy = "Admin", // Replace with actual user
+                                    EmployeeId = 1,
+                                    DisplayName = string.Empty,
+                                    DisplayOrder = entry.DisplayOrderTopic,
+                                    IsActive = true,
+                                    ChapterCode = chapterCode,
+                                    TopicCode = entry.TopicCode
+                                };
 
-                    // Fetch existing subtopics for the topic
-                    var existingSubTopics = await _connection.QueryAsync<ContentIndexSubTopicResponse>(
-                        "SELECT * FROM [tblContentIndexSubTopics] WHERE [ContInIdTopic] = @ContInIdTopic AND [IsActive] = 1",
-                        new { ContInIdTopic = existingTopic.ContInIdTopic });
+                                // Insert new topic
+                                var topicResponse = await AddUpdateContentIndexTopics(topicRequest);
+                                topicCode = topicResponse.Data; // Use newly generated topic code
+                            }
 
-                    var existingSubTopic = existingSubTopics.FirstOrDefault(st => st.ContentName_SubTopic == contentIndex.SubTopic);
+                            // Check if subtopic exists
+                            var existingSubTopic = await _connection.QueryFirstOrDefaultAsync<ContentIndexSubTopic>(
+                                "SELECT * FROM tblContentIndexSubTopics WHERE ContentName_SubTopic = @SubTopic AND TopicCode = @TopicCode AND IsActive = 1",
+                                new { SubTopic = entry.SubTopic, TopicCode = topicCode });
 
-                    if (existingSubTopic != null)
-                    {
-                        // Update subtopic
-                        var updateSubTopicSql = @"UPDATE [tblContentIndexSubTopics] SET [ContentName_SubTopic] = @ContentName_SubTopic, [DisplayOrder] = @DisplayOrder, [ModifiedOn] = GETDATE() WHERE [SubTopicCode] = @SubTopicCode";
-                        await _connection.ExecuteAsync(updateSubTopicSql, new { ContentName_SubTopic = contentIndex.SubTopic, DisplayOrder = contentIndex.DisplayOrder, SubTopicCode = existingSubTopic.SubTopicCode });
-                    }
-                    else
-                    {
-                        // Insert new subtopic
-                        var insertSubTopicSql = @"INSERT INTO [tblContentIndexSubTopics] ([ContInIdTopic], [ContentName_SubTopic], [SubTopicCode], [DisplayOrder], [IsActive]) VALUES (@ContInIdTopic, @ContentName_SubTopic, @SubTopicCode, @DisplayOrder, 1)";
-                        await _connection.ExecuteAsync(insertSubTopicSql, new { ContInIdTopic = existingTopic.ContInIdTopic, ContentName_SubTopic = contentIndex.SubTopic, SubTopicCode = contentIndex.SubTopic, DisplayOrder = contentIndex.DisplayOrder });
+                            if (existingSubTopic == null)
+                            {
+                                // Prepare and insert new subtopic
+                                var subTopicRequest = new ContentIndexSubTopic
+                                {
+                                    ContInIdTopic = 0, // Assuming this is the returned ContentIndexId
+                                    ContentName_SubTopic = entry.SubTopic,
+                                    Status = true,
+                                    IndexTypeId = 1,
+                                    CreatedOn = DateTime.UtcNow,
+                                    CreatedBy = "Admin", // Replace with actual user
+                                    ModifiedOn = DateTime.UtcNow,
+                                    ModifiedBy = "Admin", // Replace with actual user
+                                    EmployeeId = 1,
+                                    DisplayName = string.Empty,
+                                    DisplayOrder = entry.DisplayOrderSubTopic,
+                                    IsActive = true,
+                                    SubTopicCode = entry.SubTopicCode,
+                                    TopicCode = topicCode
+                                };
+
+                                // Insert new subtopic
+                                var subTopicResponse = await AddUpdateContentIndexSubTopics(subTopicRequest);
+                                if (!subTopicResponse.Success)
+                                {
+                                    return new ServiceResponse<string>(false, subTopicResponse.Message, null, StatusCodes.Status400BadRequest);
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -1027,14 +1140,15 @@ namespace Config_API.Repository.Implementations
                     {
                         // Insert new topic
                         string insertTopicQuery = @"
-                INSERT INTO tblContentIndexTopics (ContentName_Topic, Status, IndexTypeId, CreatedOn, CreatedBy, EmployeeId, TopicCode, DisplayName, DisplayOrder, IsActive, ChapterCode)
-                VALUES (@ContentName_Topic, @Status, @IndexTypeId, @CreatedOn, @CreatedBy, @EmployeeId, @TopicCode, @DisplayName, @DisplayOrder, @IsActive, @ChapterCode);
+                INSERT INTO tblContentIndexTopics (ContentIndexId, ContentName_Topic, Status, IndexTypeId, CreatedOn, CreatedBy, EmployeeId, TopicCode, DisplayName, DisplayOrder, IsActive, ChapterCode)
+                VALUES (@ContentIndexId, @ContentName_Topic, @Status, @IndexTypeId, @CreatedOn, @CreatedBy, @EmployeeId, @TopicCode, @DisplayName, @DisplayOrder, @IsActive, @ChapterCode);
                 SELECT CAST(SCOPE_IDENTITY() as int);";
 
                         string newTopicCode = GenerateCode();
 
                         await _connection.ExecuteAsync(insertTopicQuery, new
                         {
+                            ContentIndexId = await GetContentIndexIdByChapterCode(chapterCode),
                             ChapterCode = chapterCode,
                             topic.ContentName_Topic,
                             topic.Status,
@@ -1045,7 +1159,8 @@ namespace Config_API.Repository.Implementations
                             TopicCode = newTopicCode,
                             topic.DisplayName,
                             topic.DisplayOrder,
-                            topic.IsActive
+                            topic.IsActive,
+                            
                         }, transaction);
 
                         await InsertOrUpdateContentIndexSubTopics(newTopicCode, topic.ContentIndexSubTopics, transaction);
@@ -1063,7 +1178,8 @@ namespace Config_API.Repository.Implementations
                     EmployeeId = @EmployeeId,
                     DisplayName = @DisplayName,
                     DisplayOrder = @DisplayOrder,
-                    IsActive = @IsActive
+                    IsActive = @IsActive,
+                    ContentIndexId = @ContentIndexId
                 WHERE TopicCode = @TopicCode AND IsActive = 1";
 
                         await _connection.ExecuteAsync(updateTopicQuery, new
@@ -1077,7 +1193,8 @@ namespace Config_API.Repository.Implementations
                             topic.DisplayName,
                             topic.DisplayOrder,
                             topic.IsActive,
-                            topic.TopicCode
+                            topic.TopicCode,
+                            topic.ContentIndexId
                         }, transaction);
 
                         await InsertOrUpdateContentIndexSubTopics(topic.TopicCode, topic.ContentIndexSubTopics, transaction);
@@ -1095,8 +1212,8 @@ namespace Config_API.Repository.Implementations
                     {
                         // Insert new subtopic
                         string insertSubTopicQuery = @"
-                INSERT INTO tblContentIndexSubTopics (ContentName_SubTopic, Status, IndexTypeId, CreatedOn, CreatedBy, EmployeeId, SubTopicCode, DisplayName, DisplayOrder, IsActive, TopicCode)
-                VALUES (@ContentName_SubTopic, @Status, @IndexTypeId, @CreatedOn, @CreatedBy, @EmployeeId, @SubTopicCode, @DisplayName, @DisplayOrder, @IsActive, @TopicCode);";
+                INSERT INTO tblContentIndexSubTopics (ContInIdTopic, ContentName_SubTopic, Status, IndexTypeId, CreatedOn, CreatedBy, EmployeeId, SubTopicCode, DisplayName, DisplayOrder, IsActive, TopicCode)
+                VALUES (@ContInIdTopic, @ContentName_SubTopic, @Status, @IndexTypeId, @CreatedOn, @CreatedBy, @EmployeeId, @SubTopicCode, @DisplayName, @DisplayOrder, @IsActive, @TopicCode);";
 
                         await _connection.ExecuteAsync(insertSubTopicQuery, new
                         {
@@ -1110,7 +1227,8 @@ namespace Config_API.Repository.Implementations
                             SubTopicCode = GenerateCode(),
                             subTopic.DisplayName,
                             subTopic.DisplayOrder,
-                            subTopic.IsActive
+                            subTopic.IsActive,
+                            ContInIdTopic = await GetContInIdTopicByTopicCode(topicCode)
                         }, transaction);
                     }
                     else
@@ -1126,7 +1244,8 @@ namespace Config_API.Repository.Implementations
                     EmployeeId = @EmployeeId,
                     DisplayName = @DisplayName,
                     DisplayOrder = @DisplayOrder,
-                    IsActive = @IsActive
+                    IsActive = @IsActive,
+                    ContInIdTopic = @ContInIdTopic
                 WHERE SubTopicCode = @SubTopicCode AND IsActive = 1";
 
                         await _connection.ExecuteAsync(updateSubTopicQuery, new
@@ -1139,7 +1258,8 @@ namespace Config_API.Repository.Implementations
                             subTopic.EmployeeId,
                             subTopic.DisplayName,
                             subTopic.DisplayOrder,
-                            subTopic.IsActive
+                            subTopic.IsActive,
+                            subTopic.ContInIdTopic
                         }, transaction);
                     }
                 }

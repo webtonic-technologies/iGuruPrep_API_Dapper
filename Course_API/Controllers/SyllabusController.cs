@@ -61,12 +61,12 @@ namespace Course_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
-        [HttpGet("GetSyllabusDetailById/{syllabusId}")]
-        public async Task<IActionResult> GetSyllabusDetailsById(int syllabusId)
+        [HttpGet("GetSyllabusDetailById/{syllabusId}/{subjectId}")]
+        public async Task<IActionResult> GetSyllabusDetailsById(int syllabusId, int subjectId)
         {
             try
             {
-                var data = await _syllabusServices.GetSyllabusDetailsById(syllabusId);
+                var data = await _syllabusServices.GetSyllabusDetailsById(syllabusId, subjectId);
                 if (data != null)
                 {
                     return Ok(data);

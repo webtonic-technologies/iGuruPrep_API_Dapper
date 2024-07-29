@@ -6,6 +6,7 @@ namespace Course_API.DTOs.Requests
     public class SyllabusDetailsDTO
     {
         public int SyllabusId { get; set; }
+        public int SubjectId {  get; set; }
         public List<SyllabusDetails>? SyllabusDetails { get; set; }
     }
     public class SyllabusDTO
