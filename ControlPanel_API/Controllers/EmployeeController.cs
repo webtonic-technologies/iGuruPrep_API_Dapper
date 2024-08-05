@@ -117,7 +117,7 @@ namespace ControlPanel_API.Controllers
             {
                 var jwtToken = new JwtHelper(_config);
                 var result = await _employeeServices.EmployeeLogin(request);
-                if (result != null)
+                if (result.Data != null)
                 {
                     var status = true;
                     var message = "Login successful";
@@ -128,7 +128,7 @@ namespace ControlPanel_API.Controllers
                 else
                 {
                     var status = false;
-                    var message = "Login failed";
+                    var message = "Invalid Username or Password";
                     return this.BadRequest(new { status, message });
                 }
             }
@@ -156,12 +156,12 @@ namespace ControlPanel_API.Controllers
             }
 
         }
-        [HttpPut("UserLogout/{userId}")]
-        public async Task<IActionResult> UserLogout(int userId)
+        [HttpPut("UserLogout")]
+        public async Task<IActionResult> UserLogout(UserLogoutRequest request)
         {
             try
             {
-                var data = await _employeeServices.UserLogout(userId);
+                var data = await _employeeServices.UserLogout(request);
                 if (data != null)
                 {
                     return Ok(data);

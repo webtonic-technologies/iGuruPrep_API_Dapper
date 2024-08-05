@@ -97,11 +97,11 @@ namespace ControlPanel_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<string>> UserLogout(int userId)
+        public async Task<ServiceResponse<string>> UserLogout(UserLogoutRequest request)
         {
             try
             {
-                return await _employeeRepository.UserLogout(userId);
+                return await _employeeRepository.UserLogout(request);
             }
             catch (Exception ex)
             {

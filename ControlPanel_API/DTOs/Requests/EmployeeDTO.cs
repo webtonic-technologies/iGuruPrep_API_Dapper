@@ -47,7 +47,7 @@ namespace ControlPanel_API.DTOs.Requests
     }
     public class EmployeeLoginRequest
     {
-        public string EmpEmail { get; set; } = string.Empty;
+        public string EmpEmailOrPhoneNumber { get; set; } = string.Empty;
         public string Password {  set; get; } = string.Empty;
     }
     public class DeviceCaptureRequest
@@ -78,9 +78,14 @@ namespace ControlPanel_API.DTOs.Requests
     }
     public class UserLoginRequest
     {
-        public string EmpEmail { get; set; } = string.Empty; // Username or Email
+        public string EmpEmailOrPhoneNumber { get; set; } = string.Empty; // Username or Email
         public string Password { get; set; } = string.Empty; // User's password
         public string DeviceId { get; set; } = string.Empty; // Device identifier (could be UUID, device name, etc.)
         public string DeviceDetails { get; set; } = string.Empty; // Additional device information (optional)
+    }
+    public class UserLogoutRequest
+    {
+        public int UserId { get; set; }
+        public string DeviceId { get; set; } = string.Empty;
     }
 }

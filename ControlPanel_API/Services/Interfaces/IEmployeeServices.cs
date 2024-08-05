@@ -12,7 +12,7 @@ namespace ControlPanel_API.Services.Interfaces
         Task<ServiceResponse<bool>> StatusActiveInactive(int id);
         Task<ServiceResponse<EmployeeLoginResponse>> EmployeeLogin(EmployeeLoginRequest request);
         Task<ServiceResponse<string>> DeviceCapture(DeviceCaptureRequest request);
-        Task<ServiceResponse<string>> UserLogout(int userId);
+        Task<ServiceResponse<string>> UserLogout(UserLogoutRequest request);
         Task<ServiceResponse<string>> UserLogin(UserLoginRequest request);
     }
 }

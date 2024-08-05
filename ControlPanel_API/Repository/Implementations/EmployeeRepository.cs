@@ -301,9 +301,9 @@ namespace ControlPanel_API.Repository.Implementations
         FROM tblEmployee e
         LEFT JOIN tblDesignation d ON e.DesignationID = d.DesgnID
         LEFT JOIN tblRole r ON e.RoleID = r.RoleID
-        WHERE e.EmpEmail = @EmpEmail";
+        WHERE e.EmpEmail = @EmpEmailOrPhoneNumber OR e.EMPPhoneNumber = @EmpEmailOrPhoneNumber";
 
-                var employee = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new { request.EmpEmail });
+                var employee = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new { request.EmpEmailOrPhoneNumber });
 
                 if (employee == null)
                 {
@@ -446,9 +446,9 @@ namespace ControlPanel_API.Repository.Implementations
             FROM tblEmployee e
             LEFT JOIN tblDesignation d ON e.DesignationID = d.DesgnID
             LEFT JOIN tblRole r ON e.RoleID = r.RoleID
-            WHERE e.EmpEmail = @EmpEmail";
+            WHERE e.EmpEmail = @EmpEmailOrPhoneNumber OR e.EMPPhoneNumber = @EmpEmailOrPhoneNumber";
 
-                var employee = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new { request.EmpEmail });
+                var employee = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new { request.EmpEmailOrPhoneNumber });
                 var decryptedPassword = EncryptionHelper.DecryptString(employee.Password);
 
                 if (employee == null || !string.Equals(decryptedPassword.Trim().ToUpper(), request.Password.Trim().ToUpper(), StringComparison.OrdinalIgnoreCase))
@@ -486,11 +486,17 @@ namespace ControlPanel_API.Repository.Implementations
                     if (activeSessions.Count() >= 2)
                     {
                         // Here, we'll deactivate the oldest session
-                        var oldestSession = activeSessions.OrderBy(s => s.LoginTime).First();
+                        //var oldestSession = activeSessions.OrderBy(s => s.LoginTime).First();
 
-                        await _connection.ExecuteAsync(
-                            "UPDATE [tblUserSessions] SET LogoutTime = @LogoutTime, IsActive = 0 WHERE SessionId = @SessionId",
-                            new { LogoutTime = DateTime.UtcNow, SessionId = oldestSession.SessionId });
+                        //await _connection.ExecuteAsync(
+                        //    "UPDATE [tblUserSessions] SET LogoutTime = @LogoutTime, IsActive = 0 WHERE SessionId = @SessionId",
+                        //    new { LogoutTime = DateTime.UtcNow, SessionId = oldestSession.SessionId });
+                        foreach (var session in activeSessions)
+                        {
+                            await _connection.ExecuteAsync(
+                                "UPDATE [tblUserSessions] SET LogoutTime = @LogoutTime, IsActive = 0 WHERE SessionId = @SessionId",
+                                new { LogoutTime = DateTime.UtcNow, SessionId = session.SessionId });
+                        }
                     }
 
                     // Allow new login
@@ -506,14 +512,14 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, StatusCodes.Status500InternalServerError);
             }
         }
-        public async Task<ServiceResponse<string>> UserLogout(int userId)
+        public async Task<ServiceResponse<string>> UserLogout(UserLogoutRequest request)
         {
             try
             {
                 // Check if the user has any active sessions
                 var activeSession = await _connection.QueryFirstOrDefaultAsync<UserSession>(
-                    "SELECT * FROM [tblUserSessions] WHERE UserId = @UserId AND IsActive = 1",
-                    new { UserId = userId });
+                    "SELECT * FROM [tblUserSessions] WHERE UserId = @UserId AND IsActive = 1 AND DeviceId = @DeviceId",
+                    new { UserId = request.UserId, DeviceId = request.DeviceId });
 
                 if (activeSession == null)
                 {
