@@ -398,7 +398,7 @@ namespace Course_API.Repository.Implementations
             st.modifiedon,
             st.modifiedby
         FROM tblScholarshipTest st
-        LEFT JOIN tblAP ap ON st.APID = ap.APID
+        LEFT JOIN tblCategory ap ON st.APID = ap.APID
         LEFT JOIN tblExamType et ON st.ExamTypeId = et.ExamTypeID
         WHERE 1=1";
 

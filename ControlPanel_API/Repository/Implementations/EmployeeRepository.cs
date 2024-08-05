@@ -1,6 +1,7 @@
 ﻿using ControlPanel_API.DTOs.Requests;
 using ControlPanel_API.DTOs.Response;
 using ControlPanel_API.DTOs.ServiceResponse;
+using ControlPanel_API.Models;
 using ControlPanel_API.Repository.Interfaces;
 using Dapper;
 using System.Data;
@@ -337,6 +338,198 @@ namespace ControlPanel_API.Repository.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<EmployeeLoginResponse>(false, ex.Message, null, 500);
+            }
+        }
+        public async Task<ServiceResponse<string>> DeviceCapture(DeviceCaptureRequest request)
+        {
+            try
+            {
+                // Define the SQL insert query
+                string query = @"
+            INSERT INTO [tblDeviceCapture] (
+                EmployeeId,
+                device,
+                fingerprint,
+                model,
+                serialNumber,
+                type,
+                version_sdkInt,
+                version_securityPatch,
+                id_buildId,
+                isPhysicalDevice,
+                systemName,
+                systemVersion,
+                utsname_version,
+                name,
+                browserName,
+                appName,
+                appVersion,
+                deviceMemory,
+                Platform,
+                kernelVersion,
+                computerName,
+                systemGUID
+            ) VALUES (
+                @EmployeeId,
+                @device,
+                @fingerprint,
+                @model,
+                @serialNumber,
+                @type,
+                @version_sdkInt,
+                @version_securityPatch,
+                @id_buildId,
+                @isPhysicalDevice,
+                @systemName,
+                @systemVersion,
+                @utsname_version,
+                @name,
+                @browserName,
+                @appName,
+                @appVersion,
+                @deviceMemory,
+                @Platform,
+                @kernelVersion,
+                @computerName,
+                @systemGUID
+            );";
+
+                // Execute the insert query
+                var result = await _connection.ExecuteAsync(query, new
+                {
+                    request.EmployeeId,
+                    request.device,
+                    request.fingerprint,
+                    request.model,
+                    request.serialNumber,
+                    request.type,
+                    request.version_sdkInt,
+                    request.version_securityPatch,
+                    request.id_buildId,
+                    request.isPhysicalDevice,
+                    request.systemName,
+                    request.systemVersion,
+                    request.utsname_version,
+                    request.name,
+                    request.browserName,
+                    request.appName,
+                    request.appVersion,
+                    request.deviceMemory,
+                    request.Platform,
+                    request.kernelVersion,
+                    request.computerName,
+                    request.systemGUID
+                });
+
+                // Check if the insert was successful
+                if (result > 0)
+                {
+                    return new ServiceResponse<string>(true, "Device capture recorded successfully", string.Empty, StatusCodes.Status201Created);
+                }
+                else
+                {
+                    return new ServiceResponse<string>(false, "Failed to record device capture", string.Empty, StatusCodes.Status500InternalServerError);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, StatusCodes.Status500InternalServerError);
+            }
+        }
+        public async Task<ServiceResponse<string>> UserLogin(UserLoginRequest request)
+        {
+            try
+            {
+                // Step 1: Retrieve stored password and employee details
+                string query = @"
+            SELECT e.Employeeid, e.Password, e.EmpFirstName, e.EmpLastName, e.DesignationID, d.DesignationName, r.RoleName, e.IsSuperAdmin, e.RoleID
+            FROM tblEmployee e
+            LEFT JOIN tblDesignation d ON e.DesignationID = d.DesgnID
+            LEFT JOIN tblRole r ON e.RoleID = r.RoleID
+            WHERE e.EmpEmail = @EmpEmail";
+
+                var employee = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new { request.EmpEmail });
+                var decryptedPassword = EncryptionHelper.DecryptString(employee.Password);
+
+                if (employee == null || !string.Equals(decryptedPassword.Trim().ToUpper(), request.Password.Trim().ToUpper(), StringComparison.OrdinalIgnoreCase))
+                {
+                    return new ServiceResponse<string>(false, "Invalid credentials", string.Empty, StatusCodes.Status401Unauthorized);
+                }
+
+                // Get existing active sessions for the user
+                var activeSessions = await _connection.QueryAsync<dynamic>(
+                    "SELECT SessionId FROM [tblUserSessions] WHERE UserId = @UserId AND IsActive = 1",
+                    new { UserId = employee.Employeeid });
+
+                // Handle device login based on role ID
+                if (employee.RoleID == 6 || employee.RoleID == 7) // Admin or Student
+                {
+                    // If there is an active session, log it out
+                    if (activeSessions.Any())
+                    {
+                        foreach (var session in activeSessions)
+                        {
+                            await _connection.ExecuteAsync(
+                                "UPDATE [tblUserSessions] SET LogoutTime = @LogoutTime, IsActive = 0 WHERE SessionId = @SessionId",
+                                new { LogoutTime = DateTime.UtcNow, SessionId = session.SessionId });
+                        }
+                    }
+
+                    // Allow new login
+                    await _connection.ExecuteAsync(
+                        "INSERT INTO [tblUserSessions] (UserId, DeviceId, IsActive) VALUES (@UserId, @DeviceId, 1)",
+                        new { UserId = employee.Employeeid, request.DeviceId });
+                }
+                else if (employee.RoleID == 3 || employee.RoleID == 4 || employee.RoleID == 5) // SME, Proofer, Transcriber
+                {
+                    // If there are already two active sessions, log out the oldest one
+                    if (activeSessions.Count() >= 2)
+                    {
+                        // Here, we'll deactivate the oldest session
+                        var oldestSession = activeSessions.OrderBy(s => s.LoginTime).First();
+
+                        await _connection.ExecuteAsync(
+                            "UPDATE [tblUserSessions] SET LogoutTime = @LogoutTime, IsActive = 0 WHERE SessionId = @SessionId",
+                            new { LogoutTime = DateTime.UtcNow, SessionId = oldestSession.SessionId });
+                    }
+
+                    // Allow new login
+                    await _connection.ExecuteAsync(
+                        "INSERT INTO [tblUserSessions] (UserId, DeviceId, IsActive) VALUES (@UserId, @DeviceId, 1)",
+                        new { UserId = employee.Employeeid, request.DeviceId });
+                }
+
+                return new ServiceResponse<string>(true, "Login successful", string.Empty, StatusCodes.Status200OK);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, StatusCodes.Status500InternalServerError);
+            }
+        }
+        public async Task<ServiceResponse<string>> UserLogout(int userId)
+        {
+            try
+            {
+                // Check if the user has any active sessions
+                var activeSession = await _connection.QueryFirstOrDefaultAsync<UserSession>(
+                    "SELECT * FROM [tblUserSessions] WHERE UserId = @UserId AND IsActive = 1",
+                    new { UserId = userId });
+
+                if (activeSession == null)
+                {
+                    return new ServiceResponse<string>(false, "No active session found for the user", string.Empty, StatusCodes.Status404NotFound);
+                }
+
+                // Log out the user by updating the IsActive flag and setting LogoutTime
+                await _connection.ExecuteAsync(
+                    "UPDATE [tblUserSessions] SET IsActive = 0, LogoutTime = GETDATE() WHERE SessionId = @SessionId",
+                    new { SessionId = activeSession.SessionId });
+
+                return new ServiceResponse<string>(true, "Logout successful", string.Empty, StatusCodes.Status200OK);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, StatusCodes.Status500InternalServerError);
             }
         }
         private List<EmployeeSubjectResponse> GetListOfEmployeeSubject(int EmployeeId)

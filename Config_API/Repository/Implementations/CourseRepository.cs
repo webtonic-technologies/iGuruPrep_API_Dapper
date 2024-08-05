@@ -107,28 +107,28 @@ namespace Config_API.Repository.Implementations
                 return new ServiceResponse<List<Course>>(false, ex.Message, [], StatusCodes.Status500InternalServerError);
             }
         }
-        public async Task<ServiceResponse<List<Course>>> GetAllCoursesMasters()
-        {
-            try
-            {
-                string query = @"SELECT [CourseId], [CourseName], [CourseCode], [Status], [createdby], [createdon], [displayorder], [modifiedby], [modifiedon], [EmployeeID], [EmpFirstName]
-                           FROM [tblCourse]";
-                var data = await _connection.QueryAsync<Course>(query);
+        //public async Task<ServiceResponse<List<Course>>> GetAllCoursesMasters()
+        //{
+        //    try
+        //    {
+        //        string query = @"SELECT [CourseId], [CourseName], [CourseCode], [Status], [createdby], [createdon], [displayorder], [modifiedby], [modifiedon], [EmployeeID], [EmpFirstName]
+        //                   FROM [tblCourse] where Status = 1";
+        //        var data = await _connection.QueryAsync<Course>(query);
 
-                if (data.Any())
-                {
-                    return new ServiceResponse<List<Course>>(true, "Records Found", data.AsList(), StatusCodes.Status302Found);
-                }
-                else
-                {
-                    return new ServiceResponse<List<Course>>(false, "Records Not Found", [], StatusCodes.Status204NoContent);
-                }
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<List<Course>>(false, ex.Message, [], StatusCodes.Status500InternalServerError);
-            }
-        }
+        //        if (data.Any())
+        //        {
+        //            return new ServiceResponse<List<Course>>(true, "Records Found", data.AsList(), StatusCodes.Status302Found);
+        //        }
+        //        else
+        //        {
+        //            return new ServiceResponse<List<Course>>(false, "Records Not Found", [], StatusCodes.Status204NoContent);
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new ServiceResponse<List<Course>>(false, ex.Message, [], StatusCodes.Status500InternalServerError);
+        //    }
+        //}
         public async Task<ServiceResponse<Course>> GetCourseById(int id)
         {
             try
@@ -186,5 +186,36 @@ namespace Config_API.Repository.Implementations
             }
 
         }
+        public async Task<ServiceResponse<List<Course>>> GetAllCoursesMasters(int classId)
+        {
+            try
+            {
+                // SQL query to fetch courses based on the provided class ID
+                string query = @"
+            SELECT c.CourseId, c.CourseName, c.CourseCode, c.Status, 
+                   c.createdby, c.createdon, c.displayorder, 
+                   c.modifiedby, c.modifiedon, 
+                   cc.EmployeeID, cc.EmpFirstName
+            FROM tblCourse c
+            INNER JOIN tblClassCourses cc ON c.CourseId = cc.CourseID
+            WHERE cc.ClassID = @ClassId AND c.Status = 1";
+
+                var data = await _connection.QueryAsync<Course>(query, new { ClassId = classId });
+
+                if (data.Any())
+                {
+                    return new ServiceResponse<List<Course>>(true, "Records Found", data.AsList(), StatusCodes.Status302Found);
+                }
+                else
+                {
+                    return new ServiceResponse<List<Course>>(false, "Records Not Found", new List<Course>(), StatusCodes.Status204NoContent);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<Course>>(false, ex.Message, new List<Course>(), StatusCodes.Status500InternalServerError);
+            }
+        }
+
     }
 }

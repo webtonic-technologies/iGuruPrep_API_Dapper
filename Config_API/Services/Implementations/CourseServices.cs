@@ -38,11 +38,11 @@ namespace Config_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<List<Course>>> GetAllCoursesMasters()
+        public async Task<ServiceResponse<List<Course>>> GetAllCoursesMasters(int ClassId)
         {
             try
             {
-                return await _courseRepository.GetAllCoursesMasters();
+                return await _courseRepository.GetAllCoursesMasters(ClassId);
             }
             catch (Exception ex)
             {

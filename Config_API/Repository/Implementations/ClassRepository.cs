@@ -126,7 +126,7 @@ namespace Config_API.Repository.Implementations
                                   ,[showcourse]
                                   ,[EmployeeID]
                                   ,[EmpFirstName]
-                           FROM [tblClass]";
+                           FROM [tblClass] where Status = 1";
                 var classes = await _connection.QueryAsync<Class>(query);
 
                 if (classes.Any())

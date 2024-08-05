@@ -197,7 +197,7 @@ namespace Config_API.Repository.Implementations
         FROM 
             [tblQBQuestionType] qt
         LEFT JOIN 
-            [tblQBOptionType] ot ON qt.TypeOfOption = ot.OptionTypeId;";
+            [tblQBOptionType] ot ON qt.TypeOfOption = ot.OptionTypeId where Status = 1;";
 
                 var data = await _connection.QueryAsync<QuestionTypeResponse>(query);
 

@@ -129,7 +129,7 @@ namespace Config_API.Repository.Implementations
                                   ,[modifiedby]
                                   ,[EmployeeID]
                                   ,[EmpFirstName]
-                            FROM tblBoard";
+                            FROM tblBoard where Status = 1";
 
                 var boards = await _connection.QueryAsync<Board>(sql);
                 if (boards.Any())

@@ -51,4 +51,11 @@
         public string? TopicCode { get; set; } = string.Empty;
         public string? SubTopicCode { get; set; } = string.Empty;
     }
+    // Define classes for the response structure
+    public class SyllabusDetail
+    {
+        public int ContentIndexId { get; set; }
+        public int IndexTypeId { get; set; }
+        public int SubjectId { get; set; }
+    }
 }

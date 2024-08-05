@@ -107,12 +107,12 @@ namespace Config_API.Controllers
             }
 
         }
-        [HttpGet("GetAllCoursesMasters")]
-        public async Task<IActionResult> GetAllCoursesListMasters()
+        [HttpGet("GetAllCoursesMasters/{ClassId}")]
+        public async Task<IActionResult> GetAllCoursesListMasters(int ClassId)
         {
             try
             {
-                var data = await _courseService.GetAllCoursesMasters();
+                var data = await _courseService.GetAllCoursesMasters(ClassId);
                 if (data != null)
                 {
                     return Ok(data);

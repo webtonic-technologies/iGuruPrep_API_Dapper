@@ -122,7 +122,7 @@ namespace Config_API.Repository.Implementations
             {
                 string query = @"SELECT [LevelId], [LevelName], [LevelCode], [Status], [NoofQperLevel], [SuccessRate], 
                              [createdon], [patterncode], [modifiedon], [modifiedby], [createdby], [EmployeeID], EmpFirstName
-                             FROM [tbldifficultylevel]";
+                             FROM [tbldifficultylevel] where Status = 1";
 
                 var data = await _connection.QueryAsync<DifficultyLevel>(query);
              

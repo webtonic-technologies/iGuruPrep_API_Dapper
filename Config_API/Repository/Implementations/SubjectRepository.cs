@@ -107,7 +107,7 @@ namespace Config_API.Repository.Implementations
             try
             {
                 // Construct the SQL query to select all subjects
-                string query = "SELECT * FROM [tblSubject]";
+                string query = "SELECT * FROM [tblSubject] where Status = 1";
 
                 // Execute the select query asynchronously
                 var data = await _connection.QueryAsync<Subject>(query);

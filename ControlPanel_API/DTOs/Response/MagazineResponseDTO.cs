@@ -39,7 +39,7 @@ namespace ControlPanel_API.DTOs.Response
     {
         public int MagazineBoardId { get; set; }
         public int MagazineID { get; set; }
-        public int BoardIDID { get; set; }
+        public int BoardID { get; set; }
         public string Name { get; set; } = string.Empty;
     }
     public class MagazineClassResponse

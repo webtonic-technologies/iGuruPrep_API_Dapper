@@ -114,7 +114,7 @@ namespace Config_API.Repository.Implementations
         {
             try
             {
-                string sql = @"SELECT * FROM tblTypeOfTestSeries";
+                string sql = @"SELECT * FROM tblTypeOfTestSeries where Status = 1";
 
                 var data = await _connection.QueryAsync<TypeOfTestSeries>(sql);
 

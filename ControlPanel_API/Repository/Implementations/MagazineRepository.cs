@@ -145,9 +145,9 @@ namespace ControlPanel_API.Repository.Implementations
                 {
                     baseQuery += " AND mcl.ClassID = @ClassID";
                 }
-                if (request.BoardIDID > 0)
+                if (request.BoardID > 0)
                 {
-                    baseQuery += " AND mb.BoardIDID = @BoardIDID";
+                    baseQuery += " AND mb.BoardID = @BoardID";
                 }
                 if (request.CourseID > 0)
                 {
@@ -166,7 +166,7 @@ namespace ControlPanel_API.Repository.Implementations
                 var parameters = new
                 {
                     ClassID = request.ClassID,
-                    BoardIDID = request.BoardIDID,
+                    BoardIDID = request.BoardID,
                     CourseID = request.CourseID,
                     ExamTypeID = request.ExamTypeID,
                     APID = request.APID
@@ -534,8 +534,8 @@ namespace ControlPanel_API.Repository.Implementations
                 var rowsAffected = _connection.Execute(deleteDuery, new { MagazineID });
                 if (rowsAffected > 0)
                 {
-                    var insertquery = @"INSERT INTO [tblMagazineBoard] ([MagazineID], [BoardIDID])
-                          VALUES (@MagazineID, @BoardIDID);";
+                    var insertquery = @"INSERT INTO [tblMagazineBoard] ([MagazineID], [BoardID])
+                          VALUES (@MagazineID, @BoardID);";
                     var valuesInserted = _connection.Execute(insertquery, request);
                     return valuesInserted;
                 }
@@ -546,8 +546,8 @@ namespace ControlPanel_API.Repository.Implementations
             }
             else
             {
-                var insertquery = @"INSERT INTO [tblMagazineBoard] ([MagazineID], [BoardIDID])
-                          VALUES (@MagazineID, @BoardIDID);";
+                var insertquery = @"INSERT INTO [tblMagazineBoard] ([MagazineID], [BoardID])
+                          VALUES (@MagazineID, @BoardID);";
                 var valuesInserted = _connection.Execute(insertquery, request);
                 return valuesInserted;
             }
@@ -621,9 +621,9 @@ namespace ControlPanel_API.Repository.Implementations
         private List<MagazineBoardResponse> GetListOfMagazineBoards(int MagazineID)
         {
             string boardQuery = @"
-            SELECT mb.[MagazineBoardId], mb.[MagazineID], mb.[BoardIDID], b.[BoardName] AS Name
+            SELECT mb.[MagazineBoardId], mb.[MagazineID], mb.[BoardID], b.[BoardName] AS Name
             FROM [tblMagazineBoard] mb
-            LEFT JOIN [tblBoard] b ON mb.BoardIDID = b.BoardID
+            LEFT JOIN [tblBoard] b ON mb.BoardID = b.BoardID
             WHERE mb.[MagazineID] = @MagazineID";
 
             // Execute the SQL query with the SOTDID parameter

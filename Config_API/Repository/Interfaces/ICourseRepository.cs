@@ -7,7 +7,7 @@ namespace Config_API.Repository.Interfaces
     public interface ICourseRepository
     {
         Task<ServiceResponse<List<Course>>> GetAllCourses(GetAllCoursesRequest request);
-        Task<ServiceResponse<List<Course>>> GetAllCoursesMasters();
+        Task<ServiceResponse<List<Course>>> GetAllCoursesMasters(int classId);
         Task<ServiceResponse<Course>> GetCourseById(int id);
         Task<ServiceResponse<string>> AddUpdateCourse(Course request);
         Task<ServiceResponse<bool>> StatusActiveInactive(int id);

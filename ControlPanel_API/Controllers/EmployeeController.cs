@@ -70,7 +70,6 @@ namespace ControlPanel_API.Controllers
             }
 
         }
-
         [HttpPost("AddUpdateEmployee")]
         public async Task<IActionResult> AddUpdateEmployee(EmployeeDTO request)
         {
@@ -140,6 +139,62 @@ namespace ControlPanel_API.Controllers
                     StatusCode = (int)HttpStatusCode.NotFound
                 };
             }
+        }
+        [HttpPost("DeviceCapture")]
+        public async Task<IActionResult> DeviceCapture(DeviceCaptureRequest request)
+        {
+            try
+            {
+                return new OkObjectResult(await _employeeServices.DeviceCapture(request));
+            }
+            catch (Exception ex)
+            {
+                return new JsonResult(ex.Message)
+                {
+                    StatusCode = (int)HttpStatusCode.NotAcceptable
+                };
+            }
+
+        }
+        [HttpPut("UserLogout/{userId}")]
+        public async Task<IActionResult> UserLogout(int userId)
+        {
+            try
+            {
+                var data = await _employeeServices.UserLogout(userId);
+                if (data != null)
+                {
+                    return Ok(data);
+
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+
+        }
+        [AllowAnonymous]
+        [HttpPost("UserLogin")]
+        public async Task<IActionResult> UserLogin(UserLoginRequest request)
+        {
+            try
+            {
+                return new OkObjectResult(await _employeeServices.UserLogin(request));
+            }
+            catch (Exception ex)
+            {
+                return new JsonResult(ex.Message)
+                {
+                    StatusCode = (int)HttpStatusCode.NotAcceptable
+                };
+            }
+
         }
     }
 }

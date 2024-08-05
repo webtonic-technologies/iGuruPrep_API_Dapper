@@ -300,76 +300,109 @@ namespace Course_API.Repository.Implementations
         {
             try
             {
-                // Base query to fetch the content indexes
-                string query = @"SELECT * FROM [tblContentIndexChapters] WHERE 1 = 1";
+                // Base query to fetch the syllabus based on filters
+                string syllabusQuery = @"
+            SELECT * 
+            FROM [tblSyllabus] 
+            WHERE [ClassId] = @ClassId AND [CourseId] = @CourseId AND [BoardID] = @BoardId";
 
-                // Add filters based on DTO properties
-                if (request.APId > 0)
+                // Fetch the syllabus based on the given filters
+                var syllabus = await _connection.QueryAsync<Syllabus>(syllabusQuery, new
                 {
-                    query += " AND [APId] = @APId";
-                }
-                if (request.ExamTypeId > 0)
+                    ClassId = request.classid,
+                    CourseId = request.courseid,
+                    BoardId = request.boardid
+                });
+
+                if (!syllabus.Any())
                 {
-                    query += " AND [ExamTypeId] = @ExamTypeId";
-                }
-                if (request.SubjectId > 0)
-                {
-                    query += " AND [SubjectId] = @SubjectId";
-                }
-                if (request.classid > 0)
-                {
-                    query += " AND [classid] = @classid";
-                }
-                if (request.courseid > 0)
-                {
-                    query += " AND [courseid] = @courseid";
-                }
-                if (request.boardid > 0)
-                {
-                    query += " AND [boardid] = @boardid";
+                    return new ServiceResponse<List<ContentIndexResponse>>(false, "No syllabus found", new List<ContentIndexResponse>(), StatusCodes.Status204NoContent);
                 }
 
-                // Execute the query
-                var contentIndexes = (await _connection.QueryAsync<ContentIndexResponse>(query, new
+                // Prepare a list to hold content index responses
+                var contentIndexResponses = new List<ContentIndexResponse>();
+
+                foreach (var item in syllabus)
                 {
-                    request.APId,
-                    request.ExamTypeId,
-                    request.SubjectId,
-                    request.classid,
-                    request.courseid,
-                    request.boardid
-                })).ToList();
+                    // Fetch syllabus details for each syllabus ID
+                    string syllabusDetailQuery = @"
+                SELECT * 
+                FROM [tblSyllabusDetails] 
+                WHERE [SyllabusID] = @SyllabusID AND [SubjectId] = @SubjectId";
 
-                // Fetch related topics and subtopics for each content index
-                foreach (var contentIndex in contentIndexes)
-                {
-                    string topicsSql = @"SELECT * FROM [tblContentIndexTopics] WHERE [ContentIndexId] = @contentIndexId";
-                    var topics = (await _connection.QueryAsync<ContentIndexTopics>(topicsSql, new { contentIndexId = contentIndex.ContentIndexId })).ToList();
-
-                    string subTopicsSql = @"
-                SELECT st.*
-                FROM [tblContentIndexSubTopics] st
-                INNER JOIN [tblContentIndexTopics] t ON st.ContInIdTopic = t.ContInIdTopic
-                WHERE t.ContentIndexId = @contentIndexId";
-                    var subTopics = (await _connection.QueryAsync<ContentIndexSubTopic>(subTopicsSql, new { contentIndexId = contentIndex.ContentIndexId })).ToList();
-
-                    // Assign the subtopics to the respective topics
-                    foreach (var topic in topics)
+                    var syllabusDetails = await _connection.QueryAsync<SyllabusDetail>(syllabusDetailQuery, new
                     {
-                        topic.ContentIndexSubTopics = subTopics.Where(st => st.ContInIdTopic == topic.ContInIdTopic).ToList();
-                    }
+                        SyllabusID = item.SyllabusId,
+                        SubjectId = request.SubjectId
+                    });
 
-                    // Assign the topics to the content index
-                    contentIndex.ContentIndexTopics = topics;
+                    foreach (var detail in syllabusDetails)
+                    {
+                        // Fetch the content index record based on ContentIndexId
+                        string contentIndexQuery = @"
+                    SELECT * 
+                    FROM [tblContentIndexChapters] 
+                    WHERE [ContentIndexId] = @ContentIndexId";
+
+                        var chapterRecord = await _connection.QuerySingleOrDefaultAsync<ContentIndexResponse>(contentIndexQuery, new
+                        {
+                            ContentIndexId = detail.ContentIndexId
+                        });
+
+                        if (chapterRecord != null)
+                        {
+                            // Map the common fields from the chapter record
+                            var contentIndexResponse = new ContentIndexResponse
+                            {
+                                ContentIndexId = chapterRecord.ContentIndexId,
+                                SubjectId = detail.SubjectId,
+                                APID = item.APID,
+                                CreatedOn = chapterRecord.CreatedOn,
+                                CreatedBy = chapterRecord.CreatedBy,
+                                ModifiedOn = chapterRecord.ModifiedOn,
+                                ModifiedBy = chapterRecord.ModifiedBy,
+                                EmployeeId = chapterRecord.EmployeeId,
+                                Status = chapterRecord.Status,
+                                ChapterCode = chapterRecord.ChapterCode,
+                                ContentName_Chapter = chapterRecord.ContentName_Chapter,
+                                IndexTypeId = chapterRecord.IndexTypeId // Set index type as chapter
+                            };
+
+                            // Fetch topics for the current chapter
+                            string topicsQuery = @"
+                        SELECT * 
+                        FROM [tblContentIndexTopics] 
+                        WHERE [ContentIndexId] = @ContentIndexId";
+
+                            var topics = await _connection.QueryAsync<ContentIndexTopics>(topicsQuery, new
+                            {
+                                ContentIndexId = chapterRecord.ContentIndexId
+                            });
+
+                            // Map topics and their subtopics
+                            contentIndexResponse.ContentIndexTopics = new List<ContentIndexTopics>();
+                            foreach (var topic in topics)
+                            {
+                                // Fetch subtopics for the current topic
+                                string subTopicsQuery = "SELECT * FROM [tblContentIndexSubTopics] WHERE [ContInIdTopic] = @ContInIdTopic";
+                                var subTopics = await _connection.QueryAsync<ContentIndexSubTopic>(subTopicsQuery, new
+                                {
+                                    ContInIdTopic = topic.ContInIdTopic
+                                });
+
+                                // Map the topic properties including subtopics
+                                topic.ContentIndexSubTopics = subTopics.ToList();
+                                contentIndexResponse.ContentIndexTopics.Add(topic);
+                            }
+
+                            contentIndexResponses.Add(contentIndexResponse);
+                        }
+                    }
                 }
 
-                // Apply pagination logic after fetching the records
-                var totalCount = contentIndexes.Count;
-                var paginatedContentIndexes = contentIndexes.Skip((request.PageNumber - 1) * request.PageSize).Take(request.PageSize).ToList();
-
-                if (paginatedContentIndexes.Any())
+                if (contentIndexResponses.Any())
                 {
-                    return new ServiceResponse<List<ContentIndexResponse>>(true, "Records found", paginatedContentIndexes, StatusCodes.Status302Found, totalCount);
+                    return new ServiceResponse<List<ContentIndexResponse>>(true, "Records found", contentIndexResponses, StatusCodes.Status302Found);
                 }
                 else
                 {

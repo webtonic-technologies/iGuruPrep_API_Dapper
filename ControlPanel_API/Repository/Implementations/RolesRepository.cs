@@ -22,8 +22,8 @@ namespace ControlPanel_API.Repository.Implementations
                 if (request.RoleId == 0)
                 {
                     var sql = @"
-            INSERT INTO tblRole (RoleName, RoleCode, RoleNumber, Status, createdon, createdby)
-            VALUES (@RoleName, @RoleCode, @RoleNumber, @Status, @createdon, @createdby);";
+            INSERT INTO tblRole (RoleName, RoleCode, Status, createdon, createdby)
+            VALUES (@RoleName, @RoleCode, @Status, @createdon, @createdby);";
 
                     int rowsAffected = await _connection.ExecuteAsync(sql, request);
 
@@ -40,7 +40,7 @@ namespace ControlPanel_API.Repository.Implementations
                 {
                     var sql = @"
             UPDATE tblRole 
-            SET RoleName = @RoleName, RoleCode = @RoleCode, RoleNumber = @RoleNumber, Status = @Status,
+            SET RoleName = @RoleName, RoleCode = @RoleCode, Status = @Status,
             modifiedon = @modifiedon, modifiedby = @modifiedby
             WHERE RoleId = @RoleId;";
 
