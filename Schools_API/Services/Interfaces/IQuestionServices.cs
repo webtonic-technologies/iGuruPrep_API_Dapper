@@ -18,5 +18,8 @@ namespace Schools_API.Services.Interfaces
         Task<ServiceResponse<QuestionProfilerResponse>> GetQuestionProfilerDetails(string QuestionCode);
         Task<ServiceResponse<object>> CompareQuestionVersions(string questionCode);
         Task<ServiceResponse<List<QuestionResponseDTO>>> GetAssignedQuestionsList(int employeeId);
+        Task<ServiceResponse<int>> GetAssignedQuestionsCount(int EmployeeId);
+        Task<ServiceResponse<List<QuestionResponseDTO>>> GetAllLiveQuestionsList(int SubjectId);
+        Task<ServiceResponse<string>> MarkQuestionLive(string questionCode);
     }
 }

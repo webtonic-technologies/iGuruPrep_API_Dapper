@@ -170,11 +170,135 @@ namespace Schools_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-
-        // Method to generate unique code
-        private string GenerateCode()
+        public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetAllLiveQuestionsList(int SubjectId)
         {
-            return DateTime.Now.ToString("yyyyMMddHHmmssff");
+            try
+            {
+                string sql = @"
+        SELECT q.*, 
+               c.CourseName, 
+               b.BoardName, 
+               cl.ClassName, 
+               s.SubjectName,
+               et.ExamTypeName,
+               e.EmpFirstName, 
+               qt.QuestionType as QuestionTypeName,
+               it.IndexType as IndexTypeName,
+               CASE 
+                   WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
+                   WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
+                   WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+               END AS ContentIndexName
+        FROM tblQuestion q
+        LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
+        LEFT JOIN tblCourse c ON q.courseid = c.CourseID
+        LEFT JOIN tblBoard b ON q.boardid = b.BoardID
+        LEFT JOIN tblClass cl ON q.classid = cl.ClassID
+        LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
+        LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
+        LEFT JOIN tblEmployee e ON q.EmployeeId = e.Employeeid
+        LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
+        LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
+        LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
+        LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
+        WHERE q.IsApproved = 1
+          AND q.IsRejected = 0
+          AND q.IsActive = 1
+          AND q.SubjectID = @SubjectId
+          AND q.IsLive = 1"; // Adjusted to ensure the questions are live
+
+                var parameters = new
+                {
+                    SubjectId
+                };
+
+                var data = await _connection.QueryAsync<dynamic>(sql, parameters);
+
+                if (data != null)
+                {
+                    var response = data.Select(item => new QuestionResponseDTO
+                    {
+                        QuestionId = item.QuestionId,
+                        QuestionDescription = item.QuestionDescription,
+                        QuestionTypeId = item.QuestionTypeId,
+                        Status = item.Status,
+                        CreatedBy = item.CreatedBy,
+                        CreatedOn = item.CreatedOn,
+                        ModifiedBy = item.ModifiedBy,
+                        ModifiedOn = item.ModifiedOn,
+                        subjectID = item.subjectID,
+                        SubjectName = item.SubjectName,
+                        EmployeeId = item.EmployeeId,
+                        EmployeeName = item.EmpFirstName,
+                        IndexTypeId = item.IndexTypeId,
+                        IndexTypeName = item.IndexTypeName,
+                        ContentIndexId = item.ContentIndexId,
+                        ContentIndexName = item.ContentIndexName,
+                        QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+                        QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
+                        Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
+                        AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode),
+                        IsApproved = item.IsApproved,
+                        IsRejected = item.IsRejected,
+                        QuestionTypeName = item.QuestionTypeName,
+                        QuestionCode = item.QuestionCode,
+                        Explanation = item.Explanation,
+                        ExtraInformation = item.ExtraInformation,
+                        IsActive = item.IsActive
+                    }).ToList();
+
+                    if (response.Count != 0)
+                    {
+                        return new ServiceResponse<List<QuestionResponseDTO>>(true, "Operation Successful", response, 200);
+                    }
+                    else
+                    {
+                        return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
+                    }
+                }
+                else
+                {
+                    return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, new List<QuestionResponseDTO>(), 500);
+            }
+        }
+        public async Task<ServiceResponse<string>> MarkQuestionLive(string questionCode)
+        {
+            try
+            {
+                // Check if the question is approved and not rejected
+                string checkSql = @"
+            SELECT COUNT(*)
+            FROM [tblQuestion]
+            WHERE QuestionCode = @QuestionCode AND IsApproved = 1 AND IsRejected = 0 AND IsActive = 1";
+
+                var exists = await _connection.ExecuteScalarAsync<int>(checkSql, new { QuestionCode = questionCode });
+
+                if (exists > 0)
+                {
+                    // Update the question to mark it as live
+                    string updateSql = @"
+                UPDATE [tblQuestion]
+                SET IsLive = 1
+                WHERE QuestionCode = @QuestionCode";
+
+                    await _connection.ExecuteAsync(updateSql, new { QuestionCode = questionCode });
+
+                    return new ServiceResponse<string>(true, "Question marked as live successfully", string.Empty, 200);
+                }
+                else
+                {
+                    return new ServiceResponse<string>(false, "Question is either not approved, rejected, or not active", string.Empty, 404);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+            }
         }
         public async Task<ServiceResponse<int>> GetAssignedQuestionsCount(int EmployeeId)
         {
@@ -249,7 +373,8 @@ namespace Schools_API.Repository.Implementations
           AND q.IsRejected = 0
           AND q.IsApproved = 0
           AND (q.EmployeeId = @EmployeeId OR q.QuestionCode IN @QuestionCodes)
-          AND q.IsActive = 1";
+          AND q.IsActive = 1
+          AND IsLive = 0";
 
                 var parameters = new
                 {
@@ -293,7 +418,12 @@ namespace Schools_API.Repository.Implementations
                         Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
                         AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
                     }).ToList();
-
+                    foreach (var record in response)
+                    {
+                        // Get role based on EmployeeId
+                        var employeeRoleId = _connection.QuerySingleOrDefault<int?>("SELECT RoleID FROM tblEmployee WHERE EmployeeID = @EmployeeId", new { EmployeeId = record.EmployeeId });
+                        record.userRole = employeeRoleId.HasValue ? GetRoleName(employeeRoleId.Value) : string.Empty; // Map the role name
+                    }
                     int totalCount = response.Count;
 
                     var paginatedList = response.Skip((request.PageNumber - 1) * request.PageSize)
@@ -448,7 +578,7 @@ namespace Schools_API.Repository.Implementations
         LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
         LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
         LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
-        WHERE q.EmployeeId = @EmployeeId AND q.IsActive = 1";
+        WHERE q.EmployeeId = @EmployeeId AND q.IsActive = 1 AND AND IsLive = 0";
 
                 var questions = await _connection.QueryAsync<QuestionResponseDTO>(query, new { EmployeeId = employeeId });
 
@@ -502,12 +632,16 @@ namespace Schools_API.Repository.Implementations
                 WHERE (@ContentIndexId = 0 OR q.ContentIndexId = @ContentIndexId)
                   AND (@IndexTypeId = 0 OR q.IndexTypeId = @IndexTypeId)
                   AND q.IsApproved = 1
-                  AND q.IsActive = 1";
+                  AND q.IsRejected = 0
+                  AND q.IsActive = 1
+                  AND (@EmployeeId = 0 OR q.EmployeeId = @EmployeeId)
+                  AND IsLive = 0";
 
                 var parameters = new
                 {
                     ContentIndexId = request.ContentIndexId,
-                    IndexTypeId = request.IndexTypeId
+                    IndexTypeId = request.IndexTypeId,
+                    request.EmployeeId
                 };
 
                 var data = await _connection.QueryAsync<dynamic>(sql, parameters);
@@ -602,12 +736,16 @@ namespace Schools_API.Repository.Implementations
                 WHERE (@ContentIndexId = 0 OR q.ContentIndexId = @ContentIndexId)
                   AND (@IndexTypeId = 0 OR q.IndexTypeId = @IndexTypeId)
                   AND q.IsRejected = 1
-                  AND q.IsActive = 1";
+                  AND q.IsApproved = 0
+                  AND q.IsActive = 1
+                  AND (@EmployeeId = 0 OR q.EmployeeId = @EmployeeId)
+                  AND IsLive = 0";
 
                 var parameters = new
                 {
                     ContentIndexId = request.ContentIndexId,
-                    IndexTypeId = request.IndexTypeId
+                    IndexTypeId = request.IndexTypeId,
+                    request.EmployeeId
                 };
 
                 var data = await _connection.QueryAsync<dynamic>(sql, parameters);
@@ -699,7 +837,7 @@ namespace Schools_API.Repository.Implementations
                 LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
                 LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
                 LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
-                WHERE q.QuestionCode = @QuestionCode AND q.IsActive = 1";
+                WHERE q.QuestionCode = @QuestionCode AND q.IsActive = 1 AND IsLive = 0";
 
                 var parameters = new { QuestionCode = questionCode };
 
@@ -774,7 +912,8 @@ namespace Schools_API.Repository.Implementations
                 string updateSql = @"
         UPDATE [tblQuestion]
         SET 
-           IsRejected = @IsRejected
+           IsRejected = @IsRejected,
+           IsApproved = 0 
         WHERE
            QuestionCode = @QuestionCode AND IsActive = 1";
 
@@ -848,7 +987,7 @@ namespace Schools_API.Repository.Implementations
                     // Update the question status to approved
                     string updateQuestionSql = @"
             UPDATE [tblQuestion]
-            SET IsApproved = @IsApproved
+            SET IsApproved = @IsApproved, IsRejected = 0
             WHERE QuestionCode = @QuestionCode AND IsActive = 1";
 
                     var updateParameters = new
@@ -924,13 +1063,14 @@ namespace Schools_API.Repository.Implementations
                 {
                     _connection.Open();
                 }
+
                 using (var transaction = _connection.BeginTransaction())
                 {
                     // Check if the question is already assigned to a profiler with active status based on QuestionCode
                     string checkSql = @"
-            SELECT QPID
-            FROM tblQuestionProfiler
-            WHERE QuestionCode = @QuestionCode AND Status = 1";
+                SELECT QPID
+                FROM tblQuestionProfiler
+                WHERE QuestionCode = @QuestionCode AND Status = 1";
 
                     var existingProfiler = await _connection.QueryFirstOrDefaultAsync<int?>(checkSql, new { request.QuestionCode }, transaction);
 
@@ -938,17 +1078,18 @@ namespace Schools_API.Repository.Implementations
                     if (existingProfiler.HasValue)
                     {
                         string updateSql = @"
-                UPDATE tblQuestionProfiler
-                SET Status = 0
-                WHERE QPID = @QPID";
+                    UPDATE tblQuestionProfiler
+                    SET Status = 0
+                    WHERE QPID = @QPID";
 
                         await _connection.ExecuteAsync(updateSql, new { QPID = existingProfiler.Value }, transaction);
                     }
-                    // Fetch the Questionid from the main table using QuestionCode and IsActive = 1
+
+                    // Fetch the QuestionId from the main table using QuestionCode and IsActive = 1
                     string fetchQuestionIdSql = @"
-            SELECT QuestionId
-            FROM tblQuestion
-            WHERE QuestionCode = @QuestionCode AND IsActive = 1";
+                SELECT QuestionId
+                FROM tblQuestion
+                WHERE QuestionCode = @QuestionCode AND IsActive = 1";
 
                     var questionId = await _connection.QueryFirstOrDefaultAsync<int?>(fetchQuestionIdSql, new { request.QuestionCode }, transaction);
 
@@ -956,10 +1097,19 @@ namespace Schools_API.Repository.Implementations
                     {
                         return new ServiceResponse<string>(false, "Question not found or inactive", string.Empty, 404);
                     }
+
+                    // Update the tblQuestion to set IsRejected and IsApproved to 0
+                    string updateQuestionSql = @"
+                UPDATE tblQuestion
+                SET IsRejected = 0, IsApproved = 0
+                WHERE QuestionId = @QuestionId";
+
+                    await _connection.ExecuteAsync(updateQuestionSql, new { QuestionId = questionId.Value }, transaction);
+
                     // Insert a new record for the new profiler with ApprovedStatus = false and Status = true
                     string insertSql = @"
-            INSERT INTO tblQuestionProfiler (Questionid, QuestionCode, EmpId, ApprovedStatus, Status, AssignedDate)
-            VALUES (@Questionid, @QuestionCode, @EmpId, 0, 1, @AssignedDate)";
+                INSERT INTO tblQuestionProfiler (Questionid, QuestionCode, EmpId, ApprovedStatus, Status, AssignedDate)
+                VALUES (@Questionid, @QuestionCode, @EmpId, 0, 1, @AssignedDate)";
 
                     await _connection.ExecuteAsync(insertSql, new { Questionid = questionId.Value, request.QuestionCode, request.EmpId, AssignedDate = DateTime.Now }, transaction);
 
@@ -978,6 +1128,68 @@ namespace Schools_API.Repository.Implementations
                 _connection.Close();
             }
         }
+        //public async Task<ServiceResponse<string>> AssignQuestionToProfiler(QuestionProfilerRequest request)
+        //{
+        //    try
+        //    {
+        //        if (_connection.State != ConnectionState.Open)
+        //        {
+        //            _connection.Open();
+        //        }
+        //        using (var transaction = _connection.BeginTransaction())
+        //        {
+        //            // Check if the question is already assigned to a profiler with active status based on QuestionCode
+        //            string checkSql = @"
+        //    SELECT QPID
+        //    FROM tblQuestionProfiler
+        //    WHERE QuestionCode = @QuestionCode AND Status = 1";
+
+        //            var existingProfiler = await _connection.QueryFirstOrDefaultAsync<int?>(checkSql, new { request.QuestionCode }, transaction);
+
+        //            // If the question is already assigned, update the status of the current profiler to false
+        //            if (existingProfiler.HasValue)
+        //            {
+        //                string updateSql = @"
+        //        UPDATE tblQuestionProfiler
+        //        SET Status = 0
+        //        WHERE QPID = @QPID";
+
+        //                await _connection.ExecuteAsync(updateSql, new { QPID = existingProfiler.Value }, transaction);
+        //            }
+        //            // Fetch the Questionid from the main table using QuestionCode and IsActive = 1
+        //            string fetchQuestionIdSql = @"
+        //    SELECT QuestionId
+        //    FROM tblQuestion
+        //    WHERE QuestionCode = @QuestionCode AND IsActive = 1";
+
+        //            var questionId = await _connection.QueryFirstOrDefaultAsync<int?>(fetchQuestionIdSql, new { request.QuestionCode }, transaction);
+
+        //            if (!questionId.HasValue)
+        //            {
+        //                return new ServiceResponse<string>(false, "Question not found or inactive", string.Empty, 404);
+        //            }
+        //            // Insert a new record for the new profiler with ApprovedStatus = false and Status = true
+        //            string insertSql = @"
+        //    INSERT INTO tblQuestionProfiler (Questionid, QuestionCode, EmpId, ApprovedStatus, Status, AssignedDate)
+        //    VALUES (@Questionid, @QuestionCode, @EmpId, 0, 1, @AssignedDate)";
+
+        //            await _connection.ExecuteAsync(insertSql, new { Questionid = questionId.Value, request.QuestionCode, request.EmpId, AssignedDate = DateTime.Now }, transaction);
+
+        //            // Commit the transaction
+        //            transaction.Commit();
+        //        }
+
+        //        return new ServiceResponse<string>(true, "Question successfully assigned to profiler", string.Empty, 200);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+        //    }
+        //    finally
+        //    {
+        //        _connection.Close();
+        //    }
+        //}
         public async Task<ServiceResponse<QuestionProfilerResponse>> GetQuestionProfilerDetails(string QuestionCode)
         {
             try
@@ -1477,6 +1689,16 @@ namespace Schools_API.Repository.Implementations
 
             var questionIds = _connection.Query<int>(query, new { QuestionCode });
             return questionIds.ToList();
+        }
+        private string GenerateCode()
+        {
+            return DateTime.Now.ToString("yyyyMMddHHmmssff");
+        }
+        private string? GetRoleName(int roleId)
+        {
+            // Fetch role details based on the roleId
+            var role = _connection.QuerySingleOrDefault<dynamic>("SELECT RoleName FROM tblRole WHERE RoleID = @RoleId", new { RoleId = roleId });
+            return role?.RoleName; // Return the role name or null if not found
         }
     }
 }

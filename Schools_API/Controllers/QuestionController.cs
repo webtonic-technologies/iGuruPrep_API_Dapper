@@ -184,5 +184,51 @@ namespace Schools_API.Controllers
 
             return Ok(data);
         }
+        [HttpGet("GetAssignedQuestionsCount/{EmployeeId}")]
+        public async Task<IActionResult> GetAssignedQuestionsCount(int EmployeeId)
+        {
+            var data = await _questionServices.GetAssignedQuestionsCount(EmployeeId);
+
+            if (data == null)
+            {
+                return NotFound("No data found.");
+            }
+            return Ok(data);
+        }
+        [HttpGet("GetAllLiveQuestionsList/{SubjectId}")]
+        public async Task<IActionResult> GetAllLiveQuestionsList(int SubjectId)
+        {
+            var data = await _questionServices.GetAllLiveQuestionsList(SubjectId);
+
+            if (data == null)
+            {
+                return NotFound("No data found.");
+            }
+            return Ok(data);
+        }
+        [HttpPut("MarkQuestionLive/{questionCode}")]
+        public async Task<IActionResult> MarkQuestionLive(string questionCode)
+        {
+            try
+            {
+                if (questionCode == null)
+                {
+                    return BadRequest(" data is null.");
+                }
+
+                var data = await _questionServices.MarkQuestionLive(questionCode);
+
+                if (data == null)
+                {
+                    return StatusCode(500, "A problem happened while handling your request.");
+                }
+
+                return Ok(data);
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
     }
 }

@@ -27,6 +27,7 @@ namespace Schools_API.DTOs.Response
         public string Explanation { get; set; } = string.Empty;
         public string ExtraInformation { get; set; } = string.Empty;
         public bool IsActive { get; set; } = true;
+        public string userRole {  get; set; } = string.Empty;
         public List<QIDCourseResponse>? QIDCourses { get; set; }
         public List<QuestionSubjectMappingResponse>? QuestionSubjectMappings { get; set; }
         public List<AnswerMultipleChoiceCategory>? AnswerMultipleChoiceCategories { get; set; }
