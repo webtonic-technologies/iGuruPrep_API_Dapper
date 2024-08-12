@@ -37,17 +37,11 @@
         public int? ModifiedBy { get; set; }
         public DateTime? ModifiedDate { get; set; }
     }
-    public class SyllabusDetailsResponseDTO
+    public class SyllabusDetailsResponse
     {
         public int SyllabusId { get; set; }
         public int SubjectId { get; set; }
-        public List<SyllabusDetailsResponse>? SyllabusDetails { get; set; }
-    }
-    public class SyllabusDetailsResponse
-    {
-       
-        public int SyllabusID { get; set; }
-        public List<ContentIndexResponse>? ContentIndexResponses { get; set; }
+        public List<ContentIndexResponses>? ContentIndexResponses { get; set; }
      
     }
 }

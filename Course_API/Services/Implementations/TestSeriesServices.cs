@@ -40,6 +40,18 @@ namespace Course_API.Services.Implementations
             }
         }
 
+        public async Task<ServiceResponse<List<ContentIndexResponses>>> GetSyllabusDetailsBySubject(SyllabusDetailsRequest request)
+        {
+            try
+            {
+                return await _testSeriesRepository.GetSyllabusDetailsBySubject(request);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<ContentIndexResponses>>(false, ex.Message, [], 500);
+            }
+        }
+
         public async Task<ServiceResponse<TestSeriesResponseDTO>> GetTestSeriesById(int TestSeriesId)
         {
             try
@@ -49,6 +61,18 @@ namespace Course_API.Services.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<TestSeriesResponseDTO>(false, ex.Message, new TestSeriesResponseDTO(), 500);
+            }
+        }
+
+        public async Task<ServiceResponse<List<TestSeriesResponseDTO>>> GetTestSeriesList(TestSeriesListRequest request)
+        {
+            try
+            {
+                return await _testSeriesRepository.GetTestSeriesList(request);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<TestSeriesResponseDTO>>(false, ex.Message, [], 500);
             }
         }
 

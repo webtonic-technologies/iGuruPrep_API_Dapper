@@ -143,5 +143,25 @@ namespace Course_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
+        [HttpGet("GetAllContentIndexList/{SubjectId}")]
+        public async Task<IActionResult> GetAllContentIndexList(int SubjectId)
+        {
+            try
+            {
+                var data = await _syllabusServices.GetAllContentIndexList(SubjectId);
+                if (data != null)
+                {
+                    return Ok(data);
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
     }
 }

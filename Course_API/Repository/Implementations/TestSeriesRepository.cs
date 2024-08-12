@@ -28,14 +28,16 @@ namespace Course_API.Repository.Implementations
                         TestPatternName, Duration, Status, APID, TotalNoOfQuestions, ExamTypeID,
                         MethodofAddingType, StartDate, StartTime, ResultDate, ResultTime, 
                         EmployeeID, NameOfExam, RepeatedExams, TypeOfTestSeries, 
-                        createdon, createdby
+                        createdon, createdby, RepeatExamStartDate , RepeatExamEndDate ,
+                        RepeatExamStarttime , RepeatExamResulttimeId
                     ) 
                     VALUES 
                     (
                         @TestPatternName, @Duration, @Status, @APID, @TotalNoOfQuestions, @ExamTypeID,
                         @MethodofAddingType, @StartDate, @StartTime, @ResultDate, @ResultTime, 
                         @EmployeeID, @NameOfExam, @RepeatedExams, @TypeOfTestSeries, 
-                        @createdon, @createdby
+                        @createdon, @createdby, @RepeatExamStartDate , @RepeatExamEndDate ,
+                        @RepeatExamStarttime , @RepeatExamResulttimeId
                     ); 
                     SELECT CAST(SCOPE_IDENTITY() as int);";
                     var parameters = new
@@ -56,7 +58,11 @@ namespace Course_API.Repository.Implementations
                         request.TypeOfTestSeries,
                         createdon = DateTime.Now,
                         request.createdby,
-                        request.ExamTypeID
+                        request.ExamTypeID,
+                        request.RepeatExamEndDate,
+                        request.RepeatExamStartDate,
+                        request.RepeatExamStarttime,
+                        request.RepeatExamResulttimeId
                     };
                     int newId = await _connection.QuerySingleAsync<int>(insertQuery, parameters);
                     if (newId > 0)
@@ -106,7 +112,11 @@ namespace Course_API.Repository.Implementations
                         TypeOfTestSeries = @TypeOfTestSeries,
                         modifiedon = @modifiedon,
                         modifiedby = @modifiedby,
-                        ExamTypeID = @ExamTypeID
+                        ExamTypeID = @ExamTypeID,
+                        RepeatExamEndDate = @RepeatExamEndDate,
+                        RepeatExamStartDate = @RepeatExamStartDate,
+                        RepeatExamStarttime = @RepeatExamStarttime,
+                        RepeatExamResulttimeId = @RepeatExamResulttimeId
                     WHERE TestSeriesId = @TestSeriesId;";
                     var parameters = new
                     {
@@ -127,7 +137,11 @@ namespace Course_API.Repository.Implementations
                         modifiedon = DateTime.Now,
                         request.modifiedby,
                         request.TestSeriesId,
-                        request.ExamTypeID
+                        request.ExamTypeID,
+                        request.RepeatExamEndDate,
+                        request.RepeatExamStartDate,
+                        request.RepeatExamStarttime,
+                        request.RepeatExamResulttimeId
                     };
                     int rowsAffected = await _connection.ExecuteAsync(updateQuery, parameters);
                     if (rowsAffected > 0)
@@ -193,12 +207,18 @@ namespace Course_API.Repository.Implementations
                 ts.createdon,
                 ts.createdby,
                 ts.modifiedon,
-                ts.modifiedby
+                ts.modifiedby,
+                ts.RepeatExamStartDate,
+                ts.RepeatExamEndDate,
+                ts.RepeatExamStarttime,
+                ts.RepeatExamResulttimeId.
+                rt.ResultTime as RepeatedExamResultTime
             FROM tblTestSeries ts
             JOIN tblCategory ap ON ts.APID = ap.APID
             JOIN tblEmployee emp ON ts.EmployeeID = emp.EmployeeID
             JOIN tblTypeOfTestSeries tts ON ts.TypeOfTestSeries = tts.TTSId
             JOIN tblExamType ttt ON ts.ExamTypeID = ttt.ExamTypeID
+            JOIN tblTestSeriesResultTime rt ON ts.RepeatExamResulttimeId = rt.ResultTimeId
             WHERE ts.TestSeriesId = @TestSeriesId";
 
                 var testSeries = await _connection.QueryFirstOrDefaultAsync<TestSeriesResponseDTO>(query, new { TestSeriesId });
@@ -268,6 +288,205 @@ namespace Course_API.Repository.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<TestSeriesResponseDTO>(false, ex.Message, new TestSeriesResponseDTO(), 500);
+            }
+        }
+        public async Task<ServiceResponse<List<TestSeriesResponseDTO>>> GetTestSeriesList(TestSeriesListRequest request)
+        {
+            try
+            {
+                // Construct the SQL query with parameters
+                var query = @"
+        SELECT 
+            ts.TestSeriesId,
+            ts.TestPatternName,
+            ts.Duration,
+            ts.Status,
+            ts.APID,
+            ap.APName AS APName,
+            ts.TotalNoOfQuestions,
+            ts.MethodofAddingType,
+            ts.StartDate,
+            ts.StartTime,
+            ts.ResultDate,
+            ts.ResultTime,
+            ts.EmployeeID,
+            emp.EmpFirstName AS EmpFirstName,
+            ts.NameOfExam,
+            ts.RepeatedExams,
+            ts.TypeOfTestSeries,
+            tts.TestSeriesName AS TypeOfTestSeriesName,
+            ts.ExamTypeID,
+            ttt.ExamTypeName AS ExamTypeName,
+            ts.createdon,
+            ts.createdby,
+            ts.modifiedon,
+            ts.modifiedby,
+            ts.RepeatExamStartDate,
+            ts.RepeatExamEndDate,
+            ts.RepeatExamStarttime,
+            ts.RepeatExamResulttimeId,
+            rt.ResultTime AS RepeatedExamResultTime
+        FROM tblTestSeries ts
+        JOIN tblCategory ap ON ts.APID = ap.APID
+        JOIN tblEmployee emp ON ts.EmployeeID = emp.EmployeeID
+        JOIN tblTypeOfTestSeries tts ON ts.TypeOfTestSeries = tts.TTSId
+        JOIN tblExamType ttt ON ts.ExamTypeID = ttt.ExamTypeID
+        JOIN tblTestSeriesResultTime rt ON ts.RepeatExamResulttimeId = rt.ResultTimeId
+        LEFT JOIN tblTestSeriesClass tc ON ts.TestSeriesId = tc.TestSeriesId
+        LEFT JOIN tblTestSeriesCourse tco ON ts.TestSeriesId = tco.TestSeriesId
+        LEFT JOIN tblTestSeriesBoard tb ON ts.TestSeriesId = tb.TestSeriesId
+        WHERE 1=1";
+
+                // Apply filters dynamically
+                if (request.APId > 0)
+                {
+                    query += " AND ts.APID = @APId";
+                }
+                if (request.ClassId > 0)
+                {
+                    query += " AND tc.ClassId = @ClassId";
+                }
+                if (request.CourseId > 0)
+                {
+                    query += " AND tco.CourseId = @CourseId";
+                }
+                if (request.BoardId > 0)
+                {
+                    query += " AND tb.BoardId = @BoardId";
+                }
+                if (request.ExamTypeId > 0)
+                {
+                    query += " AND ts.ExamTypeID = @ExamTypeId";
+                }
+                if (request.TypeOfTestSeries > 0)
+                {
+                    query += " AND ts.TypeOfTestSeries = @TypeOfTestSeries";
+                }
+                if (!string.IsNullOrEmpty(request.ExamStatus))
+                {
+                    query += " AND (@ExamStatus IS NULL OR " +
+                              "(ts.RepeatedExams = 1 AND ts.RepeatExamStartDate <= @Date AND ts.RepeatExamEndDate >= @Date) OR " +
+                              "(ts.RepeatedExams = 0 AND ts.StartDate <= @Date AND DATEADD(MINUTE, CAST(ts.Duration AS INT), ts.StartDate) >= @Date))";
+                }
+
+                // Prepare the parameters for the query
+                var parameters = new
+                {
+                    APId = request.APId == 0 ? (int?)null : request.APId,
+                    ClassId = request.ClassId == 0 ? (int?)null : request.ClassId,
+                    CourseId = request.CourseId == 0 ? (int?)null : request.CourseId,
+                    BoardId = request.BoardId == 0 ? (int?)null : request.BoardId,
+                    ExamTypeId = request.ExamTypeId == 0 ? (int?)null : request.ExamTypeId,
+                    TypeOfTestSeries = request.TypeOfTestSeries == 0 ? (int?)null : request.TypeOfTestSeries,
+                    ExamStatus = string.IsNullOrEmpty(request.ExamStatus) ? (string)null : request.ExamStatus,
+                    Date = request.Date
+                };
+
+                // Execute the query
+                var testSeriesList = await _connection.QueryAsync<TestSeriesResponseDTO>(query, parameters);
+
+                if (testSeriesList == null || !testSeriesList.Any())
+                {
+                    return new ServiceResponse<List<TestSeriesResponseDTO>>(true, "No test series found", new List<TestSeriesResponseDTO>(), 200);
+                }
+
+                // Fetch related data for each test series
+                foreach (var testSeries in testSeriesList)
+                {
+                    // Determine the exam status based on repeated exams
+                    if (testSeries.RepeatedExams)
+                    {
+                        if (DateTime.Now < testSeries.RepeatExamStartDate)
+                        {
+                            testSeries.ExamStatus = "Upcoming";
+                        }
+                        else if (DateTime.Now >= testSeries.RepeatExamStartDate && DateTime.Now <= testSeries.RepeatExamEndDate)
+                        {
+                            testSeries.ExamStatus = "Ongoing";
+                        }
+                        else
+                        {
+                            testSeries.ExamStatus = "Completed";
+                        }
+                    }
+                    else
+                    {
+                        DateTime startDateTime = testSeries.StartDate.Value.Add(TimeSpan.Parse(testSeries.StartTime));
+                        if (DateTime.Now < startDateTime)
+                        {
+                            testSeries.ExamStatus = "Upcoming";
+                        }
+                        else if (DateTime.Now >= startDateTime && DateTime.Now <= testSeries.ResultDate)
+                        {
+                            testSeries.ExamStatus = "Ongoing";
+                        }
+                        else
+                        {
+                            testSeries.ExamStatus = "Completed";
+                        }
+                    }
+
+                    // Fetch related data
+                    var testSeriesBoards = GetListOfTestSeriesBoards(testSeries.TestSeriesId);
+                    var testSeriesClasses = GetListOfTestSeriesClasses(testSeries.TestSeriesId);
+                    var testSeriesCourses = GetListOfTestSeriesCourse(testSeries.TestSeriesId);
+                    var testSeriesSubjects = GetListOfTestSeriesSubjects(testSeries.TestSeriesId);
+                    var testSeriesContentIndexes = GetListOfTestSeriesSubjectIndex(testSeries.TestSeriesId);
+                    var testSeriesQuestionsSections = GetTestSeriesQuestionSection(testSeries.TestSeriesId);
+                    var testSeriesInstructions = GetListOfTestSeriesInstructions(testSeries.TestSeriesId);
+
+                    // Initialize the SubjectDetails list
+                    var testSeriesSubjectDetailsList = new List<TestSeriesSubjectDetails>();
+
+                    // Populate TestSeriesSubjectDetails with content indexes and questions section
+                    foreach (var subject in testSeriesSubjects)
+                    {
+                        var subjectContentIndexes = testSeriesContentIndexes
+                            .Where(ci => ci.SubjectId == subject.SubjectID)
+                            .ToList();
+
+                        var subjectQuestionsSections = testSeriesQuestionsSections
+                            .Where(qs => qs.SubjectId == subject.SubjectID)
+                            .ToList();
+
+                        var subjectDetails = new TestSeriesSubjectDetails
+                        {
+                            SubjectID = subject.SubjectID,
+                            SubjectName = subject.SubjectName,
+                            TestSeriesContentIndexes = subjectContentIndexes,
+                            TestSeriesQuestionsSection = subjectQuestionsSections
+                        };
+
+                        testSeriesSubjectDetailsList.Add(subjectDetails);
+                    }
+
+                    // Map the fetched data to the TestSeriesResponseDTO
+                    testSeries.TestSeriesBoard = testSeriesBoards;
+                    testSeries.TestSeriesClasses = testSeriesClasses;
+                    testSeries.TestSeriesCourses = testSeriesCourses;
+                    testSeries.TestSeriesSubjectDetails = testSeriesSubjectDetailsList; // Populate SubjectDetails
+                    testSeries.TestSeriesInstruction = testSeriesInstructions;
+
+                    // Fetch TestSeriesQuestions based on TestSeriesQuestionsSection
+                    if (testSeriesQuestionsSections != null && testSeriesQuestionsSections.Any())
+                    {
+                        testSeries.TestSeriesQuestions = new List<TestSeriesQuestions>();
+                        foreach (var section in testSeriesQuestionsSections)
+                        {
+                            var questions = GetListOfTestSeriesQuestion(section.testseriesQuestionSectionid);
+                            if (questions != null)
+                            {
+                                testSeries.TestSeriesQuestions.AddRange(questions);
+                            }
+                        }
+                    }
+                }
+
+                return new ServiceResponse<List<TestSeriesResponseDTO>>(true, "Success", testSeriesList.ToList(), 200);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<TestSeriesResponseDTO>>(false, ex.Message, new List<TestSeriesResponseDTO>(), 500);
             }
         }
         public async Task<ServiceResponse<string>> TestSeriesContentIndexMapping(List<TestSeriesContentIndex> request, int TestSeriesId)
@@ -449,6 +668,214 @@ namespace Course_API.Repository.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<List<QuestionResponseDTO>> (false, ex.Message, [], 500);
+            }
+        }
+        public async Task<ServiceResponse<List<ContentIndexResponses>>> GetSyllabusDetailsBySubject(SyllabusDetailsRequest request)
+        {
+            try
+            {
+                // SQL Query
+                string sql = @"
+            SELECT sd.*, s.*
+            FROM [iGuruPrep].[dbo].[tblSyllabus] s
+            JOIN [iGuruPrep].[dbo].[tblSyllabusDetails] sd ON s.SyllabusId = sd.SyllabusID
+            WHERE s.APID = @APId
+            AND (s.BoardID = @BoardId OR @BoardId = 0)
+            AND (s.ClassId = @ClassId OR @ClassId = 0)
+            AND (s.CourseId = @CourseId OR @CourseId = 0)
+            AND (sd.SubjectId = @SubjectId OR @SubjectId = 0)";
+
+                var syllabusDetails = await _connection.QueryAsync<dynamic>(sql, new
+                {
+                    request.APId,
+                    request.BoardId,
+                    request.ClassId,
+                    request.CourseId,
+                    request.SubjectId
+                });
+
+                // Process the results to create a hierarchical structure
+                var contentIndexResponse = new List<ContentIndexResponses>();
+
+                foreach (var detail in syllabusDetails)
+                {
+                    int indexTypeId = detail.IndexTypeId;
+                    if (indexTypeId == 1) // Chapter
+                    {
+                        string getchapter = @"select * from tblContentIndexChapters where ContentIndexId = @ContentIndexId;";
+                        var data = await _connection.QueryFirstOrDefaultAsync<ContentIndexResponses>(getchapter, new { ContentIndexId = detail.ContentIndexId });
+                        //query to fetch chapters data if you get response then map
+                        var chapter = new ContentIndexResponses
+                        {
+                            ContentIndexId = data.ContentIndexId,
+                            SubjectId = data.SubjectId,
+                            ContentName_Chapter = data.ContentName_Chapter,
+                            Status = data.Status,
+                            IndexTypeId = indexTypeId,
+                            BoardId = data.BoardId,
+                            ClassId = data.ClassId,
+                            CourseId = data.CourseId,
+                            APID = data.APID,
+                            CreatedOn = data.CreatedOn,
+                            CreatedBy = data.CreatedBy,
+                            ModifiedOn = data.ModifiedOn,
+                            ModifiedBy = data.ModifiedBy,
+                            EmployeeId = data.EmployeeId,
+                            ExamTypeId = data.ExamTypeId,
+                            IsActive = data.Status, // Assuming Status is used for IsActive
+                            ChapterCode = data.ChapterCode,
+                            DisplayName = data.DisplayName,
+                            DisplayOrder = data.DisplayOrder,
+                            ContentIndexTopics = new List<ContentIndexTopicsResponse>()
+                        };
+
+                        // Add to response list
+                        contentIndexResponse.Add(chapter);
+                    }
+                    else if (indexTypeId == 2) // Topic
+                    {
+                        string gettopic = @"select * from tblContentIndexTopics where ContInIdTopic = @ContentIndexId;";
+                        var data = await _connection.QueryFirstOrDefaultAsync<ContentIndexTopicsResponse>(gettopic, new { ContentIndexId = detail.ContentIndexId });
+                        var topic = new ContentIndexTopicsResponse
+                        {
+                            ContInIdTopic = data.ContInIdTopic,
+                            ContentIndexId = data.ContentIndexId,
+                            ContentName_Topic = data.ContentName_Topic,
+                            Status = data.Status,
+                            IndexTypeId = indexTypeId,
+                            CreatedOn = data.CreatedOn,
+                            CreatedBy = data.CreatedBy,
+                            ModifiedOn = data.ModifiedOn,
+                            ModifiedBy = data.ModifiedBy,
+                            EmployeeId = data.EmployeeId,
+                            IsActive = data.Status,
+                            TopicCode = data.TopicCode,
+                            DisplayName = data.DisplayName,
+                            DisplayOrder = data.DisplayOrder,
+                            ChapterCode = data.ChapterCode,
+                            ContentIndexSubTopics = new List<ContentIndexSubTopicResponse>()
+                        };
+
+                        // Check if the chapter exists in the response
+                        var existingChapter = contentIndexResponse.FirstOrDefault(c => c.ChapterCode == data.ChapterCode);
+                        if (existingChapter != null)
+                        {
+                            existingChapter.ContentIndexTopics.Add(topic);
+                        }
+                        else
+                        {
+                            // Create a new chapter entry if it doesn't exist
+                            var newChapter = new ContentIndexResponses
+                            {
+                                ChapterCode = detail.ChapterCode,
+                                ContentIndexTopics = new List<ContentIndexTopicsResponse> { topic }
+                            };
+                            contentIndexResponse.Add(newChapter);
+                        }
+                    }
+                    else if (indexTypeId == 3) // SubTopic
+                    {
+                        string getsubtopic = @"select * from tblContentIndexSubTopics where ContInIdSubTopic = @ContentIndexId;";
+                        var data = await _connection.QueryFirstOrDefaultAsync<ContentIndexSubTopicResponse>(getsubtopic, new { ContentIndexId = detail.ContentIndexId });
+                        var subTopic = new ContentIndexSubTopicResponse
+                        {
+                            ContInIdSubTopic = data.ContInIdSubTopic,
+                            ContInIdTopic = data.ContInIdTopic,
+                            ContentName_SubTopic = data.ContentName_SubTopic,
+                            Status = data.Status,
+                            IndexTypeId = indexTypeId,
+                            CreatedOn = data.CreatedOn,
+                            CreatedBy = data.CreatedBy,
+                            ModifiedOn = data.ModifiedOn,
+                            ModifiedBy = data.ModifiedBy,
+                            EmployeeId = data.EmployeeId,
+                            IsActive = data.Status,
+                            SubTopicCode = data.SubTopicCode,
+                            DisplayName = data.DisplayName,
+                            DisplayOrder = data.DisplayOrder,
+                            TopicCode = data.TopicCode
+                        };
+
+                        // Find the corresponding topic
+                        var existingTopic = contentIndexResponse
+                            .SelectMany(c => c.ContentIndexTopics)
+                            .FirstOrDefault(t => t.TopicCode == data.TopicCode);
+
+                        if (existingTopic != null)
+                        {
+                            existingTopic.ContentIndexSubTopics.Add(subTopic);
+                        }
+                    }
+                }
+
+                return new ServiceResponse<List<ContentIndexResponses>>(true, "Syllabus details retrieved successfully", contentIndexResponse, 200);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<ContentIndexResponses>>(false, ex.Message, new List<ContentIndexResponses>(), 500);
+            }
+        }
+        public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetAutoGeneratedQuestionList(QuestionListRequest request)
+        {
+            try
+            {
+                // Define the SQL query to fetch all relevant questions based on the request criteria
+                string query = @"
+            SELECT 
+                [QuestionId],
+                [QuestionDescription],
+                [QuestionFormula],
+                [QuestionTypeId],
+                [ApprovedStatus],
+                [ApprovedBy],
+                [ReasonNote],
+                [Status],
+                [CreatedBy],
+                [CreatedOn],
+                [ModifiedBy],
+                [ModifiedOn],
+                [Verified],
+                [courseid],
+                [boardid],
+                [classid],
+                [subjectID],
+                [Rejectedby],
+                [RejectedReason],
+                [IndexTypeId],
+                [ContentIndexId],
+                [EmployeeId],
+                [ExamTypeId],
+                [IsActive]
+            FROM 
+                [iGuruPrep].[dbo].[tblQuestion]
+            WHERE 
+                IsActive = 1 
+                AND IsRejected = 0 
+                AND (BoardId = @BoardId OR @BoardId = 0)
+                AND (ClassId = @ClassId OR @ClassId = 0)
+                AND (CourseId = @CourseId OR @CourseId = 0)
+                AND (ExamTypeId = @ExamTypeId OR @ExamTypeId = 0)
+                AND (SubjectId = @SubjectId OR @SubjectId = 0);"; // Fetch all relevant questions
+
+                // Fetch the data
+                var questions = await _connection.QueryAsync<QuestionResponseDTO>(query, new
+                {
+                    BoardId = request.BoardId,
+                    ClassId = request.ClassId,
+                    CourseId = request.CourseId,
+                    ExamTypeId = request.ExamTypeId,
+                    SubjectId = request.SubjectId
+                });
+
+                // Randomly select 30 questions from the fetched results
+                var randomQuestions = questions.OrderBy(q => Guid.NewGuid()).Take(30).ToList();
+
+                // Return the randomly selected questions
+                return new ServiceResponse<List<QuestionResponseDTO>>(true, "Operation Successful", randomQuestions, 200);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, new List<QuestionResponseDTO>(), 500);
             }
         }
         //get records

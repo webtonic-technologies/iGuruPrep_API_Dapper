@@ -241,178 +241,124 @@ namespace Course_API.Repository.Implementations
                 return new ServiceResponse<List<ContentMasterResponseDTO>>(false, ex.Message, new List<ContentMasterResponseDTO>(), 500);
             }
         }
-
-        //public async Task<ServiceResponse<List<ContentMasterResponseDTO>>> GetContentList(GetAllContentListRequest request)
-        //{
-        //    try
-        //    {
-        //        string countSql = @"SELECT COUNT(*) FROM [tblContentMaster]";
-        //        int totalCount = await _connection.ExecuteScalarAsync<int>(countSql);
-
-        //        string selectQuery = @"
-        //        SELECT cm.contentid, cm.boardId, b.BoardName, cm.classId, cl.ClassName, cm.courseId, c.CourseName, cm.subjectId, s.SubjectName, cm.fileName, cm.PathURL, cm.createdon, cm.createdby, cm.modifiedon, cm.modifiedby,
-        //               cm.IndexTypeId, it.IndexType as IndexTypeName, cm.ExamTypeId, et.ExamTypeName, cm.APId, a.APName, cm.EmployeeId, e.EmpFirstName as EmployeeName , cm.ContentIndexId,
-        //               CASE 
-        //                   WHEN cm.IndexTypeId = 1 THEN ci.ContentName_Chapter
-        //                   WHEN cm.IndexTypeId = 2 THEN ct.ContentName_Topic
-        //                   WHEN cm.IndexTypeId = 3 THEN cst.ContentName_SubTopic
-        //               END AS ContentIndexName
-        //        FROM tblContentMaster cm
-        //        LEFT JOIN tblBoard b ON cm.boardId = b.BoardId
-        //        LEFT JOIN tblClass cl ON cm.classId = cl.ClassId
-        //        LEFT JOIN tblCourse c ON cm.courseId = c.CourseId
-        //        LEFT JOIN tblSubject s ON cm.subjectId = s.SubjectId
-        //        LEFT JOIN tblExamType et ON cm.ExamTypeId = et.ExamTypeId
-        //        LEFT JOIN tblCategory a ON cm.APId = a.APId
-        //        LEFT JOIN tblEmployee e ON cm.EmployeeId = e.EmployeeId
-        //        LEFT JOIN tblQBIndexType it ON cm.IndexTypeId = it.IndexId
-        //        LEFT JOIN tblContentIndexChapters ci ON cm.ContentIndexId = ci.ContentIndexId AND cm.IndexTypeId = 1
-        //        LEFT JOIN tblContentIndexTopics ct ON cm.ContentIndexId = ct.ContInIdTopic AND cm.IndexTypeId = 2
-        //        LEFT JOIN tblContentIndexSubTopics cst ON cm.ContentIndexId = cst.ContInIdSubTopic AND cm.IndexTypeId = 3
-        //        ORDER BY cm.contentid
-        //        OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY";
-
-        //        int offset = (request.PageNumber - 1) * request.PageSize;
-
-        //        var data = await _connection.QueryAsync<ContentMasterResponseDTO>(selectQuery, new { Offset = offset, request.PageSize });
-
-        //        if (data != null && data.Any())
-        //        {
-        //            foreach (var item in data)
-        //            {
-        //                item.fileName = GetPDF(item.fileName);
-        //                item.PathURL = GetVideo(item.PathURL);
-        //            }
-
-        //            return new ServiceResponse<List<ContentMasterResponseDTO>>(true, "Operation Successful", data.ToList(), 200, totalCount);
-        //        }
-        //        else
-        //        {
-        //            return new ServiceResponse<List<ContentMasterResponseDTO>>(false, "No Records Found", [], 204);
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return new ServiceResponse<List<ContentMasterResponseDTO>>(false, ex.Message, [], 500);
-        //    }
-        //}
         public async Task<ServiceResponse<List<ContentIndexResponse>>> GetAllContentIndexList(ContentIndexRequestDTO request)
         {
-            try
-            {
-                // Base query to fetch the syllabus based on filters
-                string syllabusQuery = @"
-            SELECT * 
-            FROM [tblSyllabus] 
-            WHERE [ClassId] = @ClassId AND [CourseId] = @CourseId AND [BoardID] = @BoardId";
+            throw new NotImplementedException();
+            //try
+            //{
+            //    // Base query to fetch the syllabus based on filters
+            //    string syllabusQuery = @"
+            //SELECT * 
+            //FROM [tblSyllabus] 
+            //WHERE [ClassId] = @ClassId AND [CourseId] = @CourseId AND [BoardID] = @BoardId";
 
-                // Fetch the syllabus based on the given filters
-                var syllabus = await _connection.QueryAsync<Syllabus>(syllabusQuery, new
-                {
-                    ClassId = request.classid,
-                    CourseId = request.courseid,
-                    BoardId = request.boardid
-                });
+            //    // Fetch the syllabus based on the given filters
+            //    var syllabus = await _connection.QueryAsync<Syllabus>(syllabusQuery, new
+            //    {
+            //        ClassId = request.classid,
+            //        CourseId = request.courseid,
+            //        BoardId = request.boardid
+            //    });
 
-                if (!syllabus.Any())
-                {
-                    return new ServiceResponse<List<ContentIndexResponse>>(false, "No syllabus found", new List<ContentIndexResponse>(), StatusCodes.Status204NoContent);
-                }
+            //    if (!syllabus.Any())
+            //    {
+            //        return new ServiceResponse<List<ContentIndexResponse>>(false, "No syllabus found", new List<ContentIndexResponse>(), StatusCodes.Status204NoContent);
+            //    }
 
-                // Prepare a list to hold content index responses
-                var contentIndexResponses = new List<ContentIndexResponse>();
+            //    // Prepare a list to hold content index responses
+            //    var contentIndexResponses = new List<ContentIndexResponse>();
 
-                foreach (var item in syllabus)
-                {
-                    // Fetch syllabus details for each syllabus ID
-                    string syllabusDetailQuery = @"
-                SELECT * 
-                FROM [tblSyllabusDetails] 
-                WHERE [SyllabusID] = @SyllabusID AND [SubjectId] = @SubjectId";
+            //    foreach (var item in syllabus)
+            //    {
+            //        // Fetch syllabus details for each syllabus ID
+            //        string syllabusDetailQuery = @"
+            //    SELECT * 
+            //    FROM [tblSyllabusDetails] 
+            //    WHERE [SyllabusID] = @SyllabusID AND [SubjectId] = @SubjectId";
 
-                    var syllabusDetails = await _connection.QueryAsync<SyllabusDetail>(syllabusDetailQuery, new
-                    {
-                        SyllabusID = item.SyllabusId,
-                        SubjectId = request.SubjectId
-                    });
+            //        var syllabusDetails = await _connection.QueryAsync<SyllabusDetail>(syllabusDetailQuery, new
+            //        {
+            //            SyllabusID = item.SyllabusId,
+            //            SubjectId = request.SubjectId
+            //        });
 
-                    foreach (var detail in syllabusDetails)
-                    {
-                        // Fetch the content index record based on ContentIndexId
-                        string contentIndexQuery = @"
-                    SELECT * 
-                    FROM [tblContentIndexChapters] 
-                    WHERE [ContentIndexId] = @ContentIndexId";
+            //        foreach (var detail in syllabusDetails)
+            //        {
+            //            // Fetch the content index record based on ContentIndexId
+            //            string contentIndexQuery = @"
+            //        SELECT * 
+            //        FROM [tblContentIndexChapters] 
+            //        WHERE [ContentIndexId] = @ContentIndexId";
 
-                        var chapterRecord = await _connection.QuerySingleOrDefaultAsync<ContentIndexResponse>(contentIndexQuery, new
-                        {
-                            ContentIndexId = detail.ContentIndexId
-                        });
+            //            var chapterRecord = await _connection.QuerySingleOrDefaultAsync<ContentIndexResponse>(contentIndexQuery, new
+            //            {
+            //                ContentIndexId = detail.ContentIndexId
+            //            });
 
-                        if (chapterRecord != null)
-                        {
-                            // Map the common fields from the chapter record
-                            var contentIndexResponse = new ContentIndexResponse
-                            {
-                                ContentIndexId = chapterRecord.ContentIndexId,
-                                SubjectId = detail.SubjectId,
-                                APID = item.APID,
-                                CreatedOn = chapterRecord.CreatedOn,
-                                CreatedBy = chapterRecord.CreatedBy,
-                                ModifiedOn = chapterRecord.ModifiedOn,
-                                ModifiedBy = chapterRecord.ModifiedBy,
-                                EmployeeId = chapterRecord.EmployeeId,
-                                Status = chapterRecord.Status,
-                                ChapterCode = chapterRecord.ChapterCode,
-                                ContentName_Chapter = chapterRecord.ContentName_Chapter,
-                                IndexTypeId = chapterRecord.IndexTypeId // Set index type as chapter
-                            };
+            //            if (chapterRecord != null)
+            //            {
+            //                // Map the common fields from the chapter record
+            //                var contentIndexResponse = new ContentIndexResponse
+            //                {
+            //                    ContentIndexId = chapterRecord.ContentIndexId,
+            //                    SubjectId = detail.SubjectId,
+            //                    APID = item.APID,
+            //                    CreatedOn = chapterRecord.CreatedOn,
+            //                    CreatedBy = chapterRecord.CreatedBy,
+            //                    ModifiedOn = chapterRecord.ModifiedOn,
+            //                    ModifiedBy = chapterRecord.ModifiedBy,
+            //                    EmployeeId = chapterRecord.EmployeeId,
+            //                    Status = chapterRecord.Status,
+            //                    ChapterCode = chapterRecord.ChapterCode,
+            //                    ContentName_Chapter = chapterRecord.ContentName_Chapter,
+            //                    IndexTypeId = chapterRecord.IndexTypeId // Set index type as chapter
+            //                };
 
-                            // Fetch topics for the current chapter
-                            string topicsQuery = @"
-                        SELECT * 
-                        FROM [tblContentIndexTopics] 
-                        WHERE [ContentIndexId] = @ContentIndexId";
+            //                // Fetch topics for the current chapter
+            //                string topicsQuery = @"
+            //            SELECT * 
+            //            FROM [tblContentIndexTopics] 
+            //            WHERE [ContentIndexId] = @ContentIndexId";
 
-                            var topics = await _connection.QueryAsync<ContentIndexTopics>(topicsQuery, new
-                            {
-                                ContentIndexId = chapterRecord.ContentIndexId
-                            });
+            //                var topics = await _connection.QueryAsync<ContentIndexTopics>(topicsQuery, new
+            //                {
+            //                    ContentIndexId = chapterRecord.ContentIndexId
+            //                });
 
-                            // Map topics and their subtopics
-                            contentIndexResponse.ContentIndexTopics = new List<ContentIndexTopics>();
-                            foreach (var topic in topics)
-                            {
-                                // Fetch subtopics for the current topic
-                                string subTopicsQuery = "SELECT * FROM [tblContentIndexSubTopics] WHERE [ContInIdTopic] = @ContInIdTopic";
-                                var subTopics = await _connection.QueryAsync<ContentIndexSubTopic>(subTopicsQuery, new
-                                {
-                                    ContInIdTopic = topic.ContInIdTopic
-                                });
+            //                // Map topics and their subtopics
+            //                contentIndexResponse.ContentIndexTopics = new List<ContentIndexTopics>();
+            //                foreach (var topic in topics)
+            //                {
+            //                    // Fetch subtopics for the current topic
+            //                    string subTopicsQuery = "SELECT * FROM [tblContentIndexSubTopics] WHERE [ContInIdTopic] = @ContInIdTopic";
+            //                    var subTopics = await _connection.QueryAsync<ContentIndexSubTopic>(subTopicsQuery, new
+            //                    {
+            //                        ContInIdTopic = topic.ContInIdTopic
+            //                    });
 
-                                // Map the topic properties including subtopics
-                                topic.ContentIndexSubTopics = subTopics.ToList();
-                                contentIndexResponse.ContentIndexTopics.Add(topic);
-                            }
+            //                    // Map the topic properties including subtopics
+            //                    topic.ContentIndexSubTopics = subTopics.ToList();
+            //                    contentIndexResponse.ContentIndexTopics.Add(topic);
+            //                }
 
-                            contentIndexResponses.Add(contentIndexResponse);
-                        }
-                    }
-                }
+            //                contentIndexResponses.Add(contentIndexResponse);
+            //            }
+            //        }
+            //    }
 
-                if (contentIndexResponses.Any())
-                {
-                    return new ServiceResponse<List<ContentIndexResponse>>(true, "Records found", contentIndexResponses, StatusCodes.Status302Found);
-                }
-                else
-                {
-                    return new ServiceResponse<List<ContentIndexResponse>>(false, "Records not found", new List<ContentIndexResponse>(), StatusCodes.Status204NoContent);
-                }
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<List<ContentIndexResponse>>(false, ex.Message, new List<ContentIndexResponse>(), StatusCodes.Status500InternalServerError);
-            }
+            //    if (contentIndexResponses.Any())
+            //    {
+            //        return new ServiceResponse<List<ContentIndexResponse>>(true, "Records found", contentIndexResponses, StatusCodes.Status302Found);
+            //    }
+            //    else
+            //    {
+            //        return new ServiceResponse<List<ContentIndexResponse>>(false, "Records not found", new List<ContentIndexResponse>(), StatusCodes.Status204NoContent);
+            //    }
+            //}
+            //catch (Exception ex)
+            //{
+            //    return new ServiceResponse<List<ContentIndexResponse>>(false, ex.Message, new List<ContentIndexResponse>(), StatusCodes.Status500InternalServerError);
+            //}
         }
         private string PDFUpload(string pdf)
         {

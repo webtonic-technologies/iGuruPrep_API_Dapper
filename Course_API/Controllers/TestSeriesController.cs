@@ -2,7 +2,6 @@ using Course_API.DTOs.Requests;
 using Course_API.Models;
 using Course_API.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using System.Collections.Generic;
 
 namespace Course_API.Controllers
 {
@@ -144,6 +143,46 @@ namespace Course_API.Controllers
             try
             {
                 var data = await _testSeriesServices.TestSeriesInstructionsMapping(request, TestSeriesId);
+                if (data != null)
+                {
+                    return Ok(data);
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
+        [HttpPost("GetSyllabusDetailsBySubject")]
+        public async Task<IActionResult> GetSyllabusDetailsBySubject(SyllabusDetailsRequest request)
+        {
+            try
+            {
+                var data = await _testSeriesServices.GetSyllabusDetailsBySubject(request);
+                if (data != null)
+                {
+                    return Ok(data);
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
+        [HttpPost("GetTestSeriesList")]
+        public async Task<IActionResult> GetTestSeriesList(TestSeriesListRequest request)
+        {
+            try
+            {
+                var data = await _testSeriesServices.GetTestSeriesList(request);
                 if (data != null)
                 {
                     return Ok(data);

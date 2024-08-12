@@ -176,55 +176,90 @@ namespace Schools_API.Repository.Implementations
         {
             return DateTime.Now.ToString("yyyyMMddHHmmssff");
         }
+        public async Task<ServiceResponse<int>> GetAssignedQuestionsCount(int EmployeeId)
+        {
+            try
+            {
+                // SQL query to count the number of questions assigned to the given employee
+                string sql = @"
+            SELECT COUNT(*) 
+            FROM tblQuestionProfiler 
+            WHERE EmpId = @EmployeeId AND Status = 1"; // Assuming Status = 1 indicates active assignments
+
+                // Execute the query and get the count
+                var count = await _connection.ExecuteScalarAsync<int>(sql, new { EmployeeId });
+
+                // Return success response with the count
+                return new ServiceResponse<int>(true, "Question count retrieved successfully", count, 200);
+            }
+            catch (Exception ex)
+            {
+                // Return failure response with error message
+                return new ServiceResponse<int>(false, ex.Message, 0, 500);
+            }
+        }
         public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetAllQuestionsList(GetAllQuestionListRequest request)
         {
             try
             {
-                // SQL query to fetch all filtered records
-                string sql = @"
-                SELECT q.*, 
-                       c.CourseName, 
-                       b.BoardName, 
-                       cl.ClassName, 
-                       s.SubjectName,
-                       et.ExamTypeName,
-                       e.EmpFirstName, 
-                       qt.QuestionType as QuestionTypeName,
-                       it.IndexType as IndexTypeName,
-                       CASE 
-                           WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
-                           WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
-                           WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
-                       END AS ContentIndexName
-                FROM tblQuestion q
-                LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
-                LEFT JOIN tblCourse c ON q.courseid = c.CourseID
-                LEFT JOIN tblBoard b ON q.boardid = b.BoardID
-                LEFT JOIN tblClass cl ON q.classid = cl.ClassID
-                LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
-                LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
-                LEFT JOIN tblEmployee e ON q.EmployeeId = e.Employeeid
-                LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
-                LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
-                LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
-                LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
-                WHERE (@ContentIndexId = 0 OR q.ContentIndexId = @ContentIndexId)
-                  AND (@IndexTypeId = 0 OR q.IndexTypeId = @IndexTypeId)
-                  AND q.IsRejected = 0
-                  AND q.IsApproved = 0
-                  AND (@EmployeeId = 0 OR q.EmployeeId = @EmployeeId)
-                  AND q.IsActive = 1";
+                // Initialize a list to hold all question codes to fetch
+                List<string> assignedQuestionCodes = new List<string>();
 
-                // Parameters for the query
+                // Step 1: Fetch list of QuestionCodes assigned to the given employee if EmployeeId is provided
+                if (request.EmployeeId > 0)
+                {
+                    string fetchAssignedQuestionsSql = @"
+            SELECT QuestionCode 
+            FROM tblQuestionProfiler 
+            WHERE EmpId = @EmployeeId AND Status = 1";
+
+                    assignedQuestionCodes = (await _connection.QueryAsync<string>(fetchAssignedQuestionsSql, new { EmployeeId = request.EmployeeId })).ToList();
+                }
+
+                // Step 2: Fetch questions based on the provided filters
+                string fetchQuestionsSql = @"
+        SELECT q.*, 
+               c.CourseName, 
+               b.BoardName, 
+               cl.ClassName, 
+               s.SubjectName,
+               et.ExamTypeName,
+               e.EmpFirstName, 
+               qt.QuestionType as QuestionTypeName,
+               it.IndexType as IndexTypeName,
+               CASE 
+                   WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
+                   WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
+                   WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+               END AS ContentIndexName
+        FROM tblQuestion q
+        LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
+        LEFT JOIN tblCourse c ON q.courseid = c.CourseID
+        LEFT JOIN tblBoard b ON q.boardid = b.BoardID
+        LEFT JOIN tblClass cl ON q.classid = cl.ClassID
+        LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
+        LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
+        LEFT JOIN tblEmployee e ON q.EmployeeId = e.Employeeid
+        LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
+        LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
+        LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
+        LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
+        WHERE (@ContentIndexId = 0 OR q.ContentIndexId = @ContentIndexId)
+          AND (@IndexTypeId = 0 OR q.IndexTypeId = @IndexTypeId)
+          AND q.IsRejected = 0
+          AND q.IsApproved = 0
+          AND (q.EmployeeId = @EmployeeId OR q.QuestionCode IN @QuestionCodes)
+          AND q.IsActive = 1";
+
                 var parameters = new
                 {
                     ContentIndexId = request.ContentIndexId,
                     IndexTypeId = request.IndexTypeId,
-                    EmployeeId = request.EmployeeId
+                    EmployeeId = request.EmployeeId,
+                    QuestionCodes = assignedQuestionCodes
                 };
 
-                // Fetch all filtered records
-                var data = await _connection.QueryAsync<dynamic>(sql, parameters);
+                var data = await _connection.QueryAsync<dynamic>(fetchQuestionsSql, parameters);
 
                 if (data != null)
                 {
@@ -246,17 +281,17 @@ namespace Schools_API.Repository.Implementations
                         IndexTypeName = item.IndexTypeName,
                         ContentIndexId = item.ContentIndexId,
                         ContentIndexName = item.ContentIndexName,
-                        QIDCourses = GetListOfQIDCourse(item.QuestionCode),
-                        QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
-                        Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
-                        AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode),
-                        IsApproved = item.IsApproved,
                         IsRejected = item.IsRejected,
+                        IsApproved = item.IsApproved,
                         QuestionTypeName = item.QuestionTypeName,
                         QuestionCode = item.QuestionCode,
                         Explanation = item.Explanation,
                         ExtraInformation = item.ExtraInformation,
-                        IsActive = item.IsActive
+                        IsActive = item.IsActive,
+                        QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+                        QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
+                        Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
+                        AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
                     }).ToList();
 
                     int totalCount = response.Count;
@@ -284,6 +319,114 @@ namespace Schools_API.Repository.Implementations
                 return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, new List<QuestionResponseDTO>(), 500);
             }
         }
+        //public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetAllQuestionsList(GetAllQuestionListRequest request)
+        //{
+        //    try
+        //    {
+        //        // SQL query to fetch all filtered records
+        //        string sql = @"
+        //        SELECT q.*, 
+        //               c.CourseName, 
+        //               b.BoardName, 
+        //               cl.ClassName, 
+        //               s.SubjectName,
+        //               et.ExamTypeName,
+        //               e.EmpFirstName, 
+        //               qt.QuestionType as QuestionTypeName,
+        //               it.IndexType as IndexTypeName,
+        //               CASE 
+        //                   WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
+        //                   WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
+        //                   WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+        //               END AS ContentIndexName
+        //        FROM tblQuestion q
+        //        LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
+        //        LEFT JOIN tblCourse c ON q.courseid = c.CourseID
+        //        LEFT JOIN tblBoard b ON q.boardid = b.BoardID
+        //        LEFT JOIN tblClass cl ON q.classid = cl.ClassID
+        //        LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
+        //        LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
+        //        LEFT JOIN tblEmployee e ON q.EmployeeId = e.Employeeid
+        //        LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
+        //        LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
+        //        LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
+        //        LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
+        //        WHERE (@ContentIndexId = 0 OR q.ContentIndexId = @ContentIndexId)
+        //          AND (@IndexTypeId = 0 OR q.IndexTypeId = @IndexTypeId)
+        //          AND q.IsRejected = 0
+        //          AND q.IsApproved = 0
+        //          AND (@EmployeeId = 0 OR q.EmployeeId = @EmployeeId)
+        //          AND q.IsActive = 1";
+
+        //        // Parameters for the query
+        //        var parameters = new
+        //        {
+        //            ContentIndexId = request.ContentIndexId,
+        //            IndexTypeId = request.IndexTypeId,
+        //            EmployeeId = request.EmployeeId
+        //        };
+
+        //        // Fetch all filtered records
+        //        var data = await _connection.QueryAsync<dynamic>(sql, parameters);
+
+        //        if (data != null)
+        //        {
+        //            var response = data.Select(item => new QuestionResponseDTO
+        //            {
+        //                QuestionId = item.QuestionId,
+        //                QuestionDescription = item.QuestionDescription,
+        //                QuestionTypeId = item.QuestionTypeId,
+        //                Status = item.Status,
+        //                CreatedBy = item.CreatedBy,
+        //                CreatedOn = item.CreatedOn,
+        //                ModifiedBy = item.ModifiedBy,
+        //                ModifiedOn = item.ModifiedOn,
+        //                subjectID = item.subjectID,
+        //                SubjectName = item.SubjectName,
+        //                EmployeeId = item.EmployeeId,
+        //                EmployeeName = item.EmpFirstName,
+        //                IndexTypeId = item.IndexTypeId,
+        //                IndexTypeName = item.IndexTypeName,
+        //                ContentIndexId = item.ContentIndexId,
+        //                ContentIndexName = item.ContentIndexName,
+        //                QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+        //                QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
+        //                Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
+        //                AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode),
+        //                IsApproved = item.IsApproved,
+        //                IsRejected = item.IsRejected,
+        //                QuestionTypeName = item.QuestionTypeName,
+        //                QuestionCode = item.QuestionCode,
+        //                Explanation = item.Explanation,
+        //                ExtraInformation = item.ExtraInformation,
+        //                IsActive = item.IsActive
+        //            }).ToList();
+
+        //            int totalCount = response.Count;
+
+        //            var paginatedList = response.Skip((request.PageNumber - 1) * request.PageSize)
+        //                                        .Take(request.PageSize)
+        //                                        .ToList();
+
+        //            if (paginatedList.Count != 0)
+        //            {
+        //                return new ServiceResponse<List<QuestionResponseDTO>>(true, "Operation Successful", paginatedList, 200, totalCount);
+        //            }
+        //            else
+        //            {
+        //                return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
+        //            }
+        //        }
+        //        else
+        //        {
+        //            return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, new List<QuestionResponseDTO>(), 500);
+        //    }
+        //}
         public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetAssignedQuestionsList(int employeeId)
         {
             try
@@ -312,8 +455,8 @@ namespace Schools_API.Repository.Implementations
                 // Fetch additional details for each question
                 foreach (var question in questions)
                 {
-                    question.QIDCourses =  GetListOfQIDCourse(question.QuestionCode);
-                    question.QuestionSubjectMappings =  GetListOfQuestionSubjectMapping(question.QuestionCode);
+                    question.QIDCourses = GetListOfQIDCourse(question.QuestionCode);
+                    question.QuestionSubjectMappings = GetListOfQuestionSubjectMapping(question.QuestionCode);
                     question.AnswerMultipleChoiceCategories = GetMultipleAnswers(question.QuestionCode);
                     question.Answersingleanswercategories = GetSingleAnswer(question.QuestionCode);
                 }
@@ -609,13 +752,18 @@ namespace Schools_API.Repository.Implementations
             string query = "SELECT QuestionCode, QuestionId, QuestionDescription FROM tblQuestion WHERE IsActive = 1";
             var existingQuestions = await _connection.QueryAsync<Question>(query);
 
+            // Calculate similarity and create comparison objects
             var comparisons = existingQuestions.Select(q => new QuestionComparisonDTO
             {
                 QuestionCode = q.QuestionCode,
                 QuestionID = q.QuestionId,
                 QuestionText = q.QuestionDescription,
                 Similarity = CalculateSimilarity(newQuestion.NewQuestion, q.QuestionDescription)
-            }).OrderByDescending(c => c.Similarity).Take(10).ToList();
+            })
+            .Where(c => c.Similarity > 60.0 && c.Similarity < 100.0) // Filter based on similarity
+            .OrderByDescending(c => c.Similarity) // Order by similarity in descending order
+            .Take(10) // Take top 10 results
+            .ToList();
 
             return new ServiceResponse<List<QuestionComparisonDTO>>(true, "Comparison results", comparisons, 200);
         }
@@ -1214,7 +1362,7 @@ namespace Schools_API.Repository.Implementations
     WHERE qc.QuestionCode = @QuestionCode
       AND qc.QID IN @ActiveQuestionIds";
 
-            var data =  _connection.Query<QIDCourseResponse>(query, new { QuestionCode, ActiveQuestionIds = activeQuestionIds });
+            var data = _connection.Query<QIDCourseResponse>(query, new { QuestionCode, ActiveQuestionIds = activeQuestionIds });
             return data.ToList();
         }
         private Reference GetQuestionReference(int questionId)
@@ -1227,7 +1375,7 @@ namespace Schools_API.Repository.Implementations
         private List<QuestionSubjectMappingResponse> GetListOfQuestionSubjectMapping(string QuestionCode)
         {
             // Get active question IDs
-            var activeQuestionIds =  GetActiveQuestionIds(QuestionCode);
+            var activeQuestionIds = GetActiveQuestionIds(QuestionCode);
 
             // If no active question IDs found, return an empty list
             if (!activeQuestionIds.Any())
@@ -1250,7 +1398,7 @@ namespace Schools_API.Repository.Implementations
             WHERE qsm.QuestionCode = @QuestionCode
               AND qsm.questionid IN @ActiveQuestionIds";
 
-            var data =  _connection.Query<QuestionSubjectMappingResponse>(boardquery, new { QuestionCode, ActiveQuestionIds = activeQuestionIds });
+            var data = _connection.Query<QuestionSubjectMappingResponse>(boardquery, new { QuestionCode, ActiveQuestionIds = activeQuestionIds });
             return data.ToList();
         }
         private Answersingleanswercategory GetSingleAnswer(string QuestionCode)
@@ -1327,7 +1475,7 @@ namespace Schools_API.Repository.Implementations
             WHERE q.QuestionCode = @QuestionCode
               AND q.IsActive = 1";
 
-            var questionIds =  _connection.Query<int>(query, new { QuestionCode });
+            var questionIds = _connection.Query<int>(query, new { QuestionCode });
             return questionIds.ToList();
         }
     }

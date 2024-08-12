@@ -38,6 +38,18 @@ namespace Course_API.Services.Implementations
             }
         }
 
+        public async Task<ServiceResponse<List<ContentIndexResponses>>> GetAllContentIndexList(int SubjectId)
+        {
+            try
+            {
+                return await _syllabusRepository.GetAllContentIndexList(SubjectId);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<ContentIndexResponses>>(false, ex.Message, [], 500);
+            }
+        }
+
         public async Task<ServiceResponse<SyllabusResponseDTO>> GetSyllabusById(int syllabusId)
         {
             try
@@ -50,7 +62,7 @@ namespace Course_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<SyllabusDetailsResponseDTO>> GetSyllabusDetailsById(int syllabusId, int subjectId)
+        public async Task<ServiceResponse<SyllabusDetailsResponse>> GetSyllabusDetailsById(int syllabusId, int subjectId)
         {
             try
             {
@@ -58,7 +70,7 @@ namespace Course_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<SyllabusDetailsResponseDTO>(false, ex.Message, new SyllabusDetailsResponseDTO(), 500);
+                return new ServiceResponse<SyllabusDetailsResponse>(false, ex.Message, new SyllabusDetailsResponse(), 500);
             }
         }
 

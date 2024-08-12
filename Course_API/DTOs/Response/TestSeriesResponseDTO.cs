@@ -28,6 +28,12 @@ namespace Course_API.DTOs.Response
         public int ExamTypeID { get; set; }
         public string ExamTypeName { get; set; } = string.Empty;
         public string TypeOfTestSeriesName { get; set; } = string.Empty;
+        public DateTime RepeatExamStartDate { get; set; }
+        public DateTime RepeatExamEndDate { get; set; }
+        public string RepeatExamStarttime { get; set; } = string.Empty;
+        public int RepeatExamResulttimeId { get; set; }
+        public string RepeatedExamResultTime {  set; get; } = string.Empty;
+        public string ExamStatus {  get; set; } = string.Empty;
         public List<TestSeriesBoardsResponse>? TestSeriesBoard { get; set; }
         public List<TestSeriesClassResponse>? TestSeriesClasses { get; set; }
         public List<TestSeriesCourseResponse>? TestSeriesCourses { get; set; }
