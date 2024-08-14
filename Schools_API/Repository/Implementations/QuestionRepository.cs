@@ -578,7 +578,7 @@ namespace Schools_API.Repository.Implementations
         LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
         LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
         LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
-        WHERE q.EmployeeId = @EmployeeId AND q.IsActive = 1 AND AND IsLive = 0";
+        WHERE q.EmployeeId = @EmployeeId AND q.IsActive = 1 AND IsLive = 0";
 
                 var questions = await _connection.QueryAsync<QuestionResponseDTO>(query, new { EmployeeId = employeeId });
 

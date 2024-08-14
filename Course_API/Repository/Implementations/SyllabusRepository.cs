@@ -299,8 +299,8 @@ namespace Course_API.Repository.Implementations
                 // SQL Query
                 string sql = @"
         SELECT sd.*, s.*
-        FROM [iGuruPrep].[dbo].[tblSyllabus] s
-        JOIN [iGuruPrep].[dbo].[tblSyllabusDetails] sd ON s.SyllabusId = sd.SyllabusID
+        FROM [tblSyllabus] s
+        JOIN [tblSyllabusDetails] sd ON s.SyllabusId = sd.SyllabusID
         WHERE s.SyllabusId = @SyllabusId
         AND sd.SubjectId = @SubjectId";
 
