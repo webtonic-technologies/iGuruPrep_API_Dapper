@@ -6,6 +6,7 @@ using Config_API.Repository.Interfaces;
 using Dapper;
 using OfficeOpenXml;
 using System.Data;
+using System.Data.SqlClient;
 
 namespace Config_API.Repository.Implementations
 {
@@ -455,6 +456,10 @@ namespace Config_API.Repository.Implementations
                     }
                 }
             }
+            catch (SqlException ex) when (ex.Number == 2627 || ex.Number == 2601) // SQL error numbers for unique key violation
+            {
+                return new ServiceResponse<string>(false, "Data already exists.", string.Empty, StatusCodes.Status409Conflict);
+            }
             catch (Exception ex)
             {
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, StatusCodes.Status500InternalServerError);
@@ -605,6 +610,10 @@ namespace Config_API.Repository.Implementations
 
                 return new ServiceResponse<string>(true, "Operation successful", result, 200);
             }
+            catch (SqlException ex) when (ex.Number == 2627 || ex.Number == 2601) // SQL error numbers for unique key violation
+            {
+                return new ServiceResponse<string>(false, "Chapter already exists.", string.Empty, StatusCodes.Status409Conflict);
+            }
             catch (Exception ex)
             {
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
@@ -675,6 +684,10 @@ namespace Config_API.Repository.Implementations
 
                 return new ServiceResponse<string>(true, "Operation successful", result, 200);
             }
+            catch (SqlException ex) when (ex.Number == 2627 || ex.Number == 2601) // SQL error numbers for unique key violation
+            {
+                return new ServiceResponse<string>(false, "Topic already exists.", string.Empty, StatusCodes.Status409Conflict);
+            }
             catch (Exception ex)
             {
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
@@ -744,6 +757,10 @@ namespace Config_API.Repository.Implementations
                 }
 
                 return new ServiceResponse<string>(true, "Operation successful", result, 200);
+            }
+            catch (SqlException ex) when (ex.Number == 2627 || ex.Number == 2601) // SQL error numbers for unique key violation
+            {
+                return new ServiceResponse<string>(false, "Sub topic already exists.", string.Empty, StatusCodes.Status409Conflict);
             }
             catch (Exception ex)
             {
@@ -1131,6 +1148,10 @@ namespace Config_API.Repository.Implementations
 
                     return new ServiceResponse<string>(true, "Records uploaded successfully", null, StatusCodes.Status200OK);
                 }
+            }
+            catch (SqlException ex) when (ex.Number == 2627 || ex.Number == 2601) // SQL error numbers for unique key violation
+            {
+                return new ServiceResponse<string>(false, "Data already exists.", string.Empty, StatusCodes.Status409Conflict);
             }
             catch (Exception ex)
             {

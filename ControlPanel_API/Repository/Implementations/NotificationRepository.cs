@@ -421,7 +421,7 @@ namespace ControlPanel_API.Repository.Implementations
         }
         private string GetPDF(string Filename)
         {
-            var filePath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "NBNotification", Filename);
+            var filePath = Path.Combine(_hostingEnvironment.WebRootPath, "Assets", "NBNotification", Filename);
 
             if (!File.Exists(filePath))
             {

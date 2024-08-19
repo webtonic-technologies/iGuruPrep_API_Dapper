@@ -138,7 +138,8 @@ namespace ControlPanel_API.Repository.Implementations
         LEFT JOIN [tblMagazineClass] mcl ON m.MagazineId = mcl.MagazineId
         LEFT JOIN [tblMagazineCourse] mco ON m.MagazineId = mco.MagazineId
         LEFT JOIN [tblMagazineExamType] met ON m.MagazineId = met.MagazineId
-        WHERE 1=1";
+        WHERE 1=1 AND TRY_CONVERT(DATETIME, 
+                  CONCAT(CONVERT(VARCHAR, m.[Date], 23), ' ', m.[Time])) <= GETDATE()";
 
                 // Applying filters
                 if (request.ClassID > 0)
@@ -178,7 +179,8 @@ namespace ControlPanel_API.Repository.Implementations
                 var today = DateTime.Today;
 
                 // Map results to response DTO and filter by date
-                var response = mainResult.Where(item => item.Date <= today).Select(item => new MagazineResponseDTO
+                //.Where(item => item.Date <= today)
+                var response = mainResult.Select(item => new MagazineResponseDTO
                 {
                     MagazineId = item.MagazineId,
                     Date = item.Date,

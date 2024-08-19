@@ -80,18 +80,18 @@ namespace ControlPanel_API.Controllers
             }
 
         }
-        [HttpGet("PublishMagazine")]
-        public async Task<IActionResult> GetMagazineByPublishDate()
-        {
-            try
-            {
-                var magazine = await _magazineService.GetMagazineByPublishDate();
-                return Ok(magazine);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
+        //[HttpGet("PublishMagazine")]
+        //public async Task<IActionResult> GetMagazineByPublishDate()
+        //{
+        //    try
+        //    {
+        //        var magazine = await _magazineService.GetMagazineByPublishDate();
+        //        return Ok(magazine);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return BadRequest(ex.Message);
+        //    }
+        //}
     }
 }

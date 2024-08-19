@@ -344,7 +344,6 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<List<StoryOfTheDayResponseDTO>>(false, ex.Message, new List<StoryOfTheDayResponseDTO>(), 500);
             }
         }
-
         public async Task<ServiceResponse<StoryOfTheDayResponseDTO>> GetStoryOfTheDayById(int id)
         {
             try

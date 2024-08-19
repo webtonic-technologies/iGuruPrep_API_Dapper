@@ -3,6 +3,7 @@ using Config_API.DTOs.ServiceResponse;
 using Config_API.Repository.Interfaces;
 using Dapper;
 using System.Data;
+using System.Data.SqlClient;
 
 namespace Config_API.Repository.Implementations
 {
@@ -22,7 +23,7 @@ namespace Config_API.Repository.Implementations
                 {
                     // Insert new board
                     string query = @"INSERT INTO [tblBoard] (BoardName, BoardCode, Status, createdon, createdby, EmployeeID) 
-                             VALUES (@BoardName, @BoardCode, @Status, @createdon, @createdby, @EmployeeID)";
+                       VALUES (@BoardName, @BoardCode, @Status, @createdon, @createdby, @EmployeeID)";
                     int insertedValue = await _connection.ExecuteAsync(query, new
                     {
                         request.BoardId,
@@ -46,13 +47,13 @@ namespace Config_API.Repository.Implementations
                 {
                     // Update existing board
                     string query = @"UPDATE tblBoard 
-                         SET BoardName = @BoardName, 
-                             BoardCode = @BoardCode, 
-                             Status = @Status,  
-                             modifiedon = @modifiedon, 
-                             modifiedby = @modifiedby, 
-                             EmployeeID = @EmployeeID
-                         WHERE BoardId = @BoardId";
+                   SET BoardName = @BoardName, 
+                       BoardCode = @BoardCode, 
+                       Status = @Status,  
+                       modifiedon = @modifiedon, 
+                       modifiedby = @modifiedby, 
+                       EmployeeID = @EmployeeID
+                   WHERE BoardId = @BoardId";
                     int rowsAffected = await _connection.ExecuteAsync(query, new
                     {
                         request.BoardId,
@@ -71,8 +72,11 @@ namespace Config_API.Repository.Implementations
                     {
                         return new ServiceResponse<string>(false, "Operation Failed", string.Empty, StatusCodes.Status404NotFound);
                     }
-
                 }
+            }
+            catch (SqlException ex) when (ex.Number == 2627 || ex.Number == 2601) // SQL error numbers for unique key violation
+            {
+                return new ServiceResponse<string>(false, "Board name or code already exists.", string.Empty, StatusCodes.Status409Conflict);
             }
             catch (Exception ex)
             {

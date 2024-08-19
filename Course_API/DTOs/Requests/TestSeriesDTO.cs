@@ -88,6 +88,6 @@ namespace Course_API.DTOs.Requests
         public int ExamTypeId { get; set;}
         public int TypeOfTestSeries {  get; set;}
         public string ExamStatus { get; set; } = string.Empty;
-        public DateTime Date {  get; set; }
+        public DateTime? Date {  get; set; }
     }
 }

@@ -4,6 +4,7 @@ using Config_API.Repository.Interfaces;
 using Dapper;
 using iGuruPrep.Models;
 using System.Data;
+using System.Data.SqlClient;
 
 namespace Config_API.Repository.Implementations
 {
@@ -71,6 +72,10 @@ namespace Config_API.Repository.Implementations
                         return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, StatusCodes.Status404NotFound);
                     }
                 }
+            }
+            catch (SqlException ex) when (ex.Number == 2627 || ex.Number == 2601) // SQL error numbers for unique key violation
+            {
+                return new ServiceResponse<string>(false, "Class name or code already exists.", string.Empty, StatusCodes.Status409Conflict);
             }
             catch (Exception ex)
             {
