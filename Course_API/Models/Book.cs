@@ -15,8 +15,8 @@ namespace Course_API.Models
         public int SubjectID { get; set; }
         public bool Status {  get; set; }
         public string Authorname {  get; set; } = string.Empty;
-        public string pathURL { get; set; } = string.Empty;
-        public string link { get; set; } = string.Empty;
+        public string Image { get; set; } = string.Empty;
+        public string AudioOrVideo { get; set; } = string.Empty;
         public int examtypeid { get; set; }
         public int APID { get; set; }
         public string boardname { get; set; } = string.Empty;

@@ -442,11 +442,11 @@ namespace ControlPanel_API.Repository.Implementations
             {
                 // Step 1: Retrieve stored password and employee details
                 string query = @"
-            SELECT e.Employeeid, e.Password, e.EmpFirstName, e.EmpLastName, e.DesignationID, d.DesignationName, r.RoleName, e.IsSuperAdmin, e.RoleID
-            FROM tblEmployee e
-            LEFT JOIN tblDesignation d ON e.DesignationID = d.DesgnID
-            LEFT JOIN tblRole r ON e.RoleID = r.RoleID
-            WHERE e.EmpEmail = @EmpEmailOrPhoneNumber OR e.EMPPhoneNumber = @EmpEmailOrPhoneNumber";
+        SELECT e.Employeeid, e.Password, e.EmpFirstName, e.EmpLastName, e.DesignationID, d.DesignationName, r.RoleName, r.RoleCode, e.IsSuperAdmin, e.RoleID
+        FROM tblEmployee e
+        LEFT JOIN tblDesignation d ON e.DesignationID = d.DesgnID
+        LEFT JOIN tblRole r ON e.RoleID = r.RoleID
+        WHERE e.EmpEmail = @EmpEmailOrPhoneNumber OR e.EMPPhoneNumber = @EmpEmailOrPhoneNumber";
 
                 var employee = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new { request.EmpEmailOrPhoneNumber });
                 var decryptedPassword = EncryptionHelper.DecryptString(employee.Password);
@@ -456,13 +456,22 @@ namespace ControlPanel_API.Repository.Implementations
                     return new ServiceResponse<string>(false, "Invalid credentials", string.Empty, StatusCodes.Status401Unauthorized);
                 }
 
+                // Check if the employee's designation is active
+                string designationStatusQuery = "SELECT Status FROM tblDesignation WHERE DesgnID = @DesignationID";
+                var designationStatus = await _connection.QueryFirstOrDefaultAsync<bool>(designationStatusQuery, new { employee.DesignationID });
+
+                if (!designationStatus)
+                {
+                    return new ServiceResponse<string>(false, "Designation is inactive", string.Empty, StatusCodes.Status403Forbidden);
+                }
+
                 // Get existing active sessions for the user
                 var activeSessions = await _connection.QueryAsync<dynamic>(
                     "SELECT SessionId FROM [tblUserSessions] WHERE UserId = @UserId AND IsActive = 1",
                     new { UserId = employee.Employeeid });
 
-                // Handle device login based on role ID
-                if (employee.RoleID == 6 || employee.RoleID == 7) // Admin or Student
+                // Handle device login based on role code
+                if (employee.RoleCode == "AD" || employee.RoleCode == "ST") // Admin or Student
                 {
                     // If there is an active session, log it out
                     if (activeSessions.Any())
@@ -480,17 +489,11 @@ namespace ControlPanel_API.Repository.Implementations
                         "INSERT INTO [tblUserSessions] (UserId, DeviceId, IsActive) VALUES (@UserId, @DeviceId, 1)",
                         new { UserId = employee.Employeeid, request.DeviceId });
                 }
-                else if (employee.RoleID == 3 || employee.RoleID == 4 || employee.RoleID == 5) // SME, Proofer, Transcriber
+                else if (employee.RoleCode == "SM" || employee.RoleCode == "PR" || employee.RoleCode == "TR") // SME, Proofer, Transcriber
                 {
                     // If there are already two active sessions, log out the oldest one
                     if (activeSessions.Count() >= 2)
                     {
-                        // Here, we'll deactivate the oldest session
-                        //var oldestSession = activeSessions.OrderBy(s => s.LoginTime).First();
-
-                        //await _connection.ExecuteAsync(
-                        //    "UPDATE [tblUserSessions] SET LogoutTime = @LogoutTime, IsActive = 0 WHERE SessionId = @SessionId",
-                        //    new { LogoutTime = DateTime.UtcNow, SessionId = oldestSession.SessionId });
                         foreach (var session in activeSessions)
                         {
                             await _connection.ExecuteAsync(
@@ -512,6 +515,82 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, StatusCodes.Status500InternalServerError);
             }
         }
+        //public async Task<ServiceResponse<string>> UserLogin(UserLoginRequest request)
+        //{
+        //    try
+        //    {
+        //        // Step 1: Retrieve stored password and employee details
+        //        string query = @"
+        //    SELECT e.Employeeid, e.Password, e.EmpFirstName, e.EmpLastName, e.DesignationID, d.DesignationName, r.RoleName, e.IsSuperAdmin, e.RoleID
+        //    FROM tblEmployee e
+        //    LEFT JOIN tblDesignation d ON e.DesignationID = d.DesgnID
+        //    LEFT JOIN tblRole r ON e.RoleID = r.RoleID
+        //    WHERE e.EmpEmail = @EmpEmailOrPhoneNumber OR e.EMPPhoneNumber = @EmpEmailOrPhoneNumber";
+
+        //        var employee = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new { request.EmpEmailOrPhoneNumber });
+        //        var decryptedPassword = EncryptionHelper.DecryptString(employee.Password);
+
+        //        if (employee == null || !string.Equals(decryptedPassword.Trim().ToUpper(), request.Password.Trim().ToUpper(), StringComparison.OrdinalIgnoreCase))
+        //        {
+        //            return new ServiceResponse<string>(false, "Invalid credentials", string.Empty, StatusCodes.Status401Unauthorized);
+        //        }
+
+        //        // Get existing active sessions for the user
+        //        var activeSessions = await _connection.QueryAsync<dynamic>(
+        //            "SELECT SessionId FROM [tblUserSessions] WHERE UserId = @UserId AND IsActive = 1",
+        //            new { UserId = employee.Employeeid });
+
+        //        // Handle device login based on role ID
+        //        if (employee.RoleID == 6 || employee.RoleID == 7) // Admin or Student
+        //        {
+        //            // If there is an active session, log it out
+        //            if (activeSessions.Any())
+        //            {
+        //                foreach (var session in activeSessions)
+        //                {
+        //                    await _connection.ExecuteAsync(
+        //                        "UPDATE [tblUserSessions] SET LogoutTime = @LogoutTime, IsActive = 0 WHERE SessionId = @SessionId",
+        //                        new { LogoutTime = DateTime.UtcNow, SessionId = session.SessionId });
+        //                }
+        //            }
+
+        //            // Allow new login
+        //            await _connection.ExecuteAsync(
+        //                "INSERT INTO [tblUserSessions] (UserId, DeviceId, IsActive) VALUES (@UserId, @DeviceId, 1)",
+        //                new { UserId = employee.Employeeid, request.DeviceId });
+        //        }
+        //        else if (employee.RoleID == 3 || employee.RoleID == 4 || employee.RoleID == 5) // SME, Proofer, Transcriber
+        //        {
+        //            // If there are already two active sessions, log out the oldest one
+        //            if (activeSessions.Count() >= 2)
+        //            {
+        //                // Here, we'll deactivate the oldest session
+        //                //var oldestSession = activeSessions.OrderBy(s => s.LoginTime).First();
+
+        //                //await _connection.ExecuteAsync(
+        //                //    "UPDATE [tblUserSessions] SET LogoutTime = @LogoutTime, IsActive = 0 WHERE SessionId = @SessionId",
+        //                //    new { LogoutTime = DateTime.UtcNow, SessionId = oldestSession.SessionId });
+        //                foreach (var session in activeSessions)
+        //                {
+        //                    await _connection.ExecuteAsync(
+        //                        "UPDATE [tblUserSessions] SET LogoutTime = @LogoutTime, IsActive = 0 WHERE SessionId = @SessionId",
+        //                        new { LogoutTime = DateTime.UtcNow, SessionId = session.SessionId });
+        //                }
+        //            }
+
+        //            // Allow new login
+        //            await _connection.ExecuteAsync(
+        //                "INSERT INTO [tblUserSessions] (UserId, DeviceId, IsActive) VALUES (@UserId, @DeviceId, 1)",
+        //                new { UserId = employee.Employeeid, request.DeviceId });
+        //        }
+
+        //        return new ServiceResponse<string>(true, "Login successful", string.Empty, StatusCodes.Status200OK);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new ServiceResponse<string>(false, ex.Message, string.Empty, StatusCodes.Status500InternalServerError);
+        //    }
+        //}
         public async Task<ServiceResponse<string>> UserLogout(UserLogoutRequest request)
         {
             try

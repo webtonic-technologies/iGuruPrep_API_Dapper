@@ -9,8 +9,8 @@ namespace ControlPanel_API.Models
         public int MagazineId { get; set; }
         public DateTime? Date { get; set; }
         public string Time { get; set; } = string.Empty;
-        public string PathURL { get; set; } = string.Empty;
-        public string Link { get; set; } = string.Empty;
+        public string Image { get; set; } = string.Empty;
+        public string PDF { get; set; } = string.Empty;
         public string MagazineTitle { get; set; } = string.Empty;
         //public int CourseId {  get; set; }
         //public int ClassId {  get; set; }

@@ -8,9 +8,9 @@ namespace Course_API.DTOs.Requests
         public string BookName { get; set; } = string.Empty;
         public bool Status { get; set; }
         [Required(ErrorMessage = "url cannot be empty")]
-        public string pathURL { get; set; } = string.Empty;
+        public string Image { get; set; } = string.Empty;
         [Required(ErrorMessage = "file cannot be empty")]
-        public string link { get; set; } = string.Empty;
+        public string AudioOrVideo { get; set; } = string.Empty;
         public DateTime? modifiedon { get; set; }
         public string modifiedby { get; set; } = string.Empty;
         public DateTime? createdon { get; set; }

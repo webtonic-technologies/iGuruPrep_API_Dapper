@@ -10,9 +10,9 @@ namespace ControlPanel_API.DTOs.Response
         [Required(ErrorMessage = "Time cannot be empty")]
         public string Time { get; set; } = string.Empty;
         [Required(ErrorMessage = "url cannot be empty")]
-        public string PathURL { get; set; } = string.Empty;
+        public string Image { get; set; } = string.Empty;
         [Required(ErrorMessage = "file cannot be empty")]
-        public string Link { get; set; } = string.Empty;
+        public string PDF { get; set; } = string.Empty;
         [Required(ErrorMessage = "Title cannot be empty")]
         public string MagazineTitle { get; set; } = string.Empty;
         public bool? Status { get; set; }

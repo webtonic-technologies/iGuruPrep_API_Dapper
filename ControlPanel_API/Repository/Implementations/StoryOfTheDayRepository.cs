@@ -38,18 +38,18 @@ namespace ControlPanel_API.Repository.Implementations
                         EventTypeID = request.EventTypeID,
                         eventname = request.EventName,
                         Status = true,
-                        Filename1 = request.Filename1 != null ? ImageUpload(request.Filename1) : string.Empty,
-                        Filename2 = request.Filename2 != null ? ImageUpload(request.Filename2) : string.Empty,
+                        Event1Image = request.Event1Image != null ? ImageUpload(request.Event1Image) : string.Empty,
+                        Event2Image = request.Event2Image != null ? ImageUpload(request.Event2Image) : string.Empty,
                     };
                     var query = @"
                 INSERT INTO [tblSOTD] (
                     createdby, createdon, Event1Posttime, Event2Posttime, 
                     EmployeeID, Event1PostDate, Event2PostDate, EventTypeID, 
-                    eventname, Status, Filename1, Filename2)
+                    eventname, Status, Event1Image, Event2Image)
                 VALUES (
                     @createdby, @createdon, @Event1Posttime, @Event2Posttime, 
                     @EmployeeID, @Event1PostDate, @Event2PostDate, @EventTypeID, 
-                    @eventname, @Status, @Filename1, @Filename2);
+                    @eventname, @Status, @Event1Image, @Event2Image);
                     SELECT CAST(SCOPE_IDENTITY() AS INT);";
                     // Execute the SQL insert command with parameters
                     int insertedValue = await _connection.QueryFirstOrDefaultAsync<int>(query, storyOfTheDay);
@@ -90,8 +90,8 @@ namespace ControlPanel_API.Repository.Implementations
                     EventTypeID = @EventTypeID,
                     eventname = @eventname,
                     Status = @Status,
-                    Filename1 = @Filename1,
-                    Filename2 = @Filename2
+                    Event1Image = @Event1Image,
+                    Event2Image = @Event2Image
                 WHERE StoryId = @StoryId;"; // Add condition for the specific record to update
 
                     var storyOfTheDay = new StoryOfTheDay
@@ -106,8 +106,8 @@ namespace ControlPanel_API.Repository.Implementations
                         EventTypeID = request.EventTypeID,
                         eventname = request.EventName,
                         Status = request.Status,
-                        Filename1 = request.Filename1 != null ? ImageUpload(request.Filename1) : string.Empty,
-                        Filename2 = request.Filename2 != null ? ImageUpload(request.Filename2) : string.Empty,
+                        Event1Image = request.Event1Image != null ? ImageUpload(request.Event1Image) : string.Empty,
+                        Event2Image = request.Event2Image != null ? ImageUpload(request.Event2Image) : string.Empty,
                         StoryId = request.StoryId
                     };
                     // Execute the SQL update command with parameters
@@ -154,8 +154,8 @@ namespace ControlPanel_API.Repository.Implementations
                     throw new Exception("Story of the day not found");
                 }
 
-                var filePath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "StoryOfTheDay", storyOfTheDay.Filename1);
-                var filePath1 = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "StoryOfTheDay", storyOfTheDay.Filename2);
+                var filePath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "StoryOfTheDay", storyOfTheDay.Event1Image);
+                var filePath1 = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "StoryOfTheDay", storyOfTheDay.Event2Image);
                 if (File.Exists(filePath) || File.Exists(filePath1))
                 {
                     File.Delete(filePath);
@@ -205,45 +205,86 @@ namespace ControlPanel_API.Repository.Implementations
             try
             {
                 // Base query to fetch all matching records
-                string baseQuery = @"
-        SELECT DISTINCT
-            s.StoryId,
-            s.EventTypeID,
-            s.Event1PostDate,
-            s.Event1Posttime,
-            s.Event2PostDate,
-            s.Event2Posttime,
-            s.Filename1,
-            s.Filename2,
-            s.Status,
-            s.APName,
-            s.eventname,
-            s.modifiedon,
-            s.modifiedby,
-            s.createdon,
-            s.createdby,
-            s.EmployeeID,
-            ev.EventTypeName as eventtypename,
-            e.EmpFirstName,
-            CASE 
-                WHEN DATEADD(HOUR, -24, GETDATE()) <= CAST(s.Event1PostDate AS DATETIME) + CAST(s.Event1Posttime AS DATETIME)
-                THEN 1 
-                ELSE 0 
-            END AS IsEvent1Valid,
-            CASE 
-                WHEN DATEADD(HOUR, -24, GETDATE()) <= CAST(s.Event2PostDate AS DATETIME) + CAST(s.Event2Posttime AS DATETIME)
-                THEN 1 
-                ELSE 0 
-            END AS IsEvent2Valid
-        FROM [tblSOTD] s
-        LEFT JOIN [tblEmployee] e ON s.EmployeeID = e.Employeeid
-        LEFT JOIN tblSOTDEventtype ev ON s.EventTypeID = ev.EventTypeID
-        LEFT JOIN [tblSOTDCategory] sc ON s.StoryId = sc.SOTDID
-        LEFT JOIN [tblSOTDBoard] sb ON s.StoryId = sb.SOTDID
-        LEFT JOIN [tblSOTDClass] scl ON s.StoryId = scl.SOTDID
-        LEFT JOIN [tblSOTDCourse] sco ON s.StoryId = sco.SOTDID
-        LEFT JOIN [tblSOTDExamType] se ON s.StoryId = se.SOTDID
-        WHERE 1=1";
+                string baseQuery = @"SELECT DISTINCT
+    s.StoryId,
+    s.EventTypeID,
+    s.Event1PostDate,
+    s.Event1Posttime,
+    s.Event2PostDate,
+    s.Event2Posttime,
+    s.Event1Image,
+    s.Event2Image,
+    s.Status,
+    s.APName,
+    s.eventname,
+    s.modifiedon,
+    s.modifiedby,
+    s.createdon,
+    s.createdby,
+    s.EmployeeID,
+    ev.EventTypeName AS eventtypename,
+    e.EmpFirstName,
+    CASE 
+        WHEN CAST(s.Event1PostDate AS DATETIME) + CAST(s.Event1Posttime AS DATETIME) <= GETDATE()
+             AND DATEADD(HOUR, -24, GETDATE()) <= CAST(s.Event1PostDate AS DATETIME) + CAST(s.Event1Posttime AS DATETIME)
+        THEN 1 
+        ELSE 0 
+    END AS IsEvent1Valid,
+    CASE 
+        WHEN CAST(s.Event2PostDate AS DATETIME) + CAST(s.Event2Posttime AS DATETIME) <= GETDATE()
+             AND DATEADD(HOUR, -24, GETDATE()) <= CAST(s.Event2PostDate AS DATETIME) + CAST(s.Event2Posttime AS DATETIME)
+        THEN 1 
+        ELSE 0 
+    END AS IsEvent2Valid
+FROM [tblSOTD] s
+LEFT JOIN [tblEmployee] e ON s.EmployeeID = e.Employeeid
+LEFT JOIN tblSOTDEventtype ev ON s.EventTypeID = ev.EventTypeID
+LEFT JOIN [tblSOTDCategory] sc ON s.StoryId = sc.SOTDID
+LEFT JOIN [tblSOTDBoard] sb ON s.StoryId = sb.SOTDID
+LEFT JOIN [tblSOTDClass] scl ON s.StoryId = scl.SOTDID
+LEFT JOIN [tblSOTDCourse] sco ON s.StoryId = sco.SOTDID
+LEFT JOIN [tblSOTDExamType] se ON s.StoryId = se.SOTDID
+WHERE 1=1;
+";
+        //        string baseQuery = @"
+        //SELECT DISTINCT
+        //    s.StoryId,
+        //    s.EventTypeID,
+        //    s.Event1PostDate,
+        //    s.Event1Posttime,
+        //    s.Event2PostDate,
+        //    s.Event2Posttime,
+        //    s.Event1Image,
+        //    s.Event2Image,
+        //    s.Status,
+        //    s.APName,
+        //    s.eventname,
+        //    s.modifiedon,
+        //    s.modifiedby,
+        //    s.createdon,
+        //    s.createdby,
+        //    s.EmployeeID,
+        //    ev.EventTypeName as eventtypename,
+        //    e.EmpFirstName,
+        //    CASE 
+        //        WHEN DATEADD(HOUR, -24, GETDATE()) <= CAST(s.Event1PostDate AS DATETIME) + CAST(s.Event1Posttime AS DATETIME)
+        //        THEN 1 
+        //        ELSE 0 
+        //    END AS IsEvent1Valid,
+        //    CASE 
+        //        WHEN DATEADD(HOUR, -24, GETDATE()) <= CAST(s.Event2PostDate AS DATETIME) + CAST(s.Event2Posttime AS DATETIME)
+        //        THEN 1 
+        //        ELSE 0 
+        //    END AS IsEvent2Valid
+        //FROM [tblSOTD] s
+        //LEFT JOIN [tblEmployee] e ON s.EmployeeID = e.Employeeid
+        //LEFT JOIN tblSOTDEventtype ev ON s.EventTypeID = ev.EventTypeID
+        //LEFT JOIN [tblSOTDCategory] sc ON s.StoryId = sc.SOTDID
+        //LEFT JOIN [tblSOTDBoard] sb ON s.StoryId = sb.SOTDID
+        //LEFT JOIN [tblSOTDClass] scl ON s.StoryId = scl.SOTDID
+        //LEFT JOIN [tblSOTDCourse] sco ON s.StoryId = sco.SOTDID
+        //LEFT JOIN [tblSOTDExamType] se ON s.StoryId = se.SOTDID
+        //WHERE 1=1";
 
                 // Applying filters
                 if (request.ClassID > 0)
@@ -285,6 +326,12 @@ namespace ControlPanel_API.Repository.Implementations
                 // Fetch all matching records
                 var mainResult = (await _connection.QueryAsync<dynamic>(baseQuery, parameters)).ToList();
 
+                // Get current UTC date and time
+                var utcNow = DateTime.UtcNow;
+
+                // Convert UTC time to Indian Standard Time (IST)
+                var istTimeZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
+                var istNow = TimeZoneInfo.ConvertTimeFromUtc(utcNow, istTimeZone);
                 // Map results to response DTO
                 var response = mainResult
                     .Select(item => new
@@ -313,10 +360,10 @@ namespace ControlPanel_API.Repository.Implementations
                         SOTDExamTypes = GetListOfSOTDExamType(item.item.StoryId),
                         Event1Posttime = item.IsEvent1Valid ? item.item.Event1Posttime : string.Empty,
                         Event1PostDate = item.IsEvent1Valid ? item.item.Event1PostDate : null,
-                        Filename1 = item.IsEvent1Valid ? GetStoryOfTheDayFileById(item.item.Filename1) : string.Empty,
+                        Event1Image = item.IsEvent1Valid ? GetStoryOfTheDayFileById(item.item.Event1Image) : string.Empty,
                         Event2Posttime = item.IsEvent2Valid ? item.item.Event2Posttime : string.Empty,
                         Event2PostDate = item.IsEvent2Valid ? item.item.Event2PostDate : null,
-                        Filename2 = item.IsEvent2Valid ? GetStoryOfTheDayFileById(item.item.Filename2) : string.Empty
+                        Event2Image = item.IsEvent2Valid ? GetStoryOfTheDayFileById(item.item.Event2Image) : string.Empty
                     })
                     .ToList();
 
@@ -357,8 +404,8 @@ namespace ControlPanel_API.Repository.Implementations
                 s.Event1Posttime,
                 s.Event2PostDate,
                 s.Event2Posttime,
-                s.Filename1,
-                s.Filename2,
+                s.Event1Image,
+                s.Event2Image,
                 s.Status,
                 s.APName,
                 s.eventname,
@@ -389,14 +436,14 @@ namespace ControlPanel_API.Repository.Implementations
                         {
                             response.Event1Posttime = storyOfTheDay.Event1Posttime;
                             response.Event1PostDate = storyOfTheDay.Event1PostDate;
-                            response.Filename1 = !string.IsNullOrEmpty(storyOfTheDay.Filename1) ? GetStoryOfTheDayFileById(storyOfTheDay.Filename1) : string.Empty;
+                            response.Event1Image = !string.IsNullOrEmpty(storyOfTheDay.Event1Image) ? GetStoryOfTheDayFileById(storyOfTheDay.Event1Image) : string.Empty;
                         }
 
                         if (isEvent2Valid)
                         {
                             response.Event2Posttime = storyOfTheDay.Event2Posttime;
                             response.Event2PostDate = storyOfTheDay.Event2PostDate;
-                            response.Filename2 = !string.IsNullOrEmpty(storyOfTheDay.Filename2) ? GetStoryOfTheDayFileById(storyOfTheDay.Filename2) : string.Empty;
+                            response.Event2Image = !string.IsNullOrEmpty(storyOfTheDay.Event2Image) ? GetStoryOfTheDayFileById(storyOfTheDay.Event2Image) : string.Empty;
                         }
 
                         response.StoryId = storyOfTheDay.StoryId;
@@ -510,8 +557,8 @@ namespace ControlPanel_API.Repository.Implementations
                     {
                         var response = new StoryOfTheDayResponseDTO
                         {
-                            Filename1 = isEvent1Valid ? GetStoryOfTheDayFileById(storyOfTheDay.Filename1) : string.Empty,
-                            Filename2 = isEvent2Valid ? GetStoryOfTheDayFileById(storyOfTheDay.Filename2) : string.Empty,
+                            Event1Image = isEvent1Valid ? GetStoryOfTheDayFileById(storyOfTheDay.Event1Image) : string.Empty,
+                            Event2Image = isEvent2Valid ? GetStoryOfTheDayFileById(storyOfTheDay.Event2Image) : string.Empty,
                             StoryId = storyOfTheDay.StoryId,
                             EventTypeID = storyOfTheDay.EventTypeID,
                             Event1Posttime = isEvent1Valid ? storyOfTheDay.Event1Posttime : string.Empty,

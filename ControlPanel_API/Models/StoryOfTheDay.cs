@@ -27,8 +27,8 @@ namespace ControlPanel_API.Models
         //public string APName {  get; set; } = string.Empty;
         public bool Status { get; set; }
         public int EmployeeID {  get; set; }
-        public string Filename1 {  get; set; } = string.Empty;
-        public string Filename2 { get; set; } = string.Empty;
+        public string Event1Image {  get; set; } = string.Empty;
+        public string Event2Image { get; set; } = string.Empty;
         //public string EmpFirstName { get; set; } = string.Empty;
     }
 }

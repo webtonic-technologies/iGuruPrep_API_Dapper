@@ -5,7 +5,7 @@
         public int ProjectId { get; set; }
         public string ProjectName { get; set; } = string.Empty;
         public string ProjectDescription { get; set; } = string.Empty;
-        public string? PathURL { get; set; }
+        public string? Image { get; set; }
         public string createdby { get; set; } = string.Empty;
         public string ReferenceLink { get; set; } = string.Empty;
         public int? EmployeeID { get; set; }

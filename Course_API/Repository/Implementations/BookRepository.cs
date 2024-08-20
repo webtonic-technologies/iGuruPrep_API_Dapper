@@ -31,8 +31,8 @@ namespace Course_API.Repository.Implementations
                     {
                         BookName = request.BookName,
                         Status = true,
-                        pathURL = ImageUpload(request.pathURL),
-                        link = AudioVideoUpload(request.link),
+                        Image = ImageUpload(request.Image),
+                        AudioOrVideo = AudioVideoUpload(request.AudioOrVideo),
                         createdon = DateTime.Now,
                         createdby = request.createdby,
                         EmployeeID = request.EmployeeID,
@@ -40,9 +40,9 @@ namespace Course_API.Repository.Implementations
                     };
                     string insertQuery = @"
         INSERT INTO [tblLibrary] 
-            (BookName, Status, pathURL, link, createdon, createdby, EmployeeID, FileTypeId)
+            (BookName, Status, Image, AudioOrVideo, createdon, createdby, EmployeeID, FileTypeId)
         VALUES 
-            (@BookName, @Status, @pathURL, @link, @createdon, @createdby, @EmployeeID, @FileTypeId);
+            (@BookName, @Status, @Image, @AudioOrVideo, @createdon, @createdby, @EmployeeID, @FileTypeId);
         SELECT CAST(SCOPE_IDENTITY() AS INT);";
                     int insertedId = await _connection.QueryFirstOrDefaultAsync<int>(insertQuery, book);
                     if (insertedId > 0)
@@ -75,8 +75,8 @@ namespace Course_API.Repository.Implementations
                     {
                         BookName = request.BookName,
                         Status = true,
-                        pathURL = ImageUpload(request.pathURL),
-                        link = AudioVideoUpload(request.link),
+                        Image = ImageUpload(request.Image),
+                        AudioOrVideo = AudioVideoUpload(request.AudioOrVideo),
                         modifiedon = DateTime.Now,
                         modifiedby = request.modifiedby,
                         EmployeeID = request.EmployeeID,
@@ -88,8 +88,8 @@ namespace Course_API.Repository.Implementations
         SET 
             BookName = @BookName,
             Status = @Status,
-            pathURL = @pathURL,
-            link = @link,
+            Image = @Image,
+            AudioOrVideo = @AudioOrVideo,
             modifiedon = @modifiedon,
             modifiedby = @modifiedby,
             EmployeeID = @EmployeeID,
@@ -137,8 +137,8 @@ namespace Course_API.Repository.Implementations
                 if (book == null)
                     throw new Exception("Book not found");
                 
-                var filePath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "BooksAudioVideo", book.pathURL);
-                var filePath1 = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "BooksAudioVideo", book.link);
+                var filePath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "BooksAudioVideo", book.Image);
+                var filePath1 = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "BooksAudioVideo", book.AudioOrVideo);
                 if (File.Exists(filePath) || File.Exists(filePath1))
                 {
                     File.Delete(filePath1);
@@ -197,8 +197,8 @@ namespace Course_API.Repository.Implementations
                     l.BookId,
                     l.BookName,
                     l.Status,
-                    l.pathURL,
-                    l.link,
+                    l.Image,
+                    l.AudioOrVideo,
                     l.modifiedon,
                     l.modifiedby,
                     l.createdon,
@@ -222,8 +222,8 @@ namespace Course_API.Repository.Implementations
                     response.BookId = book.BookId;
                     response.BookName = book.BookName;
                     response.Status = book.Status;
-                    response.pathURL = GetImage(book.pathURL);
-                    response.link = GetAudioVideo(book.link);
+                    response.Image = GetImage(book.Image);
+                    response.AudioOrVideo = GetAudioVideo(book.AudioOrVideo);
                     response.modifiedon = book.modifiedon;
                     response.modifiedby = book.modifiedby;
                     response.createdon = book.createdon;
@@ -262,8 +262,8 @@ namespace Course_API.Repository.Implementations
             l.BookId,
             l.BookName,
             l.Status,
-            l.pathURL,
-            l.link,
+            l.Image,
+            l.AudioOrVideo,
             l.modifiedon,
             l.modifiedby,
             l.createdon,
@@ -332,8 +332,8 @@ namespace Course_API.Repository.Implementations
                     BookId = item.BookId,
                     BookName = item.BookName,
                     Status = item.Status,
-                    pathURL = GetImage(item.pathURL),
-                    link = GetAudioVideo(item.link),
+                    Image = GetImage(item.Image),
+                    AudioOrVideo = GetAudioVideo(item.AudioOrVideo),
                     modifiedon = item.modifiedon,
                     modifiedby = item.modifiedby,
                     createdon = item.createdon,

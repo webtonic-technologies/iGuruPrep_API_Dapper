@@ -30,18 +30,18 @@ namespace ControlPanel_API.Repository.Implementations
                     {
                         createdby = request.createdby,
                         createdon = DateTime.Now,
-                        Link = PDFUpload(request.Link),
+                        PDF = PDFUpload(request.Link),
                         MagazineTitle = request.MagazineTitle,
-                        PathURL = ImageUpload(request.PathURL),
+                        Image = ImageUpload(request.PathURL),
                         Status = true,
                         EmployeeID = request.EmployeeID,
                         Time = request.Time,
                         Date = request.Date
                     };
                     string sql = @"INSERT INTO [tblMagazine] 
-                   ([Date], [Time], [PathURL], [MagazineTitle], [Status], [Link], [EmployeeID], [createdon], [createdby]) 
+                   ([Date], [Time], [Image], [MagazineTitle], [Status], [PDF], [EmployeeID], [createdon], [createdby]) 
                    VALUES 
-                   (GETDATE(), @Time, @PathURL, @MagazineTitle, @Status, @Link, @EmployeeID, GETDATE(), @createdby);
+                   (GETDATE(), @Time, @Image, @MagazineTitle, @Status, @PDF, @EmployeeID, GETDATE(), @createdby);
                     SELECT CAST(SCOPE_IDENTITY() AS INT);";
                     int insertedValue = await _connection.QueryFirstOrDefaultAsync<int>(sql, magazine);
 
@@ -69,15 +69,15 @@ namespace ControlPanel_API.Repository.Implementations
                 else
                 {
                     string query = @"UPDATE [tblMagazine] 
-                   SET [MagazineTitle] = @MagazineTitle, [PathURL] = @PathURL, [Link] = @Link, [EmployeeID] = @EmployeeID, [modifiedon] = GETDATE(), [modifiedby] = @modifiedby
+                   SET [MagazineTitle] = @MagazineTitle, [Image] = @Image, [PDF] = @PDF, [EmployeeID] = @EmployeeID, [modifiedon] = GETDATE(), [modifiedby] = @modifiedby
                    WHERE [MagazineId] = @MagazineId";
                     var magazine = new Magazine
                     {
                         modifiedby = request.modifiedby,
                         modifiedon = DateTime.Now,
-                        Link = PDFUpload(request.Link),
+                        PDF = PDFUpload(request.Link),
                         MagazineTitle = request.MagazineTitle,
-                        PathURL = ImageUpload(request.PathURL),
+                        Image = ImageUpload(request.PathURL),
                         Status = true,
                         EmployeeID = request.EmployeeID,
                         Time = request.Time,
@@ -121,10 +121,10 @@ namespace ControlPanel_API.Repository.Implementations
             m.[MagazineId], 
             m.[Date], 
             m.[Time], 
-            m.[PathURL], 
+            m.[Image], 
             m.[MagazineTitle], 
             m.[Status], 
-            m.[Link], 
+            m.[PDF], 
             m.[EmployeeID],
             m.[createdon], 
             m.[createdby], 
@@ -185,8 +185,8 @@ namespace ControlPanel_API.Repository.Implementations
                     MagazineId = item.MagazineId,
                     Date = item.Date,
                     Time = item.Time,
-                    Link = GetPDF(item.Link),
-                    PathURL = GetImage(item.PathURL),
+                    PDF = GetPDF(item.Link),
+                    Image = GetImage(item.PathURL),
                     MagazineTitle = item.MagazineTitle,
                     Status = item.Status,
                     modifiedon = item.modifiedon,
@@ -232,7 +232,7 @@ namespace ControlPanel_API.Repository.Implementations
             {
                 var response = new MagazineResponseDTO();
                 string query = @"
-            SELECT m.[MagazineId], m.[Date], m.[Time], m.[PathURL], m.[MagazineTitle], m.[Status], m.[Link], m.[EmployeeID],
+            SELECT m.[MagazineId], m.[Date], m.[Time], m.[Image], m.[MagazineTitle], m.[Status], m.[PDF], m.[EmployeeID],
             m.[createdon], m.[createdby], m.[modifiedby], m.[modifiedon],
                    e.[EmpFirstName]
             FROM [tblMagazine] m
@@ -245,8 +245,8 @@ namespace ControlPanel_API.Repository.Implementations
                 {
                     if (magazine.Date <= today)
                     {
-                        response.Link = GetPDF(magazine.Link);
-                        response.PathURL = GetImage(magazine.PathURL);
+                        response.PDF = GetPDF(magazine.Link);
+                        response.Image = GetImage(magazine.PathURL);
                         response.MagazineId = magazine.MagazineId;
                         response.Date = magazine.Date;
                         response.Time = magazine.Time;
@@ -333,7 +333,7 @@ namespace ControlPanel_API.Repository.Implementations
                 var currentTimeString = istNow.ToString("HH:mm");
 
                 string query = @"
-                SELECT m.[MagazineId], m.[Date], m.[Time], m.[PathURL], m.[MagazineTitle], m.[Status], m.[Link], m.[EmployeeID],
+                SELECT m.[MagazineId], m.[Date], m.[Time], m.[Image], m.[MagazineTitle], m.[Status], m.[PDF], m.[EmployeeID],
                 m.[createdon], m.[createdby], m.[modifiedby], m.[modifiedon],
                 e.[EmpFirstName]
                 FROM [tblMagazine] m
@@ -348,8 +348,8 @@ namespace ControlPanel_API.Repository.Implementations
                 {
                     var response = new MagazineResponseDTO
                     {
-                        Link = GetPDF(magazine.Link),
-                        PathURL = GetImage(magazine.PathURL),
+                        PDF = GetPDF(magazine.Link),
+                        Image = GetImage(magazine.PathURL),
                         MagazineId = magazine.MagazineId,
                         Date = magazine.Date,
                         Time = magazine.Time,

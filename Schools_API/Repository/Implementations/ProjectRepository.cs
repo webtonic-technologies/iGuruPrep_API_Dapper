@@ -27,20 +27,20 @@ namespace Schools_API.Repository.Implementations
                 if (request.ProjectId == 0)
                 {
                     var insertQuery = @"
-                    INSERT INTO tblProject (ProjectName, ProjectDescription, PathURL, createdby, ReferenceLink, EmployeeID, status, createdon, pdfVideoFile)
-                    VALUES (@ProjectName, @ProjectDescription, @PathURL, @createdby, @ReferenceLink, @EmployeeID, @status, @createdon, @pdfVideoFile);
+                    INSERT INTO tblProject (ProjectName, ProjectDescription, Image, createdby, ReferenceLink, EmployeeID, status, createdon, pdfVideoFile)
+                    VALUES (@ProjectName, @ProjectDescription, @Image, @createdby, @ReferenceLink, @EmployeeID, @status, @createdon, @pdfVideoFile);
                     SELECT CAST(SCOPE_IDENTITY() AS INT);";
                     var project = new Project
                     {
                         ProjectName = request.ProjectName,
                         ProjectDescription = request.ProjectDescription,
-                        PathURL = FileUpload(request.PathURL ??= string.Empty),
+                        Image = UploadImage(request.Image ??= string.Empty),
                         createdby = request.createdby,
                         ReferenceLink = request.ReferenceLink,
                         EmployeeID = request.EmployeeID,
                         status = true,
                         createdon = DateTime.Now,
-                        pdfVideoFile = FileUpload(request.pdfVideoFile ??= string.Empty)
+                        pdfVideoFile = UploadDocumentOrVideo(request.pdfVideoFile ??= string.Empty)
                     };
                     int insertedValue = await _connection.QueryFirstOrDefaultAsync<int>(insertQuery, project);
                     if(insertedValue > 0)
@@ -71,7 +71,7 @@ namespace Schools_API.Repository.Implementations
                         UPDATE tblProject
                         SET ProjectName = @ProjectName,
                         ProjectDescription = @ProjectDescription,
-                        PathURL = @PathURL,
+                        Image = @Image,
                         ReferenceLink = @ReferenceLink,
                         EmployeeID = @EmployeeID,
                         status = @status,
@@ -83,13 +83,13 @@ namespace Schools_API.Repository.Implementations
                     {
                         ProjectName = request.ProjectName,
                         ProjectDescription = request.ProjectDescription,
-                        PathURL = FileUpload(request.PathURL ??= string.Empty),
+                        Image = UploadImage(request.Image ??= string.Empty),
                         modifiedby = request.modifiedby,
                         ReferenceLink = request.ReferenceLink,
                         EmployeeID = request.EmployeeID,
                         status = request.status,
                         modifiedon = DateTime.Now,
-                        pdfVideoFile = FileUpload(request.pdfVideoFile ??= string.Empty),
+                        pdfVideoFile = UploadDocumentOrVideo(request.pdfVideoFile ??= string.Empty),
                         ProjectId = request.ProjectId
                     }; ;
                    int rowsAffected = await _connection.ExecuteAsync(updateQuery, project);
@@ -131,7 +131,7 @@ namespace Schools_API.Repository.Implementations
                 p.ProjectId,
                 p.ProjectName,
                 p.ProjectDescription,
-                p.PathURL,
+                p.Image,
                 p.createdby,
                 p.ReferenceLink,
                 p.EmployeeID,
@@ -197,7 +197,7 @@ namespace Schools_API.Repository.Implementations
                     ProjectId = item.ProjectId,
                     ProjectName = item.ProjectName,
                     ProjectDescription = item.ProjectDescription,
-                    PathURL = GetFile(item.PathURL ??= string.Empty),
+                    Image = GetFile(item.Image ??= string.Empty),
                     createdby = item.createdby,
                     ReferenceLink = item.ReferenceLink,
                     EmployeeID = item.EmployeeID,
@@ -249,7 +249,7 @@ namespace Schools_API.Repository.Implementations
                     p.ProjectId,
                     p.ProjectName,
                     p.ProjectDescription,
-                    p.PathURL,
+                    p.Image,
                     p.createdby,
                     p.ReferenceLink,
                     p.EmployeeID,
@@ -268,7 +268,7 @@ namespace Schools_API.Repository.Implementations
                 // If project is found, append full path to ImageName
                 if (data != null && !string.IsNullOrEmpty(data?.PathURL))
                 {
-                    response.PathURL = GetFile(data?.PathURL);
+                    response.Image = GetFile(data?.Image);
                 }
                 if (data != null && !string.IsNullOrEmpty(data?.pdfVideoFile))
                 {
@@ -311,16 +311,13 @@ namespace Schools_API.Repository.Implementations
                 return new ServiceResponse<ProjectResponseDTO>(false, ex.Message, new ProjectResponseDTO(), 500);
             }
         }
-        private string FileUpload(string base64String)
+        private string UploadImage(string base64String)
         {
             if (string.IsNullOrEmpty(base64String) || base64String == "string")
             {
                 return string.Empty;
             }
-            if (base64String == string.Empty)
-            {
-                return string.Empty;
-            }
+
             byte[] data = Convert.FromBase64String(base64String);
             string directoryPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "ProjectForStudent");
 
@@ -328,20 +325,80 @@ namespace Schools_API.Repository.Implementations
             {
                 Directory.CreateDirectory(directoryPath);
             }
-            string fileExtension = IsJpeg(data) == true ? ".jpg" : IsPng(data) == true ?
-                ".png" : IsGif(data) == true ? ".gif" : IsPdf(data) == true ? ".pdf" : IsMov(data) == true ? ".mov" :
-            IsMp4(data) == true ? ".mp4" : IsAvi(data) == true ? ".avi" : string.Empty;
+
+            string fileExtension = IsJpeg(data) ? ".jpg" : IsPng(data) ? ".png" : IsGif(data) ? ".gif" : string.Empty;
+
+            if (string.IsNullOrEmpty(fileExtension))
+            {
+                throw new InvalidOperationException("Incorrect image file uploaded");
+            }
 
             string fileName = Guid.NewGuid().ToString() + fileExtension;
             string filePath = Path.Combine(directoryPath, fileName);
-            if (string.IsNullOrEmpty(fileExtension))
-            {
-                throw new InvalidOperationException("Incorrect file uploaded");
-            }
-            // Write the byte array to the image file
+
             File.WriteAllBytes(filePath, data);
             return filePath;
         }
+        private string UploadDocumentOrVideo(string base64String)
+        {
+            if (string.IsNullOrEmpty(base64String) || base64String == "string")
+            {
+                return string.Empty;
+            }
+
+            byte[] data = Convert.FromBase64String(base64String);
+            string directoryPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "ProjectForStudent");
+
+            if (!Directory.Exists(directoryPath))
+            {
+                Directory.CreateDirectory(directoryPath);
+            }
+
+            string fileExtension = IsPdf(data) ? ".pdf" : IsMov(data) ? ".mov" : IsMp4(data) ? ".mp4" : IsAvi(data) ? ".avi" : string.Empty;
+
+            if (string.IsNullOrEmpty(fileExtension))
+            {
+                throw new InvalidOperationException("Incorrect document or video file uploaded");
+            }
+
+            string fileName = Guid.NewGuid().ToString() + fileExtension;
+            string filePath = Path.Combine(directoryPath, fileName);
+
+            File.WriteAllBytes(filePath, data);
+            return filePath;
+        }
+
+        //private string FileUpload(string base64String)
+        //{
+        //    if (string.IsNullOrEmpty(base64String) || base64String == "string")
+        //    {
+        //        return string.Empty;
+        //    }
+        //    if (base64String == string.Empty)
+        //    {
+        //        return string.Empty;
+        //    }
+        //    byte[] data = Convert.FromBase64String(base64String);
+        //    string directoryPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "ProjectForStudent");
+
+        //    if (!Directory.Exists(directoryPath))
+        //    {
+        //        Directory.CreateDirectory(directoryPath);
+        //    }
+        //    string fileExtension = IsJpeg(data) == true ? ".jpg" : IsPng(data) == true ?
+        //        ".png" : IsGif(data) == true ? ".gif" : IsPdf(data) == true ? ".pdf" : IsMov(data) == true ? ".mov" :
+        //    IsMp4(data) == true ? ".mp4" : IsAvi(data) == true ? ".avi" : string.Empty;
+
+        //    string fileName = Guid.NewGuid().ToString() + fileExtension;
+        //    string filePath = Path.Combine(directoryPath, fileName);
+        //    if (string.IsNullOrEmpty(fileExtension))
+        //    {
+        //        throw new InvalidOperationException("Incorrect file uploaded");
+        //    }
+        //    // Write the byte array to the image file
+        //    File.WriteAllBytes(filePath, data);
+        //    return filePath;
+        //}
         private string GetFile(string Filename)
         {
             var filePath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "ProjectForStudent", Filename);

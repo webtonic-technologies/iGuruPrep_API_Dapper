@@ -17,8 +17,8 @@
         public DateTime? createdon { get; set; }
         public bool Status { get; set; }
         public int EmployeeID { get; set; }
-        public string Filename1 { get; set; } = string.Empty;
-        public string Filename2 { get; set; } = string.Empty;
+        public string Event1Image { get; set; } = string.Empty;
+        public string Event2Image { get; set; } = string.Empty;
         public string EmpFirstName { get; set; } = string.Empty;
         public List<SOTDCategoryResponse>? SOTDCategories { get; set; }
         public List<SOTDBoardResponse>? SOTDBoards { get; set; }

@@ -4,6 +4,7 @@ using ControlPanel_API.Models;
 using ControlPanel_API.Repository.Interfaces;
 using Dapper;
 using System.Data;
+using System.Data.SqlClient;
 
 namespace ControlPanel_API.Repository.Implementations
 {
@@ -57,6 +58,10 @@ namespace ControlPanel_API.Repository.Implementations
                     }
                 }
 
+            }
+            catch (SqlException ex) when (ex.Number == 2627 || ex.Number == 2601) // SQL error numbers for unique key violation
+            {
+                return new ServiceResponse<string>(false, "Role already exists.", string.Empty, StatusCodes.Status409Conflict);
             }
             catch (Exception ex)
             {
