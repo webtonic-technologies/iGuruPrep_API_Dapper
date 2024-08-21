@@ -1,4 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Microsoft.AspNetCore.DataProtection.KeyManagement;
+using Microsoft.AspNetCore.Http.HttpResults;
+using System.ComponentModel.DataAnnotations;
 using UserManagement_API.Models;
 
 namespace UserManagement_API.DTOs.Requests
@@ -28,5 +30,13 @@ namespace UserManagement_API.DTOs.Requests
         public int PageNumber { get; set; }
         public int PageSize { get; set; }
         public string? SearchText { get; set; } = string.Empty;
+    }
+
+    public class ReferralLinks
+    {
+        public int RefLinksId { get; set; }
+        public int referenceLinkID { get; set; }
+        public string ReferralCode { get; set; } = string.Empty;
+        public string ReferralLink { get; set; } = string.Empty;
     }
 }

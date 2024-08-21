@@ -14,4 +14,9 @@
         public string? SearchText { get; set; } = string.Empty;
         public int ExamTypeId { get; set; }
     }
+    public class ChangeStatusRequest
+    {
+       public int contactusId {  get; set; }
+        public int StatusId { get; set; }
+    }
 }

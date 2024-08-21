@@ -14,6 +14,19 @@ namespace ControlPanel_API.Services.Implementations
         {
             _contactUsRepository = contactUsRepository;
         }
+
+        public async Task<ServiceResponse<string>> ChangeStatus(ChangeStatusRequest request)
+        {
+            try
+            {
+                return await _contactUsRepository.ChangeStatus(request);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+            }
+        }
+
         public async Task<ServiceResponse<List<GetAllContactUsResponse>>> GetAllContactUs(GeAllContactUsRequest request)
         {
             try

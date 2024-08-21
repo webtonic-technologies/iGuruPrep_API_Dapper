@@ -5,7 +5,7 @@
         public int NBNotificationID { get; set; }
         public string NotificationTitle { get; set; } = string.Empty;
         //public int CourseID { get; set; }
-        public string PathURL { get; set; } = string.Empty;
+        public string PDF { get; set; } = string.Empty;
         //public int ClassID { get; set; }
         //public int BoardId { get; set; }
         //public int NBNID { get; set; }

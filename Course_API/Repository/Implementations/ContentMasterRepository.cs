@@ -25,9 +25,9 @@ namespace Course_API.Repository.Implementations
                 {
                     var insertQuery = @"
                 INSERT INTO tblContentMaster (
-                    boardId, classId, courseId, subjectId, fileName, PathURL, createdon, createdby, IndexTypeId, ExamTypeId, APId, EmployeeId, ContentIndexId)
+                    boardId, classId, courseId, subjectId, PDF, Video, createdon, createdby, IndexTypeId, ExamTypeId, APId, EmployeeId, ContentIndexId)
                 VALUES (
-                    @boardId, @classId, @courseId, @subjectId, @fileName, @PathURL, @createdon, @createdby, @IndexTypeId, @ExamTypeId, @APId, @EmployeeId, @ContentIndexId);";
+                    @boardId, @classId, @courseId, @subjectId, @PDF, @Video, @createdon, @createdby, @IndexTypeId, @ExamTypeId, @APId, @EmployeeId, @ContentIndexId);";
 
                     var content = new ContentMaster
                     {
@@ -35,8 +35,8 @@ namespace Course_API.Repository.Implementations
                         classId = request.classId,
                         courseId = request.courseId,
                         subjectId = request.subjectId,
-                        fileName = PDFUpload(request.fileName),
-                        PathURL = VideoUpload(request.PathURL),
+                        PDF = PDFUpload(request.PDF),
+                        Video = VideoUpload(request.Video),
                         createdon = DateTime.Now,
                         createdby = request.createdby,
                         IndexTypeId = request.IndexTypeId,
@@ -64,8 +64,8 @@ namespace Course_API.Repository.Implementations
                     classId = @classId,
                     courseId = @courseId,
                     subjectId = @subjectId,
-                    fileName = @fileName,
-                    PathURL = @PathURL,
+                    PDF = @PDF,
+                    Video = @Video,
                     modifiedon = @modifiedon,
                     modifiedby = @modifiedby,
                     IndexTypeId = @IndexTypeId,
@@ -82,8 +82,8 @@ namespace Course_API.Repository.Implementations
                         classId = request.classId,
                         courseId = request.courseId,
                         subjectId = request.subjectId,
-                        fileName = PDFUpload(request.fileName),
-                        PathURL = VideoUpload(request.PathURL),
+                        PDF = PDFUpload(request.PDF),
+                        Video = VideoUpload(request.Video),
                         modifiedon = DateTime.Now,
                         modifiedby = request.modifiedby,
                         IndexTypeId = request.IndexTypeId,
@@ -114,7 +114,7 @@ namespace Course_API.Repository.Implementations
             try
             {
                 string selectQuery = @"
-            SELECT cm.contentid, cm.boardId, b.BoardName, cm.classId, cl.ClassName, cm.courseId, c.CourseName, cm.subjectId, s.SubjectName, cm.fileName, cm.PathURL, cm.createdon, cm.createdby, cm.modifiedon, cm.modifiedby,
+            SELECT cm.contentid, cm.boardId, b.BoardName, cm.classId, cl.ClassName, cm.courseId, c.CourseName, cm.subjectId, s.SubjectName, cm.PDF, cm.Video, cm.createdon, cm.createdby, cm.modifiedon, cm.modifiedby,
                    cm.IndexTypeId, it.IndexType as IndexTypeName, cm.ExamTypeId, et.ExamTypeName, cm.APId, a.APName, cm.EmployeeId, e.EmpFirstName as EmployeeName , cm.ContentIndexId,
                    CASE 
                        WHEN cm.IndexTypeId = 1 THEN ci.ContentName_Chapter
@@ -138,8 +138,8 @@ namespace Course_API.Repository.Implementations
                 var data = await _connection.QuerySingleOrDefaultAsync<ContentMasterResponseDTO>(selectQuery, new { ContentId });
                 if (data != null)
                 {
-                    data.PathURL = GetVideo(data.PathURL);
-                    data.fileName = GetPDF(data.fileName);
+                    data.Video = GetVideo(data.Video);
+                    data.PDF = GetPDF(data.PDF);
                     return new ServiceResponse<ContentMasterResponseDTO>(true, "Operation Successful", data, 200);
                 }
                 else
@@ -158,7 +158,7 @@ namespace Course_API.Repository.Implementations
             {
                 // Base query
                 string baseQuery = @"
-        SELECT cm.contentid, cm.boardId, b.BoardName, cm.classId, cl.ClassName, cm.courseId, c.CourseName, cm.subjectId, s.SubjectName, cm.fileName, cm.PathURL, cm.createdon, cm.createdby, cm.modifiedon, cm.modifiedby,
+        SELECT cm.contentid, cm.boardId, b.BoardName, cm.classId, cl.ClassName, cm.courseId, c.CourseName, cm.subjectId, s.SubjectName, cm.PDF, cm.Video, cm.createdon, cm.createdby, cm.modifiedon, cm.modifiedby,
                cm.IndexTypeId, it.IndexType as IndexTypeName, cm.ExamTypeId, et.ExamTypeName, cm.APId, a.APName, cm.EmployeeId, e.EmpFirstName as EmployeeName , cm.ContentIndexId,
                CASE 
                    WHEN cm.IndexTypeId = 1 THEN ci.ContentName_Chapter
@@ -221,8 +221,8 @@ namespace Course_API.Repository.Implementations
                 {
                     foreach (var item in data)
                     {
-                        item.fileName = GetPDF(item.fileName);
-                        item.PathURL = GetVideo(item.PathURL);
+                        item.Video = GetPDF(item.Video);
+                        item.PDF = GetVideo(item.PDF);
                     }
 
                     // Apply pagination logic after fetching the records

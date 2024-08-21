@@ -16,16 +16,218 @@ namespace UserManagement_API.Repository.Implementations
         {
             _connection = connection;
         }
+        //public async Task<ServiceResponse<string>> AddUpdateGenerateLicense(GenerateLicenseDTO request)
+        //{
+        //    try
+        //    {
+        //        if (request.GenerateLicenseID == 0)
+        //        {
+        //            string query = @"
+        //            INSERT INTO [tblGenerateLicense] (SchoolName, SchoolCode, BranchName, BranchCode, ChairmanEmail, ChairmanMobile, PrincipalEmail, PrincipalMobile, StateId, DistrictId, createdon, createdby, EmployeeID)
+        //            VALUES (@SchoolName, @SchoolCode, @BranchName, @BranchCode, @ChairmanEmail, @ChairmanMobile, @PrincipalEmail, @PrincipalMobile, @StateId, @DistrictId, @CreatedOn, @CreatedBy, @EmployeeID);
+        //            SELECT SCOPE_IDENTITY();";
+        //            var newLicense = new GenerateLicense
+        //            {
+        //                SchoolName = request.SchoolName,
+        //                SchoolCode = request.SchoolCode,
+        //                BranchName = request.BranchName,
+        //                BranchCode = request.BranchCode,
+        //                ChairmanEmail = request.ChairmanEmail,
+        //                ChairmanMobile = request.ChairmanMobile,
+        //                PrincipalEmail = request.PrincipalEmail,
+        //                PrincipalMobile = request.PrincipalMobile,
+        //                stateid = request.stateid,
+        //                DistrictID = request.DistrictID,
+        //                createdon = DateTime.Now,
+        //                createdby = request.createdby,
+        //                EmployeeID = request.EmployeeID
+        //            };
+        //            var generatedId = await _connection.QueryFirstOrDefaultAsync<int>(query, newLicense);
+        //            if (generatedId != 0)
+        //            {
+        //                string insertQuery = @"
+        //                INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID, ExamTypeId)
+        //                VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID, @ExamTypeId);
+        //                SELECT SCOPE_IDENTITY();";
+
+        //                bool operationSuccessful = true;
+        //                foreach (var item in request.LicenseDetails ??= ([]))
+        //                {
+        //                    item.GenerateLicenseID = generatedId;
+        //                    int licenseDetailId = await _connection.QueryFirstOrDefaultAsync<int>(insertQuery, item);
+        //                    if (licenseDetailId > 0)
+        //                    {
+        //                        int licenses = GenerateLicenseNumbersAsync(item.NoOfLicense, licenseDetailId);
+        //                        if (licenses <= 0)
+        //                        {
+        //                            operationSuccessful = false;
+        //                            break; // Exit the loop if any license generation fails
+        //                        }
+        //                    }
+        //                    else
+        //                    {
+        //                        operationSuccessful = false;
+        //                        break; // Exit the loop if any license detail insertion fails
+        //                    }
+        //                }
+        //                if (operationSuccessful)
+        //                {
+        //                    return new ServiceResponse<string>(true, "Operation Successful", "License Generated Successfully.", 200);
+        //                }
+        //                else
+        //                {
+        //                    return new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
+        //                }
+        //            }
+        //            else
+        //            {
+        //                return new ServiceResponse<string>(false, "Some error occured", string.Empty, 500);
+        //            }
+        //        }
+        //        else
+        //        {
+        //            string updateQuery = @"
+        //            UPDATE [tblGenerateLicense]
+        //            SET SchoolName = @SchoolName, 
+        //                SchoolCode = @SchoolCode, 
+        //                BranchName = @BranchName, 
+        //                BranchCode = @BranchCode,  
+        //                ChairmanEmail = @ChairmanEmail, 
+        //                ChairmanMobile = @ChairmanMobile, 
+        //                PrincipalEmail = @PrincipalEmail, 
+        //                PrincipalMobile = @PrincipalMobile, 
+        //                StateId = @StateId, 
+        //                DistrictId = @DistrictId,  
+        //                modifiedon = @ModifiedOn, 
+        //                modifiedby = @ModifiedBy,  
+        //                EmployeeID = @EmployeeID
+        //            WHERE GenerateLicenseID = @GenerateLicenseID;";
+        //            var newLicense = new GenerateLicense
+        //            {
+        //                SchoolName = request.SchoolName,
+        //                SchoolCode = request.SchoolCode,
+        //                BranchName = request.BranchName,
+        //                BranchCode = request.BranchCode,
+        //                ChairmanEmail = request.ChairmanEmail,
+        //                ChairmanMobile = request.ChairmanMobile,
+        //                PrincipalEmail = request.PrincipalEmail,
+        //                PrincipalMobile = request.PrincipalMobile,
+        //                stateid = request.stateid,
+        //                DistrictID = request.DistrictID,
+        //                modifiedon = DateTime.Now,
+        //                modifiedby = request.createdby,
+        //                EmployeeID = request.EmployeeID,
+        //                GenerateLicenseID = request.GenerateLicenseID
+        //            };
+        //            int rowsAffected = await _connection.ExecuteAsync(updateQuery, newLicense);
+        //            if (rowsAffected > 0)
+        //            {
+        //                int count = await _connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM tblLicenseDetail WHERE GenerateLicenseID = @GenerateLicenseID", new { request.GenerateLicenseID });
+        //                if (count > 0)
+        //                {
+        //                    string deleteQuery = @" DELETE FROM tblLicenseDetail WHERE GenerateLicenseID = @GenerateLicenseID";
+        //                    int rowsAffected1 = await _connection.ExecuteAsync(deleteQuery, new { request.GenerateLicenseID });
+        //                    if (rowsAffected1 > 0)
+        //                    {
+        //                        string insertQuery = @"
+        //                        INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID, ExamTypeId)
+        //                        VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID, @ExamTypeId);
+        //                        SELECT SCOPE_IDENTITY();";
+
+        //                        bool operationSuccessful = true;
+        //                        foreach (var item in request.LicenseDetails ??= ([]))
+        //                        {
+        //                            item.GenerateLicenseID = request.GenerateLicenseID;
+        //                            int licenseDetailId = await _connection.QueryFirstOrDefaultAsync<int>(insertQuery, item);
+        //                            if (licenseDetailId > 0)
+        //                            {
+        //                                int licenses = GenerateLicenseNumbersAsync(item.NoOfLicense, licenseDetailId);
+        //                                if (licenses <= 0)
+        //                                {
+        //                                    operationSuccessful = false;
+        //                                    break; // Exit the loop if any license generation fails
+        //                                }
+        //                            }
+        //                            else
+        //                            {
+        //                                operationSuccessful = false;
+        //                                break; // Exit the loop if any license detail insertion fails
+        //                            }
+        //                        }
+        //                        if (operationSuccessful)
+        //                        {
+        //                            return new ServiceResponse<string>(true, "Operation Successful", "License Updated Successfully.", 200);
+        //                        }
+        //                        else
+        //                        {
+        //                            return new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
+        //                        }
+        //                    }
+        //                    else
+        //                    {
+        //                        return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
+        //                    }
+        //                }
+        //                else
+        //                {
+        //                    string insertQuery = @"
+        //                    INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID, ExamTypeId)
+        //                    VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID, @ExamTypeId);
+        //                    SELECT SCOPE_IDENTITY();";
+        //                    bool operationSuccessful = true;
+        //                    foreach (var item in request.LicenseDetails ??= ([]))
+        //                    {
+        //                        item.GenerateLicenseID = request.GenerateLicenseID;
+        //                        int licenseDetailId = await _connection.QueryFirstOrDefaultAsync<int>(insertQuery, item);
+        //                        if (licenseDetailId > 0)
+        //                        {
+        //                            int licenses = GenerateLicenseNumbersAsync(item.NoOfLicense, licenseDetailId);
+        //                            if (licenses <= 0)
+        //                            {
+        //                                operationSuccessful = false;
+        //                                break; // Exit the loop if any license generation fails
+        //                            }
+        //                        }
+        //                        else
+        //                        {
+        //                            operationSuccessful = false;
+        //                            break; // Exit the loop if any license detail insertion fails
+        //                        }
+        //                    }
+        //                    if (operationSuccessful)
+        //                    {
+        //                        return new ServiceResponse<string>(true, "Operation Successful", "License Updated Successfully.", 200);
+        //                    }
+        //                    else
+        //                    {
+        //                        return new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
+        //                    }
+        //                }
+        //            }
+        //            else
+        //            {
+        //                return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
+        //            }
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+        //    }
+        //}
         public async Task<ServiceResponse<string>> AddUpdateGenerateLicense(GenerateLicenseDTO request)
         {
             try
             {
                 if (request.GenerateLicenseID == 0)
                 {
+                    // Insert new license and get the generated ID
                     string query = @"
-                    INSERT INTO [tblGenerateLicense] (SchoolName, SchoolCode, BranchName, BranchCode, ChairmanEmail, ChairmanMobile, PrincipalEmail, PrincipalMobile, StateId, DistrictId, createdon, createdby, EmployeeID)
-                    VALUES (@SchoolName, @SchoolCode, @BranchName, @BranchCode, @ChairmanEmail, @ChairmanMobile, @PrincipalEmail, @PrincipalMobile, @StateId, @DistrictId, @CreatedOn, @CreatedBy, @EmployeeID);
-                    SELECT SCOPE_IDENTITY();";
+            INSERT INTO [tblGenerateLicense] (SchoolName, SchoolCode, BranchName, BranchCode, ChairmanEmail, ChairmanMobile, PrincipalEmail, PrincipalMobile, StateId,
+DistrictId, createdon, createdby, EmployeeID, ChairmanUsername, ChairmanPassword, PrincipalUsername, PrincipalPassword)
+            VALUES (@SchoolName, @SchoolCode, @BranchName, @BranchCode, @ChairmanEmail, @ChairmanMobile, @PrincipalEmail, @PrincipalMobile, @StateId,
+@DistrictId, @CreatedOn, @CreatedBy, @EmployeeID, @ChairmanUsername, @ChairmanPassword, @PrincipalUsername, @PrincipalPassword);
+            SELECT SCOPE_IDENTITY();";
                     var newLicense = new GenerateLicense
                     {
                         SchoolName = request.SchoolName,
@@ -40,68 +242,44 @@ namespace UserManagement_API.Repository.Implementations
                         DistrictID = request.DistrictID,
                         createdon = DateTime.Now,
                         createdby = request.createdby,
-                        EmployeeID = request.EmployeeID
+                        EmployeeID = request.EmployeeID,
+                        ChairmanUsername = request.ChairmanEmail,
+                        ChairmanPassword = GenerateRandomPassword(),
+                        PrincipalUsername = request.PrincipalEmail,
+                        PrincipalPassword = GenerateRandomPassword()
                     };
                     var generatedId = await _connection.QueryFirstOrDefaultAsync<int>(query, newLicense);
                     if (generatedId != 0)
                     {
-                        string insertQuery = @"
-                        INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID, ExamTypeId)
-                        VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID, @ExamTypeId);
-                        SELECT SCOPE_IDENTITY();";
-
-                        bool operationSuccessful = true;
-                        foreach (var item in request.LicenseDetails ??= ([]))
-                        {
-                            item.GenerateLicenseID = generatedId;
-                            int licenseDetailId = await _connection.QueryFirstOrDefaultAsync<int>(insertQuery, item);
-                            if (licenseDetailId > 0)
-                            {
-                                int licenses = GenerateLicenseNumbersAsync(item.NoOfLicense, licenseDetailId);
-                                if (licenses <= 0)
-                                {
-                                    operationSuccessful = false;
-                                    break; // Exit the loop if any license generation fails
-                                }
-                            }
-                            else
-                            {
-                                operationSuccessful = false;
-                                break; // Exit the loop if any license detail insertion fails
-                            }
-                        }
-                        if (operationSuccessful)
-                        {
-                            return new ServiceResponse<string>(true, "Operation Successful", "License Generated Successfully.", 200);
-                        }
-                        else
-                        {
-                            return new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
-                        }
+                        bool operationSuccessful = await InsertOrUpdateLicenseDetails(request.LicenseDetails, generatedId, request.SchoolCode);
+                        return operationSuccessful
+                            ? new ServiceResponse<string>(true, "Operation Successful", "License Generated Successfully.", 200)
+                            : new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
                     }
                     else
                     {
-                        return new ServiceResponse<string>(false, "Some error occured", string.Empty, 500);
+                        return new ServiceResponse<string>(false, "Some error occurred", string.Empty, 500);
                     }
                 }
                 else
                 {
+                    // Update existing license
                     string updateQuery = @"
-                    UPDATE [tblGenerateLicense]
-                    SET SchoolName = @SchoolName, 
-                        SchoolCode = @SchoolCode, 
-                        BranchName = @BranchName, 
-                        BranchCode = @BranchCode,  
-                        ChairmanEmail = @ChairmanEmail, 
-                        ChairmanMobile = @ChairmanMobile, 
-                        PrincipalEmail = @PrincipalEmail, 
-                        PrincipalMobile = @PrincipalMobile, 
-                        StateId = @StateId, 
-                        DistrictId = @DistrictId,  
-                        modifiedon = @ModifiedOn, 
-                        modifiedby = @ModifiedBy,  
-                        EmployeeID = @EmployeeID
-                    WHERE GenerateLicenseID = @GenerateLicenseID;";
+            UPDATE [tblGenerateLicense]
+            SET SchoolName = @SchoolName, 
+                SchoolCode = @SchoolCode, 
+                BranchName = @BranchName, 
+                BranchCode = @BranchCode,  
+                ChairmanEmail = @ChairmanEmail, 
+                ChairmanMobile = @ChairmanMobile, 
+                PrincipalEmail = @PrincipalEmail, 
+                PrincipalMobile = @PrincipalMobile, 
+                StateId = @StateId, 
+                DistrictId = @DistrictId,  
+                modifiedon = @ModifiedOn, 
+                modifiedby = @ModifiedBy,  
+                EmployeeID = @EmployeeID
+            WHERE GenerateLicenseID = @GenerateLicenseID;";
                     var newLicense = new GenerateLicense
                     {
                         SchoolName = request.SchoolName,
@@ -122,91 +300,14 @@ namespace UserManagement_API.Repository.Implementations
                     int rowsAffected = await _connection.ExecuteAsync(updateQuery, newLicense);
                     if (rowsAffected > 0)
                     {
-                        int count = await _connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM tblLicenseDetail WHERE GenerateLicenseID = @GenerateLicenseID", new { request.GenerateLicenseID });
-                        if (count > 0)
-                        {
-                            string deleteQuery = @" DELETE FROM tblLicenseDetail WHERE GenerateLicenseID = @GenerateLicenseID";
-                            int rowsAffected1 = await _connection.ExecuteAsync(deleteQuery, new { request.GenerateLicenseID });
-                            if (rowsAffected1 > 0)
-                            {
-                                string insertQuery = @"
-                                INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID, ExamTypeId)
-                                VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID, @ExamTypeId);
-                                SELECT SCOPE_IDENTITY();";
-
-                                bool operationSuccessful = true;
-                                foreach (var item in request.LicenseDetails ??= ([]))
-                                {
-                                    item.GenerateLicenseID = request.GenerateLicenseID;
-                                    int licenseDetailId = await _connection.QueryFirstOrDefaultAsync<int>(insertQuery, item);
-                                    if (licenseDetailId > 0)
-                                    {
-                                        int licenses = GenerateLicenseNumbersAsync(item.NoOfLicense, licenseDetailId);
-                                        if (licenses <= 0)
-                                        {
-                                            operationSuccessful = false;
-                                            break; // Exit the loop if any license generation fails
-                                        }
-                                    }
-                                    else
-                                    {
-                                        operationSuccessful = false;
-                                        break; // Exit the loop if any license detail insertion fails
-                                    }
-                                }
-                                if (operationSuccessful)
-                                {
-                                    return new ServiceResponse<string>(true, "Operation Successful", "License Updated Successfully.", 200);
-                                }
-                                else
-                                {
-                                    return new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
-                                }
-                            }
-                            else
-                            {
-                                return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
-                            }
-                        }
-                        else
-                        {
-                            string insertQuery = @"
-                            INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID, ExamTypeId)
-                            VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID, @ExamTypeId);
-                            SELECT SCOPE_IDENTITY();";
-                            bool operationSuccessful = true;
-                            foreach (var item in request.LicenseDetails ??= ([]))
-                            {
-                                item.GenerateLicenseID = request.GenerateLicenseID;
-                                int licenseDetailId = await _connection.QueryFirstOrDefaultAsync<int>(insertQuery, item);
-                                if (licenseDetailId > 0)
-                                {
-                                    int licenses = GenerateLicenseNumbersAsync(item.NoOfLicense, licenseDetailId);
-                                    if (licenses <= 0)
-                                    {
-                                        operationSuccessful = false;
-                                        break; // Exit the loop if any license generation fails
-                                    }
-                                }
-                                else
-                                {
-                                    operationSuccessful = false;
-                                    break; // Exit the loop if any license detail insertion fails
-                                }
-                            }
-                            if (operationSuccessful)
-                            {
-                                return new ServiceResponse<string>(true, "Operation Successful", "License Updated Successfully.", 200);
-                            }
-                            else
-                            {
-                                return new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
-                            }
-                        }
+                        bool operationSuccessful = await InsertOrUpdateLicenseDetails(request.LicenseDetails, request.GenerateLicenseID, request.SchoolCode);
+                        return operationSuccessful
+                            ? new ServiceResponse<string>(true, "Operation Successful", "License Updated Successfully.", 200)
+                            : new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
                     }
                     else
                     {
-                        return new ServiceResponse<string>(false, "Opertion Failed", string.Empty, 500);
+                        return new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
                     }
                 }
             }
@@ -214,6 +315,39 @@ namespace UserManagement_API.Repository.Implementations
             {
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
+        }
+        private async Task<bool> InsertOrUpdateLicenseDetails(List<LicenseDetail> licenseDetails, int generateLicenseID, string SchoolCode)
+        {
+            string insertQuery = @"
+    INSERT INTO tblLicenseDetail (GenerateLicenseID, BoardID, ClassID, CourseID, NoOfLicense, ValidityID, APID, ExamTypeId)
+    VALUES (@GenerateLicenseID, @BoardID, @ClassID, @CourseID, @NoOfLicense, @ValidityID, @APID, @ExamTypeId);
+    SELECT SCOPE_IDENTITY();";
+
+            foreach (var item in licenseDetails)
+            {
+                item.GenerateLicenseID = generateLicenseID;
+
+                // Fetch codes based on IDs
+                var boardCode = await _connection.QueryFirstOrDefaultAsync<string>("SELECT BoardCode FROM tblBoard WHERE BoardID = @BoardID", new { item.BoardID });
+                var classCode = await _connection.QueryFirstOrDefaultAsync<string>("SELECT ClassCode FROM tblClass WHERE ClassID = @ClassID", new { item.ClassID });
+                var courseCode = await _connection.QueryFirstOrDefaultAsync<string>("SELECT CourseCode FROM tblCourse WHERE CourseID = @CourseID", new { item.CourseID });
+
+                // Insert LicenseDetail and fetch LicenseDetailID
+                int licenseDetailId = await _connection.QueryFirstOrDefaultAsync<int>(insertQuery, item);
+                if (licenseDetailId > 0)
+                {
+                    int licenses = GenerateLicenseNumbersAsync(item.NoOfLicense, licenseDetailId, SchoolCode, boardCode, classCode, courseCode);
+                    if (licenses <= 0)
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            return true;
         }
         public async Task<ServiceResponse<GenerateLicenseResponseDTO>> GetGenerateLicenseById(int GenerateLicenseID)
         {
@@ -418,13 +552,13 @@ namespace UserManagement_API.Repository.Implementations
             var data = _connection.Query<LicenseNumbers>(Query, new { LicenseDetailID = licenseDetailId });
             return data != null ? data.AsList() : [];
         }
-        private int GenerateLicenseNumbersAsync(int numberOfLicenses, int licenseDetailId)
+        private int GenerateLicenseNumbersAsync(int numberOfLicenses, int licenseDetailId, string schoolCode, string boardCode, string classCode, string courseCode)
         {
             // Check if the table has any records against licenseDetailId
             string checkQuery = "SELECT COUNT(*) FROM tblLicenseNumbers WHERE LicenseDetailID = @LicenseDetailID";
             int existingRecordsCount = _connection.ExecuteScalar<int>(checkQuery, new { LicenseDetailID = licenseDetailId });
 
-            // If count is greater than 1, delete the existing records
+            // If count is greater than 0, delete the existing records
             if (existingRecordsCount > 0)
             {
                 string deleteQuery = "DELETE FROM tblLicenseNumbers WHERE LicenseDetailID = @LicenseDetailID";
@@ -433,30 +567,24 @@ namespace UserManagement_API.Repository.Implementations
 
             // Generate new licenses
             var licenses = new List<LicenseNumbers>();
-            var random = new Random();
+            int startingNumber = 1;
 
             for (int i = 0; i < numberOfLicenses; i++)
             {
                 string licenseNo;
-                string licensePassword;
 
                 // Ensure unique license number
                 do
                 {
-                    licenseNo = GenerateRandomString(4, random) + GenerateRandomNumber(4, random);
+                    licenseNo = $"{schoolCode}{boardCode}{classCode}{courseCode}{startingNumber.ToString("D4")}";
+                    startingNumber++;
                 } while (IsLicenseNoExists(licenseNo));
-
-                // Ensure unique license password
-                do
-                {
-                    licensePassword = GenerateRandomString(4, random) + GenerateRandomNumber(4, random);
-                } while (IsLicensePasswordExists(licensePassword));
 
                 var license = new LicenseNumbers
                 {
                     LicenseDetailID = licenseDetailId,
                     LicenseNo = licenseNo,
-                    LicensePassword = licensePassword
+                    LicensePassword = "iGuruPrep@123"
                 };
 
                 licenses.Add(license);
@@ -464,11 +592,21 @@ namespace UserManagement_API.Repository.Implementations
 
             // Insert new licenses into the table
             var query = @"
-            INSERT INTO tblLicenseNumbers (LicenseDetailID, LicenseNo, LicensePassword) 
-            VALUES (@LicenseDetailID, @LicenseNo, @LicensePassword)";
+    INSERT INTO tblLicenseNumbers (LicenseDetailID, LicenseNo, LicensePassword) 
+    VALUES (@LicenseDetailID, @LicenseNo, @LicensePassword)";
 
             int insertedRecords = _connection.Execute(query, licenses);
             return insertedRecords;
+        }
+        private string GenerateRandomPassword()
+        {
+            var random = new Random();
+            string password = GenerateRandomString(4, random) + GenerateRandomNumber(4, random);
+            while (IsLicensePasswordExists(password))
+            {
+                password = GenerateRandomString(4, random) + GenerateRandomNumber(4, random);
+            }
+            return password;
         }
         private bool IsLicenseNoExists(string licenseNo)
         {

@@ -6,7 +6,7 @@ namespace ControlPanel_API.DTOs.Response
     {
         public int NBNotificationID { get; set; }
         public string NotificationTitle { get; set; } = string.Empty;
-        public string PathURL { get; set; } = string.Empty;
+        public string PDF { get; set; } = string.Empty;
         public bool status { get; set; }
         public DateTime? modifiedon { get; set; }
         public string modifiedby { get; set; } = string.Empty;

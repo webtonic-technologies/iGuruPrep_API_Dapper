@@ -11,8 +11,8 @@
         public string CourseName { get; set; } = string.Empty; 
         public int subjectId { get; set; }
         public string SubjectName { get; set; } = string.Empty;
-        public string fileName { get; set; } = string.Empty;
-        public string PathURL { get; set; } = string.Empty;
+        public string PDF { get; set; } = string.Empty;
+        public string Video { get; set; } = string.Empty;
         public DateTime? createdon { get; set; }
         public string createdby { get; set; } = string.Empty;
         public DateTime? modifiedon { get; set; }

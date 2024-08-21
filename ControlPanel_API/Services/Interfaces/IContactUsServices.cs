@@ -8,5 +8,6 @@ namespace ControlPanel_API.Services.Interfaces
     {
         Task<ServiceResponse<List<GetAllContactUsResponse>>> GetAllContactUs(GeAllContactUsRequest request);
         Task<ServiceResponse<GetAllContactUsResponse>> GetContactUsById(int contactusId);
+        Task<ServiceResponse<string>> ChangeStatus(ChangeStatusRequest request);
     }
 }

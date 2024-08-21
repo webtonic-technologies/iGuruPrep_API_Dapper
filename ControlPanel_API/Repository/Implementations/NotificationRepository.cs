@@ -30,15 +30,15 @@ namespace ControlPanel_API.Repository.Implementations
                     var newNotification = new Notification
                     {
                         NotificationTitle = request.NotificationTitle,
-                        PathURL = PDFUpload(request.PathURL ??= string.Empty),
+                        PDF = PDFUpload(request.PDF ??= string.Empty),
                         status = true,
                         createdon = DateTime.Now,
                         createdby = request.createdby,
                         EmployeeID = request.EmployeeID
                     };
                     string insertQuery = @"
-                    INSERT INTO [tblNbNotification] (NotificationTitle, PathURL, status, createdon, createdby, EmployeeID)
-                    VALUES (@NotificationTitle, @PathURL, @status, @createdon, @createdby, @EmployeeID);
+                    INSERT INTO [tblNbNotification] (NotificationTitle, PDF, status, createdon, createdby, EmployeeID)
+                    VALUES (@NotificationTitle, @PDF, @status, @createdon, @createdby, @EmployeeID);
                     SELECT CAST(SCOPE_IDENTITY() as int);";
 
                     int notificationId = await _connection.QuerySingleOrDefaultAsync<int>(insertQuery, newNotification);
@@ -70,7 +70,7 @@ namespace ControlPanel_API.Repository.Implementations
                     var newNotification = new Notification
                     {
                         NotificationTitle = request.NotificationTitle,
-                        PathURL = PDFUpload(request.PathURL ??= string.Empty),
+                        PDF = PDFUpload(request.PDF ??= string.Empty),
                         status = request.status,
                         modifiedon = DateTime.Now,
                         modifiedby = request.modifiedby,
@@ -80,7 +80,7 @@ namespace ControlPanel_API.Repository.Implementations
                     string updateQuery = @"
                     UPDATE [tblNbNotification]
                     SET NotificationTitle = @NotificationTitle,
-                    PathURL = @PathURL,
+                    PDF = @PDF,
                     status = @status,
                     modifiedon = @modifiedon,
                     modifiedby = @modifiedby,
@@ -126,7 +126,7 @@ namespace ControlPanel_API.Repository.Implementations
         SELECT 
             n.NBNotificationID, 
             n.NotificationTitle, 
-            n.PathURL, 
+            n.PDF, 
             n.status, 
             n.createdon, 
             n.createdby, 
@@ -178,7 +178,7 @@ namespace ControlPanel_API.Repository.Implementations
                 {
                     NBNotificationID = item.NBNotificationID,
                     NotificationTitle = item.NotificationTitle,
-                    PathURL = GetPDF(item.PathURL ?? string.Empty),
+                    PDF = GetPDF(item.PDF ?? string.Empty),
                     status = item.status,
                     createdon = item.createdon,
                     createdby = item.createdby,
@@ -229,7 +229,7 @@ namespace ControlPanel_API.Repository.Implementations
         SELECT 
             n.NBNotificationID, 
             n.NotificationTitle, 
-            n.PathURL, 
+            n.PDF, 
             n.status, 
             n.createdon, 
             n.createdby, 
@@ -264,7 +264,7 @@ namespace ControlPanel_API.Repository.Implementations
                     response.NbNotificationCourses = GetListOfNBCourse(NotificationId);
                     response.NbNotificationExamTypes = GetListOfNBExamType(NotificationId);
                     response.NotificationTitle = data.NotificationTitle;
-                    response.PathURL = GetPDF(data.PathURL ??= string.Empty);
+                    response.PDF = GetPDF(data.PDF ??= string.Empty);
                     response.status = data.status;
                     response.createdon = data.createdon;
                     response.createdby = data.createdby;

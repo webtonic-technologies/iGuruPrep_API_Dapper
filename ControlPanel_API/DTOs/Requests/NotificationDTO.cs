@@ -8,7 +8,7 @@ namespace ControlPanel_API.DTOs.Requests
         public int NBNotificationID { get; set; }
         [Required(ErrorMessage = "Title cannot be empty")]
         public string NotificationTitle { get; set; } = string.Empty;
-        public string PathURL { get; set; } = string.Empty;
+        public string PDF { get; set; } = string.Empty;
         public bool status { get; set; }
         public DateTime? modifiedon { get; set; }
         public string modifiedby { get; set; } = string.Empty;

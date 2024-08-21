@@ -198,5 +198,50 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<GetAllContactUsResponse>(false, ex.Message, new GetAllContactUsResponse(), 500);
             }
         }
+        public async Task<ServiceResponse<string>> ChangeStatus(ChangeStatusRequest request)
+        {
+            try
+            {
+                // Check if the ContactusID exists in the database
+                var existingRecord = await _connection.QueryFirstOrDefaultAsync<dynamic>(
+                    "SELECT ContactusID FROM [tblHelpContactUs] WHERE ContactusID = @ContactusId",
+                    new { request.contactusId });
+
+                if (existingRecord == null)
+                {
+                    return new ServiceResponse<string>(false, "Record not found", string.Empty, StatusCodes.Status404NotFound);
+                }
+
+                // Check if the StatusId is valid in the tblStatus table
+                var validStatus = await _connection.QueryFirstOrDefaultAsync<dynamic>(
+                    "SELECT RQSID FROM [tblStatus] WHERE RQSID = @StatusId",
+                    new { request.StatusId });
+
+                if (validStatus == null)
+                {
+                    return new ServiceResponse<string>(false, "Invalid status", string.Empty, StatusCodes.Status400BadRequest);
+                }
+
+                // Update the status in the tblHelpContactUs table
+                string updateQuery = @"
+            UPDATE [tblHelpContactUs]
+            SET RQSID = @StatusId, modifiedon = @ModifiedOn, modifiedby = @ModifiedBy
+            WHERE ContactusID = @ContactusId";
+
+                await _connection.ExecuteAsync(updateQuery, new
+                {
+                    request.StatusId,
+                    ModifiedOn = DateTime.UtcNow,
+                    ModifiedBy = "YourUserId", // Replace with the actual user ID or username
+                    request.contactusId
+                });
+
+                return new ServiceResponse<string>(true, "Status updated successfully", string.Empty, StatusCodes.Status200OK);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, StatusCodes.Status500InternalServerError);
+            }
+        }
     }
 }

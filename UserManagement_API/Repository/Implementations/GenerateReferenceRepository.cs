@@ -41,6 +41,7 @@ namespace UserManagement_API.Repository.Implementations
                     int insertedId = await _connection.ExecuteScalarAsync<int>(insertQuery, newReference);
                     if (insertedId > 0)
                     {
+                        GenerateAndSaveReferralLinks(insertedId,request.NumberOfRef);
                         string insertBankQuery = @"
                         INSERT INTO tblRefererBankDetails (referenceLinkID, BankName, ACNo, IFSC, ReferenceID, BranchName)
                         VALUES (@referenceLinkID, @BankName, @ACNo, @IFSC, @ReferenceID, @BranchName);";
@@ -363,5 +364,30 @@ namespace UserManagement_API.Repository.Implementations
                 return new ServiceResponse<List<Districts>>(false, ex.Message, [], 500);
             }
         }
+        private async Task GenerateAndSaveReferralLinks(int referenceLinkID, int numberOfReferrals)
+        {
+            var referralLinks = new List<ReferralLinks>();
+            for (int i = 0; i < numberOfReferrals; i++)
+            {
+                int serialNumber = 10001 + i; // Start serial number from 10001
+                string referralCode = $"iGP{serialNumber}";
+                string referralLink = $"https://iguruprep.2024.link/{referralCode}";
+
+                referralLinks.Add(new ReferralLinks
+                {
+                    referenceLinkID = referenceLinkID,
+                    ReferralCode = referralCode,
+                    ReferralLink = referralLink
+                });
+            }
+
+            // Insert the generated referral links into the database
+            string insertQuery = @"
+        INSERT INTO tblReferralLinks (referenceLinkID, ReferralCode, ReferralLink)
+        VALUES (@referenceLinkID, @ReferralCode, @ReferralLink);";
+
+            await _connection.ExecuteAsync(insertQuery, referralLinks);
+        }
+
     }
 }

@@ -834,7 +834,7 @@ namespace Config_API.Repository.Implementations
                             exportData.Add(new
                             {
                                 subjectcode = subject,
-                                chapter = string.IsNullOrEmpty(contentIndex.DisplayName) ? contentIndex.ContentName_Chapter : contentIndex.DisplayName,
+                                chapter = contentIndex.ContentName_Chapter,
                                 displayorder_chapter = contentIndex.DisplayOrder,
                                 topic = "",
                                 displayorder_topic = "",
@@ -862,9 +862,9 @@ namespace Config_API.Repository.Implementations
                                     exportData.Add(new
                                     {
                                         subjectcode = subject,
-                                        chapter = string.IsNullOrEmpty(contentIndex.DisplayName) ? contentIndex.ContentName_Chapter : contentIndex.DisplayName,
+                                        chapter = contentIndex.ContentName_Chapter,
                                         displayorder_chapter = contentIndex.DisplayOrder,
-                                        topic = string.IsNullOrEmpty(topic.DisplayName) ? topic.ContentName_Topic : topic.DisplayName,
+                                        topic = topic.ContentName_Topic,
                                         displayorder_topic = topic.DisplayOrder,
                                         subtopic = "",
                                         displayorder_subtopic = "",
@@ -881,11 +881,11 @@ namespace Config_API.Repository.Implementations
                                         exportData.Add(new
                                         {
                                             subjectcode = subject,
-                                            chapter = string.IsNullOrEmpty(contentIndex.DisplayName) ? contentIndex.ContentName_Chapter : contentIndex.DisplayName,
+                                            chapter = contentIndex.ContentName_Chapter,
                                             displayorder_chapter = contentIndex.DisplayOrder,
-                                            topic = string.IsNullOrEmpty(topic.DisplayName) ? topic.ContentName_Topic : topic.DisplayName,
+                                            topic = topic.ContentName_Topic,
                                             displayorder_topic = topic.DisplayOrder,
-                                            subtopic = string.IsNullOrEmpty(subTopic.DisplayName) ? subTopic.ContentName_SubTopic : subTopic.DisplayName,
+                                            subtopic = subTopic.ContentName_SubTopic,
                                             displayorder_subtopic = subTopic.DisplayOrder,
                                             chaptercode = contentIndex.ChapterCode,
                                             topiccode = topic.TopicCode,
