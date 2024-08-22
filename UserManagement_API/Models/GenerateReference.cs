@@ -13,5 +13,7 @@
         public string PAN { get; set; } = string.Empty;
         public int? ReferenceID { get; set; }
         public string PersonName { get; set; } = string.Empty;
+        public string Username {  get; set; } = string.Empty;
+        public string Password {  get; set; } = string.Empty;
     }
 }

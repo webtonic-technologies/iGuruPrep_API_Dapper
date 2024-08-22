@@ -775,9 +775,9 @@ namespace Config_API.Repository.Implementations
 
                 // Fetch the subject information
                 string subjectSql = @"
-        SELECT [SubjectCode]
-        FROM [tblSubject]
-        WHERE [SubjectId] = @subjectId";
+            SELECT [SubjectCode]
+            FROM [tblSubject]
+            WHERE [SubjectId] = @subjectId";
                 var subject = await _connection.QuerySingleOrDefaultAsync<string>(subjectSql, new { subjectId });
 
                 if (subject == null)
@@ -787,9 +787,9 @@ namespace Config_API.Repository.Implementations
 
                 // Fetch the main content index chapters
                 string contentIndexSql = @"
-        SELECT * 
-        FROM [tblContentIndexChapters] 
-        WHERE [SubjectId] = @subjectId AND [IsActive] = 1";
+            SELECT * 
+            FROM [tblContentIndexChapters] 
+            WHERE [SubjectId] = @subjectId AND [IsActive] = 1";
 
                 var contentIndexes = await _connection.QueryAsync<ContentIndexResponse>(contentIndexSql, new { subjectId });
 
@@ -813,6 +813,32 @@ namespace Config_API.Repository.Implementations
                     if (!contentIndexes.Any())
                     {
                         worksheet.Cells[2, 1].Value = subject;  // Use the fetched SubjectCode
+
+                        // Add the MasterData sheet
+                        var masterDataSheet1 = package.Workbook.Worksheets.Add("MasterData");
+
+                        // Add header
+                        // masterDataSheet.Cells[1, 1].Value = "SubjectId";
+                        masterDataSheet1.Cells[1, 1].Value = "SubjectName";
+                        masterDataSheet1.Cells[1, 2].Value = "SubjectCode";
+
+                        // Fetch all subjects for the MasterData sheet
+                        string masterDataSql1 = @"
+                SELECT  [SubjectName], [SubjectCode]
+                FROM [tblSubject]";
+
+                        var masterData1 = await _connection.QueryAsync(masterDataSql1);
+
+                        // Add rows to MasterData sheet
+                        int rowIndex1 = 2;
+                        foreach (var row in masterData1)
+                        {
+                            //  masterDataSheet.Cells[rowIndex, 1].Value = row.SubjectId;
+                            masterDataSheet1.Cells[rowIndex1, 1].Value = row.SubjectName;
+                            masterDataSheet1.Cells[rowIndex1, 2].Value = row.SubjectCode;
+                            rowIndex1++;
+                        }
+
                         return new ServiceResponse<byte[]>(true, "No records found, but subject code provided", package.GetAsByteArray(), StatusCodes.Status200OK);
                     }
 
@@ -823,9 +849,9 @@ namespace Config_API.Repository.Implementations
                     {
                         // Fetch topics for each chapter
                         string topicsSql = @"
-                SELECT * 
-                FROM [tblContentIndexTopics] 
-                WHERE [ChapterCode] = @chapterCode AND [IsActive] = 1";
+                    SELECT * 
+                    FROM [tblContentIndexTopics] 
+                    WHERE [ChapterCode] = @chapterCode AND [IsActive] = 1";
                         var topics = await _connection.QueryAsync<ContentIndexTopicsResponse>(topicsSql, new { chapterCode = contentIndex.ChapterCode });
 
                         if (!topics.Any())
@@ -851,9 +877,9 @@ namespace Config_API.Repository.Implementations
                             {
                                 // Fetch subtopics for each topic
                                 string subTopicsSql = @"
-                        SELECT * 
-                        FROM [tblContentIndexSubTopics] 
-                        WHERE [TopicCode] = @topicCode AND [IsActive] = 1";
+                            SELECT * 
+                            FROM [tblContentIndexSubTopics] 
+                            WHERE [TopicCode] = @topicCode AND [IsActive] = 1";
                                 var subTopics = await _connection.QueryAsync<ContentIndexSubTopicResponse>(subTopicsSql, new { topicCode = topic.TopicCode });
 
                                 if (!subTopics.Any())
@@ -930,6 +956,31 @@ namespace Config_API.Repository.Implementations
                     worksheet.Column(28).Hidden = true;  // topiccode (AB)
                     worksheet.Column(29).Hidden = true;  // subtopiccode (AC)
 
+                    // Add the MasterData sheet
+                    var masterDataSheet = package.Workbook.Worksheets.Add("MasterData");
+
+                    // Add header
+                   // masterDataSheet.Cells[1, 1].Value = "SubjectId";
+                    masterDataSheet.Cells[1, 1].Value = "SubjectName";
+                    masterDataSheet.Cells[1, 2].Value = "SubjectCode";
+
+                    // Fetch all subjects for the MasterData sheet
+                    string masterDataSql = @"
+                SELECT  [SubjectName], [SubjectCode]
+                FROM [tblSubject]";
+
+                    var masterData = await _connection.QueryAsync(masterDataSql);
+
+                    // Add rows to MasterData sheet
+                    int rowIndex = 2;
+                    foreach (var row in masterData)
+                    {
+                      //  masterDataSheet.Cells[rowIndex, 1].Value = row.SubjectId;
+                        masterDataSheet.Cells[rowIndex, 1].Value = row.SubjectName;
+                        masterDataSheet.Cells[rowIndex, 2].Value = row.SubjectCode;
+                        rowIndex++;
+                    }
+
                     return new ServiceResponse<byte[]>(true, "Records found", package.GetAsByteArray(), StatusCodes.Status200OK);
                 }
             }
@@ -938,6 +989,178 @@ namespace Config_API.Repository.Implementations
                 return new ServiceResponse<byte[]>(false, ex.Message, null, StatusCodes.Status500InternalServerError);
             }
         }
+
+        //public async Task<ServiceResponse<byte[]>> DownloadContentIndexBySubjectId(int subjectId)
+        //{
+        //    try
+        //    {
+        //        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+
+        //        // Fetch the subject information
+        //        string subjectSql = @"
+        //SELECT [SubjectCode]
+        //FROM [tblSubject]
+        //WHERE [SubjectId] = @subjectId";
+        //        var subject = await _connection.QuerySingleOrDefaultAsync<string>(subjectSql, new { subjectId });
+
+        //        if (subject == null)
+        //        {
+        //            return new ServiceResponse<byte[]>(false, "Subject not found", null, StatusCodes.Status204NoContent);
+        //        }
+
+        //        // Fetch the main content index chapters
+        //        string contentIndexSql = @"
+        //SELECT * 
+        //FROM [tblContentIndexChapters] 
+        //WHERE [SubjectId] = @subjectId AND [IsActive] = 1";
+
+        //        var contentIndexes = await _connection.QueryAsync<ContentIndexResponse>(contentIndexSql, new { subjectId });
+
+        //        // Create an Excel sheet with headers
+        //        using (var package = new ExcelPackage())
+        //        {
+        //            var worksheet = package.Workbook.Worksheets.Add("ContentIndex");
+
+        //            // Add header
+        //            worksheet.Cells[1, 1].Value = "subjectcode";
+        //            worksheet.Cells[1, 2].Value = "chapter";
+        //            worksheet.Cells[1, 3].Value = "displayorder_chapter";
+        //            worksheet.Cells[1, 4].Value = "topic";
+        //            worksheet.Cells[1, 5].Value = "displayorder_topic";
+        //            worksheet.Cells[1, 6].Value = "subtopic";
+        //            worksheet.Cells[1, 7].Value = "displayorder_subtopic";
+        //            worksheet.Cells[1, 27].Value = "chaptercode"; // AA column
+        //            worksheet.Cells[1, 28].Value = "topiccode";   // AB column
+        //            worksheet.Cells[1, 29].Value = "subtopiccode"; // AC column
+
+        //            if (!contentIndexes.Any())
+        //            {
+        //                worksheet.Cells[2, 1].Value = subject;  // Use the fetched SubjectCode
+        //                return new ServiceResponse<byte[]>(true, "No records found, but subject code provided", package.GetAsByteArray(), StatusCodes.Status200OK);
+        //            }
+
+        //            var contentIndexList = contentIndexes.ToList();
+        //            var exportData = new List<dynamic>();
+
+        //            foreach (var contentIndex in contentIndexList)
+        //            {
+        //                // Fetch topics for each chapter
+        //                string topicsSql = @"
+        //        SELECT * 
+        //        FROM [tblContentIndexTopics] 
+        //        WHERE [ChapterCode] = @chapterCode AND [IsActive] = 1";
+        //                var topics = await _connection.QueryAsync<ContentIndexTopicsResponse>(topicsSql, new { chapterCode = contentIndex.ChapterCode });
+
+        //                if (!topics.Any())
+        //                {
+        //                    // Add chapter-only rows
+        //                    exportData.Add(new
+        //                    {
+        //                        subjectcode = subject,
+        //                        chapter = contentIndex.ContentName_Chapter,
+        //                        displayorder_chapter = contentIndex.DisplayOrder,
+        //                        topic = "",
+        //                        displayorder_topic = "",
+        //                        subtopic = "",
+        //                        displayorder_subtopic = "",
+        //                        chaptercode = contentIndex.ChapterCode,
+        //                        topiccode = "",
+        //                        subtopiccode = ""
+        //                    });
+        //                }
+        //                else
+        //                {
+        //                    foreach (var topic in topics)
+        //                    {
+        //                        // Fetch subtopics for each topic
+        //                        string subTopicsSql = @"
+        //                SELECT * 
+        //                FROM [tblContentIndexSubTopics] 
+        //                WHERE [TopicCode] = @topicCode AND [IsActive] = 1";
+        //                        var subTopics = await _connection.QueryAsync<ContentIndexSubTopicResponse>(subTopicsSql, new { topicCode = topic.TopicCode });
+
+        //                        if (!subTopics.Any())
+        //                        {
+        //                            // Add topic-only rows
+        //                            exportData.Add(new
+        //                            {
+        //                                subjectcode = subject,
+        //                                chapter = contentIndex.ContentName_Chapter,
+        //                                displayorder_chapter = contentIndex.DisplayOrder,
+        //                                topic = topic.ContentName_Topic,
+        //                                displayorder_topic = topic.DisplayOrder,
+        //                                subtopic = "",
+        //                                displayorder_subtopic = "",
+        //                                chaptercode = contentIndex.ChapterCode,
+        //                                topiccode = topic.TopicCode,
+        //                                subtopiccode = ""
+        //                            });
+        //                        }
+        //                        else
+        //                        {
+        //                            foreach (var subTopic in subTopics)
+        //                            {
+        //                                // Add rows for each subtopic
+        //                                exportData.Add(new
+        //                                {
+        //                                    subjectcode = subject,
+        //                                    chapter = contentIndex.ContentName_Chapter,
+        //                                    displayorder_chapter = contentIndex.DisplayOrder,
+        //                                    topic = topic.ContentName_Topic,
+        //                                    displayorder_topic = topic.DisplayOrder,
+        //                                    subtopic = subTopic.ContentName_SubTopic,
+        //                                    displayorder_subtopic = subTopic.DisplayOrder,
+        //                                    chaptercode = contentIndex.ChapterCode,
+        //                                    topiccode = topic.TopicCode,
+        //                                    subtopiccode = subTopic.SubTopicCode
+        //                                });
+        //                            }
+        //                        }
+        //                    }
+        //                }
+        //            }
+
+        //            // Sort the export data based on display order logic
+        //            exportData = exportData
+        //                .OrderBy(e => e.displayorder_chapter == 0 ? 1 : 0) // Prioritize non-zero chapter display orders
+        //                .ThenBy(e => e.displayorder_chapter) // Sort by chapter display order
+        //                .ThenBy(e => e.chapter) // Sort alphabetically if chapter display order is 0 or same
+        //                .ThenBy(e => e.displayorder_topic == 0 ? 1 : 0) // Prioritize non-zero topic display orders
+        //                .ThenBy(e => e.displayorder_topic) // Sort by topic display order
+        //                .ThenBy(e => e.topic) // Sort alphabetically if topic display order is 0 or same
+        //                .ThenBy(e => e.displayorder_subtopic == 0 ? 1 : 0) // Prioritize non-zero subtopic display orders
+        //                .ThenBy(e => e.displayorder_subtopic) // Sort by subtopic display order
+        //                .ThenBy(e => e.subtopic) // Sort alphabetically if subtopic display order is 0 or same
+        //                .ToList();
+
+        //            // Add rows if there is data
+        //            for (int i = 0; i < exportData.Count; i++)
+        //            {
+        //                worksheet.Cells[i + 2, 1].Value = exportData[i].subjectcode;
+        //                worksheet.Cells[i + 2, 2].Value = exportData[i].chapter;
+        //                worksheet.Cells[i + 2, 3].Value = exportData[i].displayorder_chapter;
+        //                worksheet.Cells[i + 2, 4].Value = exportData[i].topic;
+        //                worksheet.Cells[i + 2, 5].Value = exportData[i].displayorder_topic;
+        //                worksheet.Cells[i + 2, 6].Value = exportData[i].subtopic;
+        //                worksheet.Cells[i + 2, 7].Value = exportData[i].displayorder_subtopic;
+        //                worksheet.Cells[i + 2, 27].Value = exportData[i].chaptercode;
+        //                worksheet.Cells[i + 2, 28].Value = exportData[i].topiccode;
+        //                worksheet.Cells[i + 2, 29].Value = exportData[i].subtopiccode;
+        //            }
+
+        //            // Hide the code columns
+        //            worksheet.Column(27).Hidden = true;  // chaptercode (AA)
+        //            worksheet.Column(28).Hidden = true;  // topiccode (AB)
+        //            worksheet.Column(29).Hidden = true;  // subtopiccode (AC)
+
+        //            return new ServiceResponse<byte[]>(true, "Records found", package.GetAsByteArray(), StatusCodes.Status200OK);
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new ServiceResponse<byte[]>(false, ex.Message, null, StatusCodes.Status500InternalServerError);
+        //    }
+        //}
         public async Task<ServiceResponse<string>> UploadContentIndex(IFormFile file)
         {
             try
