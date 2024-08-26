@@ -103,7 +103,7 @@ namespace Schools_API.Services.Implementations
                 return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, [], 500);
             }
         }
-        public async Task<ServiceResponse<int>> GetAssignedQuestionsCount(int EmployeeId)
+        public async Task<ServiceResponse<List<EmployeeListAssignedQuestionCount>>> GetAssignedQuestionsCount(int EmployeeId)
         {
             try
             {
@@ -111,7 +111,7 @@ namespace Schools_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<int>(false, ex.Message, 0, 500);
+                return new ServiceResponse<List<EmployeeListAssignedQuestionCount>>(false, ex.Message, [], 500);
             }
         }
         public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetAssignedQuestionsList(int employeeId)
@@ -156,6 +156,17 @@ namespace Schools_API.Services.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, [], 500);
+            }
+        }
+        public async Task<ServiceResponse<List<ContentIndexResponses>>> GetSyllabusDetailsBySubject(SyllabusDetailsRequest request)
+        {
+            try
+            {
+                return await _questionRepository.GetSyllabusDetailsBySubject(request);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<ContentIndexResponses>>(false, ex.Message, [], 500);
             }
         }
         public async Task<ServiceResponse<string>> MarkQuestionLive(string questionCode)

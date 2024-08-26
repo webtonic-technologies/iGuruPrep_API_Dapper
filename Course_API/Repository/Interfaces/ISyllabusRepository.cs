@@ -14,5 +14,7 @@ namespace Course_API.Repository.Interfaces
         Task<ServiceResponse<string>> UpdateContentIndexName(UpdateContentIndexNameDTO request);
         Task<ServiceResponse<List<SyllabusResponseDTO>>> GetSyllabusList(GetAllSyllabusList request);
         Task<ServiceResponse<List<ContentIndexResponses>>> GetAllContentIndexList(int SubjectId);
+        Task<ServiceResponse<byte[]>> DownloadExcelFile(int SyllabusId);
+        Task<ServiceResponse<string>> UploadSyllabusDetails(IFormFile file);
     }
 }

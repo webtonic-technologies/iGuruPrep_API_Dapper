@@ -27,6 +27,18 @@ namespace UserManagement_API.Services.Implementations
             }
         }
 
+        public async Task<ServiceResponse<byte[]>> DownloadExcelFile(int referenceLinkID)
+        {
+            try
+            {
+                return await _generateReferenceRepository.DownloadExcelFile(referenceLinkID);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<byte[]>(false, ex.Message, [], 500);
+            }
+        }
+
         public async Task<ServiceResponse<List<Bank>>> GetBankListMasters()
         {
             try

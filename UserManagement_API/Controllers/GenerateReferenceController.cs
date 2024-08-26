@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using UserManagement_API.DTOs.Requests;
+using UserManagement_API.Services.Implementations;
 using UserManagement_API.Services.Interfaces;
 
 namespace UserManagement_API.Controllers
@@ -134,6 +135,16 @@ namespace UserManagement_API.Controllers
             {
                 return this.BadRequest(e.Message);
             }
+        }
+        [HttpGet("DownloadExcelFile/{referenceLinkID}")]
+        public async Task<IActionResult> DownloadExcelFile(int referenceLinkID)
+        {
+            var response = await _generateReferenceServices.DownloadExcelFile(referenceLinkID);
+            if (response.Success)
+            {
+                return File(response.Data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Login Details.xlsx");
+            }
+            return StatusCode(response.StatusCode, response.Message);
         }
     }
 }

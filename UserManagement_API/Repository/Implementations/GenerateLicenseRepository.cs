@@ -1,4 +1,5 @@
 ﻿using Dapper;
+using OfficeOpenXml;
 using System.Data;
 using UserManagement_API.DTOs.Requests;
 using UserManagement_API.DTOs.Response;
@@ -231,7 +232,7 @@ WHERE LicenseDetailID = @LicenseDetailID;";
 
                     var data = await _connection.QueryAsync<LicenseDetailResponse>(query, new { GenerateLicenseID });
                     response.LicenseDetails = data != null ? data.AsList() : [];
-                    foreach(var item in data ??= ([]))
+                    foreach (var item in data ??= ([]))
                     {
                         item.LicenseNumbers = GetGenerateLicenseNumbersAsync(item.LicenseDetailID);
                     }
@@ -371,6 +372,109 @@ WHERE LicenseDetailID = @LicenseDetailID;";
             catch (Exception ex)
             {
                 return new ServiceResponse<List<Validity>>(false, ex.Message, [], 500);
+            }
+        }
+        public async Task<ServiceResponse<byte[]>> DownloadExcelFile(int GenerateLicenseID)
+        {
+            try
+            {
+                ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+                // SQL query to fetch Login Details
+                string loginDetailsQuery = @"
+                SELECT g.GenerateLicenseID, g.SchoolName, g.BranchName, g.ChairmanUsername, g.ChairmanPassword,
+                       g.PrincipalUsername, g.PrincipalPassword, 
+                       b.BoardName, c.ClassName, co.CourseName, ld.NoOfLicense AS NoOfLicenses
+                FROM tblGenerateLicense g
+                LEFT JOIN tblLicenseDetail ld ON g.GenerateLicenseID = ld.GenerateLicenseID
+                LEFT JOIN tblBoard b ON ld.BoardID = b.BoardID
+                LEFT JOIN tblClass c ON ld.ClassID = c.ClassID
+                LEFT JOIN tblCourse co ON ld.CourseID = co.CourseID
+                WHERE g.GenerateLicenseID = @GenerateLicenseID";
+
+
+                // SQL query to fetch License Details
+                string licenseDetailsQuery = @"
+                SELECT ld.LicenseDetailID, ld.GenerateLicenseID, ld.BoardID, ld.ClassID, ld.CourseID, ld.NoOfLicense,
+                       ld.ValidityID, ld.APID, b.BoardName, c.ClassName, co.CourseName, ld.CategoryName, ld.ExamTypeId,
+                       ln.LicenseNumbersId, ln.LicenseDetailID, ln.LicenseNo, ln.LicensePassword
+                FROM tblLicenseDetail ld
+                JOIN tblBoard b ON ld.BoardID = b.BoardID
+                JOIN tblClass c ON ld.ClassID = c.ClassID
+                JOIN tblCourse co ON ld.CourseID = co.CourseID
+                LEFT JOIN tblLicenseNumbers ln ON ld.LicenseDetailID = ln.LicenseDetailID
+                WHERE ld.GenerateLicenseID = @GenerateLicenseID";
+
+
+                // Fetch data
+                var loginDetails = await _connection.QueryAsync(loginDetailsQuery, new { GenerateLicenseID });
+                var licenseDetails = await _connection.QueryAsync(licenseDetailsQuery, new { GenerateLicenseID });
+
+                // Create Excel package
+                using (var package = new ExcelPackage())
+                {
+                    // Create "Login Details" sheet
+                    var loginSheet = package.Workbook.Worksheets.Add("Login Details");
+                    int loginRow = 1;
+
+                    // Add headers for Login Details
+                    loginSheet.Cells[loginRow, 1].Value = "Institute Name";
+                    loginSheet.Cells[loginRow, 2].Value = "Branch Name";
+                    loginSheet.Cells[loginRow, 3].Value = "ChairmanUsername";
+                    loginSheet.Cells[loginRow, 4].Value = "ChairmanPassword";
+                    loginSheet.Cells[loginRow, 5].Value = "PrincipalUsername";
+                    loginSheet.Cells[loginRow, 6].Value = "PrincipalPassword";
+                    loginSheet.Cells[loginRow, 7].Value = "BoardName";
+                    loginSheet.Cells[loginRow, 8].Value = "ClassName";
+                    loginSheet.Cells[loginRow, 9].Value = "CourseName";
+                    loginSheet.Cells[loginRow, 10].Value = "No.of Licenses";
+
+                    // Populate Login Details sheet
+                    foreach (var detail in loginDetails)
+                    {
+                        loginRow++;
+                        loginSheet.Cells[loginRow, 1].Value = detail.SchoolName;
+                        loginSheet.Cells[loginRow, 2].Value = detail.BranchName;
+                        loginSheet.Cells[loginRow, 3].Value = detail.ChairmanUsername;
+                        loginSheet.Cells[loginRow, 4].Value = detail.ChairmanPassword;
+                        loginSheet.Cells[loginRow, 5].Value = detail.PrincipalUsername;
+                        loginSheet.Cells[loginRow, 6].Value = detail.PrincipalPassword;
+                        loginSheet.Cells[loginRow, 7].Value = detail.BoardName;
+                        loginSheet.Cells[loginRow, 8].Value = detail.ClassName;
+                        loginSheet.Cells[loginRow, 9].Value = detail.CourseName;
+                        loginSheet.Cells[loginRow, 10].Value = detail.NoOfLicenses;
+                    }
+
+                    // Create "License Details" sheet
+                    var licenseSheet = package.Workbook.Worksheets.Add("License Details");
+                    int licenseRow = 1;
+
+                    // Add headers for License Details
+                
+                    licenseSheet.Cells[licenseRow, 1].Value = "BoardName";
+                    licenseSheet.Cells[licenseRow, 2].Value = "ClassName";
+                    licenseSheet.Cells[licenseRow, 3].Value = "CourseName";
+                    licenseSheet.Cells[licenseRow, 4].Value = "LicenseNo";
+                    licenseSheet.Cells[licenseRow, 5].Value = "LicensePassword";
+
+                    // Populate License Details sheet
+                    foreach (var detail in licenseDetails)
+                    {
+                        licenseRow++;
+                        licenseSheet.Cells[licenseRow, 1].Value = detail.BoardName;
+                        licenseSheet.Cells[licenseRow, 2].Value = detail.ClassName;
+                        licenseSheet.Cells[licenseRow, 3].Value = detail.CourseName;
+                        licenseSheet.Cells[licenseRow, 4].Value = detail.LicenseNo;
+                        licenseSheet.Cells[licenseRow, 5].Value = detail.LicensePassword;
+                    }
+
+                    // Convert Excel package to byte array
+                    var fileData = package.GetAsByteArray();
+                    return new ServiceResponse<byte[]>(true, "Excel file generated successfully.", fileData, 200);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<byte[]>(false, ex.Message, [], 500);
             }
         }
         private List<LicenseNumbers> GetGenerateLicenseNumbersAsync(int licenseDetailId)

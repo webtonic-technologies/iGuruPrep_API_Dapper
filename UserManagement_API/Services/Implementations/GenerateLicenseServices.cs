@@ -27,6 +27,18 @@ namespace UserManagement_API.Services.Implementations
             }
         }
 
+        public async Task<ServiceResponse<byte[]>> DownloadExcelFile(int GenerateLicenseID)
+        {
+            try
+            {
+                return await _generateLicenseRepository.DownloadExcelFile(GenerateLicenseID);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<byte[]>(false, ex.Message, [], 500);
+            }
+        }
+
         public async Task<ServiceResponse<GenerateLicenseResponseDTO>> GetGenerateLicenseById(int GenerateLicenseID)
         {
             try

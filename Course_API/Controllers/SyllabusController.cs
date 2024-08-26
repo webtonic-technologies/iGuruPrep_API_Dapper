@@ -163,5 +163,30 @@ namespace Course_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
+        [HttpGet("DownloadExcelFile/{SyllabusId}")]
+        public async Task<IActionResult> DownloadExcelFile(int SyllabusId)
+        {
+            var response = await _syllabusServices.DownloadExcelFile(SyllabusId);
+            if (response.Success)
+            {
+                return File(response.Data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "SyllabysDetails.xlsx");
+            }
+            return StatusCode(response.StatusCode, response.Message);
+        }
+        [HttpPost("upload")]
+        public async Task<IActionResult> UploadSyllabusDetails(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest("No file uploaded");
+            }
+
+            var response = await _syllabusServices.UploadSyllabusDetails(file);
+            if (response.Success)
+            {
+                return Ok(response.Message);
+            }
+            return StatusCode(response.StatusCode, response.Message);
+        }
     }
 }

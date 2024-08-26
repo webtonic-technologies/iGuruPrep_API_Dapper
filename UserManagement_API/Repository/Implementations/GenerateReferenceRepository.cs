@@ -6,6 +6,8 @@ using Dapper;
 using UserManagement_API.DTOs.Requests;
 using UserManagement_API.DTOs.Response;
 using System.Text;
+using OfficeOpenXml;
+using System.Data.Common;
 
 namespace UserManagement_API.Repository.Implementations
 {
@@ -27,6 +29,7 @@ namespace UserManagement_API.Repository.Implementations
                     INSERT INTO tblReferenceLinkMaster (MobileNo, EmailID, StateId, DistrictID, PAN, ReferenceID, PersonName, NumberOfRef, Username, Password)
                     VALUES (@MobileNo, @EmailID, @StateId, @DistrictID, @PAN, @ReferenceID, @PersonName, @NumberOfRef, @Username, @Password);
                     SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                    string generatedPassword = "iGuruPrep@" + request.MobileNo.Substring(Math.Max(0, request.MobileNo.Length - 5));
                     var newReference = new GenerateReference
                     {
                         DistrictID = request.DistrictID,
@@ -38,12 +41,12 @@ namespace UserManagement_API.Repository.Implementations
                         ReferenceID = request.ReferenceID,
                         StateId = request.StateId,
                         Username = request.EmailID,
-                        Password = await GenerateRandomPassword()
+                        Password = generatedPassword
                     };
                     int insertedId = await _connection.ExecuteScalarAsync<int>(insertQuery, newReference);
                     if (insertedId > 0)
                     {
-                        var records = await GenerateAndSaveReferralLinks(insertedId,request.NumberOfRef);
+                        var records = await GenerateAndSaveReferralLinks(insertedId, request.NumberOfRef);
                         string insertBankQuery = @"
                         INSERT INTO tblRefererBankDetails (referenceLinkID, BankName, ACNo, IFSC, ReferenceID, BranchName)
                         VALUES (@referenceLinkID, @BankName, @ACNo, @IFSC, @ReferenceID, @BranchName);";
@@ -366,62 +369,128 @@ namespace UserManagement_API.Repository.Implementations
                 return new ServiceResponse<List<Districts>>(false, ex.Message, [], 500);
             }
         }
-        private async Task<int> GenerateAndSaveReferralLinks(int referenceLinkID, int numberOfReferrals)
+        public async Task<ServiceResponse<byte[]>> DownloadExcelFile(int referenceLinkID)
         {
             try
             {
-                // Check if there are existing records for the given referenceLinkID
-                string existingRecordsQuery = @"
-        SELECT COUNT(*) 
-        FROM tblReferralLinks 
-        WHERE referenceLinkID = @referenceLinkID";
+                ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+                // Query to fetch login details
+                string loginDetailsQuery = @"
+        SELECT 
+            [referenceLinkID], [MobileNo], [EmailID], [StateId], 
+            [DistrictID], [PAN], [ReferenceID], [PersonName], 
+            [NumberOfRef], [Username], [Password]
+        FROM [tblReferenceLinkMaster]
+        WHERE [referenceLinkID] = @referenceLinkID;";
 
-                int existingRecordsCount = await _connection.QueryFirstOrDefaultAsync<int>(existingRecordsQuery, new { referenceLinkID });
+                // Query to fetch referral details
+                string referralDetailsQuery = @"
+        SELECT 
+            [RefLinksId], [referenceLinkID], [ReferralCode], [ReferralLink]
+        FROM [tblReferralLinks]
+        WHERE [referenceLinkID] = @referenceLinkID;";
 
-                if (existingRecordsCount > 0)
+                // Fetch data from database
+                var loginDetails = await _connection.QuerySingleOrDefaultAsync<dynamic>(loginDetailsQuery, new { referenceLinkID });
+                var referralDetails = await _connection.QueryAsync<dynamic>(referralDetailsQuery, new { referenceLinkID });
+
+                if (loginDetails == null || !referralDetails.Any())
                 {
-                    // If records exist, we can append new entries starting from the next available serial number
-                    string maxSerialQuery = @"
-            SELECT MAX(CAST(SUBSTRING(ReferralCode, 4, LEN(ReferralCode) - 3) AS INT)) 
-            FROM tblReferralLinks 
-            WHERE referenceLinkID = @referenceLinkID";
-
-                    int maxSerialNumber = await _connection.QueryFirstOrDefaultAsync<int>(maxSerialQuery, new { referenceLinkID });
-                    maxSerialNumber = maxSerialNumber >= 10001 ? maxSerialNumber : 10000;
-
-                    return await GenerateAndInsertReferralLinks(referenceLinkID, numberOfReferrals, maxSerialNumber + 1);
+                    return new ServiceResponse<byte[]>(false, "No data found for the provided referenceLinkID.", null, 404);
                 }
-                else
+
+                using (var package = new ExcelPackage())
                 {
-                    // If no records exist, start with serial number 10001
-                    return await GenerateAndInsertReferralLinks(referenceLinkID, numberOfReferrals, 10001);
+                    // Create the Login Details sheet
+                    var loginSheet = package.Workbook.Worksheets.Add("LoginDetails");
+
+                    // Define headers for LoginDetails sheet
+                    var loginHeaders = new[] { "Person Name", "Mobile No", "Email ID", "Number Of Ref", "Username", "Password" };
+                    for (int i = 0; i < loginHeaders.Length; i++)
+                    {
+                        loginSheet.Cells[1, i + 1].Value = loginHeaders[i];
+                    }
+
+                    // Map login details data to cells
+                    loginSheet.Cells[2, 1].Value = loginDetails.PersonName;
+                    loginSheet.Cells[2, 2].Value = loginDetails.MobileNo;
+                    loginSheet.Cells[2, 3].Value = loginDetails.EmailID;
+                    loginSheet.Cells[2, 4].Value = loginDetails.NumberOfRef;
+                    loginSheet.Cells[2, 5].Value = loginDetails.Username;
+                    loginSheet.Cells[2, 6].Value = loginDetails.Password;
+
+                    // Create the Referral Details sheet
+                    var referralSheet = package.Workbook.Worksheets.Add("ReferralDetails");
+
+                    // Define headers for ReferralDetails sheet
+                    var referralHeaders = new[] {"Referral Code", "Referral Link" };
+                    for (int i = 0; i < referralHeaders.Length; i++)
+                    {
+                        referralSheet.Cells[1, i + 1].Value = referralHeaders[i];
+                    }
+
+                    // Map referral details data to cells
+                    int row = 2; // Start from the second row for data
+                    foreach (var referral in referralDetails)
+                    {
+                        referralSheet.Cells[row, 1].Value = referral.ReferralCode;
+                        referralSheet.Cells[row, 2].Value = referral.ReferralLink;
+                        row++;
+                    }
+
+                    // Convert package to a byte array
+                    byte[] fileBytes = package.GetAsByteArray();
+
+                    return new ServiceResponse<byte[]>(true, "Excel file generated successfully.", fileBytes, 200);
                 }
             }
             catch (Exception ex)
             {
-                // Log the exception (if logging is implemented)
-                return 0; // Return 0 to indicate failure
+                return new ServiceResponse<byte[]>(false, ex.Message, null, 500);
+            }
+        }
+        private async Task<int> GenerateAndSaveReferralLinks(int referenceLinkID, int numberOfReferrals)
+        {
+            try
+            {
+                // Fetch the maximum serial number for the given referenceLinkID
+                string maxSerialQuery = @"
+        SELECT ISNULL(MAX(CAST(SUBSTRING(ReferralCode, 4, LEN(ReferralCode) - 3) AS INT)), 10000) 
+        FROM tblReferralLinks ";
+
+                int maxSerialNumber = await _connection.QueryFirstOrDefaultAsync<int>(maxSerialQuery, new { referenceLinkID });
+
+                // Start generating from the next serial number
+                int startSerialNumber = maxSerialNumber + 1;
+
+                // Call the method to generate and insert referral links
+                return await GenerateAndInsertReferralLinks(referenceLinkID, numberOfReferrals, startSerialNumber);
+            }
+            catch (Exception ex)
+            {
+                // Log the exception if needed (ensure proper logging)
+                return 0; // Return 0 indicating a failure
             }
         }
         private async Task<int> GenerateAndInsertReferralLinks(int referenceLinkID, int numberOfReferrals, int startSerialNumber)
         {
             var referralLinks = new List<ReferralLinks>();
 
-            for (int i = 0; i < numberOfReferrals; i++)
+            for (int i = 0; i < numberOfReferrals;)
             {
                 int serialNumber = startSerialNumber + i;
                 string referralCode = $"iGP{serialNumber}";
                 string referralLink = $"https://iguruprep.2024.link/{referralCode}";
 
-                // Check if the referral code or link already exists
+                // Check if the referral code already exists for any referenceLinkID
                 string checkQuery = @"
         SELECT COUNT(*) 
         FROM tblReferralLinks 
-        WHERE ReferralCode = @referralCode OR ReferralLink = @referralLink";
+        WHERE ReferralCode = @referralCode";
 
-                int existingCount = await _connection.QueryFirstOrDefaultAsync<int>(checkQuery, new { referralCode, referralLink });
+                int existingCount = await _connection.QueryFirstOrDefaultAsync<int>(checkQuery, new { referralCode });
 
-                if (existingCount == 0) // Only add if unique
+                if (existingCount == 0) // If the code is unique, add it
                 {
                     referralLinks.Add(new ReferralLinks
                     {
@@ -429,61 +498,30 @@ namespace UserManagement_API.Repository.Implementations
                         ReferralCode = referralCode,
                         ReferralLink = referralLink
                     });
+                    i++;
+                }
+                else
+                {
+                    // If a duplicate is found, skip this and generate a new code (adjust loop index)
+                    i++;
                 }
             }
 
-            // Insert the generated referral links into the database
+            // Insert all generated referral links into the database
             if (referralLinks.Count > 0)
             {
                 string insertQuery = @"
         INSERT INTO tblReferralLinks (referenceLinkID, ReferralCode, ReferralLink)
-        VALUES (@referenceLinkID, @ReferralCode, @ReferralLink);";
+        VALUES (@referenceLinkID, @ReferralCode, @ReferralLink)";
 
                 int rowsAffected = await _connection.ExecuteAsync(insertQuery, referralLinks);
 
-                return rowsAffected; // Return the number of rows inserted as a success indicator
+                return rowsAffected; // Return the number of inserted rows
             }
             else
             {
-                return 0; // Return 0 if no unique links were generated
+                return 0; // Return 0 if no links were generated
             }
-        }
-        private async Task<string> GenerateRandomPassword()
-        {
-            var random = new Random();
-            string password = GenerateRandomString(4, random) + GenerateRandomNumber(4, random);
-
-            while (await IfPasswordExistsAsync(password))
-            {
-                password = GenerateRandomString(4, random) + GenerateRandomNumber(4, random);
-            }
-
-            return password;
-        }
-
-        private string GenerateRandomString(int length, Random random)
-        {
-            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-            return new string(Enumerable.Repeat(chars, length)
-                .Select(s => s[random.Next(s.Length)]).ToArray());
-        }
-
-        private string GenerateRandomNumber(int length, Random random)
-        {
-            const string numbers = "0123456789";
-            return new string(Enumerable.Repeat(numbers, length)
-                .Select(s => s[random.Next(s.Length)]).ToArray());
-        }
-
-        private async Task<bool> IfPasswordExistsAsync(string password)
-        {
-            string query = @"
-    SELECT COUNT(*)
-    FROM tblReferenceLinkMaster
-    WHERE Password = @Password";
-
-            int count = await _connection.QueryFirstOrDefaultAsync<int>(query, new { Password = password });
-            return count > 0;
         }
     }
 }

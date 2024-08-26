@@ -95,5 +95,15 @@ namespace UserManagement_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
+        [HttpGet("DownloadExcelFile/{GenerateLicenseID}")]
+        public async Task<IActionResult> DownloadExcelFile(int GenerateLicenseID)
+        {
+            var response = await _generateLicenseServices.DownloadExcelFile(GenerateLicenseID);
+            if (response.Success)
+            {
+                return File(response.Data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "Login Details.xlsx");
+            }
+            return StatusCode(response.StatusCode, response.Message);
+        }
     }
 }

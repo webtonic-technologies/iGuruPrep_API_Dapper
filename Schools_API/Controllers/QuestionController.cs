@@ -230,5 +230,16 @@ namespace Schools_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
+        [HttpPost("GGetSyllabusDetailsBySubject")]
+        public async Task<IActionResult> GetSyllabusDetailsBySubject(SyllabusDetailsRequest request)
+        {
+            var data = await _questionServices.GetSyllabusDetailsBySubject(request);
+
+            if (data == null)
+            {
+                return NotFound("No data found.");
+            }
+            return Ok(data);
+        }
     }
 }

@@ -11,5 +11,6 @@ namespace UserManagement_API.Services.Interfaces
         Task<ServiceResponse<GenerateLicenseResponseDTO>> GetGenerateLicenseById(int GenerateLicenseID);
         Task<ServiceResponse<List<GenerateLicenseResponseDTO>>> GetGenerateLicenseList(GetAllLicensesListRequest request);
         Task<ServiceResponse<List<Validity>>> GetValidityList();
+        Task<ServiceResponse<byte[]>> DownloadExcelFile(int GenerateLicenseID);
     }
 }

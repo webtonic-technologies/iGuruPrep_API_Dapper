@@ -38,6 +38,18 @@ namespace Course_API.Services.Implementations
             }
         }
 
+        public async Task<ServiceResponse<byte[]>> DownloadExcelFile(int SyllabusId)
+        {
+            try
+            {
+                return await _syllabusRepository.DownloadExcelFile(SyllabusId);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<byte[]>(false, ex.Message, [], 500);
+            }
+        }
+
         public async Task<ServiceResponse<List<ContentIndexResponses>>> GetAllContentIndexList(int SubjectId)
         {
             try
@@ -91,6 +103,18 @@ namespace Course_API.Services.Implementations
             try
             {
                 return await _syllabusRepository.UpdateContentIndexName(request);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+            }
+        }
+
+        public async Task<ServiceResponse<string>> UploadSyllabusDetails(IFormFile file)
+        {
+            try
+            {
+                return await _syllabusRepository.UploadSyllabusDetails(file);
             }
             catch (Exception ex)
             {

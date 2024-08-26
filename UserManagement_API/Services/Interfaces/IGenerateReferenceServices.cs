@@ -13,5 +13,6 @@ namespace UserManagement_API.Services.Interfaces
         Task<ServiceResponse<List<Bank>>> GetBankListMasters();
         Task<ServiceResponse<List<States>>> GetStatesListMasters();
         Task<ServiceResponse<List<Districts>>> GetDistrictsListMasters(int StateID);
+        Task<ServiceResponse<byte[]>> DownloadExcelFile(int referenceLinkID);
     }
 }

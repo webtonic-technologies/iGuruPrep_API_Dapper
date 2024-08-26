@@ -46,4 +46,10 @@
         public int SubjectId { get; set; }
         public bool IsActive { get; set; }
     }
+    public class EmployeeListAssignedQuestionCount
+    {
+        public int EmployeeId { get; set; }
+        public string EmployeeName { get; set; } = string.Empty;
+        public int Count {  get; set; }
+    }
 }

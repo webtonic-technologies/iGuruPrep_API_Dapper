@@ -300,26 +300,80 @@ namespace Schools_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-        public async Task<ServiceResponse<int>> GetAssignedQuestionsCount(int EmployeeId)
+        public async Task<ServiceResponse<List<EmployeeListAssignedQuestionCount>>> GetAssignedQuestionsCount(int EmployeeId)
         {
             try
             {
-                // SQL query to count the number of questions assigned to the given employee
-                string sql = @"
-            SELECT COUNT(*) 
-            FROM tblQuestionProfiler 
-            WHERE EmpId = @EmployeeId AND Status = 1"; // Assuming Status = 1 indicates active assignments
+                // Initialize the list to hold the employee details with assigned question count
+                List<EmployeeListAssignedQuestionCount> employeeList = new List<EmployeeListAssignedQuestionCount>();
 
-                // Execute the query and get the count
-                var count = await _connection.ExecuteScalarAsync<int>(sql, new { EmployeeId });
+                // SQL query to get the role of the given EmployeeId
+                string employeeRoleQuery = @"
+            SELECT e.RoleID, r.RoleCode
+            FROM [tblEmployee] e
+            JOIN [tblRole] r ON e.RoleID = r.RoleID
+            WHERE e.EmployeeId = @EmployeeId";
 
-                // Return success response with the count
-                return new ServiceResponse<int>(true, "Question count retrieved successfully", count, 200);
+                // Get the RoleID of the given EmployeeId
+                var employeeRole = await _connection.QueryFirstOrDefaultAsync(employeeRoleQuery, new { EmployeeId });
+                if (employeeRole == null)
+                {
+                    return new ServiceResponse<List<EmployeeListAssignedQuestionCount>>(false, "Employee not found.", employeeList, 404);
+                }
+
+                int roleID = employeeRole.RoleID;
+                List<int> targetRoleIDs = new List<int>();
+
+                // Determine the target roles based on the current role
+                if (employeeRole.RoleCode == "TR")
+                {
+                    string sql = "SELECT [RoleID] FROM [tblRole] WHERE [RoleCode] = @RoleCode;";
+                    var roleId = await _connection.QueryFirstOrDefaultAsync<int>(sql, new { RoleCode = "SM" });
+
+                    // If the current role is Transcriber, target employees with SME role
+                    targetRoleIDs.Add(roleId); // Assume RoleID for SME is 3
+                }
+                else if (employeeRole.RoleCode == "SM")
+                {
+                    string sql = "SELECT [RoleID] FROM [tblRole] WHERE [RoleCode] = @RoleCode;";
+                    var roleId = await _connection.QueryFirstOrDefaultAsync<int>(sql, new { RoleCode = "PR" });
+                    // If the current role is SME, target employees with Proofer and Transcriber roles
+                    targetRoleIDs.Add(roleId); // Assume RoleID for Proofer is 4
+                    var roleId1 = await _connection.QueryFirstOrDefaultAsync<int>(sql, new { RoleCode = "TR" });
+                    targetRoleIDs.Add(roleId1); // Assume RoleID for Transcriber is 5
+                }
+                else if (employeeRole.RoleCode == "PR")
+                {
+                    string sql = "SELECT [RoleID] FROM [tblRole] WHERE [RoleCode] = @RoleCode;";
+                    var roleId = await _connection.QueryFirstOrDefaultAsync<int>(sql, new { RoleCode = "SM" });
+                    // If the current role is Proofer, target employees with SME role
+                    targetRoleIDs.Add(roleId); // Assume RoleID for SME is 3
+                }
+                else
+                {
+                    return new ServiceResponse<List<EmployeeListAssignedQuestionCount>>(false, "Invalid role for the operation.", employeeList, 400);
+                }
+
+                // SQL query to fetch employees and their assigned question counts
+                string assignedQuestionsCountQuery = @"
+            SELECT e.EmployeeId, 
+                   CONCAT(e.EmpFirstName, ' ', e.EmpMiddleName, ' ', e.EmpLastName) AS EmployeeName,
+                   COUNT(qp.Questionid) AS Count
+            FROM [tblEmployee] e
+            LEFT JOIN [tblQuestionProfiler] qp ON e.EmployeeId = qp.EmpId AND qp.Status = 1
+            WHERE e.RoleID IN @TargetRoleIDs
+            GROUP BY e.EmployeeId, e.EmpFirstName, e.EmpMiddleName, e.EmpLastName
+            ORDER BY EmployeeName";
+
+                // Execute query to get the list of employees with the count of assigned questions
+                employeeList = (await _connection.QueryAsync<EmployeeListAssignedQuestionCount>(assignedQuestionsCountQuery, new { TargetRoleIDs = targetRoleIDs })).ToList();
+
+                return new ServiceResponse<List<EmployeeListAssignedQuestionCount>>(true, "Employee list with assigned questions count retrieved successfully.", employeeList, 200);
             }
             catch (Exception ex)
             {
                 // Return failure response with error message
-                return new ServiceResponse<int>(false, ex.Message, 0, 500);
+                return new ServiceResponse<List<EmployeeListAssignedQuestionCount>>(false, ex.Message, new List<EmployeeListAssignedQuestionCount>(), 500);
             }
         }
         public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetAllQuestionsList(GetAllQuestionListRequest request)
@@ -898,12 +952,12 @@ namespace Schools_API.Repository.Implementations
                 QuestionText = q.QuestionDescription,
                 Similarity = CalculateSimilarity(newQuestion.NewQuestion, q.QuestionDescription)
             })
-            .Where(c => c.Similarity > 60.0 && c.Similarity < 100.0) // Filter based on similarity
+            .Where(c => c.Similarity > 59.0 && c.Similarity < 101.0) // Filter based on similarity
             .OrderByDescending(c => c.Similarity) // Order by similarity in descending order
             .Take(10) // Take top 10 results
             .ToList();
 
-            return new ServiceResponse<List<QuestionComparisonDTO>>(true, "Comparison results", comparisons, 200);
+            return new ServiceResponse<List<QuestionComparisonDTO>>(true, "Comparison results", comparisons, 200, comparisons.Count);
         }
         public async Task<ServiceResponse<string>> RejectQuestion(QuestionRejectionRequestDTO request)
         {
@@ -1126,6 +1180,169 @@ namespace Schools_API.Repository.Implementations
             finally
             {
                 _connection.Close();
+            }
+        }
+        public async Task<ServiceResponse<List<ContentIndexResponses>>> GetSyllabusDetailsBySubject(SyllabusDetailsRequest request)
+        {
+            try
+            {
+                // SQL Query
+                string sql = @"
+            SELECT sd.*, s.*
+            FROM [iGuruPrep].[dbo].[tblSyllabus] s
+            JOIN [iGuruPrep].[dbo].[tblSyllabusDetails] sd ON s.SyllabusId = sd.SyllabusID
+            WHERE s.APID = @APId
+            AND (s.BoardID = @BoardId OR @BoardId = 0)
+            AND (s.ClassId = @ClassId OR @ClassId = 0)
+            AND (s.CourseId = @CourseId OR @CourseId = 0)
+            AND (sd.SubjectId = @SubjectId OR @SubjectId = 0)";
+
+                var syllabusDetails = await _connection.QueryAsync<dynamic>(sql, new
+                {
+                    request.APId,
+                    request.BoardId,
+                    request.ClassId,
+                    request.CourseId,
+                    request.SubjectId
+                });
+
+                // Process the results to create a hierarchical structure
+                var contentIndexResponse = new List<ContentIndexResponses>();
+
+                foreach (var detail in syllabusDetails)
+                {
+                    int indexTypeId = detail.IndexTypeId;
+
+                    // Query to count questions
+                    string countQuestionsSql = @"
+                SELECT COUNT(*) 
+                FROM [iGuruPrep].[dbo].[tblQuestion] 
+                WHERE IndexTypeId = @IndexTypeId AND ContentIndexId = @ContentIndexId AND IsActive = 1";
+
+                    int questionCount = await _connection.ExecuteScalarAsync<int>(countQuestionsSql, new
+                    {
+                        IndexTypeId = indexTypeId,
+                        ContentIndexId = detail.ContentIndexId
+                    });
+
+                    if (indexTypeId == 1) // Chapter
+                    {
+                        string getchapter = @"SELECT * FROM tblContentIndexChapters WHERE ContentIndexId = @ContentIndexId;";
+                        var data = await _connection.QueryFirstOrDefaultAsync<ContentIndexResponses>(getchapter, new { ContentIndexId = detail.ContentIndexId });
+
+                        var chapter = new ContentIndexResponses
+                        {
+                            ContentIndexId = data.ContentIndexId,
+                            SubjectId = data.SubjectId,
+                            ContentName_Chapter = data.ContentName_Chapter,
+                            Status = data.Status,
+                            IndexTypeId = indexTypeId,
+                            BoardId = data.BoardId,
+                            ClassId = data.ClassId,
+                            CourseId = data.CourseId,
+                            APID = data.APID,
+                            CreatedOn = data.CreatedOn,
+                            CreatedBy = data.CreatedBy,
+                            ModifiedOn = data.ModifiedOn,
+                            ModifiedBy = data.ModifiedBy,
+                            EmployeeId = data.EmployeeId,
+                            ExamTypeId = data.ExamTypeId,
+                            IsActive = data.Status, // Assuming Status is used for IsActive
+                            ChapterCode = data.ChapterCode,
+                            DisplayName = data.DisplayName,
+                            DisplayOrder = data.DisplayOrder,
+                            Count = questionCount, // Adding question count here
+                            ContentIndexTopics = new List<ContentIndexTopicsResponse>()
+                        };
+
+                        // Add to response list
+                        contentIndexResponse.Add(chapter);
+                    }
+                    else if (indexTypeId == 2) // Topic
+                    {
+                        string gettopic = @"SELECT * FROM tblContentIndexTopics WHERE ContInIdTopic = @ContentIndexId;";
+                        var data = await _connection.QueryFirstOrDefaultAsync<ContentIndexTopicsResponse>(gettopic, new { ContentIndexId = detail.ContentIndexId });
+
+                        var topic = new ContentIndexTopicsResponse
+                        {
+                            ContInIdTopic = data.ContInIdTopic,
+                            ContentIndexId = data.ContentIndexId,
+                            ContentName_Topic = data.ContentName_Topic,
+                            Status = data.Status,
+                            IndexTypeId = indexTypeId,
+                            CreatedOn = data.CreatedOn,
+                            CreatedBy = data.CreatedBy,
+                            ModifiedOn = data.ModifiedOn,
+                            ModifiedBy = data.ModifiedBy,
+                            EmployeeId = data.EmployeeId,
+                            IsActive = data.Status,
+                            TopicCode = data.TopicCode,
+                            DisplayName = data.DisplayName,
+                            DisplayOrder = data.DisplayOrder,
+                            ChapterCode = data.ChapterCode,
+                            Count = questionCount, // Adding question count here
+                            ContentIndexSubTopics = new List<ContentIndexSubTopicResponse>()
+                        };
+
+                        // Check if the chapter exists in the response
+                        var existingChapter = contentIndexResponse.FirstOrDefault(c => c.ChapterCode == data.ChapterCode);
+                        if (existingChapter != null)
+                        {
+                            existingChapter.ContentIndexTopics.Add(topic);
+                        }
+                        else
+                        {
+                            // Create a new chapter entry if it doesn't exist
+                            var newChapter = new ContentIndexResponses
+                            {
+                                ChapterCode = detail.ChapterCode,
+                                ContentIndexTopics = new List<ContentIndexTopicsResponse> { topic }
+                            };
+                            contentIndexResponse.Add(newChapter);
+                        }
+                    }
+                    else if (indexTypeId == 3) // SubTopic
+                    {
+                        string getsubtopic = @"SELECT * FROM tblContentIndexSubTopics WHERE ContInIdSubTopic = @ContentIndexId;";
+                        var data = await _connection.QueryFirstOrDefaultAsync<ContentIndexSubTopicResponse>(getsubtopic, new { ContentIndexId = detail.ContentIndexId });
+
+                        var subTopic = new ContentIndexSubTopicResponse
+                        {
+                            ContInIdSubTopic = data.ContInIdSubTopic,
+                            ContInIdTopic = data.ContInIdTopic,
+                            ContentName_SubTopic = data.ContentName_SubTopic,
+                            Status = data.Status,
+                            IndexTypeId = indexTypeId,
+                            CreatedOn = data.CreatedOn,
+                            CreatedBy = data.CreatedBy,
+                            ModifiedOn = data.ModifiedOn,
+                            ModifiedBy = data.ModifiedBy,
+                            EmployeeId = data.EmployeeId,
+                            IsActive = data.Status,
+                            SubTopicCode = data.SubTopicCode,
+                            DisplayName = data.DisplayName,
+                            DisplayOrder = data.DisplayOrder,
+                            TopicCode = data.TopicCode,
+                            Count = questionCount // Adding question count here
+                        };
+
+                        // Find the corresponding topic
+                        var existingTopic = contentIndexResponse
+                            .SelectMany(c => c.ContentIndexTopics)
+                            .FirstOrDefault(t => t.TopicCode == data.TopicCode);
+
+                        if (existingTopic != null)
+                        {
+                            existingTopic.ContentIndexSubTopics.Add(subTopic);
+                        }
+                    }
+                }
+
+                return new ServiceResponse<List<ContentIndexResponses>>(true, "Syllabus details retrieved successfully", contentIndexResponse, 200);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<ContentIndexResponses>>(false, ex.Message, new List<ContentIndexResponses>(), 500);
             }
         }
         //public async Task<ServiceResponse<string>> AssignQuestionToProfiler(QuestionProfilerRequest request)
