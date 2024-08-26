@@ -30,9 +30,9 @@ namespace ControlPanel_API.Repository.Implementations
                     {
                         createdby = request.createdby,
                         createdon = DateTime.Now,
-                        PDF = PDFUpload(request.Link),
+                        PDF = PDFUpload(request.PDF),
                         MagazineTitle = request.MagazineTitle,
-                        Image = ImageUpload(request.PathURL),
+                        Image = ImageUpload(request.Image),
                         Status = true,
                         EmployeeID = request.EmployeeID,
                         Time = request.Time,
@@ -75,9 +75,9 @@ namespace ControlPanel_API.Repository.Implementations
                     {
                         modifiedby = request.modifiedby,
                         modifiedon = DateTime.Now,
-                        PDF = PDFUpload(request.Link),
+                        PDF = PDFUpload(request.PDF),
                         MagazineTitle = request.MagazineTitle,
-                        Image = ImageUpload(request.PathURL),
+                        Image = ImageUpload(request.Image),
                         Status = true,
                         EmployeeID = request.EmployeeID,
                         Time = request.Time,
@@ -185,8 +185,8 @@ namespace ControlPanel_API.Repository.Implementations
                     MagazineId = item.MagazineId,
                     Date = item.Date,
                     Time = item.Time,
-                    PDF = GetPDF(item.Link),
-                    Image = GetImage(item.PathURL),
+                    PDF = GetPDF(item.PDF),
+                    Image = GetImage(item.Image),
                     MagazineTitle = item.MagazineTitle,
                     Status = item.Status,
                     modifiedon = item.modifiedon,
@@ -245,8 +245,8 @@ namespace ControlPanel_API.Repository.Implementations
                 {
                     if (magazine.Date <= today)
                     {
-                        response.PDF = GetPDF(magazine.Link);
-                        response.Image = GetImage(magazine.PathURL);
+                        response.PDF = GetPDF(magazine.PDF);
+                        response.Image = GetImage(magazine.Image);
                         response.MagazineId = magazine.MagazineId;
                         response.Date = magazine.Date;
                         response.Time = magazine.Time;
