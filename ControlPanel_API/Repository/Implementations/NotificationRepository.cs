@@ -178,7 +178,7 @@ namespace ControlPanel_API.Repository.Implementations
                 {
                     NBNotificationID = item.NBNotificationID,
                     NotificationTitle = item.NotificationTitle,
-                    PDF = GetPDF(item.PDF ?? string.Empty),
+                    PDF = GetPDF(item.PDF),
                     status = item.status,
                     createdon = item.createdon,
                     createdby = item.createdby,
@@ -264,7 +264,7 @@ namespace ControlPanel_API.Repository.Implementations
                     response.NbNotificationCourses = GetListOfNBCourse(NotificationId);
                     response.NbNotificationExamTypes = GetListOfNBExamType(NotificationId);
                     response.NotificationTitle = data.NotificationTitle;
-                    response.PDF = GetPDF(data.PDF ??= string.Empty);
+                    response.PDF = GetPDF(data.PDF);
                     response.status = data.status;
                     response.createdon = data.createdon;
                     response.createdby = data.createdby;
@@ -421,7 +421,7 @@ namespace ControlPanel_API.Repository.Implementations
         }
         private string GetPDF(string Filename)
         {
-            var filePath = Path.Combine(_hostingEnvironment.WebRootPath, "Assets", "NBNotification", Filename);
+            var filePath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "NBNotification", Filename);
 
             if (!File.Exists(filePath))
             {

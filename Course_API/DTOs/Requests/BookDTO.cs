@@ -7,9 +7,7 @@ namespace Course_API.DTOs.Requests
         public int BookId { get; set; }
         public string BookName { get; set; } = string.Empty;
         public bool Status { get; set; }
-        [Required(ErrorMessage = "url cannot be empty")]
         public string Image { get; set; } = string.Empty;
-        [Required(ErrorMessage = "file cannot be empty")]
         public string AudioOrVideo { get; set; } = string.Empty;
         public DateTime? modifiedon { get; set; }
         public string modifiedby { get; set; } = string.Empty;
