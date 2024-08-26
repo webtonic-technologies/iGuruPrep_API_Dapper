@@ -92,7 +92,7 @@ namespace ControlPanel_API.Repository.Implementations
         {
             try
             {
-                var sql = "SELECT * FROM tblRole;";
+                var sql = "SELECT * FROM tblRole where Status = 1;";
                 var roles = await _connection.QueryAsync<Role>(sql);
 
                 if (roles.Any())

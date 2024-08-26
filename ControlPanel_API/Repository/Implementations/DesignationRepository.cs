@@ -93,7 +93,7 @@ namespace ControlPanel_API.Repository.Implementations
         {
             try
             {
-                string sql = "SELECT * FROM tblDesignation";
+                string sql = "SELECT * FROM tblDesignation where Status = 1";
 
                 var designations = await _connection.QueryAsync<Designation>(sql);
 
