@@ -108,18 +108,18 @@ namespace ControlPanel_API.Controllers
                 return BadRequest(ex.Message);
             }
         }
-        [HttpGet("PublishStory")]
-        public async Task<IActionResult> GetStoryOfTheDayByPublishDateAndTime()
-        {
-            try
-            {
-                var magazine = await _storyOfTheDayService.GetStoryOfTheDayByPublishDateAndTime();
-                return Ok(magazine);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
+        //[HttpGet("PublishStory")]
+        //public async Task<IActionResult> GetStoryOfTheDayByPublishDateAndTime()
+        //{
+        //    try
+        //    {
+        //        var magazine = await _storyOfTheDayService.GetStoryOfTheDayByPublishDateAndTime();
+        //        return Ok(magazine);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return BadRequest(ex.Message);
+        //    }
+        //}
     }
 }

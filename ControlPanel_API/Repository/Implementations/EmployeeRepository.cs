@@ -462,7 +462,7 @@ namespace ControlPanel_API.Repository.Implementations
 
                 if (!designationStatus)
                 {
-                    return new ServiceResponse<string>(false, "Designation is inactive", string.Empty, StatusCodes.Status403Forbidden);
+                    return new ServiceResponse<string>(false, "Contact the Administrator", string.Empty, StatusCodes.Status403Forbidden);
                 }
 
                 // Get existing active sessions for the user
