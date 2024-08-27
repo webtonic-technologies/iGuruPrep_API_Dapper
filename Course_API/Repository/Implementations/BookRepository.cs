@@ -256,6 +256,11 @@ namespace Course_API.Repository.Implementations
         {
             try
             {
+                var employeeRoleQuery = "SELECT e.RoleID, r.RoleCode FROM tblEmployee e INNER JOIN tblRole r ON e.RoleID = r.RoleID WHERE e.Employeeid = @EmployeeID";
+                var employeeRole = await _connection.QuerySingleOrDefaultAsync<dynamic>(employeeRoleQuery, new { EmployeeID = request.EmployeeId });
+
+                // Determine if the employee is Admin or SuperAdmin
+                bool isAdminOrSuperAdmin = employeeRole != null && (employeeRole.RoleCode == "AD" || employeeRole.RoleCode == "SA");
                 // Base query
                 string baseQuery = @"
         SELECT DISTINCT
@@ -286,16 +291,63 @@ namespace Course_API.Repository.Implementations
                 // Applying filters
                 if (request.ClassID > 0)
                 {
-                    baseQuery += " AND lc2.ClassID = @ClassID";
+                    baseQuery += @"
+    AND lc2.ClassID = @ClassID
+    AND lc2.BookId IN (
+        SELECT lc2.BookId 
+        FROM [tbllibraryClass] lc2 
+        INNER JOIN [tblClass] c ON lc2.ClassID = c.ClassID 
+        WHERE c.Status = 1
+    )";
                 }
+
                 if (request.BoardID > 0)
                 {
-                    baseQuery += " AND lb.BoardID = @BoardID";
+                    baseQuery += @"
+    AND lb.BoardID = @BoardID
+    AND lb.BookId IN (
+        SELECT lb.BookId 
+        FROM [tbllibraryBoard] lb 
+        INNER JOIN [tblBoard] b ON lb.BoardID = b.BoardID 
+        WHERE b.Status = 1
+    )";
                 }
+
                 if (request.CourseID > 0)
                 {
-                    baseQuery += " AND lco.CourseID = @CourseID";
+                    baseQuery += @"
+    AND lco.CourseID = @CourseID
+    AND lco.BookId IN (
+        SELECT lco.BookId 
+        FROM [tbllibraryCourse] lco 
+        INNER JOIN [tblCourse] co ON lco.CourseID = co.CourseID 
+        WHERE co.Status = 1
+    )";
                 }
+
+                if (request.SubjectID > 0)
+                {
+                    baseQuery += @"
+    AND ls.SubjectID = @SubjectID
+    AND ls.BookId IN (
+        SELECT ls.BookId 
+        FROM [tbllibrarySubject] ls 
+        INNER JOIN [tblSubject] s ON ls.SubjectID = s.SubjectId 
+        WHERE s.Status = 1
+    )";
+                }
+                //if (request.ClassID > 0)
+                //{
+                //    baseQuery += " AND lc2.ClassID = @ClassID";
+                //}
+                //if (request.BoardID > 0)
+                //{
+                //    baseQuery += " AND lb.BoardID = @BoardID";
+                //}
+                //if (request.CourseID > 0)
+                //{
+                //    baseQuery += " AND lco.CourseID = @CourseID";
+                //}
                 if (request.ExamTypeID > 0)
                 {
                     baseQuery += " AND le.ExamTypeID = @ExamTypeID";
@@ -304,10 +356,14 @@ namespace Course_API.Repository.Implementations
                 {
                     baseQuery += " AND lc.APId = @APId";
                 }
-                if (request.SubjectID > 0)
+                if (!isAdminOrSuperAdmin)
                 {
-                    baseQuery += " AND ls.SubjectID = @SubjectID";
+                    baseQuery += " AND s.Status = 1";
                 }
+                //if (request.SubjectID > 0)
+                //{
+                //    baseQuery += " AND ls.SubjectID = @SubjectID";
+                //}
 
                 // Parameters for the query
                 var parameters = new
@@ -606,12 +662,13 @@ namespace Course_API.Repository.Implementations
         private List<BookBoardResponse> GetListOfBookBoards(int BookId)
         {
             var boardquery = @"
-            SELECT lb.*, b.BoardName as Name
-            FROM [tbllibraryBoard] lb
-            JOIN [tblBoard] b ON lb.BoardId = b.BoardId
-            WHERE lb.BookID = @BookID;";
-            var data = _connection.Query<BookBoardResponse>(boardquery, new { bookID = BookId });
-            return data != null ? data.AsList() : [];
+    SELECT lb.*, b.BoardName as Name
+    FROM [tbllibraryBoard] lb
+    JOIN [tblBoard] b ON lb.BoardId = b.BoardId
+    WHERE lb.BookID = @BookID
+      AND b.Status = 1;"; // Check for active boards
+            var data = _connection.Query<BookBoardResponse>(boardquery, new { BookID = BookId });
+            return data != null ? data.AsList() : new List<BookBoardResponse>();
         }
         private List<BookCategoryResponse> GetListOfBookCategory(int BookId)
         {
@@ -623,25 +680,27 @@ namespace Course_API.Repository.Implementations
             var data = _connection.Query<BookCategoryResponse>(query, new { BookId });
             return data != null ? data.AsList() : [];
         }
-        private List<BookClassResponse> GetListOfBookClass(int bookID)
+        private List<BookClassResponse> GetListOfBookClass(int BookId)
         {
             var query = @"
-            SELECT lcl.*, cl.ClassName as Name
-            FROM [tbllibraryClass] lcl
-            JOIN [tblClass] cl ON lcl.ClassId = cl.ClassId
-            WHERE lcl.BookID = @bookID;";
-            var data = _connection.Query<BookClassResponse>(query, new { bookID });
-            return data != null ? data.AsList() : [];
+    SELECT lcl.*, cl.ClassName as Name
+    FROM [tbllibraryClass] lcl
+    JOIN [tblClass] cl ON lcl.ClassId = cl.ClassId
+    WHERE lcl.BookID = @BookID
+      AND cl.Status = 1;"; // Check for active classes
+            var data = _connection.Query<BookClassResponse>(query, new { BookID = BookId });
+            return data != null ? data.AsList() : new List<BookClassResponse>();
         }
-        private List<BookCourseResponse> GetListOfBookCourse(int bookID)
+        private List<BookCourseResponse> GetListOfBookCourse(int BookId)
         {
             var query = @"
-            SELECT lc.*, c.CourseName as Name
-            FROM [tbllibraryCourse] lc
-            JOIN [tblCourse] c ON lc.CourseId = c.CourseId
-            WHERE lc.BookID = @bookID;";
-            var data = _connection.Query<BookCourseResponse>(query, new { bookID });
-            return data != null ? data.AsList() : [];
+    SELECT lc.*, c.CourseName as Name
+    FROM [tbllibraryCourse] lc
+    JOIN [tblCourse] c ON lc.CourseId = c.CourseId
+    WHERE lc.BookID = @BookID
+      AND c.Status = 1;"; // Check for active courses
+            var data = _connection.Query<BookCourseResponse>(query, new { BookID = BookId });
+            return data != null ? data.AsList() : new List<BookCourseResponse>();
         }
         private List<BookExamTypeResponse> GetListOfBookExamType(int bookID)
         {
@@ -653,15 +712,16 @@ namespace Course_API.Repository.Implementations
             var data = _connection.Query<BookExamTypeResponse>(query, new { bookID });
             return data != null ? data.AsList() : [];
         }
-        private List<BookSubjectResponse> GetListOfBookSubject(int bookID)
+        private List<BookSubjectResponse> GetListOfBookSubject(int BookId)
         {
             var query = @"
-            SELECT ls.*, s.SubjectName as Name
-            FROM [tbllibrarySubject] ls
-            JOIN [tblSubject] s ON ls.SubjectId = s.SubjectId
-            WHERE ls.BookID = @bookID;";
-            var data = _connection.Query<BookSubjectResponse>(query, new { bookID });
-            return data != null ? data.AsList() : [];
+    SELECT ls.*, s.SubjectName as Name
+    FROM [tbllibrarySubject] ls
+    JOIN [tblSubject] s ON ls.SubjectId = s.SubjectId
+    WHERE ls.BookID = @BookID
+      AND s.Status = 1;"; // Check for active subjects
+            var data = _connection.Query<BookSubjectResponse>(query, new { BookID = BookId });
+            return data != null ? data.AsList() : new List<BookSubjectResponse>();
         }
         private List<BookAuthorDetailResponse> GetListOfAuthorDetails(int BookId)
         {
@@ -677,7 +737,7 @@ namespace Course_API.Repository.Implementations
                 return string.Empty;
             }
             byte[] imageData = Convert.FromBase64String(image);
-            string directoryPath = Path.Combine(_hostingEnvironment.WebRootPath, "Assets", "Books");
+            string directoryPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "Books");
 
             if (!Directory.Exists(directoryPath))
             {

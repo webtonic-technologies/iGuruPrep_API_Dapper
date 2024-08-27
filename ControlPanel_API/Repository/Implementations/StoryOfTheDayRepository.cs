@@ -204,101 +204,133 @@ namespace ControlPanel_API.Repository.Implementations
         {
             try
             {
+                var employeeRoleQuery = "SELECT e.RoleID, r.RoleCode FROM tblEmployee e INNER JOIN tblRole r ON e.RoleID = r.RoleID WHERE e.Employeeid = @EmployeeID";
+                var employeeRole = await _connection.QuerySingleOrDefaultAsync<dynamic>(employeeRoleQuery, new { EmployeeID = request.EmployeeId });
+
+                // Determine if the employee is Admin or SuperAdmin
+                bool isAdminOrSuperAdmin = employeeRole != null && (employeeRole.RoleCode == "AD" || employeeRole.RoleCode == "SA");
+                string baseQuery;
                 // Base query to fetch all matching records
-                string baseQuery = @"SELECT DISTINCT
-    s.StoryId,
-    s.EventTypeID,
-    s.Event1PostDate,
-    s.Event1Posttime,
-    s.Event2PostDate,
-    s.Event2Posttime,
-    s.Event1Image,
-    s.Event2Image,
-    s.Status,
-    s.APName,
-    s.eventname,
-    s.modifiedon,
-    s.modifiedby,
-    s.createdon,
-    s.createdby,
-    s.EmployeeID,
-    ev.EventTypeName AS eventtypename,
-    e.EmpFirstName,
-    CASE 
-        WHEN CAST(s.Event1PostDate AS DATETIME) + CAST(s.Event1Posttime AS DATETIME) <= GETDATE()
-             AND DATEADD(HOUR, -24, GETDATE()) <= CAST(s.Event1PostDate AS DATETIME) + CAST(s.Event1Posttime AS DATETIME)
-        THEN 1 
-        ELSE 0 
-    END AS IsEvent1Valid,
-    CASE 
-        WHEN CAST(s.Event2PostDate AS DATETIME) + CAST(s.Event2Posttime AS DATETIME) <= GETDATE()
-             AND DATEADD(HOUR, -24, GETDATE()) <= CAST(s.Event2PostDate AS DATETIME) + CAST(s.Event2Posttime AS DATETIME)
-        THEN 1 
-        ELSE 0 
-    END AS IsEvent2Valid
-FROM [tblSOTD] s
-LEFT JOIN [tblEmployee] e ON s.EmployeeID = e.Employeeid
-LEFT JOIN tblSOTDEventtype ev ON s.EventTypeID = ev.EventTypeID
-LEFT JOIN [tblSOTDCategory] sc ON s.StoryId = sc.SOTDID
-LEFT JOIN [tblSOTDBoard] sb ON s.StoryId = sb.SOTDID
-LEFT JOIN [tblSOTDClass] scl ON s.StoryId = scl.SOTDID
-LEFT JOIN [tblSOTDCourse] sco ON s.StoryId = sco.SOTDID
-LEFT JOIN [tblSOTDExamType] se ON s.StoryId = se.SOTDID
-WHERE 1=1;
-";
-        //        string baseQuery = @"
-        //SELECT DISTINCT
-        //    s.StoryId,
-        //    s.EventTypeID,
-        //    s.Event1PostDate,
-        //    s.Event1Posttime,
-        //    s.Event2PostDate,
-        //    s.Event2Posttime,
-        //    s.Event1Image,
-        //    s.Event2Image,
-        //    s.Status,
-        //    s.APName,
-        //    s.eventname,
-        //    s.modifiedon,
-        //    s.modifiedby,
-        //    s.createdon,
-        //    s.createdby,
-        //    s.EmployeeID,
-        //    ev.EventTypeName as eventtypename,
-        //    e.EmpFirstName,
-        //    CASE 
-        //        WHEN DATEADD(HOUR, -24, GETDATE()) <= CAST(s.Event1PostDate AS DATETIME) + CAST(s.Event1Posttime AS DATETIME)
-        //        THEN 1 
-        //        ELSE 0 
-        //    END AS IsEvent1Valid,
-        //    CASE 
-        //        WHEN DATEADD(HOUR, -24, GETDATE()) <= CAST(s.Event2PostDate AS DATETIME) + CAST(s.Event2Posttime AS DATETIME)
-        //        THEN 1 
-        //        ELSE 0 
-        //    END AS IsEvent2Valid
-        //FROM [tblSOTD] s
-        //LEFT JOIN [tblEmployee] e ON s.EmployeeID = e.Employeeid
-        //LEFT JOIN tblSOTDEventtype ev ON s.EventTypeID = ev.EventTypeID
-        //LEFT JOIN [tblSOTDCategory] sc ON s.StoryId = sc.SOTDID
-        //LEFT JOIN [tblSOTDBoard] sb ON s.StoryId = sb.SOTDID
-        //LEFT JOIN [tblSOTDClass] scl ON s.StoryId = scl.SOTDID
-        //LEFT JOIN [tblSOTDCourse] sco ON s.StoryId = sco.SOTDID
-        //LEFT JOIN [tblSOTDExamType] se ON s.StoryId = se.SOTDID
-        //WHERE 1=1";
+                if (!isAdminOrSuperAdmin)
+                {
+                    baseQuery = @"SELECT DISTINCT
+                s.StoryId,
+                s.EventTypeID,
+                s.Event1PostDate,
+                s.Event1Posttime,
+                s.Event2PostDate,
+                s.Event2Posttime,
+                s.Event1Image,
+                s.Event2Image,
+                s.Status,
+                s.APName,
+                s.eventname,
+                s.modifiedon,
+                s.modifiedby,
+                s.createdon,
+                s.createdby,
+                s.EmployeeID,
+                ev.EventTypeName AS eventtypename,
+                e.EmpFirstName,
+                CASE 
+                    WHEN CAST(s.Event1PostDate AS DATETIME) + CAST(s.Event1Posttime AS DATETIME) <= GETDATE()
+                         AND DATEADD(HOUR, -24, GETDATE()) <= CAST(s.Event1PostDate AS DATETIME) + CAST(s.Event1Posttime AS DATETIME)
+                    THEN 1 
+                    ELSE 0 
+                END AS IsEvent1Valid,
+                CASE 
+                    WHEN CAST(s.Event2PostDate AS DATETIME) + CAST(s.Event2Posttime AS DATETIME) <= GETDATE()
+                         AND DATEADD(HOUR, -24, GETDATE()) <= CAST(s.Event2PostDate AS DATETIME) + CAST(s.Event2Posttime AS DATETIME)
+                    THEN 1 
+                    ELSE 0 
+                END AS IsEvent2Valid
+            FROM [tblSOTD] s
+            LEFT JOIN [tblEmployee] e ON s.EmployeeID = e.Employeeid
+            LEFT JOIN tblSOTDEventtype ev ON s.EventTypeID = ev.EventTypeID
+            LEFT JOIN [tblSOTDCategory] sc ON s.StoryId = sc.SOTDID
+            LEFT JOIN [tblSOTDBoard] sb ON s.StoryId = sb.SOTDID
+            LEFT JOIN [tblSOTDClass] scl ON s.StoryId = scl.SOTDID
+            LEFT JOIN [tblSOTDCourse] sco ON s.StoryId = sco.SOTDID
+            LEFT JOIN [tblSOTDExamType] se ON s.StoryId = se.SOTDID
+            WHERE 1=1;
+            ";
+                }
+                else
+                {
+                    baseQuery = @"SELECT DISTINCT
+                s.StoryId,
+                s.EventTypeID,
+                s.Event1PostDate,
+                s.Event1Posttime,
+                s.Event2PostDate,
+                s.Event2Posttime,
+                s.Event1Image,
+                s.Event2Image,
+                s.Status,
+                s.APName,
+                s.eventname,
+                s.modifiedon,
+                s.modifiedby,
+                s.createdon,
+                s.createdby,
+                s.EmployeeID,
+                ev.EventTypeName AS eventtypename,
+                e.EmpFirstName,
+            FROM [tblSOTD] s
+            LEFT JOIN [tblEmployee] e ON s.EmployeeID = e.Employeeid
+            LEFT JOIN tblSOTDEventtype ev ON s.EventTypeID = ev.EventTypeID
+            LEFT JOIN [tblSOTDCategory] sc ON s.StoryId = sc.SOTDID
+            LEFT JOIN [tblSOTDBoard] sb ON s.StoryId = sb.SOTDID
+            LEFT JOIN [tblSOTDClass] scl ON s.StoryId = scl.SOTDID
+            LEFT JOIN [tblSOTDCourse] sco ON s.StoryId = sco.SOTDID
+            LEFT JOIN [tblSOTDExamType] se ON s.StoryId = se.SOTDID
+            WHERE 1=1;
+            ";
+                }
 
                 // Applying filters
-                if (request.ClassID > 0)
-                {
-                    baseQuery += " AND scl.ClassID = @ClassID";
-                }
                 if (request.BoardID > 0)
                 {
-                    baseQuery += " AND sb.BoardID = @BoardID";
+                    baseQuery += @"
+    AND s.StoryId IN (
+        SELECT sb.[SOTDID] 
+        FROM [tblSOTDBoard] sb 
+        INNER JOIN [tblBoard] b ON sb.[BoardID] = b.[BoardId] 
+        WHERE b.[Status] = 1 AND sb.[BoardID] = @BoardID
+    )";
+                }
+                if (request.ClassID > 0)
+                {
+                    baseQuery += @"
+    AND s.StoryId IN (
+        SELECT scl.[SOTDID] 
+        FROM [tblSOTDClass] scl 
+        INNER JOIN [tblClass] c ON scl.[ClassID] = c.[ClassId] 
+        WHERE c.[Status] = 1 AND scl.[ClassID] = @ClassID
+    )";
                 }
                 if (request.CourseID > 0)
                 {
-                    baseQuery += " AND sco.CourseID = @CourseID";
+                    baseQuery += @"
+    AND s.StoryId IN (
+        SELECT sco.[SOTDID] 
+        FROM [tblSOTDCourse] sco 
+        INNER JOIN [tblCourse] co ON sco.[CourseID] = co.[CourseId] 
+        WHERE co.[Status] = 1 AND sco.[CourseID] = @CourseID
+    )";
                 }
+                //if (request.ClassID > 0)
+                //{
+                //    baseQuery += " AND scl.ClassID = @ClassID";
+                //}
+                //if (request.BoardID > 0)
+                //{
+                //    baseQuery += " AND sb.BoardID = @BoardID";
+                //}
+                //if (request.CourseID > 0)
+                //{
+                //    baseQuery += " AND sco.CourseID = @CourseID";
+                //}
                 if (request.ExamTypeID > 0)
                 {
                     baseQuery += " AND se.ExamTypeID = @ExamTypeID";
@@ -311,7 +343,10 @@ WHERE 1=1;
                 {
                     baseQuery += " AND s.EventTypeID = @EventTypeID";
                 }
-
+                if (!isAdminOrSuperAdmin)
+                {
+                    baseQuery += " AND s.Status = 1";
+                }
                 // Parameters for the query
                 var parameters = new
                 {
@@ -880,21 +915,21 @@ WHERE 1=1;
         private List<SOTDBoardResponse> GetListOfSOTDBoards(int SOTDID)
         {
             var query = @"
-        SELECT 
-            b.tblSOTDBoardID,
-            b.SOTDID,
-            b.BoardID,
-            bc.BoardName as Name
-        FROM 
-            [tblSOTDBoard] b
-        LEFT JOIN 
-            tblBoard bc ON b.BoardId = bc.BoardID
-        WHERE 
-            b.SOTDID = @SOTDID;";
+    SELECT 
+        b.tblSOTDBoardID,
+        b.SOTDID,
+        b.BoardID,
+        bc.BoardName as Name
+    FROM 
+        [tblSOTDBoard] b
+    LEFT JOIN 
+        tblBoard bc ON b.BoardID = bc.BoardID
+    WHERE 
+        b.SOTDID = @SOTDID
+        AND bc.Status = 1;"; // Ensure board is active
 
-            // Execute the SQL query with the SOTDID parameter
             var boardData = _connection.Query<SOTDBoardResponse>(query, new { SOTDID });
-            return boardData != null ? boardData.AsList() : [];
+            return boardData != null ? boardData.AsList() : new List<SOTDBoardResponse>();
         }
         private List<SOTDCategoryResponse> GetListOfSOTDCategory(int SOTDID)
         {
@@ -917,37 +952,40 @@ WHERE 1=1;
         private List<SOTDClassResponse> GetListOfSOTDClass(int SOTDID)
         {
             var query = @"
-        SELECT 
-            cl.tblSOTDClassID,
-            cl.SOTDID,
-            cl.ClassID,
-            cc.ClassName as Name
-        FROM 
-            [tblSOTDClass] cl
-        LEFT JOIN 
-            tblClass cc ON cl.ClassID = cc.ClassID
-        WHERE 
-            cl.SOTDID = @SOTDID;";
-      
+    SELECT 
+        cl.tblSOTDClassID,
+        cl.SOTDID,
+        cl.ClassID,
+        cc.ClassName as Name
+    FROM 
+        [tblSOTDClass] cl
+    LEFT JOIN 
+        tblClass cc ON cl.ClassID = cc.ClassID
+    WHERE 
+        cl.SOTDID = @SOTDID
+        AND cc.Status = 1;"; // Ensure class is active
+
             var data = _connection.Query<SOTDClassResponse>(query, new { SOTDID });
-            return data != null ? data.AsList() : [];
+            return data != null ? data.AsList() : new List<SOTDClassResponse>();
         }
         private List<SOTDCourseResponse> GetListOfSOTDCourse(int SOTDID)
         {
             var query = @"
-        SELECT 
-            co.SOTDCourseID,
-            co.SOTDID,
-            co.CourseID,
-            cn.CourseName as Name
-        FROM 
-            [tblSOTDCourse] co
-        LEFT JOIN 
-            tblCourse cn ON co.CourseID = cn.CourseID
-        WHERE 
-            co.SOTDID = @SOTDID;";
+    SELECT 
+        co.SOTDCourseID,
+        co.SOTDID,
+        co.CourseID,
+        cn.CourseName as Name
+    FROM 
+        [tblSOTDCourse] co
+    LEFT JOIN 
+        tblCourse cn ON co.CourseID = cn.CourseID
+    WHERE 
+        co.SOTDID = @SOTDID
+        AND cn.Status = 1;"; // Ensure course is active
+
             var data = _connection.Query<SOTDCourseResponse>(query, new { SOTDID });
-            return data != null ? data.AsList() : [];
+            return data != null ? data.AsList() : new List<SOTDCourseResponse>();
         }
         private List<SOTDExamTypeResponse> GetListOfSOTDExamType(int SOTDID)
         {

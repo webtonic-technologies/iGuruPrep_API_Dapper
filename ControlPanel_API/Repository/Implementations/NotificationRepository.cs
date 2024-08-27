@@ -117,10 +117,149 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
+        //    public async Task<ServiceResponse<List<NotificationResponseDTO>>> GetAllNotificationsList(NotificationsListDTO request)
+        //    {
+        //        try
+        //        {
+        //            // Base query to fetch all matching records
+        //            string baseQuery = @"
+        //    SELECT 
+        //        n.NBNotificationID, 
+        //        n.NotificationTitle, 
+        //        n.PDF, 
+        //        n.status, 
+        //        n.createdon, 
+        //        n.createdby, 
+        //        n.modifiedon, 
+        //        n.modifiedby, 
+        //        n.EmployeeID,
+        //        e.EmpFirstName as EmpFirstName
+        //    FROM tblNbNotification n
+        //    LEFT JOIN tblEmployee e ON n.EmployeeID = e.Employeeid
+        //    WHERE 1=1";
+
+        //            // Applying filters
+        //            if (request.APId > 0)
+        //            {
+        //                baseQuery += " AND n.NBNotificationID IN (SELECT [NBNotificationID] FROM [tblNbNotificationCategory] WHERE [APID] = @APId)";
+        //            }
+        //            //if (request.BoardID > 0)
+        //            //{
+        //            //    baseQuery += " AND n.NBNotificationID IN (SELECT [NBNotificationID] FROM [tblNbNotificationBoard] WHERE [BoardID] = @BoardID)";
+        //            //}
+        //            //if (request.ClassID > 0)
+        //            //{
+        //            //    baseQuery += " AND n.NBNotificationID IN (SELECT [NBNotificationID] FROM [tblNbNotificationClass] WHERE [ClassID] = @ClassID)";
+        //            //}
+        //            //if (request.CourseID > 0)
+        //            //{
+        //            //    baseQuery += " AND n.NBNotificationID IN (SELECT [NBNotificationID] FROM [tblNbNotificationCourse] WHERE [CourseID] = @CourseID)";
+        //            //}
+        //            if (request.BoardID > 0)
+        //            {
+        //                baseQuery += @"
+        //AND n.NBNotificationID IN (
+        //    SELECT nb.[NBNotificationID] 
+        //    FROM [tblNbNotificationBoard] nb 
+        //    INNER JOIN [tblBoard] b ON nb.[BoardID] = b.[BoardId] 
+        //    WHERE b.[Status] = 1 AND nb.[BoardID] = @BoardID
+        //)";
+        //            }
+        //            if (request.ClassID > 0)
+        //            {
+        //                baseQuery += @"
+        //AND n.NBNotificationID IN (
+        //    SELECT nc.[NBNotificationID] 
+        //    FROM [tblNbNotificationClass] nc 
+        //    INNER JOIN [tblClass] c ON nc.[ClassID] = c.[ClassId] 
+        //    WHERE c.[Status] = 1 AND nc.[ClassID] = @ClassID
+        //)";
+        //            }
+        //            if (request.CourseID > 0)
+        //            {
+        //                baseQuery += @"
+        //AND n.NBNotificationID IN (
+        //    SELECT nco.[NBNotificationID] 
+        //    FROM [tblNbNotificationCourse] nco 
+        //    INNER JOIN [tblCourse] co ON nco.[CourseID] = co.[CourseId] 
+        //    WHERE co.[Status] = 1 AND nco.[CourseID] = @CourseID
+        //)";
+        //            }
+        //            if (request.ExamTypeID > 0)
+        //            {
+        //                baseQuery += " AND n.NBNotificationID IN (SELECT [NBNotificationID] FROM [tblNbNotificationExamType] WHERE [ExamTypeID] = @ExamTypeID)";
+        //            }
+
+        //            // Parameters for the query
+        //            var parameters = new
+        //            {
+        //                APId = request.APId,
+        //                BoardID = request.BoardID,
+        //                ClassID = request.ClassID,
+        //                CourseID = request.CourseID,
+        //                ExamTypeID = request.ExamTypeID
+        //            };
+
+        //            // Fetch all matching records
+        //            var mainResult = (await _connection.QueryAsync<dynamic>(baseQuery, parameters)).ToList();
+
+        //            // Map results to response DTO
+        //            var response = mainResult.Select(item => new NotificationResponseDTO
+        //            {
+        //                NBNotificationID = item.NBNotificationID,
+        //                NotificationTitle = item.NotificationTitle,
+        //                PDF = GetPDF(item.PDF),
+        //                status = item.status,
+        //                createdon = item.createdon,
+        //                createdby = item.createdby,
+        //                modifiedon = item.modifiedon,
+        //                modifiedby = item.modifiedby,
+        //                EmployeeID = item.EmployeeID,
+        //                EmpFirstName = item.EmpFirstName,
+        //                NbNotificationCategories = GetListOfNBCategory(item.NBNotificationID),
+        //                NbNotificationBoards = GetListOfNBBoards(item.NBNotificationID),
+        //                NbNotificationClasses = GetListOfNBClass(item.NBNotificationID),
+        //                NbNotificationCourses = GetListOfNBCourse(item.NBNotificationID),
+        //                NbNotificationExamTypes = GetListOfNBExamType(item.NBNotificationID),
+        //                NotificationDetails = GetListOfNotificationDetails(item.NBNotificationID),
+        //                NotificationLinkMasters = GetListOfNotificationLink(item.NBNotificationID)
+        //            }).ToList();
+
+        //            // Total count before pagination
+        //            int totalCount = response.Count;
+
+        //            // Apply logical pagination
+        //            var paginatedResponse = response
+        //                .Skip((request.PageNumber - 1) * request.PageSize)
+        //                .Take(request.PageSize)
+        //                .ToList();
+
+        //            // Check if there are records
+        //            if (paginatedResponse.Any())
+        //            {
+        //                return new ServiceResponse<List<NotificationResponseDTO>>(true, "Records found", paginatedResponse, 200, totalCount);
+        //            }
+        //            else
+        //            {
+        //                return new ServiceResponse<List<NotificationResponseDTO>>(false, "Records not found", new List<NotificationResponseDTO>(), 404);
+        //            }
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            return new ServiceResponse<List<NotificationResponseDTO>>(false, ex.Message, new List<NotificationResponseDTO>(), 500);
+        //        }
+        //    }
         public async Task<ServiceResponse<List<NotificationResponseDTO>>> GetAllNotificationsList(NotificationsListDTO request)
         {
             try
             {
+                // Fetch employee's role information
+                var employeeRoleQuery = "SELECT e.RoleID, r.RoleCode FROM tblEmployee e INNER JOIN tblRole r ON e.RoleID = r.RoleID WHERE e.Employeeid = @EmployeeID";
+                var employeeRole = await _connection.QuerySingleOrDefaultAsync<dynamic>(employeeRoleQuery, new { EmployeeID = request.EmployeeId });
+
+                // Determine if the employee is Admin or SuperAdmin
+                bool isAdminOrSuperAdmin = employeeRole != null && (employeeRole.RoleCode == "AD" || employeeRole.RoleCode == "SA");
+
                 // Base query to fetch all matching records
                 string baseQuery = @"
         SELECT 
@@ -145,19 +284,43 @@ namespace ControlPanel_API.Repository.Implementations
                 }
                 if (request.BoardID > 0)
                 {
-                    baseQuery += " AND n.NBNotificationID IN (SELECT [NBNotificationID] FROM [tblNbNotificationBoard] WHERE [BoardID] = @BoardID)";
+                    baseQuery += @"
+            AND n.NBNotificationID IN (
+                SELECT nb.[NBNotificationID] 
+                FROM [tblNbNotificationBoard] nb 
+                INNER JOIN [tblBoard] b ON nb.[BoardID] = b.[BoardId] 
+                WHERE b.[Status] = 1 AND nb.[BoardID] = @BoardID
+            )";
                 }
                 if (request.ClassID > 0)
                 {
-                    baseQuery += " AND n.NBNotificationID IN (SELECT [NBNotificationID] FROM [tblNbNotificationClass] WHERE [ClassID] = @ClassID)";
+                    baseQuery += @"
+            AND n.NBNotificationID IN (
+                SELECT nc.[NBNotificationID] 
+                FROM [tblNbNotificationClass] nc 
+                INNER JOIN [tblClass] c ON nc.[ClassID] = c.[ClassId] 
+                WHERE c.[Status] = 1 AND nc.[ClassID] = @ClassID
+            )";
                 }
                 if (request.CourseID > 0)
                 {
-                    baseQuery += " AND n.NBNotificationID IN (SELECT [NBNotificationID] FROM [tblNbNotificationCourse] WHERE [CourseID] = @CourseID)";
+                    baseQuery += @"
+            AND n.NBNotificationID IN (
+                SELECT nco.[NBNotificationID] 
+                FROM [tblNbNotificationCourse] nco 
+                INNER JOIN [tblCourse] co ON nco.[CourseID] = co.[CourseId] 
+                WHERE co.[Status] = 1 AND nco.[CourseID] = @CourseID
+            )";
                 }
                 if (request.ExamTypeID > 0)
                 {
                     baseQuery += " AND n.NBNotificationID IN (SELECT [NBNotificationID] FROM [tblNbNotificationExamType] WHERE [ExamTypeID] = @ExamTypeID)";
+                }
+
+                // Add condition for non-Admin users to see only active records
+                if (!isAdminOrSuperAdmin)
+                {
+                    baseQuery += " AND n.status = 1";
                 }
 
                 // Parameters for the query
@@ -603,17 +766,19 @@ namespace ControlPanel_API.Repository.Implementations
         }
         private List<NbNotificationBoardResponse> GetListOfNBBoards(int notificationId)
         {
-            var boardquery = @"
-        SELECT 
-            nb.NbNotificationBoardId, 
-            nb.NBNotificationID, 
-            nb.BoardID, 
-            b.BoardName as Name
-        FROM tblNbNotificationBoard nb
-        LEFT JOIN tblBoard b ON nb.BoardID = b.BoardID
-        WHERE nb.NBNotificationID = @NotificationId;";
-            var boardData = _connection.Query<NbNotificationBoardResponse>(boardquery, new { NotificationId = notificationId });
-            return boardData != null ? boardData.AsList() : [];
+            var boardQuery = @"
+    SELECT 
+        nb.NbNotificationBoardId, 
+        nb.NBNotificationID, 
+        nb.BoardID, 
+        b.BoardName as Name
+    FROM tblNbNotificationBoard nb
+    LEFT JOIN tblBoard b ON nb.BoardID = b.BoardID
+    WHERE nb.NBNotificationID = @NotificationId
+      AND b.Status = 1;"; // Ensure board is active
+
+            var boardData = _connection.Query<NbNotificationBoardResponse>(boardQuery, new { NotificationId = notificationId });
+            return boardData != null ? boardData.AsList() : new List<NbNotificationBoardResponse>();
         }
         private List<NbNotificationCategoryResponse> GetListOfNBCategory(int notificationId)
         {
@@ -632,30 +797,34 @@ namespace ControlPanel_API.Repository.Implementations
         private List<NbNotificationClassResponse> GetListOfNBClass(int notificationId)
         {
             var query = @"
-        SELECT 
-            nc.NbNotificationClassId, 
-            nc.NBNotificationID, 
-            nc.ClassID, 
-            c.ClassName as Name
-        FROM tblNbNotificationClass nc
-        LEFT JOIN tblClass c ON nc.ClassID = c.ClassID
-        WHERE nc.NBNotificationID = @NotificationId;";
+    SELECT 
+        nc.NbNotificationClassId, 
+        nc.NBNotificationID, 
+        nc.ClassID, 
+        c.ClassName as Name
+    FROM tblNbNotificationClass nc
+    LEFT JOIN tblClass c ON nc.ClassID = c.ClassID
+    WHERE nc.NBNotificationID = @NotificationId
+      AND c.Status = 1;"; // Ensure class is active
+
             var data = _connection.Query<NbNotificationClassResponse>(query, new { NotificationId = notificationId });
-            return data != null ? data.AsList() : [];
+            return data != null ? data.AsList() : new List<NbNotificationClassResponse>();
         }
         private List<NbNotificationCourseResponse> GetListOfNBCourse(int notificationId)
         {
             var query = @"
-        SELECT 
-            nc.NbNotificationCourseId, 
-            nc.NBNotificationID, 
-            nc.CourseID, 
-            c.CourseName as Name
-        FROM tblNbNotificationCourse nc
-        LEFT JOIN tblCourse c ON nc.CourseID = c.CourseID
-        WHERE nc.NBNotificationID = @NotificationId;";
+    SELECT 
+        nc.NbNotificationCourseId, 
+        nc.NBNotificationID, 
+        nc.CourseID, 
+        c.CourseName as Name
+    FROM tblNbNotificationCourse nc
+    LEFT JOIN tblCourse c ON nc.CourseID = c.CourseID
+    WHERE nc.NBNotificationID = @NotificationId
+      AND c.Status = 1;"; // Ensure course is active
+
             var data = _connection.Query<NbNotificationCourseResponse>(query, new { NotificationId = notificationId });
-            return data != null ? data.AsList() : [];
+            return data != null ? data.AsList() : new List<NbNotificationCourseResponse>();
         }
         private List<NbNotificationExamTypeResponse> GetListOfNBExamType(int notificationId)
         {

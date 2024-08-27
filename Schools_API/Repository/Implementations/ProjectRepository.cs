@@ -125,6 +125,11 @@ namespace Schools_API.Repository.Implementations
         {
             try
             {
+                var employeeRoleQuery = "SELECT e.RoleID, r.RoleCode FROM tblEmployee e INNER JOIN tblRole r ON e.RoleID = r.RoleID WHERE e.Employeeid = @EmployeeID";
+                var employeeRole = await _connection.QuerySingleOrDefaultAsync<dynamic>(employeeRoleQuery, new { EmployeeID = request.EmployeeId });
+
+                // Determine if the employee is Admin or SuperAdmin
+                bool isAdminOrSuperAdmin = employeeRole != null && (employeeRole.RoleCode == "AD" || employeeRole.RoleCode == "SA");
                 // Base query
                 string baseQuery = @"
             SELECT
@@ -149,6 +154,10 @@ namespace Schools_API.Repository.Implementations
             LEFT JOIN [tblProjectCourse] pco ON p.ProjectId = pco.ProjectID
             LEFT JOIN [tblProjectExamType] pet ON p.ProjectId = pet.ProjectID
             LEFT JOIN [tblProjectSubject] ps ON p.ProjectId = ps.ProjectID
+            LEFT JOIN [tblBoard] b ON pb.BoardID = b.BoardId AND b.Status = 1
+            LEFT JOIN [tblClass] c ON pcl.ClassID = c.ClassId AND c.Status = 1
+            LEFT JOIN [tblCourse] co ON pco.CourseID = co.CourseId AND co.Status = 1
+            LEFT JOIN [tblSubject] s ON ps.SubjectID = s.SubjectId AND s.Status = 1
             WHERE 1=1";
 
                 // Applying filters dynamically
@@ -176,7 +185,10 @@ namespace Schools_API.Repository.Implementations
                 {
                     baseQuery += " AND ps.SubjectID = @SubjectID";
                 }
-
+                if (!isAdminOrSuperAdmin)
+                {
+                    baseQuery += " AND s.Status = 1";
+                }
                 // Parameters for the query
                 var parameters = new
                 {
@@ -237,7 +249,6 @@ namespace Schools_API.Repository.Implementations
                 return new ServiceResponse<List<ProjectResponseDTO>>(false, ex.Message, new List<ProjectResponseDTO>(), 500);
             }
         }
-
         public async Task<ServiceResponse<ProjectResponseDTO>> GetProjectByIdAsync(int projectId)
         {
             try
@@ -656,9 +667,10 @@ namespace Schools_API.Repository.Implementations
             SELECT pb.*, b.BoardName as Name
             FROM tblProjectBoard pb
             LEFT JOIN tblBoard b ON pb.BoardID = b.BoardId
-            WHERE pb.ProjectID = @ProjectID;";
+            WHERE pb.ProjectID = @ProjectID
+              AND b.Status = 1;"; // Check for active boards
             var data = _connection.Query<ProjectBoardResponse>(boardquery, new { ProjectID = ProjectId });
-            return data != null ? data.AsList() : [];
+            return data != null ? data.AsList() : new List<ProjectBoardResponse>();
         }
         private List<ProjectCategoryResponse> GetListOfProjectCategory(int ProjectId)
         {
@@ -673,22 +685,24 @@ namespace Schools_API.Repository.Implementations
         private List<ProjectClassResponse> GetListOfProjectClass(int ProjectId)
         {
             var query = @"
-            SELECT pc.*, c.ClassName as Name
-            FROM tblProjectClass pc
-            LEFT JOIN tblClass c ON pc.ClassID = c.ClassId
-            WHERE pc.ProjectID = @ProjectID;";
+    SELECT pc.*, c.ClassName as Name
+    FROM tblProjectClass pc
+    LEFT JOIN tblClass c ON pc.ClassID = c.ClassId
+    WHERE pc.ProjectID = @ProjectID
+      AND c.Status = 1;"; // Check for active classes
             var data = _connection.Query<ProjectClassResponse>(query, new { ProjectID = ProjectId });
-            return data != null ? data.AsList() : [];
+            return data != null ? data.AsList() : new List<ProjectClassResponse>();
         }
         private List<ProjectCourseResponse> GetListOfProjectCourse(int ProjectId)
         {
             var query = @"
-            SELECT pc.*, c.CourseName as Name
-            FROM tblProjectCourse pc
-            LEFT JOIN tblCourse c ON pc.CourseID = c.CourseId
-            WHERE pc.ProjectID = @ProjectID;";
+    SELECT pc.*, c.CourseName as Name
+    FROM tblProjectCourse pc
+    LEFT JOIN tblCourse c ON pc.CourseID = c.CourseId
+    WHERE pc.ProjectID = @ProjectID
+      AND c.Status = 1;"; // Check for active courses
             var data = _connection.Query<ProjectCourseResponse>(query, new { ProjectID = ProjectId });
-            return data != null ? data.AsList() : [];
+            return data != null ? data.AsList() : new List<ProjectCourseResponse>();
         }
         private List<ProjectExamTypeResponse> GetListOfProjectExamType(int ProjectId)
         {
@@ -703,12 +717,13 @@ namespace Schools_API.Repository.Implementations
         private List<ProjectSubjectResponse> GetListOfProjectSubject(int ProjectId)
         {
             var query = @"
-            SELECT ps.*, s.SubjectName as Name
-            FROM tblProjectSubject ps
-            LEFT JOIN tblSubject s ON ps.SubjectID = s.SubjectId
-            WHERE ps.ProjectID = @ProjectID;";
+    SELECT ps.*, s.SubjectName as Name
+    FROM tblProjectSubject ps
+    LEFT JOIN tblSubject s ON ps.SubjectID = s.SubjectId
+    WHERE ps.ProjectID = @ProjectID
+      AND s.Status = 1;"; // Check for active subjects
             var data = _connection.Query<ProjectSubjectResponse>(query, new { ProjectID = ProjectId });
-            return data != null ? data.AsList() : [];
+            return data != null ? data.AsList() : new List<ProjectSubjectResponse>();
         }
 
     }

@@ -10,13 +10,9 @@ namespace ControlPanel_API.DTOs.Requests
         public int EventTypeID { get; set; }
         [Required(ErrorMessage = "Event name cannot be empty")]
         public string EventName { get; set; } = string.Empty;
-        [Required(ErrorMessage = "Post time cannot be empty")]
         public string Event1Posttime { get; set; } = string.Empty;
-        [Required(ErrorMessage = "Date cannot be empty")]
         public DateTime? Event1PostDate { get; set; }
-        [Required(ErrorMessage = "Date cannot be empty")]
         public DateTime? Event2PostDate { get; set; }
-        [Required(ErrorMessage = "Post time cannot be empty")]
         public string Event2Posttime { get; set; } = string.Empty;
         public string modifiedby { get; set; } = string.Empty;
         public string createdby { get; set; } = string.Empty;
@@ -80,6 +76,7 @@ namespace ControlPanel_API.DTOs.Requests
         public int EventTypeID { get; set; }
         public int PageNumber { get; set; }
         public int PageSize { get; set; }
+        public int EmployeeId {  get; set; }
     }
     public class PublishStoryDTO
     {

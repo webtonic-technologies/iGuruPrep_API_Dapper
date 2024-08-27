@@ -111,6 +111,11 @@ namespace ControlPanel_API.Repository.Implementations
         {
             try
             {
+                var employeeRoleQuery = "SELECT e.RoleID, r.RoleCode FROM tblEmployee e INNER JOIN tblRole r ON e.RoleID = r.RoleID WHERE e.Employeeid = @EmployeeID";
+                var employeeRole = await _connection.QuerySingleOrDefaultAsync<dynamic>(employeeRoleQuery, new { EmployeeID = request.EmployeeId });
+
+                // Determine if the employee is Admin or SuperAdmin
+                bool isAdminOrSuperAdmin = employeeRole != null && (employeeRole.RoleCode == "AD" || employeeRole.RoleCode == "SA");
                 // Base query to fetch all matching records
                 string baseQuery = @"
         SELECT 
@@ -134,17 +139,50 @@ namespace ControlPanel_API.Repository.Implementations
         WHERE 1=1";
 
                 // Applying filters
+                //if (request.ClassID > 0)
+                //{
+                //    baseQuery += " AND tc.ClassId = @ClassID";
+                //}
+                //if (request.BoardIDID > 0)
+                //{
+                //    baseQuery += " AND tb.BoardId = @BoardIDID";
+                //}
+                //if (request.CourseID > 0)
+                //{
+                //    baseQuery += " AND tco.CourseId = @CourseID";
+                //}
                 if (request.ClassID > 0)
                 {
-                    baseQuery += " AND tc.ClassId = @ClassID";
+                    baseQuery += @"
+    AND tc.ClassId = @ClassID 
+    AND tc.PreparationTimeTableId IN (
+        SELECT tc.[PreparationTimeTableId] 
+        FROM [tblNBTimeTableClass] tc 
+        INNER JOIN [tblClass] c ON tc.[ClassId] = c.[ClassId] 
+        WHERE c.[Status] = 1
+    )";
                 }
                 if (request.BoardIDID > 0)
                 {
-                    baseQuery += " AND tb.BoardId = @BoardIDID";
+                    baseQuery += @"
+    AND tb.BoardId = @BoardIDID 
+    AND tb.PreparationTimeTableId IN (
+        SELECT tb.[PreparationTimeTableId] 
+        FROM [tblNBTimeTableBoard] tb 
+        INNER JOIN [tblBoard] b ON tb.[BoardId] = b.[BoardId] 
+        WHERE b.[Status] = 1
+    )";
                 }
                 if (request.CourseID > 0)
                 {
-                    baseQuery += " AND tco.CourseId = @CourseID";
+                    baseQuery += @"
+    AND tco.CourseId = @CourseID 
+    AND tco.PreparationTimeTableId IN (
+        SELECT tco.[PreparationTimeTableId] 
+        FROM [tblNBTimeTableCourse] tco 
+        INNER JOIN [tblCourse] co ON tco.[CourseId] = co.[CourseId] 
+        WHERE co.[Status] = 1
+    )";
                 }
                 if (request.ExamTypeID > 0)
                 {
@@ -154,7 +192,10 @@ namespace ControlPanel_API.Repository.Implementations
                 {
                     baseQuery += " AND tca.CategoryId = @APID";
                 }
-
+                if (!isAdminOrSuperAdmin)
+                {
+                    baseQuery += " AND s.Status = 1";
+                }
                 // Parameters for the query
                 var parameters = new
                 {
@@ -501,24 +542,26 @@ namespace ControlPanel_API.Repository.Implementations
         private List<TimeTableBoardResponse> GetListOfTimeTableBoards(int PreparationTimeTableId)
         {
             string Query = @"
-            SELECT tb.[NBTimeTableBoardId], tb.[PreparationTimeTableId], tb.[BoardId], b.[BoardName] AS Name
-            FROM [tblNBTimeTableBoard] tb
-            LEFT JOIN [tblBoard] b ON tb.BoardId = b.BoardID
-            WHERE tb.[PreparationTimeTableId] = @PreparationTimeTableId";
+    SELECT tb.[NBTimeTableBoardId], tb.[PreparationTimeTableId], tb.[BoardId], b.[BoardName] AS Name
+    FROM [tblNBTimeTableBoard] tb
+    LEFT JOIN [tblBoard] b ON tb.BoardId = b.BoardId
+    WHERE tb.[PreparationTimeTableId] = @PreparationTimeTableId
+      AND b.Status = 1;"; // Ensure board is active
 
             var data = _connection.Query<TimeTableBoardResponse>(Query, new { PreparationTimeTableId });
-            return data != null ? data.AsList() : [];
+            return data != null ? data.AsList() : new List<TimeTableBoardResponse>();
         }
         private List<TimeTableClassResponse> GetListOfTimeTableClass(int PreparationTimeTableId)
         {
             string Query = @"
-            SELECT tc.[NBTimeTableClassId], tc.[PreparationTimeTableId], tc.[ClassId], c.[ClassName] AS Name
-            FROM [tblNBTimeTableClass] tc
-            LEFT JOIN [tblClass] c ON tc.ClassId = c.ClassId
-            WHERE tc.[PreparationTimeTableId] = @PreparationTimeTableId";
-            // Execute the SQL query with the SOTDID parameter
+    SELECT tc.[NBTimeTableClassId], tc.[PreparationTimeTableId], tc.[ClassId], c.[ClassName] AS Name
+    FROM [tblNBTimeTableClass] tc
+    LEFT JOIN [tblClass] c ON tc.ClassId = c.ClassId
+    WHERE tc.[PreparationTimeTableId] = @PreparationTimeTableId
+      AND c.Status = 1;"; // Ensure class is active
+
             var data = _connection.Query<TimeTableClassResponse>(Query, new { PreparationTimeTableId });
-            return data != null ? data.AsList() : [];
+            return data != null ? data.AsList() : new List<TimeTableClassResponse>();
         }
         private List<TimeTableCategoryResponse> GetListOfTimeTableCategory(int PreparationTimeTableId)
         {
@@ -533,13 +576,14 @@ namespace ControlPanel_API.Repository.Implementations
         private List<TimeTableCourseResponse> GetListOfTimeTableCourse(int PreparationTimeTableId)
         {
             string Query = @"
-            SELECT tc.*, c.[CourseName] AS Name
-            FROM [tblNBTimeTableCourse] tc
-            LEFT JOIN [tblCourse] c ON tc.CourseId = c.CourseId
-            WHERE tc.[PreparationTimeTableId] = @PreparationTimeTableId";
+    SELECT tc.[NBTimeTableCourseId], tc.[PreparationTimeTableId], tc.[CourseId], c.[CourseName] AS Name
+    FROM [tblNBTimeTableCourse] tc
+    LEFT JOIN [tblCourse] c ON tc.CourseId = c.CourseId
+    WHERE tc.[PreparationTimeTableId] = @PreparationTimeTableId
+      AND c.Status = 1;"; // Ensure course is active
 
             var data = _connection.Query<TimeTableCourseResponse>(Query, new { PreparationTimeTableId });
-            return data != null ? data.AsList() : [];
+            return data != null ? data.AsList() : new List<TimeTableCourseResponse>();
         }
         private List<TimeTableExamTypeResponse> GetListOfTimeTableExamType(int PreparationTimeTableId)
         {
@@ -562,7 +606,8 @@ namespace ControlPanel_API.Repository.Implementations
         s.SubjectName AS Name
     FROM tblNBTimeTableSubject ts
     LEFT JOIN tblSubject s ON ts.SubjectId = s.SubjectId
-    WHERE ts.PreparationTimeTableId = @PreparationTimeTableId";
+    WHERE ts.PreparationTimeTableId = @PreparationTimeTableId
+      AND s.Status = 1;"; // Ensure subject is active
 
             var data = _connection.Query<TimeTableSubjectResponse>(query, new { PreparationTimeTableId }).ToList();
 

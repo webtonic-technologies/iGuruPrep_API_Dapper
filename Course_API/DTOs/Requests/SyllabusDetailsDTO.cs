@@ -41,5 +41,6 @@ namespace Course_API.DTOs.Requests
         public int CourseId {  get; set; }
         public int BoardId {  get; set; }
         public int ExamTypeId { get; set; }
+        public int EmployeeId {  get; set; }
     }
 }

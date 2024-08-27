@@ -80,5 +80,6 @@ namespace Course_API.DTOs.Requests
         public int ExamTypeID { get; set; }
         public int PageNumber { get; set; }
         public int PageSize { get; set; }
+        public int EmployeeId {  get; set; }
     }
 }

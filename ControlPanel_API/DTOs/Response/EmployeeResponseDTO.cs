@@ -36,14 +36,14 @@ namespace ControlPanel_API.DTOs.Response
         public bool? Status { get; set; }
         public string EmpMiddleName { get; set; } = string.Empty;
         public bool? IsSuperAdmin {  get; set; }
-
-        public class EmployeeSubjectResponse
-        {
-            public int EmpSubId { get; set; }
-            public int SubjectID { get; set; }
-            public string SubjectName { get; set; } = string.Empty;
-            public int Employeeid { get; set; }
-        }
+        public string Password {  get; set; } = string.Empty;
+    }
+    public class EmployeeSubjectResponse
+    {
+        public int EmpSubId { get; set; }
+        public int SubjectID { get; set; }
+        public string SubjectName { get; set; } = string.Empty;
+        public int Employeeid { get; set; }
     }
     public class EmployeeLoginResponse
     {

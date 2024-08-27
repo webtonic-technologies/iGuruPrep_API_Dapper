@@ -159,7 +159,7 @@ namespace Course_API.Repository.Implementations
         FROM 
             tblSyllabusSubjects ss
         LEFT JOIN 
-            tblSubject sub ON ss.SubjectID = sub.SubjectId
+            tblSubject sub ON ss.SubjectID = sub.SubjectId AND sub.Status = 1
         WHERE 
             ss.SyllabusID = @SyllabusId;";
 
@@ -187,6 +187,11 @@ namespace Course_API.Repository.Implementations
         {
             try
             {
+                var employeeRoleQuery = "SELECT e.RoleID, r.RoleCode FROM tblEmployee e INNER JOIN tblRole r ON e.RoleID = r.RoleID WHERE e.Employeeid = @EmployeeID";
+                var employeeRole = await _connection.QuerySingleOrDefaultAsync<dynamic>(employeeRoleQuery, new { EmployeeID = request.EmployeeId });
+
+                // Determine if the employee is Admin or SuperAdmin
+                bool isAdminOrSuperAdmin = employeeRole != null && (employeeRole.RoleCode == "AD" || employeeRole.RoleCode == "SA");
                 // Adjusted query to include more filters
                 string selectQuery = @"
             SELECT 
@@ -198,11 +203,11 @@ namespace Course_API.Repository.Implementations
             FROM 
                 tblSyllabus s
             LEFT JOIN 
-                tblBoard b ON s.BoardID = b.BoardId
+                tblBoard b ON s.BoardID = b.BoardId AND b.Status = 1
             LEFT JOIN 
-                tblClass cl ON s.ClassId = cl.ClassId
+                tblClass cl ON s.ClassId = cl.ClassId AND cl.Status = 1
             LEFT JOIN 
-                tblCourse c ON s.CourseId = c.CourseId
+                tblCourse c ON s.CourseId = c.CourseId AND c.Status = 1
             LEFT JOIN 
                 tblEmployee e ON s.EmployeeID = e.Employeeid
             LEFT JOIN 
@@ -215,7 +220,10 @@ namespace Course_API.Repository.Implementations
                 (@ClassId IS NULL OR s.ClassId = @ClassId) AND
                 (@APID IS NULL OR s.APID = @APID) AND
                 (@ExamTypeId IS NULL OR s.ExamTypeId = @ExamTypeId)";
-
+                if (!isAdminOrSuperAdmin)
+                {
+                    selectQuery += " AND s.Status = 1";
+                }
                 var syllabusList = await _connection.QueryAsync<SyllabusResponseDTO>(selectQuery, new
                 {
                     BoardId = request.BoardId > 0 ? (int?)request.BoardId : null,

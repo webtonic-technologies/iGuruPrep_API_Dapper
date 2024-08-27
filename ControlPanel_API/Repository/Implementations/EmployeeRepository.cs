@@ -166,6 +166,7 @@ namespace ControlPanel_API.Repository.Implementations
                     response.EmpMiddleName = data.EmpMiddleName;
                     response.EmployeeSubjectsList = GetListOfEmployeeSubject(Id);
                     response.IsSuperAdmin = data.IsSuperAdmin;
+                    response.Password = EncryptionHelper.DecryptString(data.Password);
                     return new ServiceResponse<EmployeeResponseDTO>(true, "Records found", response, StatusCodes.Status302Found);
                 }
                 else
@@ -442,16 +443,23 @@ namespace ControlPanel_API.Repository.Implementations
             {
                 // Step 1: Retrieve stored password and employee details
                 string query = @"
-        SELECT e.Employeeid, e.Password, e.EmpFirstName, e.EmpLastName, e.DesignationID, d.DesignationName, r.RoleName, r.RoleCode, e.IsSuperAdmin, e.RoleID
-        FROM tblEmployee e
-        LEFT JOIN tblDesignation d ON e.DesignationID = d.DesgnID
-        LEFT JOIN tblRole r ON e.RoleID = r.RoleID
-        WHERE e.EmpEmail = @EmpEmailOrPhoneNumber OR e.EMPPhoneNumber = @EmpEmailOrPhoneNumber";
+                SELECT e.Employeeid, e.Password, e.EmpFirstName, e.EmpLastName, e.DesignationID, d.DesignationName, r.RoleName, r.RoleCode,
+                e.IsSuperAdmin, e.RoleID
+                FROM tblEmployee e
+                LEFT JOIN tblDesignation d ON e.DesignationID = d.DesgnID
+                LEFT JOIN tblRole r ON e.RoleID = r.RoleID
+                WHERE e.EmpEmail = @EmpEmailOrPhoneNumber OR e.EMPPhoneNumber = @EmpEmailOrPhoneNumber";
 
                 var employee = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new { request.EmpEmailOrPhoneNumber });
+
+                if (employee == null)
+                {
+                    return new ServiceResponse<string>(false, "Invalid credentials", string.Empty, StatusCodes.Status401Unauthorized);
+                }
+
                 var decryptedPassword = EncryptionHelper.DecryptString(employee.Password);
 
-                if (employee == null || !string.Equals(decryptedPassword.Trim().ToUpper(), request.Password.Trim().ToUpper(), StringComparison.OrdinalIgnoreCase))
+                if (!string.Equals(decryptedPassword.Trim().ToUpper(), request.Password.Trim().ToUpper(), StringComparison.OrdinalIgnoreCase))
                 {
                     return new ServiceResponse<string>(false, "Invalid credentials", string.Empty, StatusCodes.Status401Unauthorized);
                 }
@@ -461,6 +469,15 @@ namespace ControlPanel_API.Repository.Implementations
                 var designationStatus = await _connection.QueryFirstOrDefaultAsync<bool>(designationStatusQuery, new { employee.DesignationID });
 
                 if (!designationStatus)
+                {
+                    return new ServiceResponse<string>(false, "Contact the Administrator", string.Empty, StatusCodes.Status403Forbidden);
+                }
+
+                // Check if the employee's role is active
+                string roleStatusQuery = "SELECT Status FROM tblRole WHERE RoleID = @RoleID";
+                var roleStatus = await _connection.QueryFirstOrDefaultAsync<bool>(roleStatusQuery, new { employee.RoleID });
+
+                if (!roleStatus)
                 {
                     return new ServiceResponse<string>(false, "Contact the Administrator", string.Empty, StatusCodes.Status403Forbidden);
                 }

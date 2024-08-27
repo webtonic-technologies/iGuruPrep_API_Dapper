@@ -115,8 +115,18 @@ namespace ControlPanel_API.Repository.Implementations
         {
             try
             {
-                // Base query to fetch all matching records
-                string baseQuery = @"
+                // Step 1: Retrieve employee role information
+                string roleQuery = "SELECT r.RoleCode FROM tblEmployee e LEFT JOIN tblRole r ON e.RoleID = r.RoleID WHERE e.Employeeid = @EmployeeId";
+                var employeeRole = await _connection.QueryFirstOrDefaultAsync<string>(roleQuery, new { request.EmployeeId });
+
+                if (employeeRole == null)
+                {
+                    return new ServiceResponse<List<MagazineResponseDTO>>(false, "Employee not found", new List<MagazineResponseDTO>(), StatusCodes.Status404NotFound);
+                }
+                string baseQuery;
+                if (employeeRole != "AD" && employeeRole != "SA") // Replace "SA" with actual role code for Super Admin
+                {
+                    baseQuery = @"
         SELECT DISTINCT
             m.[MagazineId], 
             m.[Date], 
@@ -134,14 +144,49 @@ namespace ControlPanel_API.Repository.Implementations
         FROM [tblMagazine] m
         LEFT JOIN [tblEmployee] e ON m.EmployeeID = e.Employeeid
         LEFT JOIN [tblMagazineCategory] mc ON m.MagazineId = mc.MagazineId
-        LEFT JOIN [tblMagazineBoard] mb ON m.MagazineId = mb.MagazineId
+        LEFT JOIN [tblMagazineBoard] mb ON m.MagazineId = mb.MagazineId 
+        LEFT JOIN [tblBoard] b ON mb.BoardID = b.BoardId AND b.Status = 1
         LEFT JOIN [tblMagazineClass] mcl ON m.MagazineId = mcl.MagazineId
+        LEFT JOIN [tblClass] c ON mcl.ClassID = c.ClassId AND c.Status = 1
         LEFT JOIN [tblMagazineCourse] mco ON m.MagazineId = mco.MagazineId
+        LEFT JOIN [tblCourse] co ON mco.CourseID = co.CourseId AND co.Status = 1
         LEFT JOIN [tblMagazineExamType] met ON m.MagazineId = met.MagazineId
         WHERE 1=1 AND TRY_CONVERT(DATETIME, 
                   CONCAT(CONVERT(VARCHAR, m.[Date], 23), ' ', m.[Time])) <= GETDATE()";
+                }
+                else
+                {
+                    baseQuery = @"
+        SELECT DISTINCT
+            m.[MagazineId], 
+            m.[Date], 
+            m.[Time], 
+            m.[Image], 
+            m.[MagazineTitle], 
+            m.[Status], 
+            m.[PDF], 
+            m.[EmployeeID],
+            m.[createdon], 
+            m.[createdby], 
+            m.[modifiedby], 
+            m.[modifiedon],
+            e.[EmpFirstName]
+        FROM [tblMagazine] m
+        LEFT JOIN [tblEmployee] e ON m.EmployeeID = e.Employeeid
+        LEFT JOIN [tblMagazineCategory] mc ON m.MagazineId = mc.MagazineId
+        LEFT JOIN [tblMagazineBoard] mb ON m.MagazineId = mb.MagazineId 
+        LEFT JOIN [tblBoard] b ON mb.BoardID = b.BoardId AND b.Status = 1
+        LEFT JOIN [tblMagazineClass] mcl ON m.MagazineId = mcl.MagazineId
+        LEFT JOIN [tblClass] c ON mcl.ClassID = c.ClassId AND c.Status = 1
+        LEFT JOIN [tblMagazineCourse] mco ON m.MagazineId = mco.MagazineId
+        LEFT JOIN [tblCourse] co ON mco.CourseID = co.CourseId AND co.Status = 1
+        LEFT JOIN [tblMagazineExamType] met ON m.MagazineId = met.MagazineId
+        WHERE 1=1 ";
+                }
+                // Step 2: Base query to fetch all matching records
 
-                // Applying filters
+
+                // Apply filters
                 if (request.ClassID > 0)
                 {
                     baseQuery += " AND mcl.ClassID = @ClassID";
@@ -163,11 +208,17 @@ namespace ControlPanel_API.Repository.Implementations
                     baseQuery += " AND mc.APID = @APID";
                 }
 
+                // Add a condition for excluding inactive records if not an Admin or Super Admin
+                if (employeeRole != "AD" && employeeRole != "SA") // Replace "SA" with actual role code for Super Admin
+                {
+                    baseQuery += " AND m.[Status] = 1";
+                }
+
                 // Parameters for the query
                 var parameters = new
                 {
                     ClassID = request.ClassID,
-                    BoardIDID = request.BoardID,
+                    BoardID = request.BoardID,
                     CourseID = request.CourseID,
                     ExamTypeID = request.ExamTypeID,
                     APID = request.APID
@@ -176,10 +227,7 @@ namespace ControlPanel_API.Repository.Implementations
                 // Fetch all matching records
                 var mainResult = (await _connection.QueryAsync<dynamic>(baseQuery, parameters)).ToList();
 
-                var today = DateTime.Today;
-
                 // Map results to response DTO and filter by date
-                //.Where(item => item.Date <= today)
                 var response = mainResult.Select(item => new MagazineResponseDTO
                 {
                     MagazineId = item.MagazineId,
@@ -226,6 +274,124 @@ namespace ControlPanel_API.Repository.Implementations
                 return new ServiceResponse<List<MagazineResponseDTO>>(false, ex.Message, new List<MagazineResponseDTO>(), 500);
             }
         }
+        //public async Task<ServiceResponse<List<MagazineResponseDTO>>> GetAllMagazines(MagazineListDTO request)
+        //{
+        //    try
+        //    {
+        //        // Base query to fetch all matching records
+        //        string baseQuery = @"
+        //SELECT DISTINCT
+        //    m.[MagazineId], 
+        //    m.[Date], 
+        //    m.[Time], 
+        //    m.[Image], 
+        //    m.[MagazineTitle], 
+        //    m.[Status], 
+        //    m.[PDF], 
+        //    m.[EmployeeID],
+        //    m.[createdon], 
+        //    m.[createdby], 
+        //    m.[modifiedby], 
+        //    m.[modifiedon],
+        //    e.[EmpFirstName]
+        //FROM [tblMagazine] m
+        //LEFT JOIN [tblEmployee] e ON m.EmployeeID = e.Employeeid
+        //LEFT JOIN [tblMagazineCategory] mc ON m.MagazineId = mc.MagazineId
+        //LEFT JOIN [tblMagazineBoard] mb ON m.MagazineId = mb.MagazineId 
+        //LEFT JOIN [tblBoard] b ON mb.BoardID = b.BoardId AND b.Status = 1
+        //LEFT JOIN [tblMagazineClass] mcl ON m.MagazineId = mcl.MagazineId
+        //LEFT JOIN [tblClass] c ON mcl.ClassID = c.ClassId AND c.Status = 1
+        //LEFT JOIN [tblMagazineCourse] mco ON m.MagazineId = mco.MagazineId
+        //LEFT JOIN [tblCourse] co ON mco.CourseID = co.CourseId AND co.Status = 1
+        //LEFT JOIN [tblMagazineExamType] met ON m.MagazineId = met.MagazineId
+        //WHERE 1=1 AND TRY_CONVERT(DATETIME, 
+        //          CONCAT(CONVERT(VARCHAR, m.[Date], 23), ' ', m.[Time])) <= GETDATE()";
+
+        //        // Applying filters
+        //        if (request.ClassID > 0)
+        //        {
+        //            baseQuery += " AND mcl.ClassID = @ClassID";
+        //        }
+        //        if (request.BoardID > 0)
+        //        {
+        //            baseQuery += " AND mb.BoardID = @BoardID";
+        //        }
+        //        if (request.CourseID > 0)
+        //        {
+        //            baseQuery += " AND mco.CourseID = @CourseID";
+        //        }
+        //        if (request.ExamTypeID > 0)
+        //        {
+        //            baseQuery += " AND met.ExamTypeID = @ExamTypeID";
+        //        }
+        //        if (request.APID > 0)
+        //        {
+        //            baseQuery += " AND mc.APID = @APID";
+        //        }
+
+        //        // Parameters for the query
+        //        var parameters = new
+        //        {
+        //            ClassID = request.ClassID,
+        //            BoardIDID = request.BoardID,
+        //            CourseID = request.CourseID,
+        //            ExamTypeID = request.ExamTypeID,
+        //            APID = request.APID
+        //        };
+
+        //        // Fetch all matching records
+        //        var mainResult = (await _connection.QueryAsync<dynamic>(baseQuery, parameters)).ToList();
+
+        //        var today = DateTime.Today;
+
+        //        // Map results to response DTO and filter by date
+        //        //.Where(item => item.Date <= today)
+        //        var response = mainResult.Select(item => new MagazineResponseDTO
+        //        {
+        //            MagazineId = item.MagazineId,
+        //            Date = item.Date,
+        //            Time = item.Time,
+        //            PDF = GetPDF(item.PDF),
+        //            Image = GetImage(item.Image),
+        //            MagazineTitle = item.MagazineTitle,
+        //            Status = item.Status,
+        //            modifiedon = item.modifiedon,
+        //            modifiedby = item.modifiedby,
+        //            createdon = item.createdon,
+        //            createdby = item.createdby,
+        //            EmployeeID = item.EmployeeID,
+        //            EmpFirstName = item.EmpFirstName,
+        //            MagazineCategories = GetListOfMagazineCategory(item.MagazineId),
+        //            MagazineBoards = GetListOfMagazineBoards(item.MagazineId),
+        //            MagazineClasses = GetListOfMagazineClass(item.MagazineId),
+        //            MagazineCourses = GetListOfMagazineCourse(item.MagazineId),
+        //            MagazineExamTypes = GetListOfMagazineExamType(item.MagazineId)
+        //        }).ToList();
+
+        //        // Total count before pagination
+        //        int totalCount = response.Count;
+
+        //        // Apply logical pagination
+        //        var paginatedResponse = response
+        //            .Skip((request.PageNumber - 1) * request.PageSize)
+        //            .Take(request.PageSize)
+        //            .ToList();
+
+        //        // Check if there are records
+        //        if (paginatedResponse.Any())
+        //        {
+        //            return new ServiceResponse<List<MagazineResponseDTO>>(true, "Records found", paginatedResponse, 200, totalCount);
+        //        }
+        //        else
+        //        {
+        //            return new ServiceResponse<List<MagazineResponseDTO>>(false, "Records not found", new List<MagazineResponseDTO>(), 404);
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new ServiceResponse<List<MagazineResponseDTO>>(false, ex.Message, new List<MagazineResponseDTO>(), 500);
+        //    }
+        //}
         public async Task<ServiceResponse<MagazineResponseDTO>> GetMagazineById(int id)
         {
             try
@@ -620,17 +786,21 @@ namespace ControlPanel_API.Repository.Implementations
                 return valuesInserted;
             }
         }
-        private List<MagazineBoardResponse> GetListOfMagazineBoards(int MagazineID)
+        private List<MagazineBoardResponse> GetListOfMagazineBoards(int magazineID)
         {
             string boardQuery = @"
-            SELECT mb.[MagazineBoardId], mb.[MagazineID], mb.[BoardID], b.[BoardName] AS Name
-            FROM [tblMagazineBoard] mb
-            LEFT JOIN [tblBoard] b ON mb.BoardID = b.BoardID
-            WHERE mb.[MagazineID] = @MagazineID";
+    SELECT 
+        mb.[MagazineBoardId], 
+        mb.[MagazineID], 
+        mb.[BoardID], 
+        b.[BoardName] AS Name
+    FROM [tblMagazineBoard] mb
+    LEFT JOIN [tblBoard] b ON mb.BoardID = b.BoardID
+    WHERE mb.[MagazineID] = @MagazineID
+      AND b.Status = 1;"; // Ensure board is active
 
-            // Execute the SQL query with the SOTDID parameter
-            var data = _connection.Query<MagazineBoardResponse>(boardQuery, new { MagazineID });
-            return data != null ? data.AsList() : [];
+            var data = _connection.Query<MagazineBoardResponse>(boardQuery, new { MagazineID = magazineID });
+            return data != null ? data.AsList() : new List<MagazineBoardResponse>();
         }
         private List<MagazineCategoryResponse> GetListOfMagazineCategory(int MagazineId)
         {
@@ -643,26 +813,37 @@ namespace ControlPanel_API.Repository.Implementations
             var data = _connection.Query<MagazineCategoryResponse>(categoryQuery, new { MagazineId });
             return data != null ? data.AsList() : [];
         }
-        private List<MagazineClassResponse> GetListOfMagazineClass(int MagazineID)
+        private List<MagazineClassResponse> GetListOfMagazineClass(int magazineID)
         {
             string classQuery = @"
-            SELECT mcl.[MagazineClassId], mcl.[MagazineID], mcl.[ClassID], cl.[ClassName] AS Name
-            FROM [tblMagazineClass] mcl
-            LEFT JOIN [tblClass] cl ON mcl.ClassID = cl.ClassID
-            WHERE mcl.[MagazineID] = @MagazineID";
-            var data = _connection.Query<MagazineClassResponse>(classQuery, new { MagazineID });
-            return data != null ? data.AsList() : [];
+    SELECT 
+        mcl.[MagazineClassId], 
+        mcl.[MagazineID], 
+        mcl.[ClassID], 
+        cl.[ClassName] AS Name
+    FROM [tblMagazineClass] mcl
+    LEFT JOIN [tblClass] cl ON mcl.ClassID = cl.ClassID
+    WHERE mcl.[MagazineID] = @MagazineID
+      AND cl.Status = 1;"; // Ensure class is active
+
+            var data = _connection.Query<MagazineClassResponse>(classQuery, new { MagazineID = magazineID });
+            return data != null ? data.AsList() : new List<MagazineClassResponse>();
         }
-        private List<MagazineCourseResponse> GetListOfMagazineCourse(int MagazineID)
+        private List<MagazineCourseResponse> GetListOfMagazineCourse(int magazineID)
         {
             string courseQuery = @"
-            SELECT mcr.[MagazineCourseID], mcr.[MagazineID], mcr.[CourseID], cr.[CourseName] AS Name
-            FROM [tblMagazineCourse] mcr
-            LEFT JOIN [tblCourse] cr ON mcr.CourseID = cr.CourseID
-            WHERE mcr.[MagazineID] = @MagazineID";
-            // Execute the SQL query with the SOTDID parameter
-            var data = _connection.Query<MagazineCourseResponse>(courseQuery, new { MagazineID });
-            return data != null ? data.AsList() : [];
+    SELECT 
+        mcr.[MagazineCourseID], 
+        mcr.[MagazineID], 
+        mcr.[CourseID], 
+        cr.[CourseName] AS Name
+    FROM [tblMagazineCourse] mcr
+    LEFT JOIN [tblCourse] cr ON mcr.CourseID = cr.CourseID
+    WHERE mcr.[MagazineID] = @MagazineID
+      AND cr.Status = 1;"; // Ensure course is active
+
+            var data = _connection.Query<MagazineCourseResponse>(courseQuery, new { MagazineID = magazineID });
+            return data != null ? data.AsList() : new List<MagazineCourseResponse>();
         }
         private List<MagazineExamTypeResponse> GetListOfMagazineExamType(int MagazineID)
         {

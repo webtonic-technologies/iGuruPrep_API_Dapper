@@ -166,10 +166,10 @@ namespace Course_API.Repository.Implementations
                    WHEN cm.IndexTypeId = 3 THEN cst.ContentName_SubTopic
                END AS ContentIndexName
         FROM tblContentMaster cm
-        LEFT JOIN tblBoard b ON cm.boardId = b.BoardId
-        LEFT JOIN tblClass cl ON cm.classId = cl.ClassId
-        LEFT JOIN tblCourse c ON cm.courseId = c.CourseId
-        LEFT JOIN tblSubject s ON cm.subjectId = s.SubjectId
+        LEFT JOIN tblBoard b ON cm.boardId = b.BoardId AND b.Status = 1
+        LEFT JOIN tblClass cl ON cm.classId = cl.ClassId AND cl.Status = 1 
+        LEFT JOIN tblCourse c ON cm.courseId = c.CourseId AND c.Status = 1  
+        LEFT JOIN tblSubject s ON cm.subjectId = s.SubjectId AND s.Status = 1 
         LEFT JOIN tblExamType et ON cm.ExamTypeId = et.ExamTypeId
         LEFT JOIN tblCategory a ON cm.APId = a.APId
         LEFT JOIN tblEmployee e ON cm.EmployeeId = e.EmployeeId
