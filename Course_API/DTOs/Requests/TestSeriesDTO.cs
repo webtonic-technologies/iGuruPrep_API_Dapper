@@ -60,6 +60,10 @@ namespace Course_API.DTOs.Requests
     public class GetAllQuestionListRequest
     {
         public int Subjectid { get; set; }
+        public int IndexTypeId { get; set; }
+        public int ContentId { get; set; }
+        public int QuestionTypeId { get; set; }
+        public int DifficultyLevelId { get; set; }
     }
     public class SyllabusDetailsRequest
     {
@@ -81,13 +85,15 @@ namespace Course_API.DTOs.Requests
     }
     public class TestSeriesListRequest
     {
-        public int APId { get; set;}
-        public int ClassId { get; set;}
+        public int APId { get; set; }
+        public int ClassId { get; set; }
         public int CourseId { get; set; }
-        public int BoardId { get; set;}
-        public int ExamTypeId { get; set;}
-        public int TypeOfTestSeries {  get; set;}
+        public int BoardId { get; set; }
+        public int ExamTypeId { get; set; }
+        public int TypeOfTestSeries { get; set; }
         public string ExamStatus { get; set; } = string.Empty;
-        public DateTime? Date {  get; set; }
+        public DateTime? Date { get; set; }
+        public int PageNumber {  get; set; }
+        public int PageSize {  get; set; }
     }
 }

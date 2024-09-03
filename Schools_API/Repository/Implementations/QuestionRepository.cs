@@ -1,10 +1,13 @@
 ﻿using Dapper;
+using OfficeOpenXml;
+using OfficeOpenXml.Style;
 using Schools_API.DTOs.Requests;
 using Schools_API.DTOs.Response;
 using Schools_API.DTOs.ServiceResponse;
 using Schools_API.Models;
 using Schools_API.Repository.Interfaces;
 using System.Data;
+using System.Drawing;
 
 namespace Schools_API.Repository.Implementations
 {
@@ -387,48 +390,48 @@ namespace Schools_API.Repository.Implementations
                 if (request.EmployeeId > 0)
                 {
                     string fetchAssignedQuestionsSql = @"
-            SELECT QuestionCode 
-            FROM tblQuestionProfiler 
-            WHERE EmpId = @EmployeeId AND Status = 1";
+                    SELECT QuestionCode 
+                    FROM tblQuestionProfiler 
+                    WHERE EmpId = @EmployeeId AND Status = 1";
 
                     assignedQuestionCodes = (await _connection.QueryAsync<string>(fetchAssignedQuestionsSql, new { EmployeeId = request.EmployeeId })).ToList();
                 }
 
                 // Step 2: Fetch questions based on the provided filters
                 string fetchQuestionsSql = @"
-        SELECT q.*, 
-               c.CourseName, 
-               b.BoardName, 
-               cl.ClassName, 
-               s.SubjectName,
-               et.ExamTypeName,
-               e.EmpFirstName, 
-               qt.QuestionType as QuestionTypeName,
-               it.IndexType as IndexTypeName,
-               CASE 
-                   WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
-                   WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
-                   WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
-               END AS ContentIndexName
-        FROM tblQuestion q
-        LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
-        LEFT JOIN tblCourse c ON q.courseid = c.CourseID
-        LEFT JOIN tblBoard b ON q.boardid = b.BoardID
-        LEFT JOIN tblClass cl ON q.classid = cl.ClassID
-        LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
-        LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
-        LEFT JOIN tblEmployee e ON q.EmployeeId = e.Employeeid
-        LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
-        LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
-        LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
-        LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
-        WHERE (@ContentIndexId = 0 OR q.ContentIndexId = @ContentIndexId)
-          AND (@IndexTypeId = 0 OR q.IndexTypeId = @IndexTypeId)
-          AND q.IsRejected = 0
-          AND q.IsApproved = 0
-          AND (q.EmployeeId = @EmployeeId OR q.QuestionCode IN @QuestionCodes)
-          AND q.IsActive = 1
-          AND IsLive = 0";
+                SELECT q.*, 
+                       c.CourseName, 
+                       b.BoardName, 
+                       cl.ClassName, 
+                       s.SubjectName,
+                       et.ExamTypeName,
+                       e.EmpFirstName, 
+                       qt.QuestionType as QuestionTypeName,
+                       it.IndexType as IndexTypeName,
+                       CASE 
+                           WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
+                           WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
+                           WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+                       END AS ContentIndexName
+                FROM tblQuestion q
+                LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
+                LEFT JOIN tblCourse c ON q.courseid = c.CourseID
+                LEFT JOIN tblBoard b ON q.boardid = b.BoardID
+                LEFT JOIN tblClass cl ON q.classid = cl.ClassID
+                LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
+                LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
+                LEFT JOIN tblEmployee e ON q.EmployeeId = e.Employeeid
+                LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
+                LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
+                LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
+                LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
+                WHERE (@ContentIndexId = 0 OR q.ContentIndexId = @ContentIndexId)
+                  AND (@IndexTypeId = 0 OR q.IndexTypeId = @IndexTypeId)
+                  AND q.IsRejected = 0
+                  AND q.IsApproved = 0
+                  AND (q.EmployeeId = @EmployeeId OR q.QuestionCode IN @QuestionCodes)
+                  AND q.IsActive = 1
+                  AND IsLive = 0";
 
                 var parameters = new
                 {
@@ -442,6 +445,7 @@ namespace Schools_API.Repository.Implementations
 
                 if (data != null)
                 {
+                    // Convert the data to a list of DTOs
                     var response = data.Select(item => new QuestionResponseDTO
                     {
                         QuestionId = item.QuestionId,
@@ -472,12 +476,31 @@ namespace Schools_API.Repository.Implementations
                         Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
                         AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
                     }).ToList();
+
+                    // Step 3: Filter out questions assigned to other employees
+                    var questionCodesCreatedByEmployee = response.Where(r => r.EmployeeId == request.EmployeeId).Select(r => r.QuestionCode).ToList();
+                    string fetchAssignedToOthersSql = @"
+                    SELECT DISTINCT QuestionCode 
+                    FROM tblQuestionProfiler 
+                    WHERE QuestionCode IN @QuestionCodes 
+                    AND EmpId != @EmployeeId 
+                    AND Status = 1";
+
+                    var assignedToOthersQuestionCodes = (await _connection.QueryAsync<string>(fetchAssignedToOthersSql, new
+                    {
+                        QuestionCodes = questionCodesCreatedByEmployee,
+                        EmployeeId = request.EmployeeId
+                    })).ToList();
+
+                    response = response.Where(r => !assignedToOthersQuestionCodes.Contains(r.QuestionCode)).ToList();
+
+                    // Adding role information and pagination logic
                     foreach (var record in response)
                     {
-                        // Get role based on EmployeeId
                         var employeeRoleId = _connection.QuerySingleOrDefault<int?>("SELECT RoleID FROM tblEmployee WHERE EmployeeID = @EmployeeId", new { EmployeeId = record.EmployeeId });
-                        record.userRole = employeeRoleId.HasValue ? GetRoleName(employeeRoleId.Value) : string.Empty; // Map the role name
+                        record.userRole = employeeRoleId.HasValue ? GetRoleName(employeeRoleId.Value) : string.Empty;
                     }
+
                     int totalCount = response.Count;
 
                     var paginatedList = response.Skip((request.PageNumber - 1) * request.PageSize)
@@ -503,55 +526,70 @@ namespace Schools_API.Repository.Implementations
                 return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, new List<QuestionResponseDTO>(), 500);
             }
         }
+
         //public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetAllQuestionsList(GetAllQuestionListRequest request)
         //{
         //    try
         //    {
-        //        // SQL query to fetch all filtered records
-        //        string sql = @"
-        //        SELECT q.*, 
-        //               c.CourseName, 
-        //               b.BoardName, 
-        //               cl.ClassName, 
-        //               s.SubjectName,
-        //               et.ExamTypeName,
-        //               e.EmpFirstName, 
-        //               qt.QuestionType as QuestionTypeName,
-        //               it.IndexType as IndexTypeName,
-        //               CASE 
-        //                   WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
-        //                   WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
-        //                   WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
-        //               END AS ContentIndexName
-        //        FROM tblQuestion q
-        //        LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
-        //        LEFT JOIN tblCourse c ON q.courseid = c.CourseID
-        //        LEFT JOIN tblBoard b ON q.boardid = b.BoardID
-        //        LEFT JOIN tblClass cl ON q.classid = cl.ClassID
-        //        LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
-        //        LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
-        //        LEFT JOIN tblEmployee e ON q.EmployeeId = e.Employeeid
-        //        LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
-        //        LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
-        //        LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
-        //        LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
-        //        WHERE (@ContentIndexId = 0 OR q.ContentIndexId = @ContentIndexId)
-        //          AND (@IndexTypeId = 0 OR q.IndexTypeId = @IndexTypeId)
-        //          AND q.IsRejected = 0
-        //          AND q.IsApproved = 0
-        //          AND (@EmployeeId = 0 OR q.EmployeeId = @EmployeeId)
-        //          AND q.IsActive = 1";
+        //        // Initialize a list to hold all question codes to fetch
+        //        List<string> assignedQuestionCodes = new List<string>();
 
-        //        // Parameters for the query
+        //        // Step 1: Fetch list of QuestionCodes assigned to the given employee if EmployeeId is provided
+        //        if (request.EmployeeId > 0)
+        //        {
+        //            string fetchAssignedQuestionsSql = @"
+        //    SELECT QuestionCode 
+        //    FROM tblQuestionProfiler 
+        //    WHERE EmpId = @EmployeeId AND Status = 1";
+
+        //            assignedQuestionCodes = (await _connection.QueryAsync<string>(fetchAssignedQuestionsSql, new { EmployeeId = request.EmployeeId })).ToList();
+        //        }
+
+        //        // Step 2: Fetch questions based on the provided filters
+        //        string fetchQuestionsSql = @"
+        //SELECT q.*, 
+        //       c.CourseName, 
+        //       b.BoardName, 
+        //       cl.ClassName, 
+        //       s.SubjectName,
+        //       et.ExamTypeName,
+        //       e.EmpFirstName, 
+        //       qt.QuestionType as QuestionTypeName,
+        //       it.IndexType as IndexTypeName,
+        //       CASE 
+        //           WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
+        //           WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
+        //           WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+        //       END AS ContentIndexName
+        //FROM tblQuestion q
+        //LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
+        //LEFT JOIN tblCourse c ON q.courseid = c.CourseID
+        //LEFT JOIN tblBoard b ON q.boardid = b.BoardID
+        //LEFT JOIN tblClass cl ON q.classid = cl.ClassID
+        //LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
+        //LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
+        //LEFT JOIN tblEmployee e ON q.EmployeeId = e.Employeeid
+        //LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
+        //LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
+        //LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
+        //LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
+        //WHERE (@ContentIndexId = 0 OR q.ContentIndexId = @ContentIndexId)
+        //  AND (@IndexTypeId = 0 OR q.IndexTypeId = @IndexTypeId)
+        //  AND q.IsRejected = 0
+        //  AND q.IsApproved = 0
+        //  AND (q.EmployeeId = @EmployeeId OR q.QuestionCode IN @QuestionCodes)
+        //  AND q.IsActive = 1
+        //  AND IsLive = 0";
+
         //        var parameters = new
         //        {
         //            ContentIndexId = request.ContentIndexId,
         //            IndexTypeId = request.IndexTypeId,
-        //            EmployeeId = request.EmployeeId
+        //            EmployeeId = request.EmployeeId,
+        //            QuestionCodes = assignedQuestionCodes
         //        };
 
-        //        // Fetch all filtered records
-        //        var data = await _connection.QueryAsync<dynamic>(sql, parameters);
+        //        var data = await _connection.QueryAsync<dynamic>(fetchQuestionsSql, parameters);
 
         //        if (data != null)
         //        {
@@ -573,19 +611,24 @@ namespace Schools_API.Repository.Implementations
         //                IndexTypeName = item.IndexTypeName,
         //                ContentIndexId = item.ContentIndexId,
         //                ContentIndexName = item.ContentIndexName,
-        //                QIDCourses = GetListOfQIDCourse(item.QuestionCode),
-        //                QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
-        //                Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
-        //                AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode),
-        //                IsApproved = item.IsApproved,
         //                IsRejected = item.IsRejected,
+        //                IsApproved = item.IsApproved,
         //                QuestionTypeName = item.QuestionTypeName,
         //                QuestionCode = item.QuestionCode,
         //                Explanation = item.Explanation,
         //                ExtraInformation = item.ExtraInformation,
-        //                IsActive = item.IsActive
+        //                IsActive = item.IsActive,
+        //                QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+        //                QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
+        //                Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
+        //                AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
         //            }).ToList();
-
+        //            foreach (var record in response)
+        //            {
+        //                // Get role based on EmployeeId
+        //                var employeeRoleId = _connection.QuerySingleOrDefault<int?>("SELECT RoleID FROM tblEmployee WHERE EmployeeID = @EmployeeId", new { EmployeeId = record.EmployeeId });
+        //                record.userRole = employeeRoleId.HasValue ? GetRoleName(employeeRoleId.Value) : string.Empty; // Map the role name
+        //            }
         //            int totalCount = response.Count;
 
         //            var paginatedList = response.Skip((request.PageNumber - 1) * request.PageSize)
@@ -652,50 +695,175 @@ namespace Schools_API.Repository.Implementations
                 return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, null, 500);
             }
         }
+        //public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetApprovedQuestionsList(GetAllQuestionListRequest request)
+        //{
+        //    try
+        //    {
+        //        string sql = @"
+        //        SELECT q.*, 
+        //               c.CourseName, 
+        //               b.BoardName, 
+        //               cl.ClassName, 
+        //               s.SubjectName,
+        //               et.ExamTypeName,
+        //               e.EmpFirstName, 
+        //               qt.QuestionType as QuestionTypeName,
+        //               it.IndexType as IndexTypeName,
+        //               CASE 
+        //                   WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
+        //                   WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
+        //                   WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+        //               END AS ContentIndexName
+        //        FROM tblQuestion q
+        //        LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
+        //        LEFT JOIN tblCourse c ON q.courseid = c.CourseID
+        //        LEFT JOIN tblBoard b ON q.boardid = b.BoardID
+        //        LEFT JOIN tblClass cl ON q.classid = cl.ClassID
+        //        LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
+        //        LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
+        //        LEFT JOIN tblEmployee e ON q.EmployeeId = e.Employeeid
+        //        LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
+        //        LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
+        //        LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
+        //        LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
+        //        WHERE (@ContentIndexId = 0 OR q.ContentIndexId = @ContentIndexId)
+        //          AND (@IndexTypeId = 0 OR q.IndexTypeId = @IndexTypeId)
+        //          AND q.IsApproved = 1
+        //          AND q.IsRejected = 0
+        //          AND q.IsActive = 1
+        //          AND (@EmployeeId = 0 OR q.EmployeeId = @EmployeeId)
+        //          AND IsLive = 0";
+
+        //        var parameters = new
+        //        {
+        //            ContentIndexId = request.ContentIndexId,
+        //            IndexTypeId = request.IndexTypeId,
+        //            request.EmployeeId
+        //        };
+
+        //        var data = await _connection.QueryAsync<dynamic>(sql, parameters);
+
+        //        if (data != null)
+        //        {
+        //            var response = data.Select(item => new QuestionResponseDTO
+        //            {
+        //                QuestionId = item.QuestionId,
+        //                QuestionDescription = item.QuestionDescription,
+        //                QuestionTypeId = item.QuestionTypeId,
+        //                Status = item.Status,
+        //                CreatedBy = item.CreatedBy,
+        //                CreatedOn = item.CreatedOn,
+        //                ModifiedBy = item.ModifiedBy,
+        //                ModifiedOn = item.ModifiedOn,
+        //                subjectID = item.subjectID,
+        //                SubjectName = item.SubjectName,
+        //                EmployeeId = item.EmployeeId,
+        //                EmployeeName = item.EmpFirstName,
+        //                IndexTypeId = item.IndexTypeId,
+        //                IndexTypeName = item.IndexTypeName,
+        //                ContentIndexId = item.ContentIndexId,
+        //                ContentIndexName = item.ContentIndexName,
+        //                QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+        //                QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
+        //                Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
+        //                AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode),
+        //                IsApproved = item.IsApproved,
+        //                IsRejected = item.IsRejected,
+        //                QuestionTypeName = item.QuestionTypeName,
+        //                QuestionCode = item.QuestionCode,
+        //                Explanation = item.Explanation,
+        //                ExtraInformation = item.ExtraInformation,
+        //                IsActive = item.IsActive
+        //            }).ToList();
+
+        //            var paginatedList = response.Skip((request.PageNumber - 1) * request.PageSize)
+        //                                        .Take(request.PageSize)
+        //                                        .ToList();
+
+        //            if (paginatedList.Count != 0)
+        //            {
+        //                return new ServiceResponse<List<QuestionResponseDTO>>(true, "Operation Successful", paginatedList, 200);
+        //            }
+        //            else
+        //            {
+        //                return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
+        //            }
+        //        }
+        //        else
+        //        {
+        //            return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, new List<QuestionResponseDTO>(), 500);
+        //    }
+        //}
         public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetApprovedQuestionsList(GetAllQuestionListRequest request)
         {
             try
             {
+                // Initialize a list to hold question codes that are assigned to other employees for review
+                List<string> assignedToOtherEmployeesQuestionCodes = new List<string>();
+
+                // Fetch the list of question codes that were created by the given employee but are assigned to other employees for review
+                if (request.EmployeeId > 0)
+                {
+                    string fetchAssignedQuestionsSql = @"
+            SELECT DISTINCT QuestionCode 
+            FROM tblQuestionProfiler 
+            WHERE QuestionCode IS NOT NULL 
+              AND Status = 1 
+              AND QuestionCode IN (SELECT QuestionCode FROM tblQuestion WHERE EmployeeId = @EmployeeId) 
+              AND EmpId != @EmployeeId";
+
+                    assignedToOtherEmployeesQuestionCodes = (await _connection.QueryAsync<string>(
+                        fetchAssignedQuestionsSql, new { EmployeeId = request.EmployeeId })).ToList();
+                }
+
+                // Fetch approved questions based on the provided filters
                 string sql = @"
-                SELECT q.*, 
-                       c.CourseName, 
-                       b.BoardName, 
-                       cl.ClassName, 
-                       s.SubjectName,
-                       et.ExamTypeName,
-                       e.EmpFirstName, 
-                       qt.QuestionType as QuestionTypeName,
-                       it.IndexType as IndexTypeName,
-                       CASE 
-                           WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
-                           WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
-                           WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
-                       END AS ContentIndexName
-                FROM tblQuestion q
-                LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
-                LEFT JOIN tblCourse c ON q.courseid = c.CourseID
-                LEFT JOIN tblBoard b ON q.boardid = b.BoardID
-                LEFT JOIN tblClass cl ON q.classid = cl.ClassID
-                LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
-                LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
-                LEFT JOIN tblEmployee e ON q.EmployeeId = e.Employeeid
-                LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
-                LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
-                LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
-                LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
-                WHERE (@ContentIndexId = 0 OR q.ContentIndexId = @ContentIndexId)
-                  AND (@IndexTypeId = 0 OR q.IndexTypeId = @IndexTypeId)
-                  AND q.IsApproved = 1
-                  AND q.IsRejected = 0
-                  AND q.IsActive = 1
-                  AND (@EmployeeId = 0 OR q.EmployeeId = @EmployeeId)
-                  AND IsLive = 0";
+        SELECT q.*, 
+               c.CourseName, 
+               b.BoardName, 
+               cl.ClassName, 
+               s.SubjectName,
+               et.ExamTypeName,
+               e.EmpFirstName, 
+               qt.QuestionType as QuestionTypeName,
+               it.IndexType as IndexTypeName,
+               CASE 
+                   WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
+                   WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
+                   WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+               END AS ContentIndexName
+        FROM tblQuestion q
+        LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
+        LEFT JOIN tblCourse c ON q.courseid = c.CourseID
+        LEFT JOIN tblBoard b ON q.boardid = b.BoardID
+        LEFT JOIN tblClass cl ON q.classid = cl.ClassID
+        LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
+        LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
+        LEFT JOIN tblEmployee e ON q.EmployeeId = e.Employeeid
+        LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
+        LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
+        LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
+        LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
+        WHERE (@ContentIndexId = 0 OR q.ContentIndexId = @ContentIndexId)
+          AND (@IndexTypeId = 0 OR q.IndexTypeId = @IndexTypeId)
+          AND q.IsApproved = 1
+          AND q.IsRejected = 0
+          AND q.IsActive = 1
+          AND (@EmployeeId = 0 OR q.EmployeeId = @EmployeeId)
+          AND IsLive = 0
+          AND (q.QuestionCode IS NULL OR q.QuestionCode NOT IN @AssignedToOtherEmployeesQuestionCodes)"; // Exclude questions assigned to other employees
 
                 var parameters = new
                 {
                     ContentIndexId = request.ContentIndexId,
                     IndexTypeId = request.IndexTypeId,
-                    request.EmployeeId
+                    request.EmployeeId,
+                    AssignedToOtherEmployeesQuestionCodes = assignedToOtherEmployeesQuestionCodes
                 };
 
                 var data = await _connection.QueryAsync<dynamic>(sql, parameters);
@@ -756,44 +924,155 @@ namespace Schools_API.Repository.Implementations
                 return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, new List<QuestionResponseDTO>(), 500);
             }
         }
+        //public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetRejectedQuestionsList(GetAllQuestionListRequest request)
+        //{
+        //    try
+        //    {
+        //        string sql = @"
+        //        SELECT q.*, 
+        //               c.CourseName, 
+        //               b.BoardName, 
+        //               cl.ClassName, 
+        //               s.SubjectName,
+        //               et.ExamTypeName,
+        //               e.EmpFirstName, 
+        //               qt.QuestionType as QuestionTypeName,
+        //               it.IndexType as IndexTypeName,
+        //           CASE 
+        //           WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
+        //           WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
+        //           WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+        //           END AS ContentIndexName
+        //        FROM tblQuestion q
+        //        LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
+        //        LEFT JOIN tblCourse c ON q.courseid = c.CourseID
+        //        LEFT JOIN tblBoard b ON q.boardid = b.BoardID
+        //        LEFT JOIN tblClass cl ON q.classid = cl.ClassID
+        //        LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
+        //        LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
+        //        LEFT JOIN tblEmployee e ON q.EmployeeId = e.Employeeid
+        //        LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
+        //        LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
+        //        LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
+        //        LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
+        //        WHERE (@ContentIndexId = 0 OR q.ContentIndexId = @ContentIndexId)
+        //          AND (@IndexTypeId = 0 OR q.IndexTypeId = @IndexTypeId)
+        //          AND q.IsRejected = 1
+        //          AND q.IsApproved = 0
+        //          AND q.IsActive = 1
+        //          AND (@EmployeeId = 0 OR q.EmployeeId = @EmployeeId)
+        //          AND IsLive = 0";
+
+        //        var parameters = new
+        //        {
+        //            ContentIndexId = request.ContentIndexId,
+        //            IndexTypeId = request.IndexTypeId,
+        //            request.EmployeeId
+        //        };
+
+        //        var data = await _connection.QueryAsync<dynamic>(sql, parameters);
+
+        //        if (data != null)
+        //        {
+        //            var response = data.Select(item => new QuestionResponseDTO
+        //            {
+        //                QuestionId = item.QuestionId,
+        //                QuestionDescription = item.QuestionDescription,
+        //                QuestionTypeId = item.QuestionTypeId,
+        //                Status = item.Status,
+        //                CreatedBy = item.CreatedBy,
+        //                CreatedOn = item.CreatedOn,
+        //                ModifiedBy = item.ModifiedBy,
+        //                ModifiedOn = item.ModifiedOn,
+        //                subjectID = item.subjectID,
+        //                SubjectName = item.SubjectName,
+        //                EmployeeId = item.EmployeeId,
+        //                EmployeeName = item.EmpFirstName,
+        //                IndexTypeId = item.IndexTypeId,
+        //                IndexTypeName = item.IndexTypeName,
+        //                ContentIndexId = item.ContentIndexId,
+        //                ContentIndexName = item.ContentIndexName,
+        //                QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+        //                QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
+        //                Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
+        //                AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode),
+        //                IsApproved = item.IsApproved,
+        //                IsRejected = item.IsRejected,
+        //                QuestionTypeName = item.QuestionTypeName,
+        //                QuestionCode = item.QuestionCode,
+        //                Explanation = item.Explanation,
+        //                ExtraInformation = item.ExtraInformation,
+        //                IsActive = item.IsActive
+        //            }).ToList();
+
+        //            var paginatedList = response.Skip((request.PageNumber - 1) * request.PageSize)
+        //                                        .Take(request.PageSize)
+        //                                        .ToList();
+
+        //            if (paginatedList.Count != 0)
+        //            {
+        //                return new ServiceResponse<List<QuestionResponseDTO>>(true, "Operation Successful", paginatedList, 200);
+        //            }
+        //            else
+        //            {
+        //                return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
+        //            }
+        //        }
+        //        else
+        //        {
+        //            return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, new List<QuestionResponseDTO>(), 500);
+        //    }
+        //}
         public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetRejectedQuestionsList(GetAllQuestionListRequest request)
         {
             try
             {
                 string sql = @"
-                SELECT q.*, 
-                       c.CourseName, 
-                       b.BoardName, 
-                       cl.ClassName, 
-                       s.SubjectName,
-                       et.ExamTypeName,
-                       e.EmpFirstName, 
-                       qt.QuestionType as QuestionTypeName,
-                       it.IndexType as IndexTypeName,
-                   CASE 
-                   WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
-                   WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
-                   WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
-                   END AS ContentIndexName
-                FROM tblQuestion q
-                LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
-                LEFT JOIN tblCourse c ON q.courseid = c.CourseID
-                LEFT JOIN tblBoard b ON q.boardid = b.BoardID
-                LEFT JOIN tblClass cl ON q.classid = cl.ClassID
-                LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
-                LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
-                LEFT JOIN tblEmployee e ON q.EmployeeId = e.Employeeid
-                LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
-                LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
-                LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
-                LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
-                WHERE (@ContentIndexId = 0 OR q.ContentIndexId = @ContentIndexId)
-                  AND (@IndexTypeId = 0 OR q.IndexTypeId = @IndexTypeId)
-                  AND q.IsRejected = 1
-                  AND q.IsApproved = 0
-                  AND q.IsActive = 1
-                  AND (@EmployeeId = 0 OR q.EmployeeId = @EmployeeId)
-                  AND IsLive = 0";
+        SELECT q.*, 
+               c.CourseName, 
+               b.BoardName, 
+               cl.ClassName, 
+               s.SubjectName,
+               et.ExamTypeName,
+               e.EmpFirstName, 
+               qt.QuestionType as QuestionTypeName,
+               it.IndexType as IndexTypeName,
+               CASE 
+               WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
+               WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
+               WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+               END AS ContentIndexName
+        FROM tblQuestion q
+        LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
+        LEFT JOIN tblCourse c ON q.courseid = c.CourseID
+        LEFT JOIN tblBoard b ON q.boardid = b.BoardID
+        LEFT JOIN tblClass cl ON q.classid = cl.ClassID
+        LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
+        LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
+        LEFT JOIN tblEmployee e ON q.EmployeeId = e.Employeeid
+        LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
+        LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
+        LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
+        LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
+        WHERE (@ContentIndexId = 0 OR q.ContentIndexId = @ContentIndexId)
+          AND (@IndexTypeId = 0 OR q.IndexTypeId = @IndexTypeId)
+          AND q.IsRejected = 1
+          AND q.IsApproved = 0
+          AND q.IsActive = 1
+          AND (@EmployeeId = 0 OR q.EmployeeId = @EmployeeId)
+          AND IsLive = 0
+          AND NOT EXISTS (
+              SELECT 1
+              FROM tblQuestionProfiler qp
+              WHERE qp.QuestionCode = q.QuestionCode
+                AND qp.Status = 1
+                AND qp.EmpId != @EmployeeId
+          )";
 
                 var parameters = new
                 {

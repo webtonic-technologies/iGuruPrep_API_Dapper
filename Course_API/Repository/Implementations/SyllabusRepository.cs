@@ -6,8 +6,6 @@ using Course_API.Repository.Interfaces;
 using Dapper;
 using OfficeOpenXml;
 using System.Data;
-using System.Data.Common;
-using System.Data.SqlClient;
 namespace Course_API.Repository.Implementations
 {
     public class SyllabusRepository : ISyllabusRepository

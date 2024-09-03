@@ -172,18 +172,18 @@ namespace Schools_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
-        [HttpGet("GetAssignedQuestionsList/{EmployeeId}")]
-        public async Task<IActionResult> GetAssignedQuestionsList(int EmployeeId)
-        {
-            var data = await _questionServices.GetAssignedQuestionsList(EmployeeId);
+        //[HttpGet("GetAssignedQuestionsList/{EmployeeId}")]
+        //public async Task<IActionResult> GetAssignedQuestionsList(int EmployeeId)
+        //{
+        //    var data = await _questionServices.GetAssignedQuestionsList(EmployeeId);
 
-            if (data == null)
-            {
-                return NotFound("No data found.");
-            }
+        //    if (data == null)
+        //    {
+        //        return NotFound("No data found.");
+        //    }
 
-            return Ok(data);
-        }
+        //    return Ok(data);
+        //}
         [HttpGet("GetAssignedQuestionsCount/{EmployeeId}")]
         public async Task<IActionResult> GetAssignedQuestionsCount(int EmployeeId)
         {

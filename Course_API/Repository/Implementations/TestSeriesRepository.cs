@@ -296,46 +296,46 @@ namespace Course_API.Repository.Implementations
             {
                 // Construct the SQL query with parameters
                 var query = @"
-        SELECT 
-            ts.TestSeriesId,
-            ts.TestPatternName,
-            ts.Duration,
-            ts.Status,
-            ts.APID,
-            ap.APName AS APName,
-            ts.TotalNoOfQuestions,
-            ts.MethodofAddingType,
-            ts.StartDate,
-            ts.StartTime,
-            ts.ResultDate,
-            ts.ResultTime,
-            ts.EmployeeID,
-            emp.EmpFirstName AS EmpFirstName,
-            ts.NameOfExam,
-            ts.RepeatedExams,
-            ts.TypeOfTestSeries,
-            tts.TestSeriesName AS TypeOfTestSeriesName,
-            ts.ExamTypeID,
-            ttt.ExamTypeName AS ExamTypeName,
-            ts.createdon,
-            ts.createdby,
-            ts.modifiedon,
-            ts.modifiedby,
-            ts.RepeatExamStartDate,
-            ts.RepeatExamEndDate,
-            ts.RepeatExamStarttime,
-            ts.RepeatExamResulttimeId,
-            rt.ResultTime AS RepeatedExamResultTime
-        FROM tblTestSeries ts
-        JOIN tblCategory ap ON ts.APID = ap.APID
-        JOIN tblEmployee emp ON ts.EmployeeID = emp.EmployeeID
-        JOIN tblTypeOfTestSeries tts ON ts.TypeOfTestSeries = tts.TTSId
-        JOIN tblExamType ttt ON ts.ExamTypeID = ttt.ExamTypeID
-        JOIN tblTestSeriesResultTime rt ON ts.RepeatExamResulttimeId = rt.ResultTimeId
-        LEFT JOIN tblTestSeriesClass tc ON ts.TestSeriesId = tc.TestSeriesId
-        LEFT JOIN tblTestSeriesCourse tco ON ts.TestSeriesId = tco.TestSeriesId
-        LEFT JOIN tblTestSeriesBoard tb ON ts.TestSeriesId = tb.TestSeriesId
-        WHERE 1=1";
+SELECT 
+    ts.TestSeriesId,
+    ts.TestPatternName,
+    ts.Duration,
+    ts.Status,
+    ts.APID,
+    ap.APName AS APName,
+    ts.TotalNoOfQuestions,
+    ts.MethodofAddingType,
+    ts.StartDate,
+    ts.StartTime,
+    ts.ResultDate,
+    ts.ResultTime,
+    ts.EmployeeID,
+    emp.EmpFirstName AS EmpFirstName,
+    ts.NameOfExam,
+    ts.RepeatedExams,
+    ts.TypeOfTestSeries,
+    tts.TestSeriesName AS TypeOfTestSeriesName,
+    ts.ExamTypeID,
+    ttt.ExamTypeName AS ExamTypeName,
+    ts.createdon,
+    ts.createdby,
+    ts.modifiedon,
+    ts.modifiedby,
+    ts.RepeatExamStartDate,
+    ts.RepeatExamEndDate,
+    ts.RepeatExamStarttime,
+    ts.RepeatExamResulttimeId,
+    rt.ResultTime AS RepeatedExamResultTime
+FROM tblTestSeries ts
+JOIN tblCategory ap ON ts.APID = ap.APID
+JOIN tblEmployee emp ON ts.EmployeeID = emp.EmployeeID
+JOIN tblTypeOfTestSeries tts ON ts.TypeOfTestSeries = tts.TTSId
+JOIN tblExamType ttt ON ts.ExamTypeID = ttt.ExamTypeID
+JOIN tblTestSeriesResultTime rt ON ts.RepeatExamResulttimeId = rt.ResultTimeId
+LEFT JOIN tblTestSeriesClass tc ON ts.TestSeriesId = tc.TestSeriesId
+LEFT JOIN tblTestSeriesCourse tco ON ts.TestSeriesId = tco.TestSeriesId
+LEFT JOIN tblTestSeriesBoard tb ON ts.TestSeriesId = tb.TestSeriesId
+WHERE 1=1";
 
                 // Apply filters dynamically
                 if (request.APId > 0)
@@ -389,22 +389,49 @@ namespace Course_API.Repository.Implementations
                 {
                     return new ServiceResponse<List<TestSeriesResponseDTO>>(true, "No test series found", new List<TestSeriesResponseDTO>(), 200);
                 }
-
+                var totalRecords = testSeriesList.Count();
+                var paginatedTestSeriesList = testSeriesList
+                    .Skip((request.PageNumber - 1) * request.PageSize)
+                    .Take(request.PageSize)
+                    .ToList();
                 // Fetch related data for each test series
                 foreach (var testSeries in testSeriesList)
                 {
-                    // Determine the exam status based on repeated exams
+                    // Calculate RepeatExamEndTime using RepeatExamStarttime and Duration
                     if (testSeries.RepeatedExams)
                     {
-                        if (DateTime.Now < testSeries.RepeatExamStartDate)
+                        // Current date and time
+                        DateTime currentDateTime = DateTime.Now;
+
+                        // Exam start and end times
+                        TimeSpan examStartTime = TimeSpan.Parse(testSeries.RepeatExamStarttime);
+                        int durationInMinutes = int.Parse(testSeries.Duration);
+
+                        // Calculate the end time based on the duration
+                        TimeSpan examEndTime = examStartTime.Add(TimeSpan.FromMinutes(durationInMinutes));
+                        testSeries.RepeatedExamEndTime = examEndTime.ToString();
+
+                        // Exam period start and end dates
+                        DateTime repeatExamStartDate = testSeries.RepeatExamStartDate;
+                        DateTime repeatExamEndDate = testSeries.RepeatExamEndDate;
+
+                        // Exam start and end DateTime for the current day
+                        DateTime dailyExamStartDateTime = repeatExamStartDate.Add(examStartTime);
+                        DateTime dailyExamEndDateTime = repeatExamStartDate.Add(examEndTime);
+
+                        if (currentDateTime < dailyExamStartDateTime)
                         {
                             testSeries.ExamStatus = "Upcoming";
                         }
-                        else if (DateTime.Now >= testSeries.RepeatExamStartDate && DateTime.Now <= testSeries.RepeatExamEndDate)
+                        else if (currentDateTime >= dailyExamStartDateTime && currentDateTime <= dailyExamEndDateTime)
                         {
                             testSeries.ExamStatus = "Ongoing";
                         }
-                        else
+                        else if (currentDateTime > dailyExamEndDateTime && currentDateTime < repeatExamEndDate.AddDays(1).Add(examStartTime))
+                        {
+                            testSeries.ExamStatus = "Upcoming";
+                        }
+                        else if (currentDateTime >= repeatExamEndDate.Add(examEndTime))
                         {
                             testSeries.ExamStatus = "Completed";
                         }
@@ -482,13 +509,320 @@ namespace Course_API.Repository.Implementations
                     }
                 }
 
-                return new ServiceResponse<List<TestSeriesResponseDTO>>(true, "Success", testSeriesList.ToList(), 200);
+                return new ServiceResponse<List<TestSeriesResponseDTO>>(true, "Test series retrieved successfully", testSeriesList.ToList(), 200);
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<TestSeriesResponseDTO>>(false, ex.Message, new List<TestSeriesResponseDTO>(), 500);
+                return new ServiceResponse<List<TestSeriesResponseDTO>>(false, "An error occurred while retrieving test series: " + ex.Message, null, 500);
             }
         }
+        //public async Task<ServiceResponse<List<TestSeriesResponseDTO>>> GetTestSeriesList(TestSeriesListRequest request)
+        //{
+        //    try
+        //    {
+        //        // Construct the SQL query with parameters
+        //        var query = @"
+        //SELECT 
+        //    ts.TestSeriesId,
+        //    ts.TestPatternName,
+        //    ts.Duration,
+        //    ts.Status,
+        //    ts.APID,
+        //    ap.APName AS APName,
+        //    ts.TotalNoOfQuestions,
+        //    ts.MethodofAddingType,
+        //    ts.StartDate,
+        //    ts.StartTime,
+        //    ts.ResultDate,
+        //    ts.ResultTime,
+        //    ts.EmployeeID,
+        //    emp.EmpFirstName AS EmpFirstName,
+        //    ts.NameOfExam,
+        //    ts.RepeatedExams,
+        //    ts.TypeOfTestSeries,
+        //    tts.TestSeriesName AS TypeOfTestSeriesName,
+        //    ts.ExamTypeID,
+        //    ttt.ExamTypeName AS ExamTypeName,
+        //    ts.createdon,
+        //    ts.createdby,
+        //    ts.modifiedon,
+        //    ts.modifiedby,
+        //    ts.RepeatExamStartDate,
+        //    ts.RepeatExamEndDate,
+        //    ts.RepeatExamStarttime,
+        //    ts.RepeatExamResulttimeId,
+        //    rt.ResultTime AS RepeatedExamResultTime
+        //FROM tblTestSeries ts
+        //JOIN tblCategory ap ON ts.APID = ap.APID
+        //JOIN tblEmployee emp ON ts.EmployeeID = emp.EmployeeID
+        //JOIN tblTypeOfTestSeries tts ON ts.TypeOfTestSeries = tts.TTSId
+        //JOIN tblExamType ttt ON ts.ExamTypeID = ttt.ExamTypeID
+        //JOIN tblTestSeriesResultTime rt ON ts.RepeatExamResulttimeId = rt.ResultTimeId
+        //LEFT JOIN tblTestSeriesClass tc ON ts.TestSeriesId = tc.TestSeriesId
+        //LEFT JOIN tblTestSeriesCourse tco ON ts.TestSeriesId = tco.TestSeriesId
+        //LEFT JOIN tblTestSeriesBoard tb ON ts.TestSeriesId = tb.TestSeriesId
+        //WHERE 1=1";
+
+        //        // Apply filters dynamically
+        //        if (request.APId > 0)
+        //        {
+        //            query += " AND ts.APID = @APId";
+        //        }
+        //        if (request.ClassId > 0)
+        //        {
+        //            query += " AND tc.ClassId = @ClassId";
+        //        }
+        //        if (request.CourseId > 0)
+        //        {
+        //            query += " AND tco.CourseId = @CourseId";
+        //        }
+        //        if (request.BoardId > 0)
+        //        {
+        //            query += " AND tb.BoardId = @BoardId";
+        //        }
+        //        if (request.ExamTypeId > 0)
+        //        {
+        //            query += " AND ts.ExamTypeID = @ExamTypeId";
+        //        }
+        //        if (request.TypeOfTestSeries > 0)
+        //        {
+        //            query += " AND ts.TypeOfTestSeries = @TypeOfTestSeries";
+        //        }
+        //        if (!string.IsNullOrEmpty(request.ExamStatus))
+        //        {
+        //            query += " AND (@ExamStatus IS NULL OR " +
+        //                      "(ts.RepeatedExams = 1 AND ts.RepeatExamStartDate <= @Date AND ts.RepeatExamEndDate >= @Date) OR " +
+        //                      "(ts.RepeatedExams = 0 AND ts.StartDate <= @Date AND DATEADD(MINUTE, CAST(ts.Duration AS INT), ts.StartDate) >= @Date))";
+        //        }
+
+        //        // Prepare the parameters for the query
+        //        var parameters = new
+        //        {
+        //            APId = request.APId == 0 ? (int?)null : request.APId,
+        //            ClassId = request.ClassId == 0 ? (int?)null : request.ClassId,
+        //            CourseId = request.CourseId == 0 ? (int?)null : request.CourseId,
+        //            BoardId = request.BoardId == 0 ? (int?)null : request.BoardId,
+        //            ExamTypeId = request.ExamTypeId == 0 ? (int?)null : request.ExamTypeId,
+        //            TypeOfTestSeries = request.TypeOfTestSeries == 0 ? (int?)null : request.TypeOfTestSeries,
+        //            ExamStatus = string.IsNullOrEmpty(request.ExamStatus) ? (string)null : request.ExamStatus,
+        //            Date = request.Date
+        //        };
+
+        //        // Execute the query
+        //        var testSeriesList = await _connection.QueryAsync<TestSeriesResponseDTO>(query, parameters);
+
+        //        if (testSeriesList == null || !testSeriesList.Any())
+        //        {
+        //            return new ServiceResponse<List<TestSeriesResponseDTO>>(true, "No test series found", new List<TestSeriesResponseDTO>(), 200);
+        //        }
+        //        // Fetch related data for each test series
+        //        foreach (var testSeries in testSeriesList)
+        //        {
+        //            // Determine the exam status based on repeated exams
+        //            if (testSeries.RepeatedExams)
+        //            {
+        //                // Current date and time
+        //                DateTime currentDateTime = DateTime.Now;
+        //                // Exam start and end times
+        //                TimeSpan examStartTime = TimeSpan.Parse(testSeries.RepeatExamStarttime);
+        //                TimeSpan examEndTime = TimeSpan.Parse(testSeries.repeatedexamen);
+
+        //                // Exam period start and end dates
+        //                DateTime repeatExamStartDate = testSeries.RepeatExamStartDate.Value.Date;
+        //                DateTime repeatExamEndDate = testSeries.RepeatExamEndDate.Value.Date;
+
+        //                // Exam start and end DateTime for the current day
+        //                DateTime dailyExamStartDateTime = repeatExamStartDate.Add(examStartTime);
+        //                DateTime dailyExamEndDateTime = repeatExamStartDate.Add(examEndTime);
+
+        //                if (currentDateTime < dailyExamStartDateTime)
+        //                {
+        //                    testSeries.ExamStatus = "Upcoming";
+        //                }
+        //                else if (currentDateTime >= dailyExamStartDateTime && currentDateTime <= dailyExamEndDateTime)
+        //                {
+        //                    testSeries.ExamStatus = "Ongoing";
+        //                }
+        //                else if (currentDateTime > dailyExamEndDateTime && currentDateTime < repeatExamEndDate.AddDays(1).Add(examStartTime))
+        //                {
+        //                    testSeries.ExamStatus = "Upcoming";
+        //                }
+        //                else if (currentDateTime >= repeatExamEndDate.Add(examEndTime))
+        //                {
+        //                    testSeries.ExamStatus = "Completed";
+        //                }
+        //            }
+        //            else
+        //            {
+        //                DateTime startDateTime = testSeries.StartDate.Value.Add(TimeSpan.Parse(testSeries.StartTime));
+        //                if (DateTime.Now < startDateTime)
+        //                {
+        //                    testSeries.ExamStatus = "Upcoming";
+        //                }
+        //                else if (DateTime.Now >= startDateTime && DateTime.Now <= testSeries.ResultDate)
+        //                {
+        //                    testSeries.ExamStatus = "Ongoing";
+        //                }
+        //                else
+        //                {
+        //                    testSeries.ExamStatus = "Completed";
+        //                }
+        //            }
+
+        //            // Fetch related data
+        //            var testSeriesBoards = GetListOfTestSeriesBoards(testSeries.TestSeriesId);
+        //            var testSeriesClasses = GetListOfTestSeriesClasses(testSeries.TestSeriesId);
+        //            var testSeriesCourses = GetListOfTestSeriesCourse(testSeries.TestSeriesId);
+        //            var testSeriesSubjects = GetListOfTestSeriesSubjects(testSeries.TestSeriesId);
+        //            var testSeriesContentIndexes = GetListOfTestSeriesSubjectIndex(testSeries.TestSeriesId);
+        //            var testSeriesQuestionsSections = GetTestSeriesQuestionSection(testSeries.TestSeriesId);
+        //            var testSeriesInstructions = GetListOfTestSeriesInstructions(testSeries.TestSeriesId);
+
+        //            // Initialize the SubjectDetails list
+        //            var testSeriesSubjectDetailsList = new List<TestSeriesSubjectDetails>();
+
+        //            // Populate TestSeriesSubjectDetails with content indexes and questions section
+        //            foreach (var subject in testSeriesSubjects)
+        //            {
+        //                var subjectContentIndexes = testSeriesContentIndexes
+        //                    .Where(ci => ci.SubjectId == subject.SubjectID)
+        //                    .ToList();
+
+        //                var subjectQuestionsSections = testSeriesQuestionsSections
+        //                    .Where(qs => qs.SubjectId == subject.SubjectID)
+        //                    .ToList();
+
+        //                var subjectDetails = new TestSeriesSubjectDetails
+        //                {
+        //                    SubjectID = subject.SubjectID,
+        //                    SubjectName = subject.SubjectName,
+        //                    TestSeriesContentIndexes = subjectContentIndexes,
+        //                    TestSeriesQuestionsSection = subjectQuestionsSections
+        //                };
+
+        //                testSeriesSubjectDetailsList.Add(subjectDetails);
+        //            }
+
+        //            // Map the fetched data to the TestSeriesResponseDTO
+        //            testSeries.TestSeriesBoard = testSeriesBoards;
+        //            testSeries.TestSeriesClasses = testSeriesClasses;
+        //            testSeries.TestSeriesCourses = testSeriesCourses;
+        //            testSeries.TestSeriesSubjectDetails = testSeriesSubjectDetailsList; // Populate SubjectDetails
+        //            testSeries.TestSeriesInstruction = testSeriesInstructions;
+
+        //            // Fetch TestSeriesQuestions based on TestSeriesQuestionsSection
+        //            if (testSeriesQuestionsSections != null && testSeriesQuestionsSections.Any())
+        //            {
+        //                testSeries.TestSeriesQuestions = new List<TestSeriesQuestions>();
+        //                foreach (var section in testSeriesQuestionsSections)
+        //                {
+        //                    var questions = GetListOfTestSeriesQuestion(section.testseriesQuestionSectionid);
+        //                    if (questions != null)
+        //                    {
+        //                        testSeries.TestSeriesQuestions.AddRange(questions);
+        //                    }
+        //                }
+        //            }
+        //        }
+        //        //// Fetch related data for each test series
+        //        //foreach (var testSeries in testSeriesList)
+        //        //{
+        //        //    // Determine the exam status based on repeated exams
+        //        //    if (testSeries.RepeatedExams)
+        //        //    {
+        //        //        if (DateTime.Now < testSeries.RepeatExamStartDate)
+        //        //        {
+        //        //            testSeries.ExamStatus = "Upcoming";
+        //        //        }
+        //        //        else if (DateTime.Now >= testSeries.RepeatExamStartDate && DateTime.Now <= testSeries.RepeatExamEndDate)
+        //        //        {
+        //        //            testSeries.ExamStatus = "Ongoing";
+        //        //        }
+        //        //        else
+        //        //        {
+        //        //            testSeries.ExamStatus = "Completed";
+        //        //        }
+        //        //    }
+        //        //    else
+        //        //    {
+        //        //        DateTime startDateTime = testSeries.StartDate.Value.Add(TimeSpan.Parse(testSeries.StartTime));
+        //        //        if (DateTime.Now < startDateTime)
+        //        //        {
+        //        //            testSeries.ExamStatus = "Upcoming";
+        //        //        }
+        //        //        else if (DateTime.Now >= startDateTime && DateTime.Now <= testSeries.ResultDate)
+        //        //        {
+        //        //            testSeries.ExamStatus = "Ongoing";
+        //        //        }
+        //        //        else
+        //        //        {
+        //        //            testSeries.ExamStatus = "Completed";
+        //        //        }
+        //        //    }
+
+        //        //    // Fetch related data
+        //        //    var testSeriesBoards = GetListOfTestSeriesBoards(testSeries.TestSeriesId);
+        //        //    var testSeriesClasses = GetListOfTestSeriesClasses(testSeries.TestSeriesId);
+        //        //    var testSeriesCourses = GetListOfTestSeriesCourse(testSeries.TestSeriesId);
+        //        //    var testSeriesSubjects = GetListOfTestSeriesSubjects(testSeries.TestSeriesId);
+        //        //    var testSeriesContentIndexes = GetListOfTestSeriesSubjectIndex(testSeries.TestSeriesId);
+        //        //    var testSeriesQuestionsSections = GetTestSeriesQuestionSection(testSeries.TestSeriesId);
+        //        //    var testSeriesInstructions = GetListOfTestSeriesInstructions(testSeries.TestSeriesId);
+
+        //        //    // Initialize the SubjectDetails list
+        //        //    var testSeriesSubjectDetailsList = new List<TestSeriesSubjectDetails>();
+
+        //        //    // Populate TestSeriesSubjectDetails with content indexes and questions section
+        //        //    foreach (var subject in testSeriesSubjects)
+        //        //    {
+        //        //        var subjectContentIndexes = testSeriesContentIndexes
+        //        //            .Where(ci => ci.SubjectId == subject.SubjectID)
+        //        //            .ToList();
+
+        //        //        var subjectQuestionsSections = testSeriesQuestionsSections
+        //        //            .Where(qs => qs.SubjectId == subject.SubjectID)
+        //        //            .ToList();
+
+        //        //        var subjectDetails = new TestSeriesSubjectDetails
+        //        //        {
+        //        //            SubjectID = subject.SubjectID,
+        //        //            SubjectName = subject.SubjectName,
+        //        //            TestSeriesContentIndexes = subjectContentIndexes,
+        //        //            TestSeriesQuestionsSection = subjectQuestionsSections
+        //        //        };
+
+        //        //        testSeriesSubjectDetailsList.Add(subjectDetails);
+        //        //    }
+
+        //        //    // Map the fetched data to the TestSeriesResponseDTO
+        //        //    testSeries.TestSeriesBoard = testSeriesBoards;
+        //        //    testSeries.TestSeriesClasses = testSeriesClasses;
+        //        //    testSeries.TestSeriesCourses = testSeriesCourses;
+        //        //    testSeries.TestSeriesSubjectDetails = testSeriesSubjectDetailsList; // Populate SubjectDetails
+        //        //    testSeries.TestSeriesInstruction = testSeriesInstructions;
+
+        //        //    // Fetch TestSeriesQuestions based on TestSeriesQuestionsSection
+        //        //    if (testSeriesQuestionsSections != null && testSeriesQuestionsSections.Any())
+        //        //    {
+        //        //        testSeries.TestSeriesQuestions = new List<TestSeriesQuestions>();
+        //        //        foreach (var section in testSeriesQuestionsSections)
+        //        //        {
+        //        //            var questions = GetListOfTestSeriesQuestion(section.testseriesQuestionSectionid);
+        //        //            if (questions != null)
+        //        //            {
+        //        //                testSeries.TestSeriesQuestions.AddRange(questions);
+        //        //            }
+        //        //        }
+        //        //    }
+        //        //}
+
+        //        return new ServiceResponse<List<TestSeriesResponseDTO>>(true, "Success", testSeriesList.ToList(), 200);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new ServiceResponse<List<TestSeriesResponseDTO>>(false, ex.Message, new List<TestSeriesResponseDTO>(), 500);
+        //    }
+        //}
         public async Task<ServiceResponse<string>> TestSeriesContentIndexMapping(List<TestSeriesContentIndex> request, int TestSeriesId)
         {
             foreach (var data in request)
@@ -590,86 +924,190 @@ namespace Course_API.Repository.Implementations
         }
         public async Task<ServiceResponse<string>> TestSeriesQuestionsMapping(List<TestSeriesQuestions> request, int TestSeriesId, int sectionId)
         {
+            // Step 1: Assign TestSeriesId and sectionId to each question in the request
             foreach (var data in request)
             {
                 data.TestSeriesid = TestSeriesId;
                 data.testseriesQuestionSectionid = sectionId;
             }
-            string query = "SELECT COUNT(*) FROM [tbltestseriesQuestions] WHERE [testseriesQuestionSectionid] = @testseriesQuestionSectionid";
-            int count = await _connection.QueryFirstOrDefaultAsync<int>(query, new { testseriesQuestionSectionid = sectionId });
-            if (count > 0)
+
+            try
             {
-                var deleteDuery = @"DELETE FROM [tbltestseriesQuestions] WHERE [testseriesQuestionSectionid] = @testseriesQuestionSectionid;";
-                var rowsAffected = await _connection.ExecuteAsync(deleteDuery, new { testseriesQuestionSectionid = sectionId });
-                if (rowsAffected > 0)
+                // Step 2: Fetch TotalNoofQuestions from tbltestseriesQuestionSection for the given sectionId
+                string getTotalQuestionsQuery = "SELECT TotalNoofQuestions FROM [tbltestseriesQuestionSection] WHERE [TestSeriesid] = @TestSeriesId AND [testseriesQuestionSectionid] = @testseriesQuestionSectionid";
+                int totalNoofQuestions = await _connection.QueryFirstOrDefaultAsync<int>(getTotalQuestionsQuery, new { TestSeriesId, testseriesQuestionSectionid = sectionId });
+
+                // Step 3: Check if the count of request exceeds the total allowed questions
+                if (request.Count > totalNoofQuestions)
                 {
-                    string insertQuery = @"
-                    INSERT INTO tbltestseriesQuestions (TestSeriesid, Questionid, DisplayOrder, Status, testseriesQuestionSectionid) 
-                    VALUES (@TestSeriesid, @Questionid, @DisplayOrder, @Status, @testseriesQuestionSectionid);";
-                    var valuesInserted = await _connection.ExecuteAsync(insertQuery, request);
-                    return new ServiceResponse<string>(true, "operation successful", "Data added successfully", 200);
+                    return new ServiceResponse<string>(false, "operation failed", $"Number of questions exceeds the allowed limit of {totalNoofQuestions} for this section.", 400);
                 }
-                else
+
+                // Step 4: Check if there are existing questions for this section
+                string query = "SELECT COUNT(*) FROM [tbltestseriesQuestions] WHERE [testseriesQuestionSectionid] = @testseriesQuestionSectionid";
+                int count = await _connection.QueryFirstOrDefaultAsync<int>(query, new { testseriesQuestionSectionid = sectionId });
+
+                if (count > 0)
                 {
-                    return new ServiceResponse<string>(false, "operation failed", string.Empty, 500);
+                    // Step 5: Delete existing questions if any
+                    var deleteQuery = @"DELETE FROM [tbltestseriesQuestions] WHERE [testseriesQuestionSectionid] = @testseriesQuestionSectionid;";
+                    await _connection.ExecuteAsync(deleteQuery, new { testseriesQuestionSectionid = sectionId });
                 }
-            }
-            else
-            {
+
+                // Step 6: Insert new questions
                 string insertQuery = @"
-                    INSERT INTO tbltestseriesQuestions (TestSeriesid, Questionid, DisplayOrder, Status, testseriesQuestionSectionid) 
-                    VALUES (@TestSeriesid, @Questionid, @DisplayOrder, @Status, @testseriesQuestionSectionid);";
-                var valuesInserted = _connection.Execute(insertQuery, request);
+            INSERT INTO tbltestseriesQuestions (TestSeriesid, Questionid, DisplayOrder, Status, testseriesQuestionSectionid) 
+            VALUES (@TestSeriesid, @Questionid, @DisplayOrder, @Status, @testseriesQuestionSectionid);";
+                var valuesInserted = await _connection.ExecuteAsync(insertQuery, request);
+
                 return new ServiceResponse<string>(true, "operation successful", "Data added successfully", 200);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("An error occurred while updating test series questions", ex);
             }
         }
         public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetQuestionsList(GetAllQuestionListRequest request)
         {
             try
             {
+                // Define the SQL query with additional filters, including DifficultyLevelId
                 string sql = @"
-    SELECT 
-        q.QuestionId, q.QuestionDescription, q.QuestionFormula, q.QuestionTypeId, q.ApprovedStatus, 
-        q.ApprovedBy, q.ReasonNote, q.Status, q.CreatedBy, q.CreatedOn, q.ModifiedBy, q.ModifiedOn, 
-        q.Verified, q.courseid, c.CourseName, q.boardid, b.BoardName, q.classid, cl.ClassName, 
-        q.subjectID, s.SubjectName, q.ExamTypeId, e.ExamTypeName, q.EmployeeId, emp.EmpFirstName as EmployeeName, 
-        q.Rejectedby, q.RejectedReason, q.IndexTypeId, it.IndexType as IndexTypeName, q.ContentIndexId,
-        CASE 
-            WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
-            WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
-            WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
-        END AS ContentIndexName
-    FROM tblQuestion q
-    LEFT JOIN tblCourse c ON q.courseid = c.CourseId
-    LEFT JOIN tblBoard b ON q.boardid = b.BoardId
-    LEFT JOIN tblClass cl ON q.classid = cl.ClassId
-    LEFT JOIN tblSubject s ON q.subjectID = s.SubjectId
-    LEFT JOIN tblExamType e ON q.ExamTypeId = e.ExamTypeId
-    LEFT JOIN tblEmployee emp ON q.EmployeeId = emp.EmployeeId
-    LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
-    LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
-    LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
-    LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
-    WHERE q.subjectID = @Subjectid";
-
+                SELECT 
+                    q.QuestionId, q.QuestionDescription, q.QuestionFormula, q.QuestionTypeId, q.ApprovedStatus, 
+                    q.ApprovedBy, q.ReasonNote, q.Status, q.CreatedBy, q.CreatedOn, q.ModifiedBy, q.ModifiedOn, 
+                    q.Verified, q.courseid, c.CourseName, q.boardid, b.BoardName, q.classid, cl.ClassName, 
+                    q.subjectID, s.SubjectName, q.ExamTypeId, e.ExamTypeName, q.EmployeeId, emp.EmpFirstName as EmployeeName, 
+                    q.Rejectedby, q.RejectedReason, q.IndexTypeId, it.IndexType as IndexTypeName, q.ContentIndexId,
+                    CASE 
+                        WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
+                        WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
+                        WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+                    END AS ContentIndexName
+                FROM tblQuestion q
+                LEFT JOIN tblCourse c ON q.courseid = c.CourseId
+                LEFT JOIN tblBoard b ON q.boardid = b.BoardId
+                LEFT JOIN tblClass cl ON q.classid = cl.ClassId
+                LEFT JOIN tblSubject s ON q.subjectID = s.SubjectId
+                LEFT JOIN tblExamType e ON q.ExamTypeId = e.ExamTypeId
+                LEFT JOIN tblEmployee emp ON q.EmployeeId = emp.EmployeeId
+                LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
+                LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
+                LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
+                LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
+                LEFT JOIN tblQIDCourse qc ON q.QuestionCode = qc.QuestionCode
+                WHERE q.subjectID = @Subjectid
+                  AND (@IndexTypeId = 0 OR q.IndexTypeId = @IndexTypeId)
+                  AND (@ContentId = 0 OR q.ContentIndexId = @ContentId)
+                  AND (@QuestionTypeId = 0 OR q.QuestionTypeId = @QuestionTypeId)
+                  AND (@DifficultyLevelId = 0 OR qc.LevelId = @DifficultyLevelId)
+                  AND q.IsLive = 1";
 
                 // Execute the query and retrieve the questions
-                var questions = await _connection.QueryAsync<QuestionResponseDTO>(sql, new { Subjectid = request.Subjectid });
+                var questions = await _connection.QueryAsync<QuestionResponseDTO>(sql, new
+                {
+                    Subjectid = request.Subjectid,
+                    IndexTypeId = request.IndexTypeId,
+                    ContentId = request.ContentId,
+                    QuestionTypeId = request.QuestionTypeId,
+                    DifficultyLevelId = request.DifficultyLevelId
+                });
 
                 // If no questions found, return empty response
                 if (!questions.Any())
                 {
-
-                    return new ServiceResponse<List<QuestionResponseDTO>>(true, "Operation Successful", [], 200);
+                    return new ServiceResponse<List<QuestionResponseDTO>>(true, "Operation Successful", new List<QuestionResponseDTO>(), 200);
                 }
 
-                return new ServiceResponse<List<QuestionResponseDTO>> (true, "Questions retrieved successfully", questions.ToList(), 200);
+                return new ServiceResponse<List<QuestionResponseDTO>>(true, "Questions retrieved successfully", questions.ToList(), 200);
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<QuestionResponseDTO>> (false, ex.Message, [], 500);
+                return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, new List<QuestionResponseDTO>(), 500);
             }
         }
+        //public async Task<ServiceResponse<string>> TestSeriesQuestionsMapping(List<TestSeriesQuestions> request, int TestSeriesId, int sectionId)
+        //{
+        //    foreach (var data in request)
+        //    {
+        //        data.TestSeriesid = TestSeriesId;
+        //        data.testseriesQuestionSectionid = sectionId;
+        //    }
+        //    string query = "SELECT COUNT(*) FROM [tbltestseriesQuestions] WHERE [testseriesQuestionSectionid] = @testseriesQuestionSectionid";
+        //    int count = await _connection.QueryFirstOrDefaultAsync<int>(query, new { testseriesQuestionSectionid = sectionId });
+        //    if (count > 0)
+        //    {
+        //        var deleteDuery = @"DELETE FROM [tbltestseriesQuestions] WHERE [testseriesQuestionSectionid] = @testseriesQuestionSectionid;";
+        //        var rowsAffected = await _connection.ExecuteAsync(deleteDuery, new { testseriesQuestionSectionid = sectionId });
+        //        if (rowsAffected > 0)
+        //        {
+        //            string insertQuery = @"
+        //            INSERT INTO tbltestseriesQuestions (TestSeriesid, Questionid, DisplayOrder, Status, testseriesQuestionSectionid) 
+        //            VALUES (@TestSeriesid, @Questionid, @DisplayOrder, @Status, @testseriesQuestionSectionid);";
+        //            var valuesInserted = await _connection.ExecuteAsync(insertQuery, request);
+        //            return new ServiceResponse<string>(true, "operation successful", "Data added successfully", 200);
+        //        }
+        //        else
+        //        {
+        //            return new ServiceResponse<string>(false, "operation failed", string.Empty, 500);
+        //        }
+        //    }
+        //    else
+        //    {
+        //        string insertQuery = @"
+        //            INSERT INTO tbltestseriesQuestions (TestSeriesid, Questionid, DisplayOrder, Status, testseriesQuestionSectionid) 
+        //            VALUES (@TestSeriesid, @Questionid, @DisplayOrder, @Status, @testseriesQuestionSectionid);";
+        //        var valuesInserted = _connection.Execute(insertQuery, request);
+        //        return new ServiceResponse<string>(true, "operation successful", "Data added successfully", 200);
+        //    }
+        //}
+        //    public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetQuestionsList(GetAllQuestionListRequest request)
+        //    {
+        //        try
+        //        {
+        //            string sql = @"
+        //SELECT 
+        //    q.QuestionId, q.QuestionDescription, q.QuestionFormula, q.QuestionTypeId, q.ApprovedStatus, 
+        //    q.ApprovedBy, q.ReasonNote, q.Status, q.CreatedBy, q.CreatedOn, q.ModifiedBy, q.ModifiedOn, 
+        //    q.Verified, q.courseid, c.CourseName, q.boardid, b.BoardName, q.classid, cl.ClassName, 
+        //    q.subjectID, s.SubjectName, q.ExamTypeId, e.ExamTypeName, q.EmployeeId, emp.EmpFirstName as EmployeeName, 
+        //    q.Rejectedby, q.RejectedReason, q.IndexTypeId, it.IndexType as IndexTypeName, q.ContentIndexId,
+        //    CASE 
+        //        WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
+        //        WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
+        //        WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+        //    END AS ContentIndexName
+        //FROM tblQuestion q
+        //LEFT JOIN tblCourse c ON q.courseid = c.CourseId
+        //LEFT JOIN tblBoard b ON q.boardid = b.BoardId
+        //LEFT JOIN tblClass cl ON q.classid = cl.ClassId
+        //LEFT JOIN tblSubject s ON q.subjectID = s.SubjectId
+        //LEFT JOIN tblExamType e ON q.ExamTypeId = e.ExamTypeId
+        //LEFT JOIN tblEmployee emp ON q.EmployeeId = emp.EmployeeId
+        //LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
+        //LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
+        //LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
+        //LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
+        //WHERE q.subjectID = @Subjectid";
+
+
+        //            // Execute the query and retrieve the questions
+        //            var questions = await _connection.QueryAsync<QuestionResponseDTO>(sql, new { Subjectid = request.Subjectid });
+
+        //            // If no questions found, return empty response
+        //            if (!questions.Any())
+        //            {
+
+        //                return new ServiceResponse<List<QuestionResponseDTO>>(true, "Operation Successful", [], 200);
+        //            }
+
+        //            return new ServiceResponse<List<QuestionResponseDTO>> (true, "Questions retrieved successfully", questions.ToList(), 200);
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            return new ServiceResponse<List<QuestionResponseDTO>> (false, ex.Message, [], 500);
+        //        }
+        //    }
         public async Task<ServiceResponse<List<ContentIndexResponses>>> GetSyllabusDetailsBySubject(SyllabusDetailsRequest request)
         {
             try
@@ -821,41 +1259,42 @@ namespace Course_API.Repository.Implementations
             {
                 // Define the SQL query to fetch all relevant questions based on the request criteria
                 string query = @"
-            SELECT 
-                [QuestionId],
-                [QuestionDescription],
-                [QuestionFormula],
-                [QuestionTypeId],
-                [ApprovedStatus],
-                [ApprovedBy],
-                [ReasonNote],
-                [Status],
-                [CreatedBy],
-                [CreatedOn],
-                [ModifiedBy],
-                [ModifiedOn],
-                [Verified],
-                [courseid],
-                [boardid],
-                [classid],
-                [subjectID],
-                [Rejectedby],
-                [RejectedReason],
-                [IndexTypeId],
-                [ContentIndexId],
-                [EmployeeId],
-                [ExamTypeId],
-                [IsActive]
-            FROM 
-                [iGuruPrep].[dbo].[tblQuestion]
-            WHERE 
-                IsActive = 1 
-                AND IsRejected = 0 
-                AND (BoardId = @BoardId OR @BoardId = 0)
-                AND (ClassId = @ClassId OR @ClassId = 0)
-                AND (CourseId = @CourseId OR @CourseId = 0)
-                AND (ExamTypeId = @ExamTypeId OR @ExamTypeId = 0)
-                AND (SubjectId = @SubjectId OR @SubjectId = 0);"; // Fetch all relevant questions
+                SELECT 
+                    [QuestionId],
+                    [QuestionDescription],
+                    [QuestionFormula],
+                    [QuestionTypeId],
+                    [ApprovedStatus],
+                    [ApprovedBy],
+                    [ReasonNote],
+                    [Status],
+                    [CreatedBy],
+                    [CreatedOn],
+                    [ModifiedBy],
+                    [ModifiedOn],
+                    [Verified],
+                    [courseid],
+                    [boardid],
+                    [classid],
+                    [subjectID],
+                    [Rejectedby],
+                    [RejectedReason],
+                    [IndexTypeId],
+                    [ContentIndexId],
+                    [EmployeeId],
+                    [ExamTypeId],
+                    [IsActive]
+                FROM 
+                    [tblQuestion]
+                WHERE 
+                    IsActive = 1 
+                    AND IsRejected = 0 
+                    AND IsLive = 1
+                    AND (BoardId = @BoardId OR @BoardId = 0)
+                    AND (ClassId = @ClassId OR @ClassId = 0)
+                    AND (CourseId = @CourseId OR @CourseId = 0)
+                    AND (ExamTypeId = @ExamTypeId OR @ExamTypeId = 0)
+                    AND (SubjectId = @SubjectId OR @SubjectId = 0);"; // Fetch all relevant questions
 
                 // Fetch the data
                 var questions = await _connection.QueryAsync<QuestionResponseDTO>(query, new
