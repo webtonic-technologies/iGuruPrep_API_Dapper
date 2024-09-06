@@ -70,6 +70,19 @@ namespace Schools_API.Services.Implementations
                 return new ServiceResponse<object>(false, ex.Message, null, 500);
             }
         }
+
+        public async Task<ServiceResponse<byte[]>> GenerateExcelFile(DownExcelRequest request)
+        {
+            try
+            {
+                return await _questionRepository.GenerateExcelFile(request);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<byte[]> (false, ex.Message, [], 500);
+            }
+        }
+
         public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetAllLiveQuestionsList(int SubjectId)
         {
             try

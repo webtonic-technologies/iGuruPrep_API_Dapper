@@ -1346,7 +1346,7 @@ namespace Config_API.Repository.Implementations
                                     ContInIdTopic = 0, // Assuming this is the returned ContentIndexId
                                     ContentName_SubTopic = entry.SubTopic,
                                     Status = true,
-                                    IndexTypeId = 1,
+                                    IndexTypeId = 3,
                                     CreatedOn = DateTime.UtcNow,
                                     CreatedBy = "Admin", // Replace with actual user
                                     ModifiedOn = DateTime.UtcNow,

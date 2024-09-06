@@ -14,6 +14,31 @@ namespace Schools_API.Services.Implementations
         {
             _reportedQuestionRepository = reportedQuestionRepository;
         }
+
+        public async Task<ServiceResponse<string>> AddUpdateReportedQuestion(ReportedQuestionRequestDTO request)
+        {
+            try
+            {
+                return await _reportedQuestionRepository.AddUpdateReportedQuestion(request);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+            }
+        }
+
+        public async Task<ServiceResponse<string>> ChangeRQStatus(RQStatusRequest request)
+        {
+            try
+            {
+                return await _reportedQuestionRepository.ChangeRQStatus(request);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+            }
+        }
+
         public async Task<ServiceResponse<List<ReportedQuestionResponse>>> GetListOfReportedQuestions(ReportedQuestionRequest request)
         {
             try

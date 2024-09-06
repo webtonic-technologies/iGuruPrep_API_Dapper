@@ -63,5 +63,55 @@ namespace Schools_API.Controllers
 
             return Ok(data);
         }
+        [HttpPost("AddUpdateReportedQuestion")]
+        public async Task<IActionResult> AddUpdateReportedQuestion(ReportedQuestionRequestDTO request)
+        {
+            try
+            {
+
+                if (request == null)
+                {
+                    return BadRequest(" data is null.");
+                }
+
+                var data = await _reportedQuestionsServices.AddUpdateReportedQuestion(request);
+
+                if (data == null)
+                {
+                    return StatusCode(500, "A problem happened while handling your request.");
+                }
+
+                return Ok(data);
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
+        [HttpPost("ChangeRQStatus")]
+        public async Task<IActionResult> ChangeRQStatus(RQStatusRequest request)
+        {
+            try
+            {
+
+                if (request == null)
+                {
+                    return BadRequest(" data is null.");
+                }
+
+                var data = await _reportedQuestionsServices.ChangeRQStatus(request);
+
+                if (data == null)
+                {
+                    return StatusCode(500, "A problem happened while handling your request.");
+                }
+
+                return Ok(data);
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
     }
 }

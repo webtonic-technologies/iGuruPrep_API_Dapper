@@ -241,5 +241,15 @@ namespace Schools_API.Controllers
             }
             return Ok(data);
         }
+        [HttpPost("DownloadExcelFile")]
+        public async Task<IActionResult> DownloadExcelFile(DownExcelRequest request)
+        {
+            var response = await _questionServices.GenerateExcelFile(request);
+            if (response.Success)
+            {
+                return File(response.Data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "QuestionDetails.xlsx");
+            }
+            return StatusCode(response.StatusCode, response.Message);
+        }
     }
 }

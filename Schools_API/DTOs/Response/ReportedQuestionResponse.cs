@@ -4,12 +4,12 @@
     {
         public int QueryCode { get; set; }
         public string Querydescription { get; set; } = string.Empty;
-        public int QuestionID { get; set; }
+        public string QuestionCode { get; set; } = string.Empty;
         public DateTime? DateandTime { get; set; }
         public int RQSID { get; set; }
         public string Reply { get; set; } = string.Empty;
         public string Link { get; set; } = string.Empty;
-        public string PathURL { get; set; } = string.Empty;
+        public string ImageOrPDF { get; set; } = string.Empty;
         public int subjectID { get; set; }
         public string subjectname { get; set; } = string.Empty;
         public string RQSName { get; set; } = string.Empty;

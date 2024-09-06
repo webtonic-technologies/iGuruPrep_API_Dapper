@@ -22,5 +22,6 @@ namespace Schools_API.Repository.Interfaces
         Task<ServiceResponse<List<QuestionResponseDTO>>> GetAllLiveQuestionsList(int SubjectId);
         Task<ServiceResponse<string>> MarkQuestionLive(string questionCode);
         Task<ServiceResponse<List<ContentIndexResponses>>> GetSyllabusDetailsBySubject(SyllabusDetailsRequest request);
+        Task<ServiceResponse<byte[]>> GenerateExcelFile(DownExcelRequest request);
     }
 }

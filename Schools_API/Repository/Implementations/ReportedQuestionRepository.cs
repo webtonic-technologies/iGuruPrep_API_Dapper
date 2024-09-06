@@ -4,6 +4,7 @@ using Schools_API.DTOs.Response;
 using Schools_API.DTOs.ServiceResponse;
 using Schools_API.Repository.Interfaces;
 using System.Data;
+using System.Data.SqlClient;
 
 namespace Schools_API.Repository.Implementations
 {
@@ -21,15 +22,34 @@ namespace Schools_API.Repository.Implementations
         {
             try
             {
+                // Fetch the role of the user (Admin or SME) based on EmployeeId
+                string roleSql = @"
+        SELECT e.RoleID, r.RoleCode
+        FROM tblEmployee e
+        JOIN tblRole r ON e.RoleID = r.RoleID
+        WHERE e.Employeeid = @EmployeeId";
+
+                var roleResult = await _connection.QueryFirstOrDefaultAsync(roleSql, new { request.EmployeeId });
+
+                if (roleResult == null)
+                {
+                    return new ServiceResponse<List<ReportedQuestionResponse>>(false, "Role not found for the employee", null, 404);
+                }
+
+                string roleCode = roleResult.RoleCode;
+                bool isAdmin = roleCode == "AD"; // RoleCode 'AD' is Admin
+                bool isSME = roleCode == "SM"; // RoleCode 'SM' is SME
+
+                // Modify the main query accordingly
                 string sql = @"
         SELECT rq.QueryCode,
                rq.Querydescription,
-               rq.QuestionID,
+               rq.QuestionCode,
                rq.DateandTime,
                rq.RQSID,
                rq.Reply,
                rq.Link,
-               rq.PathURL,
+               rq.ImageOrPDF,
                rq.subjectID,
                s.SubjectName AS subjectname,
                rqs.RQSName,
@@ -37,8 +57,20 @@ namespace Schools_API.Repository.Implementations
                u.FirstName + ' ' + u.LastName AS StudentName,
                u.PhoneNumber AS StudentPhone,
                u.Email AS StudentEmail,
-               rq.EmployeeId,
-               e.EmpFirstName + ' ' + e.EmpLastName AS EmployeeName,
+               rq.EmployeeId,";
+
+                // Conditionally include EmployeeName based on role
+                if (isAdmin)
+                {
+                    sql += "e.EmpFirstName + ' ' + e.EmpLastName AS EmployeeName,";
+                }
+                else
+                {
+                    sql += "NULL AS EmployeeName,";
+                }
+
+                // Continue with the rest of the query
+                sql += @"
                rq.CategoryId,
                c.APName,
                rq.ClassId,
@@ -73,14 +105,14 @@ namespace Schools_API.Repository.Implementations
                 };
 
                 var reportedQuestions = await _connection.QueryAsync<ReportedQuestionResponse>(sql, parameters);
-                foreach(var data in reportedQuestions)
+                foreach (var data in reportedQuestions)
                 {
-                    data.PathURL = GetFile(data.PathURL);
+                    data.ImageOrPDF = GetFile(data.ImageOrPDF);
                 }
 
                 if (reportedQuestions != null && reportedQuestions.Any())
                 {
-                    return new ServiceResponse<List<ReportedQuestionResponse>>(true, "Operation Successful", reportedQuestions.ToList(), 200);
+                    return new ServiceResponse<List<ReportedQuestionResponse>>(true, "Operation Successful", reportedQuestions.ToList(), 200, reportedQuestions.Count());
                 }
                 else
                 {
@@ -92,6 +124,81 @@ namespace Schools_API.Repository.Implementations
                 return new ServiceResponse<List<ReportedQuestionResponse>>(false, ex.Message, [], 500);
             }
         }
+        //public async Task<ServiceResponse<List<ReportedQuestionResponse>>> GetListOfReportedQuestions(ReportedQuestionRequest request)
+        //{
+        //    try
+        //    {
+        //        string sql = @"
+        //SELECT rq.QueryCode,
+        //       rq.Querydescription,
+        //       rq.QuestionCode,
+        //       rq.DateandTime,
+        //       rq.RQSID,
+        //       rq.Reply,
+        //       rq.Link,
+        //       rq.ImageOrPDF,
+        //       rq.subjectID,
+        //       s.SubjectName AS subjectname,
+        //       rqs.RQSName,
+        //       rq.StudentId,
+        //       u.FirstName + ' ' + u.LastName AS StudentName,
+        //       u.PhoneNumber AS StudentPhone,
+        //       u.Email AS StudentEmail,
+        //       rq.EmployeeId,
+        //       e.EmpFirstName + ' ' + e.EmpLastName AS EmployeeName,
+        //       rq.CategoryId,
+        //       c.APName,
+        //       rq.ClassId,
+        //       cl.ClassName,
+        //       rq.CourseId,
+        //       co.CourseName,
+        //       rq.BoardId,
+        //       b.BoardName,
+        //       rq.ExamTypeId,
+        //       et.ExamTypeName
+        //FROM tblReportedQuestions rq
+        //LEFT JOIN tblSubject s ON rq.subjectID = s.SubjectID
+        //LEFT JOIN tblStatus rqs ON rq.RQSID = rqs.RQSID
+        //LEFT JOIN tblUser u ON rq.StudentId = u.UserId
+        //LEFT JOIN tblEmployee e ON rq.EmployeeId = e.Employeeid
+        //LEFT JOIN tblCategory c ON rq.CategoryId = c.APId
+        //LEFT JOIN tblClass cl ON rq.ClassId = cl.ClassID
+        //LEFT JOIN tblCourse co ON rq.CourseId = co.CourseID
+        //LEFT JOIN tblBoard b ON rq.BoardId = b.BoardID
+        //LEFT JOIN tblExamType et ON rq.ExamTypeId = et.ExamTypeId
+        //WHERE (@SubjectId = 0 OR rq.subjectID = @SubjectId)
+        //  AND (@StartDate IS NULL OR rq.DateandTime >= @StartDate)
+        //  AND (@EndDate IS NULL OR rq.DateandTime <= @EndDate)
+        //  AND (@Today IS NULL OR CONVERT(date, rq.DateandTime) = CONVERT(date, @Today))";
+
+        //        var parameters = new
+        //        {
+        //            SubjectId = request.SubjectId,
+        //            StartDate = request.StartDate,
+        //            EndDate = request.EndDate,
+        //            Today = request.Today
+        //        };
+
+        //        var reportedQuestions = await _connection.QueryAsync<ReportedQuestionResponse>(sql, parameters);
+        //        foreach(var data in reportedQuestions)
+        //        {
+        //            data.ImageOrPDF = GetFile(data.ImageOrPDF);
+        //        }
+
+        //        if (reportedQuestions != null && reportedQuestions.Any())
+        //        {
+        //            return new ServiceResponse<List<ReportedQuestionResponse>>(true, "Operation Successful", reportedQuestions.ToList(), 200, reportedQuestions.Count());
+        //        }
+        //        else
+        //        {
+        //            return new ServiceResponse<List<ReportedQuestionResponse>>(false, "No records found", [], 404);
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new ServiceResponse<List<ReportedQuestionResponse>>(false, ex.Message, [], 500);
+        //    }
+        //}
         public async Task<ServiceResponse<ReportedQuestionResponse>> GetReportedQuestionById(int QueryCode)
         {
             try
@@ -99,12 +206,12 @@ namespace Schools_API.Repository.Implementations
                 string sql = @"
         SELECT rq.QueryCode,
                rq.Querydescription,
-               rq.QuestionID,
+               rq.QuestionCode,
                rq.DateandTime,
                rq.RQSID,
                rq.Reply,
                rq.Link,
-               rq.PathURL,
+               rq.ImageOrPDF,
                rq.subjectID,
                s.SubjectName AS subjectname,
                rqs.RQSName,
@@ -142,7 +249,7 @@ namespace Schools_API.Repository.Implementations
 
                 if (reportedQuestion != null)
                 {
-                    reportedQuestion.PathURL = GetFile(reportedQuestion.PathURL);
+                    reportedQuestion.ImageOrPDF = GetFile(reportedQuestion.ImageOrPDF);
                     return new ServiceResponse<ReportedQuestionResponse>(true, "Operation Successful", reportedQuestion, 200);
                 }
                 else
@@ -159,23 +266,159 @@ namespace Schools_API.Repository.Implementations
         {
             try
             {
+                // Check if the query is already closed
+                string checkStatusSql = @"
+            SELECT RQSID 
+            FROM tblReportedQuestions
+            WHERE QueryCode = @QueryCode";
+
+                var currentStatus = await _connection.QueryFirstOrDefaultAsync<int>(checkStatusSql, new { request.QueryCode });
+
+                if (currentStatus == 3)
+                {
+                    // If the question is already closed, return an error
+                    return new ServiceResponse<string>(false, "This query is already closed", string.Empty, 400);
+                }
+
+                // If the question is not closed, proceed with the update
+                string updateSql = @"
+            UPDATE tblReportedQuestions
+            SET 
+                QuestionCode = @QuestionCode,
+                Reply = @Reply,
+                Link = @Link,
+                ImageOrPDF = @ImageOrPDF,
+                RQSID = @RQSID, -- Mark as Closed
+                EmployeeId = @EmployeeId
+            WHERE 
+                QueryCode = @QueryCode";
+
+                var parameters = new
+                {
+                    request.QuestionCode,
+                    request.Reply,
+                    request.Link,
+                    ImageOrPDF = FileUpload(request.ImageOrPDF),
+                    request.QueryCode,
+                    RQSID = 3,  // Set status to Closed
+                    request.EmployeeId
+                };
+
+                var affectedRows = await _connection.ExecuteAsync(updateSql, parameters);
+
+                if (affectedRows > 0)
+                {
+                    return new ServiceResponse<string>(true, "Query updated and closed successfully", string.Empty, 200);
+                }
+                else
+                {
+                    return new ServiceResponse<string>(false, "Query not found", string.Empty, 404);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+            }
+        }
+        public async Task<ServiceResponse<string>> AddUpdateReportedQuestion(ReportedQuestionRequestDTO request)
+        {
+            try
+            {
+                _connection.Open();
+
+                // Check if record exists based on QueryCode
+                var existingRecord = await _connection.QueryFirstOrDefaultAsync<int>(
+                    "SELECT COUNT(*) FROM tblReportedQuestions WHERE QueryCode = @QueryCode",
+                    new { request.QueryCode });
+
+                if (existingRecord > 0)
+                {
+                    // Update existing record
+                    var updateQuery = @"
+                    UPDATE tblReportedQuestions 
+                    SET 
+                        Querydescription = @Querydescription,
+                        QuestionCode = @QuestionCode,
+                        DateandTime = @DateandTime,
+                        RQSID = @RQSID,
+                        Reply = @Reply,
+                        Link = @Link,
+                        ImageOrPDF = @ImageOrPDF,
+                        subjectID = @subjectID,
+                        StudentId = @StudentId,
+                        EmployeeId = @EmployeeId,
+                        CategoryId = @CategoryId,
+                        ClassId = @ClassId,
+                        CourseId = @CourseId,
+                        BoardId = @BoardId,
+                        ExamTypeId = @ExamTypeId,
+                        StatusId = @StatusId
+                    WHERE QueryCode = @QueryCode";
+                    request.RQSID = 1;
+                    request.ImageOrPDF = FileUpload(request.ImageOrPDF);
+                    var affectedrows = await _connection.ExecuteAsync(updateQuery, request);
+                    if (affectedrows > 0)
+                    {
+                        return new ServiceResponse<string>(true, "Operation Successful", "Reported question updated successfully.", 200);
+                    }
+                    else
+                    {
+                        return new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
+                    }
+                }
+                else
+                {
+                    // Insert new record
+                    var insertQuery = @"
+                    INSERT INTO tblReportedQuestions 
+                    (
+                        QueryCode, Querydescription, QuestionCode, DateandTime, 
+                        RQSID, Reply, Link, ImageOrPDF, subjectID, StudentId, 
+                        EmployeeId, CategoryId, ClassId, CourseId, BoardId, 
+                        ExamTypeId, StatusId
+                    ) 
+                    VALUES 
+                    (
+                        @QueryCode, @Querydescription, @QuestionCode, @DateandTime, 
+                        @RQSID, @Reply, @Link, @ImageOrPDF, @subjectID, @StudentId, 
+                        @EmployeeId, @CategoryId, @ClassId, @CourseId, @BoardId, 
+                        @ExamTypeId, @StatusId
+                    )";
+                    request.RQSID = 2;
+                    request.ImageOrPDF = FileUpload(request.ImageOrPDF);
+                    var insertedvalue = await _connection.ExecuteAsync(insertQuery, request);
+                    if (insertedvalue > 0)
+                    {
+                        return new ServiceResponse<string>(true, "Operation Successful", "Reported question Added successfully.", 200);
+                    }
+                    else
+                    {
+                        return new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+            }
+        }
+        public async Task<ServiceResponse<string>> ChangeRQStatus(RQStatusRequest request)
+        {
+            try
+            {
                 string updateSql = @"
                 UPDATE tblReportedQuestions
                 SET 
-                    QuestionID = @QuestionID,
-                    Reply = @Reply,
-                    Link = @Link,
-                    PathURL = @PathURL
+                    RQSID = @RQSID,
+                    EmployeeId = @EmployeeId
                 WHERE 
                     QueryCode = @QueryCode";
 
                 var parameters = new
                 {
-                    request.QuestionID,
-                    request.Reply,
-                    request.Link,
-                    PathURL = FileUpload(request.PathURL),
-                    request.QueryCode
+                    request.QueryCode,
+                    RQSID = 1,
+                    request.EmployeeId
                 };
 
                 var affectedRows = await _connection.ExecuteAsync(updateSql, parameters);
