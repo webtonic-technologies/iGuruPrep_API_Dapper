@@ -1114,14 +1114,14 @@ WHERE 1=1";
             {
                 // SQL Query
                 string sql = @"
-            SELECT sd.*, s.*
-            FROM [iGuruPrep].[dbo].[tblSyllabus] s
-            JOIN [iGuruPrep].[dbo].[tblSyllabusDetails] sd ON s.SyllabusId = sd.SyllabusID
-            WHERE s.APID = @APId
-            AND (s.BoardID = @BoardId OR @BoardId = 0)
-            AND (s.ClassId = @ClassId OR @ClassId = 0)
-            AND (s.CourseId = @CourseId OR @CourseId = 0)
-            AND (sd.SubjectId = @SubjectId OR @SubjectId = 0)";
+        SELECT sd.*, s.*
+        FROM [tblSyllabus] s
+        JOIN [tblSyllabusDetails] sd ON s.SyllabusId = sd.SyllabusID
+        WHERE s.APID = @APId
+        AND (s.BoardID = @BoardId OR @BoardId = 0)
+        AND (s.ClassId = @ClassId OR @ClassId = 0)
+        AND (s.CourseId = @CourseId OR @CourseId = 0)
+        AND (sd.SubjectId = @SubjectId OR @SubjectId = 0)";
 
                 var syllabusDetails = await _connection.QueryAsync<dynamic>(sql, new
                 {
@@ -1140,9 +1140,10 @@ WHERE 1=1";
                     int indexTypeId = detail.IndexTypeId;
                     if (indexTypeId == 1) // Chapter
                     {
+                        // Fetch and map chapter data
                         string getchapter = @"select * from tblContentIndexChapters where ContentIndexId = @ContentIndexId;";
                         var data = await _connection.QueryFirstOrDefaultAsync<ContentIndexResponses>(getchapter, new { ContentIndexId = detail.ContentIndexId });
-                        //query to fetch chapters data if you get response then map
+
                         var chapter = new ContentIndexResponses
                         {
                             ContentIndexId = data.ContentIndexId,
@@ -1167,13 +1168,15 @@ WHERE 1=1";
                             ContentIndexTopics = new List<ContentIndexTopicsResponse>()
                         };
 
-                        // Add to response list
+                        // Add chapter to response list
                         contentIndexResponse.Add(chapter);
                     }
                     else if (indexTypeId == 2) // Topic
                     {
+                        // Fetch and map topic data
                         string gettopic = @"select * from tblContentIndexTopics where ContInIdTopic = @ContentIndexId;";
                         var data = await _connection.QueryFirstOrDefaultAsync<ContentIndexTopicsResponse>(gettopic, new { ContentIndexId = detail.ContentIndexId });
+
                         var topic = new ContentIndexTopicsResponse
                         {
                             ContInIdTopic = data.ContInIdTopic,
@@ -1194,27 +1197,29 @@ WHERE 1=1";
                             ContentIndexSubTopics = new List<ContentIndexSubTopicResponse>()
                         };
 
-                        // Check if the chapter exists in the response
+                        // Ensure chapter exists or create a dummy one
                         var existingChapter = contentIndexResponse.FirstOrDefault(c => c.ChapterCode == data.ChapterCode);
-                        if (existingChapter != null)
+                        if (existingChapter == null)
                         {
-                            existingChapter.ContentIndexTopics.Add(topic);
+                            existingChapter = new ContentIndexResponses
+                            {
+                                ChapterCode = data.ChapterCode,
+                                ContentName_Chapter = "N/A", // Dummy entry for the chapter
+                                ContentIndexTopics = new List<ContentIndexTopicsResponse> { topic }
+                            };
+                            contentIndexResponse.Add(existingChapter);
                         }
                         else
                         {
-                            // Create a new chapter entry if it doesn't exist
-                            var newChapter = new ContentIndexResponses
-                            {
-                                ChapterCode = detail.ChapterCode,
-                                ContentIndexTopics = new List<ContentIndexTopicsResponse> { topic }
-                            };
-                            contentIndexResponse.Add(newChapter);
+                            existingChapter.ContentIndexTopics.Add(topic);
                         }
                     }
                     else if (indexTypeId == 3) // SubTopic
                     {
+                        // Fetch and map subtopic data
                         string getsubtopic = @"select * from tblContentIndexSubTopics where ContInIdSubTopic = @ContentIndexId;";
                         var data = await _connection.QueryFirstOrDefaultAsync<ContentIndexSubTopicResponse>(getsubtopic, new { ContentIndexId = detail.ContentIndexId });
+
                         var subTopic = new ContentIndexSubTopicResponse
                         {
                             ContInIdSubTopic = data.ContInIdSubTopic,
@@ -1234,12 +1239,38 @@ WHERE 1=1";
                             TopicCode = data.TopicCode
                         };
 
-                        // Find the corresponding topic
+                        // Ensure topic exists or create a dummy one
                         var existingTopic = contentIndexResponse
                             .SelectMany(c => c.ContentIndexTopics)
                             .FirstOrDefault(t => t.TopicCode == data.TopicCode);
 
-                        if (existingTopic != null)
+                        if (existingTopic == null)
+                        {
+                            var dummyTopic = new ContentIndexTopicsResponse
+                            {
+                                TopicCode = data.TopicCode,
+                                ContentName_Topic = "N/A", // Dummy entry for the topic
+                                ContentIndexSubTopics = new List<ContentIndexSubTopicResponse> { subTopic }
+                            };
+
+                            // Ensure chapter exists or create a dummy one
+                            var chapterForTopic = contentIndexResponse.FirstOrDefault(c => c.ChapterCode == detail.ChapterCode);
+                            if (chapterForTopic == null)
+                            {
+                                chapterForTopic = new ContentIndexResponses
+                                {
+                                    ChapterCode = detail.ChapterCode,
+                                    ContentName_Chapter = "N/A", // Dummy entry for the chapter
+                                    ContentIndexTopics = new List<ContentIndexTopicsResponse> { dummyTopic }
+                                };
+                                contentIndexResponse.Add(chapterForTopic);
+                            }
+                            else
+                            {
+                                chapterForTopic.ContentIndexTopics.Add(dummyTopic);
+                            }
+                        }
+                        else
                         {
                             existingTopic.ContentIndexSubTopics.Add(subTopic);
                         }

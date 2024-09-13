@@ -420,11 +420,11 @@ namespace Course_API.Repository.Implementations
             {
                 // SQL Query
                 string sql = @"
-        SELECT sd.*, s.*
-        FROM [tblSyllabus] s
-        JOIN [tblSyllabusDetails] sd ON s.SyllabusId = sd.SyllabusID
-        WHERE s.SyllabusId = @SyllabusId
-        AND sd.SubjectId = @SubjectId";
+                SELECT sd.*, s.*
+                FROM [tblSyllabus] s
+                JOIN [tblSyllabusDetails] sd ON s.SyllabusId = sd.SyllabusID
+                WHERE s.SyllabusId = @SyllabusId
+                AND sd.SubjectId = @SubjectId";
 
                 var syllabusDetails = await _connection.QueryAsync<dynamic>(sql, new { SyllabusId = syllabusId, SubjectId = subjectId });
 
@@ -434,16 +434,18 @@ namespace Course_API.Repository.Implementations
                 foreach (var detail in syllabusDetails)
                 {
                     int indexTypeId = detail.IndexTypeId;
+
+                    // Handle Chapter (IndexTypeId = 1)
                     if (indexTypeId == 1) // Chapter
                     {
-                        string getchapter = @"SELECT * FROM tblContentIndexChapters WHERE ContentIndexId = @ContentIndexId;";
-                        var data = await _connection.QueryFirstOrDefaultAsync<ContentIndexResponses>(getchapter, new { ContentIndexId = detail.ContentIndexId });
+                        string getChapter = @"SELECT * FROM tblContentIndexChapters WHERE ContentIndexId = @ContentIndexId;";
+                        var data = await _connection.QueryFirstOrDefaultAsync<ContentIndexResponses>(getChapter, new { ContentIndexId = detail.ContentIndexId });
 
                         var chapter = new ContentIndexResponses
                         {
                             ContentIndexId = data.ContentIndexId,
                             SubjectId = data.SubjectId,
-                            ContentName_Chapter = string.IsNullOrEmpty(data.DisplayName) ? data.ContentName_Chapter : data.DisplayName,//data.ContentName_Chapter,
+                            ContentName_Chapter = string.IsNullOrEmpty(data.DisplayName) ? data.ContentName_Chapter : data.DisplayName,
                             Status = data.Status,
                             IndexTypeId = indexTypeId,
                             BoardId = data.BoardId,
@@ -456,24 +458,25 @@ namespace Course_API.Repository.Implementations
                             ModifiedBy = data.ModifiedBy,
                             EmployeeId = data.EmployeeId,
                             ExamTypeId = data.ExamTypeId,
-                            IsActive = data.Status, // Assuming Status is used for IsActive
+                            IsActive = data.Status,
                             ChapterCode = data.ChapterCode,
-                           // DisplayName = data.DisplayName,
                             DisplayOrder = data.DisplayOrder,
                             ContentIndexTopics = new List<ContentIndexTopicsResponse>()
                         };
 
                         contentIndexResponse.Add(chapter);
                     }
+                    // Handle Topic (IndexTypeId = 2)
                     else if (indexTypeId == 2) // Topic
                     {
-                        string gettopic = @"SELECT * FROM tblContentIndexTopics WHERE ContInIdTopic = @ContentIndexId;";
-                        var data = await _connection.QueryFirstOrDefaultAsync<ContentIndexTopicsResponse>(gettopic, new { ContentIndexId = detail.ContentIndexId });
+                        string getTopic = @"SELECT * FROM tblContentIndexTopics WHERE ContInIdTopic = @ContentIndexId;";
+                        var data = await _connection.QueryFirstOrDefaultAsync<ContentIndexTopicsResponse>(getTopic, new { ContentIndexId = detail.ContentIndexId });
+
                         var topic = new ContentIndexTopicsResponse
                         {
                             ContInIdTopic = data.ContInIdTopic,
                             ContentIndexId = data.ContentIndexId,
-                            ContentName_Topic = string.IsNullOrEmpty(data.DisplayName) ? data.ContentName_Topic : data.DisplayName,//data.ContentName_Topic,
+                            ContentName_Topic = string.IsNullOrEmpty(data.DisplayName) ? data.ContentName_Topic : data.DisplayName,
                             Status = data.Status,
                             IndexTypeId = indexTypeId,
                             CreatedOn = data.CreatedOn,
@@ -483,13 +486,12 @@ namespace Course_API.Repository.Implementations
                             EmployeeId = data.EmployeeId,
                             IsActive = data.Status,
                             TopicCode = data.TopicCode,
-                           // DisplayName = data.DisplayName,
                             DisplayOrder = data.DisplayOrder,
                             ChapterCode = data.ChapterCode,
                             ContentIndexSubTopics = new List<ContentIndexSubTopicResponse>()
                         };
 
-                        // Check if the chapter exists in the response
+                        // Check if the parent Chapter exists in the response
                         var existingChapter = contentIndexResponse.FirstOrDefault(c => c.ChapterCode == data.ChapterCode);
                         if (existingChapter != null)
                         {
@@ -497,24 +499,27 @@ namespace Course_API.Repository.Implementations
                         }
                         else
                         {
-                            // Create a new chapter entry if it doesn't exist
+                            // Create a new Chapter placeholder if it doesn't exist
                             var newChapter = new ContentIndexResponses
                             {
-                                ChapterCode = detail.ChapterCode,
+                                ChapterCode = data.ChapterCode,
+                                ContentName_Chapter = "N/A", // Placeholder for chapter name
                                 ContentIndexTopics = new List<ContentIndexTopicsResponse> { topic }
                             };
                             contentIndexResponse.Add(newChapter);
                         }
                     }
+                    // Handle SubTopic (IndexTypeId = 3)
                     else if (indexTypeId == 3) // SubTopic
                     {
-                        string getsubtopic = @"SELECT * FROM tblContentIndexSubTopics WHERE ContInIdSubTopic = @ContentIndexId;";
-                        var data = await _connection.QueryFirstOrDefaultAsync<ContentIndexSubTopicResponse>(getsubtopic, new { ContentIndexId = detail.ContentIndexId });
+                        string getSubTopic = @"SELECT * FROM tblContentIndexSubTopics WHERE ContInIdSubTopic = @ContentIndexId;";
+                        var data = await _connection.QueryFirstOrDefaultAsync<ContentIndexSubTopicResponse>(getSubTopic, new { ContentIndexId = detail.ContentIndexId });
+
                         var subTopic = new ContentIndexSubTopicResponse
                         {
                             ContInIdSubTopic = data.ContInIdSubTopic,
                             ContInIdTopic = data.ContInIdTopic,
-                            ContentName_SubTopic = string.IsNullOrEmpty(data.DisplayName) ? data.ContentName_SubTopic : data.DisplayName,//data.ContentName_SubTopic,
+                            ContentName_SubTopic = string.IsNullOrEmpty(data.DisplayName) ? data.ContentName_SubTopic : data.DisplayName,
                             Status = data.Status,
                             IndexTypeId = indexTypeId,
                             CreatedOn = data.CreatedOn,
@@ -524,12 +529,11 @@ namespace Course_API.Repository.Implementations
                             EmployeeId = data.EmployeeId,
                             IsActive = data.Status,
                             SubTopicCode = data.SubTopicCode,
-                           // DisplayName = data.DisplayName,
                             DisplayOrder = data.DisplayOrder,
                             TopicCode = data.TopicCode
                         };
 
-                        // Find the corresponding topic
+                        // Check if the parent Topic exists in the response
                         var existingTopic = contentIndexResponse
                             .SelectMany(c => c.ContentIndexTopics)
                             .FirstOrDefault(t => t.TopicCode == data.TopicCode);
@@ -537,6 +541,34 @@ namespace Course_API.Repository.Implementations
                         if (existingTopic != null)
                         {
                             existingTopic.ContentIndexSubTopics.Add(subTopic);
+                        }
+                        else
+                        {
+                            // Create a new Topic placeholder if it doesn't exist
+                            var newTopic = new ContentIndexTopicsResponse
+                            {
+                                TopicCode = data.TopicCode,
+                                ContentName_Topic = "N/A", // Placeholder for topic name
+                                ContentIndexSubTopics = new List<ContentIndexSubTopicResponse> { subTopic }
+                            };
+
+                            // Find or create the parent Chapter
+                            var parentChapter = contentIndexResponse.FirstOrDefault(c => c.ChapterCode == detail.ChapterCode);
+                            if (parentChapter != null)
+                            {
+                                parentChapter.ContentIndexTopics.Add(newTopic);
+                            }
+                            else
+                            {
+                                // Create new Chapter placeholder
+                                var newChapter = new ContentIndexResponses
+                                {
+                                    ChapterCode = detail.ChapterCode,
+                                    ContentName_Chapter = "N/A", // Placeholder for chapter name
+                                    ContentIndexTopics = new List<ContentIndexTopicsResponse> { newTopic }
+                                };
+                                contentIndexResponse.Add(newChapter);
+                            }
                         }
                     }
                 }
@@ -609,29 +641,24 @@ namespace Course_API.Repository.Implementations
         {
             try
             {
-                // Base query to fetch the content indexes
+                // Base query to fetch the content indexes (chapters)
                 string query = @"SELECT * FROM [tblContentIndexChapters] WHERE [IsActive] = 1 AND SubjectId = @SubjectId";
 
-                // Fetch all matching records
+                // Fetch all matching records (chapters)
                 var contentIndexes = (await _connection.QueryAsync<ContentIndexResponses>(query, new { SubjectId })).ToList();
 
                 if (contentIndexes.Any())
                 {
-                    // Fetch related topics and subtopics for each content index
                     foreach (var contentIndex in contentIndexes)
                     {
-                        string topicsSql = @"SELECT * FROM [tblContentIndexTopics] WHERE [ChapterCode] = @chapterCode AND [IsActive] = 1
-                                     ORDER BY CASE WHEN [DisplayOrder] = 0 THEN [ContentName_Topic] ELSE [DisplayOrder] END,
-                                              [ContentName_Topic]"; // Sort alphabetically if DisplayOrder is 0 or same
+                        // Fetch topics related to this chapter
+                        string topicsSql = @"SELECT * FROM [tblContentIndexTopics] WHERE [ChapterCode] = @chapterCode AND [IsActive] = 1";
                         var topics = (await _connection.QueryAsync<ContentIndexTopicsResponse>(topicsSql, new { chapterCode = contentIndex.ChapterCode })).ToList();
 
-                        string subTopicsSql = @"
-            SELECT st.*
-            FROM [tblContentIndexSubTopics] st
-            INNER JOIN [tblContentIndexTopics] t ON st.TopicCode = t.TopicCode
-            WHERE t.ChapterCode = @chapterCode AND st.[IsActive] = 1
-            ORDER BY CASE WHEN st.DisplayOrder = 0 THEN st.ContentName_SubTopic ELSE st.DisplayOrder END,
-                     st.ContentName_SubTopic"; // Sort alphabetically if DisplayOrder is 0 or same
+                        // Fetch subtopics related to this chapter's topics
+                        string subTopicsSql = @"SELECT st.* FROM [tblContentIndexSubTopics] st
+                                        INNER JOIN [tblContentIndexTopics] t ON st.TopicCode = t.TopicCode
+                                        WHERE t.ChapterCode = @chapterCode AND st.[IsActive] = 1";
                         var subTopics = (await _connection.QueryAsync<ContentIndexSubTopicResponse>(subTopicsSql, new { chapterCode = contentIndex.ChapterCode })).ToList();
 
                         // Assign the subtopics to the respective topics
@@ -639,93 +666,133 @@ namespace Course_API.Repository.Implementations
                         {
                             topic.ContentIndexSubTopics = subTopics
                                 .Where(st => st.TopicCode == topic.TopicCode)
-                                .OrderBy(st => st.DisplayOrder)
-                                .ThenBy(st => st.DisplayName)
+                                .OrderBy(st => st.DisplayOrder == 0 ? int.MaxValue : st.DisplayOrder)  // Handle DisplayOrder logic in C#
+                                .ThenBy(st => st.ContentName_SubTopic)  // If DisplayOrder is 0, fallback to ContentName_SubTopic
                                 .ToList();
+
+                            // Fetch and assign question counts for each subtopic
+                            foreach (var subTopic in topic.ContentIndexSubTopics)
+                            {
+                                string subTopicQuestionCountSql = @"
+                            SELECT dl.LevelCode, COUNT(qidc.QuestionCode) AS QuestionCount
+                            FROM [tblQuestion] q
+                            INNER JOIN [tblQIDCourse] qidc ON q.QuestionCode = qidc.QuestionCode
+                            INNER JOIN [tbldifficultylevel] dl ON qidc.LevelId = dl.LevelId
+                            WHERE q.ContentIndexId = @contentIndexId AND q.IndexTypeId = 3 AND q.IsLive = 1 AND q.IsActive = 1
+                            GROUP BY dl.LevelCode";
+
+                                var subTopicQuestionCounts = (await _connection.QueryAsync<dynamic>(subTopicQuestionCountSql, new
+                                {
+                                    contentIndexId = subTopic.ContInIdSubTopic
+                                })).ToList();
+
+                                int subTopicEasyCount = 0, subTopicMediumCount = 0, subTopicHardCount = 0;
+
+                                foreach (var qc in subTopicQuestionCounts)
+                                {
+                                    switch (qc.LevelCode)
+                                    {
+                                        case "ES":
+                                            subTopicEasyCount = qc.QuestionCount;
+                                            break;
+                                        case "MD":
+                                            subTopicMediumCount = qc.QuestionCount;
+                                            break;
+                                        case "HD":
+                                            subTopicHardCount = qc.QuestionCount;
+                                            break;
+                                    }
+                                }
+
+                                // Assign question counts for subtopics
+                                subTopic.QuestionCountPerDifficultyLevel = $"ES:{subTopicEasyCount}, MD:{subTopicMediumCount}, HD:{subTopicHardCount}";
+                            }
+
+                            // Fetch and assign question counts for each topic
+                            string topicQuestionCountSql = @"
+                        SELECT dl.LevelCode, COUNT(qidc.QID) AS QuestionCount
+                        FROM [tblQuestion] q
+                        INNER JOIN [tblQIDCourse] qidc ON q.QuestionCode = qidc.QuestionCode
+                        INNER JOIN [tbldifficultylevel] dl ON qidc.LevelId = dl.LevelId
+                        WHERE q.ContentIndexId = @contentIndexId AND q.IndexTypeId = 2 AND q.IsLive = 1 AND q.IsActive = 1
+                        GROUP BY dl.LevelCode";
+
+                            var topicQuestionCounts = (await _connection.QueryAsync<dynamic>(topicQuestionCountSql, new
+                            {
+                                contentIndexId = topic.ContInIdTopic
+                            })).ToList();
+
+                            int topicEasyCount = 0, topicMediumCount = 0, topicHardCount = 0;
+
+                            foreach (var qc in topicQuestionCounts)
+                            {
+                                switch (qc.LevelCode)
+                                {
+                                    case "ES":
+                                        topicEasyCount = qc.QuestionCount;
+                                        break;
+                                    case "MD":
+                                        topicMediumCount = qc.QuestionCount;
+                                        break;
+                                    case "HD":
+                                        topicHardCount = qc.QuestionCount;
+                                        break;
+                                }
+                            }
+
+                            // Assign question counts for topics
+                            topic.QuestionCountPerDifficultyLevel = $"ES:{topicEasyCount}, MD:{topicMediumCount}, HD:{topicHardCount}";
                         }
 
-                        // Assign the topics to the content index
+                        // Fetch and assign question counts for chapters
+                        string questionCountSql = @"
+                    SELECT dl.LevelCode, COUNT(qidc.QID) AS QuestionCount
+                    FROM [tblQuestion] q
+                    INNER JOIN [tblQIDCourse] qidc ON q.QuestionCode = qidc.QuestionCode
+                    INNER JOIN [tbldifficultylevel] dl ON qidc.LevelId = dl.LevelId
+                    WHERE q.ContentIndexId = @contentIndexId AND q.IndexTypeId = 1 AND q.IsLive = 1 AND q.IsActive = 1
+                    GROUP BY dl.LevelCode";
+
+                        var questionCounts = (await _connection.QueryAsync<dynamic>(questionCountSql, new
+                        {
+                            contentIndexId = contentIndex.ContentIndexId
+                        })).ToList();
+
+                        int easyCount = 0, mediumCount = 0, hardCount = 0;
+
+                        foreach (var qc in questionCounts)
+                        {
+                            switch (qc.LevelCode)
+                            {
+                                case "ES":
+                                    easyCount = qc.QuestionCount;
+                                    break;
+                                case "MD":
+                                    mediumCount = qc.QuestionCount;
+                                    break;
+                                case "HD":
+                                    hardCount = qc.QuestionCount;
+                                    break;
+                            }
+                        }
+
+                        // Format the result into a string: "ES:x, MD:y, HD:z"
+                        contentIndex.QuestionCountPerDifficultyLevel = $"ES:{easyCount}, MD:{mediumCount}, HD:{hardCount}";
+
+                        // Assign topics to the content index
                         contentIndex.ContentIndexTopics = topics
-                            .OrderBy(topic => topic.DisplayOrder)
-                            .ThenBy(topic => topic.DisplayName)
+                            .OrderBy(topic => topic.DisplayOrder == 0 ? int.MaxValue : topic.DisplayOrder)  // Handle DisplayOrder logic in C#
+                            .ThenBy(topic => topic.ContentName_Topic)  // If DisplayOrder is 0, fallback to ContentName_Topic
                             .ToList();
                     }
 
-                    // Order the content indexes by DisplayOrder and DisplayName
+                    // Order and paginate the content indexes (chapters)
                     var orderedContentIndexes = contentIndexes
-                        .OrderBy(c => c.DisplayOrder)
-                        .ThenBy(c => c.DisplayName)
+                        .OrderBy(c => c.DisplayOrder == 0 ? int.MaxValue : c.DisplayOrder)  // Handle DisplayOrder logic in C#
+                        .ThenBy(c => c.DisplayName)  // Fallback to DisplayName if DisplayOrder is 0
                         .ToList();
 
-                    // Paginate the content indexes
-                    var paginatedContentIndexes = orderedContentIndexes
-                        .Select(ci => new ContentIndexResponses
-                        {
-                            ContentIndexId = ci.ContentIndexId,
-                            SubjectId = ci.SubjectId,
-                            ContentName_Chapter = ci.ContentName_Chapter,
-                            Status = ci.Status,
-                            IndexTypeId = ci.IndexTypeId,
-                            BoardId = ci.BoardId,
-                            ClassId = ci.ClassId,
-                            CourseId = ci.CourseId,
-                            APID = ci.APID,
-                            CreatedOn = ci.CreatedOn,
-                            CreatedBy = ci.CreatedBy,
-                            ModifiedOn = ci.ModifiedOn,
-                            ModifiedBy = ci.ModifiedBy,
-                            EmployeeId = ci.EmployeeId,
-                            ExamTypeId = ci.ExamTypeId,
-                            IsActive = ci.IsActive,
-                            ChapterCode = ci.ChapterCode,
-                            DisplayName = ci.DisplayName,
-                            DisplayOrder = ci.DisplayOrder,
-                            ContentIndexTopics = ci?.ContentIndexTopics?.Select(topic => new ContentIndexTopicsResponse
-                            {
-                                ContInIdTopic = topic.ContInIdTopic,
-                                ContentIndexId = topic.ContentIndexId,
-                                ContentName_Topic = topic.ContentName_Topic,
-                                Status = topic.Status,
-                                IndexTypeId = topic.IndexTypeId,
-                                CreatedOn = topic.CreatedOn,
-                                CreatedBy = topic.CreatedBy,
-                                ModifiedOn = topic.ModifiedOn,
-                                ModifiedBy = topic.ModifiedBy,
-                                EmployeeId = topic.EmployeeId,
-                                IsActive = topic.IsActive,
-                                TopicCode = topic.TopicCode,
-                                ChapterCode = topic.ChapterCode,
-                                DisplayName = topic.DisplayName,
-                                DisplayOrder = topic.DisplayOrder,
-                                ContentIndexSubTopics = topic?.ContentIndexSubTopics?.Select(subTopic => new ContentIndexSubTopicResponse
-                                {
-                                    ContInIdSubTopic = subTopic.ContInIdSubTopic,
-                                    ContInIdTopic = subTopic.ContInIdTopic,
-                                    ContentName_SubTopic = subTopic.ContentName_SubTopic,
-                                    Status = subTopic.Status,
-                                    IndexTypeId = subTopic.IndexTypeId,
-                                    CreatedOn = subTopic.CreatedOn,
-                                    CreatedBy = subTopic.CreatedBy,
-                                    ModifiedOn = subTopic.ModifiedOn,
-                                    ModifiedBy = subTopic.ModifiedBy,
-                                    EmployeeId = subTopic.EmployeeId,
-                                    IsActive = subTopic.IsActive,
-                                    TopicCode = subTopic.TopicCode,
-                                    SubTopicCode = subTopic.SubTopicCode,
-                                    DisplayName = subTopic.DisplayName,
-                                    DisplayOrder = subTopic.DisplayOrder
-                                })
-                                .OrderBy(subTopic => subTopic.DisplayOrder)
-                                .ThenBy(subTopic => subTopic.DisplayName)
-                                .ToList()
-                            })
-                            .OrderBy(topic => topic.DisplayOrder)
-                            .ThenBy(topic => topic.DisplayName)
-                            .ToList()
-                        })
-                        .ToList();
-
-                    return new ServiceResponse<List<ContentIndexResponses>>(true, "Records found", paginatedContentIndexes, StatusCodes.Status302Found, contentIndexes.Count);
+                    return new ServiceResponse<List<ContentIndexResponses>>(true, "Records found", orderedContentIndexes, StatusCodes.Status302Found, contentIndexes.Count);
                 }
                 else
                 {
@@ -737,6 +804,138 @@ namespace Course_API.Repository.Implementations
                 return new ServiceResponse<List<ContentIndexResponses>>(false, ex.Message, new List<ContentIndexResponses>(), StatusCodes.Status500InternalServerError);
             }
         }
+        //public async Task<ServiceResponse<List<ContentIndexResponses>>> GetAllContentIndexList(int SubjectId)
+        //{
+        //    try
+        //    {
+        //        // Base query to fetch the content indexes
+        //        string query = @"SELECT * FROM [tblContentIndexChapters] WHERE [IsActive] = 1 AND SubjectId = @SubjectId";
+
+        //        // Fetch all matching records
+        //        var contentIndexes = (await _connection.QueryAsync<ContentIndexResponses>(query, new { SubjectId })).ToList();
+
+        //        if (contentIndexes.Any())
+        //        {
+        //            // Fetch related topics and subtopics for each content index
+        //            foreach (var contentIndex in contentIndexes)
+        //            {
+        //                string topicsSql = @"SELECT * FROM [tblContentIndexTopics] WHERE [ChapterCode] = @chapterCode AND [IsActive] = 1
+        //                             ORDER BY CASE WHEN [DisplayOrder] = 0 THEN [ContentName_Topic] ELSE [DisplayOrder] END,
+        //                                      [ContentName_Topic]"; // Sort alphabetically if DisplayOrder is 0 or same
+        //                var topics = (await _connection.QueryAsync<ContentIndexTopicsResponse>(topicsSql, new { chapterCode = contentIndex.ChapterCode })).ToList();
+
+        //                string subTopicsSql = @"
+        //    SELECT st.*
+        //    FROM [tblContentIndexSubTopics] st
+        //    INNER JOIN [tblContentIndexTopics] t ON st.TopicCode = t.TopicCode
+        //    WHERE t.ChapterCode = @chapterCode AND st.[IsActive] = 1
+        //    ORDER BY CASE WHEN st.DisplayOrder = 0 THEN st.ContentName_SubTopic ELSE st.DisplayOrder END,
+        //             st.ContentName_SubTopic"; // Sort alphabetically if DisplayOrder is 0 or same
+        //                var subTopics = (await _connection.QueryAsync<ContentIndexSubTopicResponse>(subTopicsSql, new { chapterCode = contentIndex.ChapterCode })).ToList();
+
+        //                // Assign the subtopics to the respective topics
+        //                foreach (var topic in topics)
+        //                {
+        //                    topic.ContentIndexSubTopics = subTopics
+        //                        .Where(st => st.TopicCode == topic.TopicCode)
+        //                        .OrderBy(st => st.DisplayOrder)
+        //                        .ThenBy(st => st.DisplayName)
+        //                        .ToList();
+        //                }
+
+        //                // Assign the topics to the content index
+        //                contentIndex.ContentIndexTopics = topics
+        //                    .OrderBy(topic => topic.DisplayOrder)
+        //                    .ThenBy(topic => topic.DisplayName)
+        //                    .ToList();
+        //            }
+
+        //            // Order the content indexes by DisplayOrder and DisplayName
+        //            var orderedContentIndexes = contentIndexes
+        //                .OrderBy(c => c.DisplayOrder)
+        //                .ThenBy(c => c.DisplayName)
+        //                .ToList();
+
+        //            // Paginate the content indexes
+        //            var paginatedContentIndexes = orderedContentIndexes
+        //                .Select(ci => new ContentIndexResponses
+        //                {
+        //                    ContentIndexId = ci.ContentIndexId,
+        //                    SubjectId = ci.SubjectId,
+        //                    ContentName_Chapter = ci.ContentName_Chapter,
+        //                    Status = ci.Status,
+        //                    IndexTypeId = ci.IndexTypeId,
+        //                    BoardId = ci.BoardId,
+        //                    ClassId = ci.ClassId,
+        //                    CourseId = ci.CourseId,
+        //                    APID = ci.APID,
+        //                    CreatedOn = ci.CreatedOn,
+        //                    CreatedBy = ci.CreatedBy,
+        //                    ModifiedOn = ci.ModifiedOn,
+        //                    ModifiedBy = ci.ModifiedBy,
+        //                    EmployeeId = ci.EmployeeId,
+        //                    ExamTypeId = ci.ExamTypeId,
+        //                    IsActive = ci.IsActive,
+        //                    ChapterCode = ci.ChapterCode,
+        //                    DisplayName = ci.DisplayName,
+        //                    DisplayOrder = ci.DisplayOrder,
+        //                    ContentIndexTopics = ci?.ContentIndexTopics?.Select(topic => new ContentIndexTopicsResponse
+        //                    {
+        //                        ContInIdTopic = topic.ContInIdTopic,
+        //                        ContentIndexId = topic.ContentIndexId,
+        //                        ContentName_Topic = topic.ContentName_Topic,
+        //                        Status = topic.Status,
+        //                        IndexTypeId = topic.IndexTypeId,
+        //                        CreatedOn = topic.CreatedOn,
+        //                        CreatedBy = topic.CreatedBy,
+        //                        ModifiedOn = topic.ModifiedOn,
+        //                        ModifiedBy = topic.ModifiedBy,
+        //                        EmployeeId = topic.EmployeeId,
+        //                        IsActive = topic.IsActive,
+        //                        TopicCode = topic.TopicCode,
+        //                        ChapterCode = topic.ChapterCode,
+        //                        DisplayName = topic.DisplayName,
+        //                        DisplayOrder = topic.DisplayOrder,
+        //                        ContentIndexSubTopics = topic?.ContentIndexSubTopics?.Select(subTopic => new ContentIndexSubTopicResponse
+        //                        {
+        //                            ContInIdSubTopic = subTopic.ContInIdSubTopic,
+        //                            ContInIdTopic = subTopic.ContInIdTopic,
+        //                            ContentName_SubTopic = subTopic.ContentName_SubTopic,
+        //                            Status = subTopic.Status,
+        //                            IndexTypeId = subTopic.IndexTypeId,
+        //                            CreatedOn = subTopic.CreatedOn,
+        //                            CreatedBy = subTopic.CreatedBy,
+        //                            ModifiedOn = subTopic.ModifiedOn,
+        //                            ModifiedBy = subTopic.ModifiedBy,
+        //                            EmployeeId = subTopic.EmployeeId,
+        //                            IsActive = subTopic.IsActive,
+        //                            TopicCode = subTopic.TopicCode,
+        //                            SubTopicCode = subTopic.SubTopicCode,
+        //                            DisplayName = subTopic.DisplayName,
+        //                            DisplayOrder = subTopic.DisplayOrder
+        //                        })
+        //                        .OrderBy(subTopic => subTopic.DisplayOrder)
+        //                        .ThenBy(subTopic => subTopic.DisplayName)
+        //                        .ToList()
+        //                    })
+        //                    .OrderBy(topic => topic.DisplayOrder)
+        //                    .ThenBy(topic => topic.DisplayName)
+        //                    .ToList()
+        //                })
+        //                .ToList();
+
+        //            return new ServiceResponse<List<ContentIndexResponses>>(true, "Records found", paginatedContentIndexes, StatusCodes.Status302Found, contentIndexes.Count);
+        //        }
+        //        else
+        //        {
+        //            return new ServiceResponse<List<ContentIndexResponses>>(false, "Records not found", new List<ContentIndexResponses>(), StatusCodes.Status204NoContent);
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new ServiceResponse<List<ContentIndexResponses>>(false, ex.Message, new List<ContentIndexResponses>(), StatusCodes.Status500InternalServerError);
+        //    }
+        //}
         public async Task<ServiceResponse<byte[]>> DownloadExcelFile(int SyllabusId)
         {
             try

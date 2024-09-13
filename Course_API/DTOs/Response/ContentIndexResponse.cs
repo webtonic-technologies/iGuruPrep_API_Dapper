@@ -79,6 +79,7 @@
         public string ChapterCode { get; set; } = string.Empty;
         public string DisplayName { get; set; } = string.Empty;
         public int? DisplayOrder { get; set; }
+        public string QuestionCountPerDifficultyLevel {  get; set; } = string.Empty;
         public List<ContentIndexTopicsResponse>? ContentIndexTopics { get; set; }
     }
     public class ContentIndexTopicsResponse
@@ -98,6 +99,7 @@
         public string DisplayName { get; set; } = string.Empty;
         public int? DisplayOrder { get; set; }
         public string ChapterCode { get; set; } = string.Empty;
+        public string QuestionCountPerDifficultyLevel { get; set; } = string.Empty;
         public List<ContentIndexSubTopicResponse>? ContentIndexSubTopics { get; set; }
     }
     public class ContentIndexSubTopicResponse
@@ -117,5 +119,6 @@
         public string DisplayName { get; set; } = string.Empty;
         public int? DisplayOrder { get; set; }
         public string TopicCode { get; set; } = string.Empty;
+        public string QuestionCountPerDifficultyLevel { get; set; } = string.Empty;
     }
 }
