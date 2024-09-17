@@ -230,7 +230,7 @@ namespace Schools_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
-        [HttpPost("GGetSyllabusDetailsBySubject")]
+        [HttpPost("GetSyllabusDetailsBySubject")]
         public async Task<IActionResult> GetSyllabusDetailsBySubject(SyllabusDetailsRequest request)
         {
             var data = await _questionServices.GetSyllabusDetailsBySubject(request);

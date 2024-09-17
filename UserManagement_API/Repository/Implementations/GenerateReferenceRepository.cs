@@ -204,7 +204,13 @@ namespace UserManagement_API.Repository.Implementations
                     var data1 = await _connection.QuerySingleOrDefaultAsync<GenRefBankDetailResponse>(selectBankQuery, new { referenceLinkID = data.referenceLinkID });
 
                     response.GenRefBankdetail = data1 ?? new GenRefBankDetailResponse();
-
+                    string referralDetailsQuery = @"
+                    SELECT 
+                        [RefLinksId], [referenceLinkID], [ReferralCode], [ReferralLink]
+                    FROM [tblReferralLinks]
+                    WHERE [referenceLinkID] = @referenceLinkID;";
+                    var referralDetails = await _connection.QueryAsync<ReferenceLinksResposne>(referralDetailsQuery, new { referenceLinkID = GenerateReferenceID });
+                    response.ReferenceLinksResposnes = referralDetails.AsList();
                     return new ServiceResponse<GenerateReferenceResponseDTO>(true, "Record found", response, 200);
                 }
                 else

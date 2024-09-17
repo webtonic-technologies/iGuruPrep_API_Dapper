@@ -14,6 +14,7 @@
         public int? ReferenceID { get; set; }
         public string PersonName { get; set; } = string.Empty;
         public GenRefBankDetailResponse? GenRefBankdetail { get; set; }
+        public List<ReferenceLinksResposne>? ReferenceLinksResposnes {  get; set; }
     }
     public class GenRefBankDetailResponse
     {
@@ -25,5 +26,12 @@
         public int ACNo { get; set; }
         public string IFSC { get; set; } = string.Empty;
         public int? ReferenceID { get; set; }
+    }
+    public class ReferenceLinksResposne
+    {
+        public int RefLinksId {  get; set; }
+        public int referenceLinkID { get; set; }
+        public string ReferralCode { get; set; } = string.Empty;
+        public string ReferralLink { get; set; } = string.Empty;
     }
 }

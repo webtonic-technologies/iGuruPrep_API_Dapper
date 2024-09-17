@@ -6,6 +6,7 @@ using Course_API.Repository.Interfaces;
 using Dapper;
 using OfficeOpenXml;
 using System.Data;
+using System.Data.Common;
 namespace Course_API.Repository.Implementations
 {
     public class SyllabusRepository : ISyllabusRepository
@@ -351,69 +352,6 @@ namespace Course_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-        //public async Task<ServiceResponse<string>> AddUpdateSyllabusDetails(SyllabusDetailsDTO request)
-        //{
-        //    try
-        //    {
-        //        // Validate PDF format
-        //        foreach (var detail in request.SyllabusDetails)
-        //        {
-        //            if (string.IsNullOrEmpty(detail.Synopsis) || detail.Synopsis == "string")
-        //            {
-        //                detail.Synopsis = string.Empty;
-        //            }
-        //            else
-        //            {
-        //                if (!IsPdf(Convert.FromBase64String(detail.Synopsis)))
-        //                {
-        //                    throw new Exception("The provided synopsis is not a valid PDF file.");
-        //                }
-        //            }
-        //            // If valid, you can optionally reassign the base64 string back
-        //            detail.Synopsis = PDFUpload(detail.Synopsis); // If you still need to process the PDF
-        //            detail.SyllabusID = request.SyllabusId;
-        //            detail.SubjectId = request.SubjectId;
-        //        }
-
-        //        string insertQuery = @"
-        //INSERT INTO tblSyllabusDetails (SyllabusID, ContentIndexId, IndexTypeId, Status, IsVerson, Synopsis, SubjectId)
-        //VALUES (@SyllabusID, @ContentIndexId, @IndexTypeId, @Status, @IsVerson, @Synopsis, @SubjectId)";
-
-        //        string deleteQuery = "DELETE FROM tblSyllabusDetails WHERE SyllabusID = @SyllabusID";
-
-        //        // Check if the syllabus details exist
-        //        int count = await _connection.ExecuteScalarAsync<int>(
-        //            "SELECT COUNT(*) FROM tblSyllabusDetails WHERE SyllabusID = @SyllabusID",
-        //            new { SyllabusID = request.SyllabusId }
-        //        );
-
-        //        if (count > 0)
-        //        {
-        //            // Delete existing details
-        //            int rowsAffected = await _connection.ExecuteAsync(deleteQuery, new { SyllabusID = request.SyllabusId });
-        //            if (rowsAffected <= 0)
-        //            {
-        //                return new ServiceResponse<string>(false, "Operation Failed to delete existing details", string.Empty, 500);
-        //            }
-        //        }
-
-        //        // Insert new or updated details
-        //        int addedRecords = await _connection.ExecuteAsync(insertQuery, request.SyllabusDetails);
-
-        //        if (addedRecords > 0)
-        //        {
-        //            return new ServiceResponse<string>(true, "Operation Successful", "Syllabus Details Added Successfully", 200);
-        //        }
-        //        else
-        //        {
-        //            return new ServiceResponse<string>(false, "Operation Failed to add new details", string.Empty, 500);
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
-        //    }
-        //}
         public async Task<ServiceResponse<SyllabusDetailsResponse>> GetSyllabusDetailsById(int syllabusId, int subjectId)
         {
             try
@@ -804,177 +742,216 @@ namespace Course_API.Repository.Implementations
                 return new ServiceResponse<List<ContentIndexResponses>>(false, ex.Message, new List<ContentIndexResponses>(), StatusCodes.Status500InternalServerError);
             }
         }
-        //public async Task<ServiceResponse<List<ContentIndexResponses>>> GetAllContentIndexList(int SubjectId)
-        //{
-        //    try
-        //    {
-        //        // Base query to fetch the content indexes
-        //        string query = @"SELECT * FROM [tblContentIndexChapters] WHERE [IsActive] = 1 AND SubjectId = @SubjectId";
+        public async Task<ServiceResponse<string>> UploadSyllabusDetails(IFormFile file)
+        {
+            try
+            {
+                ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
-        //        // Fetch all matching records
-        //        var contentIndexes = (await _connection.QueryAsync<ContentIndexResponses>(query, new { SubjectId })).ToList();
+                // Check if file is not null and has content
+                if (file == null || file.Length == 0)
+                {
+                    return new ServiceResponse<string>(false, "Invalid file. Please upload a valid syllabus details file.", string.Empty, 400);
+                }
 
-        //        if (contentIndexes.Any())
-        //        {
-        //            // Fetch related topics and subtopics for each content index
-        //            foreach (var contentIndex in contentIndexes)
-        //            {
-        //                string topicsSql = @"SELECT * FROM [tblContentIndexTopics] WHERE [ChapterCode] = @chapterCode AND [IsActive] = 1
-        //                             ORDER BY CASE WHEN [DisplayOrder] = 0 THEN [ContentName_Topic] ELSE [DisplayOrder] END,
-        //                                      [ContentName_Topic]"; // Sort alphabetically if DisplayOrder is 0 or same
-        //                var topics = (await _connection.QueryAsync<ContentIndexTopicsResponse>(topicsSql, new { chapterCode = contentIndex.ChapterCode })).ToList();
+                // Read the file content
+                using var stream = new MemoryStream();
+                await file.CopyToAsync(stream);
+                stream.Position = 0;
 
-        //                string subTopicsSql = @"
-        //    SELECT st.*
-        //    FROM [tblContentIndexSubTopics] st
-        //    INNER JOIN [tblContentIndexTopics] t ON st.TopicCode = t.TopicCode
-        //    WHERE t.ChapterCode = @chapterCode AND st.[IsActive] = 1
-        //    ORDER BY CASE WHEN st.DisplayOrder = 0 THEN st.ContentName_SubTopic ELSE st.DisplayOrder END,
-        //             st.ContentName_SubTopic"; // Sort alphabetically if DisplayOrder is 0 or same
-        //                var subTopics = (await _connection.QueryAsync<ContentIndexSubTopicResponse>(subTopicsSql, new { chapterCode = contentIndex.ChapterCode })).ToList();
+                // Use OfficeOpenXml to read the Excel file
+                using var package = new ExcelPackage(stream);
+                var worksheet = package.Workbook.Worksheets[0]; // Assume data is in the first worksheet
+                var rowCount = worksheet.Dimension.Rows;
 
-        //                // Assign the subtopics to the respective topics
-        //                foreach (var topic in topics)
-        //                {
-        //                    topic.ContentIndexSubTopics = subTopics
-        //                        .Where(st => st.TopicCode == topic.TopicCode)
-        //                        .OrderBy(st => st.DisplayOrder)
-        //                        .ThenBy(st => st.DisplayName)
-        //                        .ToList();
-        //                }
+                var syllabusDetails = new List<SyllabusDetails>();
+                var syllabusSubjects = new List<SyllabusSubject>(); // New list to store Syllabus-Subject mappings
+                var headerRow = 1; // Assuming the first row is header
 
-        //                // Assign the topics to the content index
-        //                contentIndex.ContentIndexTopics = topics
-        //                    .OrderBy(topic => topic.DisplayOrder)
-        //                    .ThenBy(topic => topic.DisplayName)
-        //                    .ToList();
-        //            }
+                int syllabusIdToDelete = 0; // Will be used to store the syllabus ID for deletion
 
-        //            // Order the content indexes by DisplayOrder and DisplayName
-        //            var orderedContentIndexes = contentIndexes
-        //                .OrderBy(c => c.DisplayOrder)
-        //                .ThenBy(c => c.DisplayName)
-        //                .ToList();
+                for (int row = headerRow + 1; row <= rowCount; row++)
+                {
+                    var syllabusIdCell = worksheet.Cells[row, 1].Text.Trim();
+                    var indexTypeIdCell = worksheet.Cells[row, 2].Text.Trim();
+                    var contentIdCell = worksheet.Cells[row, 3].Text.Trim();
+                    var subjectNames = worksheet.Cells[row, 4].Text.Trim(); // Allow multiple subject names (comma-separated)
 
-        //            // Paginate the content indexes
-        //            var paginatedContentIndexes = orderedContentIndexes
-        //                .Select(ci => new ContentIndexResponses
-        //                {
-        //                    ContentIndexId = ci.ContentIndexId,
-        //                    SubjectId = ci.SubjectId,
-        //                    ContentName_Chapter = ci.ContentName_Chapter,
-        //                    Status = ci.Status,
-        //                    IndexTypeId = ci.IndexTypeId,
-        //                    BoardId = ci.BoardId,
-        //                    ClassId = ci.ClassId,
-        //                    CourseId = ci.CourseId,
-        //                    APID = ci.APID,
-        //                    CreatedOn = ci.CreatedOn,
-        //                    CreatedBy = ci.CreatedBy,
-        //                    ModifiedOn = ci.ModifiedOn,
-        //                    ModifiedBy = ci.ModifiedBy,
-        //                    EmployeeId = ci.EmployeeId,
-        //                    ExamTypeId = ci.ExamTypeId,
-        //                    IsActive = ci.IsActive,
-        //                    ChapterCode = ci.ChapterCode,
-        //                    DisplayName = ci.DisplayName,
-        //                    DisplayOrder = ci.DisplayOrder,
-        //                    ContentIndexTopics = ci?.ContentIndexTopics?.Select(topic => new ContentIndexTopicsResponse
-        //                    {
-        //                        ContInIdTopic = topic.ContInIdTopic,
-        //                        ContentIndexId = topic.ContentIndexId,
-        //                        ContentName_Topic = topic.ContentName_Topic,
-        //                        Status = topic.Status,
-        //                        IndexTypeId = topic.IndexTypeId,
-        //                        CreatedOn = topic.CreatedOn,
-        //                        CreatedBy = topic.CreatedBy,
-        //                        ModifiedOn = topic.ModifiedOn,
-        //                        ModifiedBy = topic.ModifiedBy,
-        //                        EmployeeId = topic.EmployeeId,
-        //                        IsActive = topic.IsActive,
-        //                        TopicCode = topic.TopicCode,
-        //                        ChapterCode = topic.ChapterCode,
-        //                        DisplayName = topic.DisplayName,
-        //                        DisplayOrder = topic.DisplayOrder,
-        //                        ContentIndexSubTopics = topic?.ContentIndexSubTopics?.Select(subTopic => new ContentIndexSubTopicResponse
-        //                        {
-        //                            ContInIdSubTopic = subTopic.ContInIdSubTopic,
-        //                            ContInIdTopic = subTopic.ContInIdTopic,
-        //                            ContentName_SubTopic = subTopic.ContentName_SubTopic,
-        //                            Status = subTopic.Status,
-        //                            IndexTypeId = subTopic.IndexTypeId,
-        //                            CreatedOn = subTopic.CreatedOn,
-        //                            CreatedBy = subTopic.CreatedBy,
-        //                            ModifiedOn = subTopic.ModifiedOn,
-        //                            ModifiedBy = subTopic.ModifiedBy,
-        //                            EmployeeId = subTopic.EmployeeId,
-        //                            IsActive = subTopic.IsActive,
-        //                            TopicCode = subTopic.TopicCode,
-        //                            SubTopicCode = subTopic.SubTopicCode,
-        //                            DisplayName = subTopic.DisplayName,
-        //                            DisplayOrder = subTopic.DisplayOrder
-        //                        })
-        //                        .OrderBy(subTopic => subTopic.DisplayOrder)
-        //                        .ThenBy(subTopic => subTopic.DisplayName)
-        //                        .ToList()
-        //                    })
-        //                    .OrderBy(topic => topic.DisplayOrder)
-        //                    .ThenBy(topic => topic.DisplayName)
-        //                    .ToList()
-        //                })
-        //                .ToList();
+                    // Validate data
+                    if (string.IsNullOrEmpty(indexTypeIdCell) || string.IsNullOrEmpty(contentIdCell) || string.IsNullOrEmpty(syllabusIdCell))
+                    {
+                        continue; // Skip rows with missing essential data
+                    }
 
-        //            return new ServiceResponse<List<ContentIndexResponses>>(true, "Records found", paginatedContentIndexes, StatusCodes.Status302Found, contentIndexes.Count);
-        //        }
-        //        else
-        //        {
-        //            return new ServiceResponse<List<ContentIndexResponses>>(false, "Records not found", new List<ContentIndexResponses>(), StatusCodes.Status204NoContent);
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return new ServiceResponse<List<ContentIndexResponses>>(false, ex.Message, new List<ContentIndexResponses>(), StatusCodes.Status500InternalServerError);
-        //    }
-        //}
+                    // Parse integer values
+                    if (!int.TryParse(indexTypeIdCell, out int indexTypeId) ||
+                        !int.TryParse(contentIdCell, out int contentIndexId) ||
+                        !int.TryParse(syllabusIdCell, out int syllabusId))
+                    {
+                        return new ServiceResponse<string>(false, $"Invalid data at row {row}", null, 400);
+                    }
+
+                    // Handle syllabusId = 0 case
+                    if (syllabusId == 0)
+                    {
+                        // New syllabus entry, handle accordingly
+                        var createSyllabusQuery = "INSERT INTO tblSyllabus (createdon, Status) OUTPUT INSERTED.SyllabusID VALUES (GETDATE(), 1)";
+                        syllabusId = await _connection.QueryFirstOrDefaultAsync<int>(createSyllabusQuery);
+                        // Split multiple subject names and map them to SubjectIDs
+                        var subjectNameArray = subjectNames.Split(',').Select(s => s.Trim()).ToList();
+                        foreach (var subjectName in subjectNameArray)
+                        {
+                            var subjectQuery = "SELECT SubjectId FROM tblSubject WHERE SubjectName = @SubjectName";
+                            var subjectId = await _connection.QueryFirstOrDefaultAsync<int?>(subjectQuery, new { SubjectName = subjectName });
+
+                            if (subjectId == null)
+                            {
+                                return new ServiceResponse<string>(false, $"Subject '{subjectName}' not found at row {row}", null, 404);
+                            }
+
+                            // Add to syllabus-subject mapping
+                            syllabusSubjects.Add(new SyllabusSubject
+                            {
+                                SyllabusID = syllabusId,
+                                SubjectID = subjectId.Value,
+                                Status = true, // Default status or set based on your requirements
+                                CreatedBy = 1, // Replace with actual CreatedBy user
+                                CreatedDate = DateTime.Now,
+                                ModifiedBy = 1, // Replace with actual ModifiedBy user
+                                ModifiedDate = DateTime.Now
+                            });
+                        }
+                        int subjectMappingResult = SyllabusSubjectMapping(syllabusSubjects, syllabusId);
+                        if (syllabusId == 0)
+                        {
+                            return new ServiceResponse<string>(false, $"Failed to insert new syllabus at row {row}", null, 500);
+                        }
+                    }
+
+                    // Store syllabusId for deletion if needed (only for syllabusId > 0)
+                    if (syllabusIdToDelete == 0 && syllabusId > 0)
+                    {
+                        syllabusIdToDelete = syllabusId;
+                    }
+
+                 
+
+                    // Create SyllabusDetails object
+                    var detail = new SyllabusDetails
+                    {
+                        IndexTypeId = indexTypeId,
+                        ContentIndexId = contentIndexId,
+                        SyllabusID = syllabusId,
+                        Status = 1, // Default or set based on your requirements
+                        IsVerson = 1, // Default version or set based on your requirements
+                    };
+
+                    syllabusDetails.Add(detail);
+                }
+
+                if (syllabusDetails.Count == 0)
+                {
+                    return new ServiceResponse<string>(false, "No valid data found in the file.", string.Empty, 400);
+                }
+
+                // Handle syllabusId > 0 case - delete existing details and add new ones
+                if (syllabusIdToDelete > 0)
+                {
+                    string deleteQuery = "DELETE FROM tblSyllabusDetails WHERE SyllabusID = @SyllabusID";
+                    int rowsDeleted = await _connection.ExecuteAsync(deleteQuery, new { SyllabusID = syllabusIdToDelete });
+
+                    if (rowsDeleted < 0)
+                    {
+                        return new ServiceResponse<string>(false, "Failed to delete existing syllabus details.", string.Empty, 500);
+                    }
+                }
+
+                // Insert the parsed data into the database
+                string insertQuery = @"
+        INSERT INTO tblSyllabusDetails (SyllabusID, ContentIndexId, IndexTypeId, Status, IsVerson)
+        VALUES (@SyllabusID, @ContentIndexId, @IndexTypeId, @Status, @IsVerson)";
+
+                int addedRecords = await _connection.ExecuteAsync(insertQuery, syllabusDetails);
+
+                if (addedRecords > 0)
+                {
+                    return new ServiceResponse<string>(true, "Operation Successful", "Syllabus details and subjects uploaded successfully.", 200);
+                }
+                else
+                {
+                    return new ServiceResponse<string>(false, "Operation Failed to insert syllabus details", string.Empty, 500);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+            }
+        }
         public async Task<ServiceResponse<byte[]>> DownloadExcelFile(int SyllabusId)
         {
             try
             {
                 ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
+                // If SyllabusId is 0, generate an empty Excel file with headers
+                if (SyllabusId == 0)
+                {
+                    using (var package = new ExcelPackage())
+                    {
+                        var worksheet = package.Workbook.Worksheets.Add("SyllabusData");
+
+                        // Add header
+                        worksheet.Cells[1, 1].Value = "SyllabusID";
+                        worksheet.Cells[1, 2].Value = "IndexTypeId";
+                        worksheet.Cells[1, 3].Value = "ContentId";
+                        worksheet.Cells[1, 4].Value = "SubjectName";
+                        worksheet.Cells[1, 5].Value = "ChapterName";
+                        worksheet.Cells[1, 6].Value = "Concept Name";
+                        worksheet.Cells[1, 7].Value = "Sub-Concept Name";
+                        worksheet.Cells[1, 8].Value = "DisplayOrder";
+
+                        // Add master sheets
+                        await AddMasterSheets(package);
+
+                        var fileBytes = package.GetAsByteArray();
+                        return new ServiceResponse<byte[]>(true, "Excel generated successfully", fileBytes, 200);
+                    }
+                }
+
                 // Fetch syllabus details
                 var syllabusQuery = @"
-            SELECT [SyllabusId], [BoardID], [CourseId], [ClassId], [SyllabusName], [Status], [APID], [modifiedon], [modifiedby], [createdon], [createdby], [EmployeeID], [ExamTypeId]
-            FROM [tblSyllabus]
-            WHERE [SyllabusId] = @SyllabusId";
+        SELECT [SyllabusId], [BoardID], [CourseId], [ClassId], [SyllabusName], [Status], [APID], [modifiedon], [modifiedby], [createdon], [createdby], [EmployeeID], [ExamTypeId]
+        FROM [tblSyllabus]
+        WHERE [SyllabusId] = @SyllabusId";
 
                 var syllabus = await _connection.QueryFirstOrDefaultAsync(syllabusQuery, new { SyllabusId });
 
+                // Scenario 1: Syllabus not found
                 if (syllabus == null)
                 {
-                    return new ServiceResponse<byte[]>(false, "Syllabus not found", Array.Empty<byte>(), 500);
+                    return new ServiceResponse<byte[]>(false, "No such record found", Array.Empty<byte>(), 404);
                 }
 
                 // Fetch syllabus details
                 var detailsQuery = @"
-            SELECT [SyllabusDetailID], [SyllabusID], [Status], [IsVerson], [ContentIndexId], [IndexTypeId], [Synopsis], [SubjectId]
-            FROM [tblSyllabusDetails]
-            WHERE [SyllabusID] = @SyllabusId";
+        SELECT [SyllabusDetailID], [SyllabusID], [Status], [IsVerson], [ContentIndexId], [IndexTypeId], [Synopsis], [SubjectId]
+        FROM [tblSyllabusDetails]
+        WHERE [SyllabusID] = @SyllabusId";
 
                 var syllabusDetails = (await _connection.QueryAsync(detailsQuery, new { SyllabusId })).ToList();
 
-                // Prepare mapping for chapters, topics, and subtopics
+                // Prepare mappings for chapters, topics, and subtopics
                 var chaptersQuery = @"
-            SELECT [ContentIndexId], [SubjectId], [ContentName_Chapter], [IndexTypeId], [DisplayOrder]
-            FROM [tblContentIndexChapters]";
+        SELECT [ContentIndexId], [SubjectId], [ContentName_Chapter], [IndexTypeId], [DisplayOrder]
+        FROM [tblContentIndexChapters]";
 
                 var topicsQuery = @"
-            SELECT [ContInIdTopic], [ContentIndexId], [ContentName_Topic], [IndexTypeId], [DisplayOrder]
-            FROM [tblContentIndexTopics]";
+        SELECT [ContInIdTopic], [ContentIndexId], [ContentName_Topic], [IndexTypeId], [DisplayOrder]
+        FROM [tblContentIndexTopics]";
 
                 var subTopicsQuery = @"
-            SELECT [ContInIdSubTopic], [ContInIdTopic], [ContentName_SubTopic], [IndexTypeId], [DisplayOrder]
-            FROM [tblContentIndexSubTopics]";
+        SELECT [ContInIdSubTopic], [ContInIdTopic], [ContentName_SubTopic], [IndexTypeId], [DisplayOrder]
+        FROM [tblContentIndexSubTopics]";
 
                 var chapters = (await _connection.QueryAsync(chaptersQuery)).ToList();
                 var topics = (await _connection.QueryAsync(topicsQuery)).ToList();
@@ -997,8 +974,8 @@ namespace Course_API.Repository.Implementations
 
                     // Remove duplicates by using a HashSet to track ContentIndexIds
                     var seenContentIndexIds = new HashSet<int>();
-
                     int row = 2;
+
                     foreach (var detail in syllabusDetails)
                     {
                         // Skip if ContentIndexId is already processed
@@ -1051,11 +1028,12 @@ namespace Course_API.Repository.Implementations
 
                         // Add to HashSet to avoid duplicates
                         seenContentIndexIds.Add(detail.ContentIndexId);
-                        //a query to fetch subject name using detail.SubjectId
+
+                        // Fetch subject name
                         var subjectQuery = @"
-                                    SELECT [SubjectName]
-                                    FROM [tblSubject]
-                                    WHERE [SubjectId] = @SubjectId";
+                SELECT [SubjectName]
+                FROM [tblSubject]
+                WHERE [SubjectId] = @SubjectId";
 
                         var subjectName = await _connection.QueryFirstOrDefaultAsync<string>(subjectQuery, new { SubjectId = detail.SubjectId });
 
@@ -1070,6 +1048,9 @@ namespace Course_API.Repository.Implementations
                         row++;
                     }
 
+                    // Add master sheets
+                    await AddMasterSheets(package);
+
                     // Convert to byte array
                     var fileBytes = package.GetAsByteArray();
 
@@ -1082,114 +1063,86 @@ namespace Course_API.Repository.Implementations
                 return new ServiceResponse<byte[]>(false, ex.Message, Array.Empty<byte>(), 500);
             }
         }
-        public async Task<ServiceResponse<string>> UploadSyllabusDetails(IFormFile file)
+
+        // Method to add master sheets for Subjects, Chapters, Topics, and Subtopics
+        private async Task AddMasterSheets(ExcelPackage package)
         {
-            try
+            // Master data queries
+            var subjectQuery = @"
+    SELECT [SubjectId], [SubjectName], [SubjectCode]
+    FROM [tblSubject]";
+
+            var chaptersQuery = @"
+    SELECT SubjectId,[ContentIndexId], [ContentName_Chapter]
+    FROM [tblContentIndexChapters]";
+
+            var topicsQuery = @"
+    SELECT ContentIndexId, [ContInIdTopic], [ContentName_Topic]
+    FROM [tblContentIndexTopics]";
+
+            var subTopicsQuery = @"
+    SELECT ContInIdTopic, [ContInIdSubTopic], [ContentName_SubTopic]
+    FROM [tblContentIndexSubTopics]";
+
+            // Fetch master data
+            var subjects = (await _connection.QueryAsync(subjectQuery)).ToList();
+            var chapters = (await _connection.QueryAsync(chaptersQuery)).ToList();
+            var topics = (await _connection.QueryAsync(topicsQuery)).ToList();
+            var subTopics = (await _connection.QueryAsync(subTopicsQuery)).ToList();
+
+            // Add Subject Master Sheet
+            var subjectSheet = package.Workbook.Worksheets.Add("Subjects");
+            subjectSheet.Cells[1, 1].Value = "SubjectId";
+            subjectSheet.Cells[1, 2].Value = "SubjectName";
+            subjectSheet.Cells[1, 3].Value = "SubjectCode";
+            int subjectRow = 2;
+            foreach (var subject in subjects)
             {
-                ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
-                // Check if file is not null and has content
-                if (file == null || file.Length == 0)
-                {
-                    return new ServiceResponse<string>(false, "Invalid file. Please upload a valid syllabus details file.", string.Empty, 400);
-                }
-
-                // Read the file content
-                using var stream = new MemoryStream();
-                await file.CopyToAsync(stream);
-                stream.Position = 0;
-
-                // Use OfficeOpenXml to read the Excel file
-                using var package = new ExcelPackage(stream);
-                var worksheet = package.Workbook.Worksheets[0]; // Assume data is in the first worksheet
-                var rowCount = worksheet.Dimension.Rows;
-
-                var syllabusDetails = new List<SyllabusDetails>();
-                var headerRow = 1; // Assuming the first row is header
-
-                int syllabusIdToDelete = 0; // Will be used to store the syllabus ID for deletion
-
-                for (int row = headerRow + 1; row <= rowCount; row++)
-                {
-                    var syllabusIdCell = worksheet.Cells[row, 1].Text.Trim();
-                    var indexTypeIdCell = worksheet.Cells[row, 2].Text.Trim();
-                    var contentIdCell = worksheet.Cells[row, 3].Text.Trim();
-                    var subjectName = worksheet.Cells[row, 4].Text.Trim(); // Use a query to fetch subject ID using subject name
-
-                    // Validate data
-                    if (string.IsNullOrEmpty(indexTypeIdCell) || string.IsNullOrEmpty(contentIdCell) || string.IsNullOrEmpty(syllabusIdCell))
-                    {
-                        continue; // Skip rows with missing essential data
-                    }
-
-                    // Parse integer values
-                    if (!int.TryParse(indexTypeIdCell, out int indexTypeId) ||
-                        !int.TryParse(contentIdCell, out int contentIndexId) ||
-                        !int.TryParse(syllabusIdCell, out int syllabusId))
-                    {
-                        return new ServiceResponse<string>(false, $"Invalid data at row {row}", null, 400);
-                    }
-
-                    if (syllabusIdToDelete == 0) // Set syllabus ID to delete records
-                    {
-                        syllabusIdToDelete = syllabusId;
-                    }
-
-                    var subjectQuery = "SELECT SubjectId FROM tblSubject WHERE SubjectName = @SubjectName";
-                    var subjectId = await _connection.QueryFirstOrDefaultAsync<int?>(subjectQuery, new { SubjectName = subjectName });
-
-                    if (subjectId == null)
-                    {
-                        return new ServiceResponse<string>(false, $"Subject '{subjectName}' not found at row {row}", null, 404);
-                    }
-
-                    // Create SyllabusDetails object
-                    var detail = new SyllabusDetails
-                    {
-                        IndexTypeId = indexTypeId,
-                        ContentIndexId = contentIndexId,
-                        SyllabusID = syllabusId,
-                        Status = 1, // Default or set based on your requirements
-                        IsVerson = 1, // Default version or set based on your requirements
-                        SubjectId = subjectId.Value
-                    };
-
-                    syllabusDetails.Add(detail);
-                }
-
-                if (syllabusDetails.Count == 0)
-                {
-                    return new ServiceResponse<string>(false, "No valid data found in the file.", string.Empty, 400);
-                }
-
-                // Delete existing details
-                string deleteQuery = "DELETE FROM tblSyllabusDetails WHERE SyllabusID = @SyllabusID";
-                int rowsDeleted = await _connection.ExecuteAsync(deleteQuery, new { SyllabusID = syllabusIdToDelete });
-
-                if (rowsDeleted < 0)
-                {
-                    return new ServiceResponse<string>(false, "Failed to delete existing syllabus details.", string.Empty, 500);
-                }
-
-                // Define the SQL insert query
-                string insertQuery = @"
-        INSERT INTO tblSyllabusDetails (SyllabusID, ContentIndexId, IndexTypeId, Status, IsVerson, SubjectId)
-        VALUES (@SyllabusID, @ContentIndexId, @IndexTypeId, @Status, @IsVerson, @SubjectId)";
-
-                // Insert the parsed data into the database
-                int addedRecords = await _connection.ExecuteAsync(insertQuery, syllabusDetails);
-
-                if (addedRecords > 0)
-                {
-                    return new ServiceResponse<string>(true, "Operation Successful", "Syllabus details uploaded successfully.", 200);
-                }
-                else
-                {
-                    return new ServiceResponse<string>(false, "Operation Failed to insert data", string.Empty, 500);
-                }
+                subjectSheet.Cells[subjectRow, 1].Value = subject.SubjectId;
+                subjectSheet.Cells[subjectRow, 2].Value = subject.SubjectName;
+                subjectSheet.Cells[subjectRow, 3].Value = subject.SubjectCode;
+                subjectRow++;
             }
-            catch (Exception ex)
+            // Add Chapter Master Sheet
+            var chapterSheet = package.Workbook.Worksheets.Add("Chapters");
+            chapterSheet.Cells[1, 1].Value = "SubjectId";
+            chapterSheet.Cells[1, 2].Value = "ContentIndexId";
+            chapterSheet.Cells[1, 3].Value = "ChapterName";
+            int chapterRow = 2;
+            foreach (var chapter in chapters)
             {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+                chapterSheet.Cells[chapterRow, 1].Value = chapter.SubjectId;
+                chapterSheet.Cells[chapterRow, 2].Value = chapter.ContentIndexId;
+                chapterSheet.Cells[chapterRow, 3].Value = chapter.ContentName_Chapter;
+                chapterRow++;
+            }
+
+            // Add Topic Master Sheet
+            var topicSheet = package.Workbook.Worksheets.Add("Topics");
+            topicSheet.Cells[1, 1].Value = "ChapterId";
+            topicSheet.Cells[1, 2].Value = "TopicId";
+            topicSheet.Cells[1, 3].Value = "TopicName";
+            int topicRow = 2;
+            foreach (var topic in topics)
+            {
+                topicSheet.Cells[topicRow, 1].Value = topic.ContentIndexId;
+                topicSheet.Cells[topicRow, 2].Value = topic.ContInIdTopic;
+                topicSheet.Cells[topicRow, 3].Value = topic.ContentName_Topic;
+                topicRow++;
+            }
+
+            // Add SubTopic Master Sheet
+            var subTopicSheet = package.Workbook.Worksheets.Add("SubTopics");
+            subTopicSheet.Cells[1, 1].Value = "TopicId";
+            subTopicSheet.Cells[1, 2].Value = "SubTopicId";
+            subTopicSheet.Cells[1, 3].Value = "SubTopicName";
+            int subTopicRow = 2;
+            foreach (var subTopic in subTopics)
+            {
+                subTopicSheet.Cells[subTopicRow, 1].Value = subTopic.ContInIdTopic;
+                subTopicSheet.Cells[subTopicRow, 2].Value = subTopic.ContInIdSubTopic;
+                subTopicSheet.Cells[subTopicRow, 3].Value = subTopic.ContentName_SubTopic;
+                subTopicRow++;
             }
         }
         private int SyllabusSubjectMapping(List<SyllabusSubject> request, int SyllabusId)
