@@ -204,5 +204,17 @@ namespace Schools_API.Services.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
+
+        public async Task<ServiceResponse<string>> UploadQuestionsFromExcel(IFormFile file)
+        {
+            try
+            {
+                return await _questionRepository.UploadQuestionsFromExcel(file);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+            }
+        }
     }
 }

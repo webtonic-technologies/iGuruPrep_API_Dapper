@@ -23,5 +23,6 @@ namespace Schools_API.Repository.Interfaces
         Task<ServiceResponse<string>> MarkQuestionLive(string questionCode);
         Task<ServiceResponse<List<ContentIndexResponses>>> GetSyllabusDetailsBySubject(SyllabusDetailsRequest request);
         Task<ServiceResponse<byte[]>> GenerateExcelFile(DownExcelRequest request);
+        Task<ServiceResponse<string>> UploadQuestionsFromExcel(IFormFile file);
     }
 }

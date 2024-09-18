@@ -143,7 +143,8 @@ namespace ControlPanel_API.Repository.Implementations
             tblRoleAssiMenuMaster smm ON mm.ParentId = smm.MenuMasterId
         WHERE 
             ram.RoleId = @RoleId
-            AND ram.DesignationId = @DesignationId";
+            AND ram.DesignationId = @DesignationId 
+            AND ram.Status = 1";
 
                 var roleAssignments = await _connection.QueryAsync<dynamic>(query, new { request.RoleId, request.DesignationId });
 

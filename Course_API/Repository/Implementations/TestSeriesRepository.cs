@@ -29,7 +29,7 @@ namespace Course_API.Repository.Implementations
                         MethodofAddingType, StartDate, StartTime, ResultDate, ResultTime, 
                         EmployeeID, NameOfExam, RepeatedExams, TypeOfTestSeries, 
                         createdon, createdby, RepeatExamStartDate , RepeatExamEndDate ,
-                        RepeatExamStarttime , RepeatExamResulttimeId
+                        RepeatExamStarttime , RepeatExamResulttimeId, IsAdmin
                     ) 
                     VALUES 
                     (
@@ -37,7 +37,7 @@ namespace Course_API.Repository.Implementations
                         @MethodofAddingType, @StartDate, @StartTime, @ResultDate, @ResultTime, 
                         @EmployeeID, @NameOfExam, @RepeatedExams, @TypeOfTestSeries, 
                         @createdon, @createdby, @RepeatExamStartDate , @RepeatExamEndDate ,
-                        @RepeatExamStarttime , @RepeatExamResulttimeId
+                        @RepeatExamStarttime , @RepeatExamResulttimeId, @IsAdmin
                     ); 
                     SELECT CAST(SCOPE_IDENTITY() as int);";
                     var parameters = new
@@ -62,7 +62,8 @@ namespace Course_API.Repository.Implementations
                         request.RepeatExamEndDate,
                         request.RepeatExamStartDate,
                         request.RepeatExamStarttime,
-                        request.RepeatExamResulttimeId
+                        request.RepeatExamResulttimeId,
+                        request.IsAdmin
                     };
                     int newId = await _connection.QuerySingleAsync<int>(insertQuery, parameters);
                     if (newId > 0)
@@ -116,7 +117,8 @@ namespace Course_API.Repository.Implementations
                         RepeatExamEndDate = @RepeatExamEndDate,
                         RepeatExamStartDate = @RepeatExamStartDate,
                         RepeatExamStarttime = @RepeatExamStarttime,
-                        RepeatExamResulttimeId = @RepeatExamResulttimeId
+                        RepeatExamResulttimeId = @RepeatExamResulttimeId,
+                        IsAdmin = @IsAdmin
                     WHERE TestSeriesId = @TestSeriesId;";
                     var parameters = new
                     {
@@ -141,7 +143,8 @@ namespace Course_API.Repository.Implementations
                         request.RepeatExamEndDate,
                         request.RepeatExamStartDate,
                         request.RepeatExamStarttime,
-                        request.RepeatExamResulttimeId
+                        request.RepeatExamResulttimeId,
+                        request.IsAdmin
                     };
                     int rowsAffected = await _connection.ExecuteAsync(updateQuery, parameters);
                     if (rowsAffected > 0)
@@ -211,7 +214,8 @@ namespace Course_API.Repository.Implementations
                 ts.RepeatExamStartDate,
                 ts.RepeatExamEndDate,
                 ts.RepeatExamStarttime,
-                ts.RepeatExamResulttimeId.
+                ts.RepeatExamResulttimeId,
+                ts.IsAdmin,
                 rt.ResultTime as RepeatedExamResultTime
             FROM tblTestSeries ts
             JOIN tblCategory ap ON ts.APID = ap.APID
@@ -325,17 +329,17 @@ SELECT
     ts.RepeatExamEndDate,
     ts.RepeatExamStarttime,
     ts.RepeatExamResulttimeId,
-    rt.ResultTime AS RepeatedExamResultTime
+    rt.ResultTime AS RepeatedExamResultTime,
+    ts.IsAdmin
 FROM tblTestSeries ts
 JOIN tblCategory ap ON ts.APID = ap.APID
 JOIN tblEmployee emp ON ts.EmployeeID = emp.EmployeeID
 JOIN tblTypeOfTestSeries tts ON ts.TypeOfTestSeries = tts.TTSId
 JOIN tblExamType ttt ON ts.ExamTypeID = ttt.ExamTypeID
-JOIN tblTestSeriesResultTime rt ON ts.RepeatExamResulttimeId = rt.ResultTimeId
 LEFT JOIN tblTestSeriesClass tc ON ts.TestSeriesId = tc.TestSeriesId
 LEFT JOIN tblTestSeriesCourse tco ON ts.TestSeriesId = tco.TestSeriesId
 LEFT JOIN tblTestSeriesBoard tb ON ts.TestSeriesId = tb.TestSeriesId
-WHERE 1=1";
+WHERE 1=1 AND ts.IsAdmin = @IsAdmin";
 
                 // Apply filters dynamically
                 if (request.APId > 0)
@@ -379,7 +383,8 @@ WHERE 1=1";
                     ExamTypeId = request.ExamTypeId == 0 ? (int?)null : request.ExamTypeId,
                     TypeOfTestSeries = request.TypeOfTestSeries == 0 ? (int?)null : request.TypeOfTestSeries,
                     ExamStatus = string.IsNullOrEmpty(request.ExamStatus) ? (string)null : request.ExamStatus,
-                    Date = request.Date
+                    Date = request.Date,
+                    request.IsAdmin
                 };
 
                 // Execute the query

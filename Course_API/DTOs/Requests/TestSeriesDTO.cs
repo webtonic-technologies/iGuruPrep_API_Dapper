@@ -56,6 +56,7 @@ namespace Course_API.DTOs.Requests
         public DateTime RepeatExamEndDate { get; set; }
         public string RepeatExamStarttime { get; set; } = string.Empty;
         public int RepeatExamResulttimeId { get; set; }
+        public bool IsAdmin {  get; set; }
     }
     public class GetAllQuestionListRequest
     {
@@ -95,5 +96,6 @@ namespace Course_API.DTOs.Requests
         public DateTime? Date { get; set; }
         public int PageNumber {  get; set; }
         public int PageSize {  get; set; }
+        public bool IsAdmin {  get; set; }
     }
 }
