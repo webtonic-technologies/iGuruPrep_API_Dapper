@@ -351,8 +351,7 @@ namespace Schools_API.Repository.Implementations
                         ClassId = @ClassId,
                         CourseId = @CourseId,
                         BoardId = @BoardId,
-                        ExamTypeId = @ExamTypeId,
-                        StatusId = @StatusId
+                        ExamTypeId = @ExamTypeId
                     WHERE QueryCode = @QueryCode";
                     request.RQSID = 1;
                     request.ImageOrPDF = FileUpload(request.ImageOrPDF);
@@ -375,14 +374,14 @@ namespace Schools_API.Repository.Implementations
                         QueryCode, Querydescription, QuestionCode, DateandTime, 
                         RQSID, Reply, Link, ImageOrPDF, subjectID, StudentId, 
                         EmployeeId, CategoryId, ClassId, CourseId, BoardId, 
-                        ExamTypeId, StatusId
+                        ExamTypeId
                     ) 
                     VALUES 
                     (
                         @QueryCode, @Querydescription, @QuestionCode, @DateandTime, 
                         @RQSID, @Reply, @Link, @ImageOrPDF, @subjectID, @StudentId, 
                         @EmployeeId, @CategoryId, @ClassId, @CourseId, @BoardId, 
-                        @ExamTypeId, @StatusId
+                        @ExamTypeId
                     )";
                     request.RQSID = 2;
                     request.ImageOrPDF = FileUpload(request.ImageOrPDF);

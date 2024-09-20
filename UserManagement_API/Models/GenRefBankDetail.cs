@@ -10,7 +10,7 @@ namespace UserManagement_API.Models
         [Required(ErrorMessage = "Bank name cannot be empty")]
         public int BankName { get; set; }
         [Required(ErrorMessage = "Acc number cannot be empty")]
-        public int ACNo { get; set; }
+        public string ACNo { get; set; } = string.Empty;
         [Required(ErrorMessage = "IFSC code cannot be empty")]
         public string IFSC { get; set; } = string.Empty;
         public int? ReferenceID { get; set; }

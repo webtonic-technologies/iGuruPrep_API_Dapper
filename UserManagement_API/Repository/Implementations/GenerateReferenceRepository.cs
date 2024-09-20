@@ -111,7 +111,7 @@ namespace UserManagement_API.Repository.Implementations
                             var bankDetail = new GenRefBankDetail
                             {
                                 referenceLinkID = request.referenceLinkID,
-                                ACNo = request.GenRefBankdetail != null ? request.GenRefBankdetail.ACNo : 0,
+                                ACNo = request.GenRefBankdetail != null ? request.GenRefBankdetail.ACNo : string.Empty,
                                 BankName = request.GenRefBankdetail != null ? request.GenRefBankdetail.BankName : 0,
                                 IFSC = request.GenRefBankdetail != null ? request.GenRefBankdetail.IFSC : string.Empty,
                                 BranchName = request.GenRefBankdetail != null ? request.GenRefBankdetail.BranchName : string.Empty,

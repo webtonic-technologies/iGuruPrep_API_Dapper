@@ -52,25 +52,5 @@ namespace ControlPanel_API.Controllers
                 };
             }
         }
-        [HttpPost("ChangeStatus")]
-        public async Task<IActionResult> ChangeStatus(ChangeStatusRequest request)
-        {
-            try
-            {
-                var data = await _contactUsServices.ChangeStatus(request);
-                if (data != null)
-                {
-                    return Ok(data);
-                }
-                else
-                {
-                    return BadRequest("Bad Request");
-                }
-            }
-            catch (Exception e)
-            {
-                return this.BadRequest(e.Message);
-            }
-        }
     }
 }

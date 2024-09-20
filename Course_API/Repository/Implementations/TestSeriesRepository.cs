@@ -338,7 +338,7 @@ JOIN tblTypeOfTestSeries tts ON ts.TypeOfTestSeries = tts.TTSId
 JOIN tblExamType ttt ON ts.ExamTypeID = ttt.ExamTypeID
 LEFT JOIN tblTestSeriesClass tc ON ts.TestSeriesId = tc.TestSeriesId
 LEFT JOIN tblTestSeriesCourse tco ON ts.TestSeriesId = tco.TestSeriesId
-LEFT JOIN tblTestSeriesBoard tb ON ts.TestSeriesId = tb.TestSeriesId
+LEFT JOIN tblTestSeriesBoards tb ON ts.TestSeriesId = tb.TestSeriesId
 WHERE 1=1 AND ts.IsAdmin = @IsAdmin";
 
                 // Apply filters dynamically

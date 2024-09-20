@@ -2248,7 +2248,7 @@ namespace Schools_API.Repository.Implementations
         }
         private IEnumerable<Questiontype> GetQuestionTypes()
         {
-            var query = "SELECT [QuestionTypeID], [QuestionType], [Code], [Status], [MinNoOfOptions], [modifiedon], [modifiedby], [createdon], [createdby], [EmployeeID], [EmpFirstName], [TypeOfOption], [Question] FROM [iGuruPrep].[dbo].[tblQBQuestionType]";
+            var query = "SELECT [QuestionTypeID], [QuestionType], [Code], [Status], [MinNoOfOptions], [modifiedon], [modifiedby], [createdon], [createdby], [EmployeeID], [EmpFirstName], [TypeOfOption], [Question] FROM [tblQBQuestionType]";
             return _connection.Query<Questiontype>(query);
         }
         public async Task<ServiceResponse<string>> UploadQuestionsFromExcel(IFormFile file)

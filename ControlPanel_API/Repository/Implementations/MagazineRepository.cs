@@ -69,7 +69,7 @@ namespace ControlPanel_API.Repository.Implementations
                 else
                 {
                     string query = @"UPDATE [tblMagazine] 
-                   SET [MagazineTitle] = @MagazineTitle, [Image] = @Image, [PDF] = @PDF, [EmployeeID] = @EmployeeID, [modifiedon] = GETDATE(), [modifiedby] = @modifiedby
+                   SET [MagazineTitle] = @MagazineTitle, [Image] = @Image,[Date] = @Date, [Time] = @Time, [PDF] = @PDF, [EmployeeID] = @EmployeeID, [modifiedon] = GETDATE(), [modifiedby] = @modifiedby
                    WHERE [MagazineId] = @MagazineId";
                     var magazine = new Magazine
                     {
@@ -78,10 +78,12 @@ namespace ControlPanel_API.Repository.Implementations
                         PDF = PDFUpload(request.PDF),
                         MagazineTitle = request.MagazineTitle,
                         Image = ImageUpload(request.Image),
-                        Status = true,
+                        Status = request.Status,
                         EmployeeID = request.EmployeeID,
                         Time = request.Time,
-                        MagazineId = request.MagazineId
+                        MagazineId = request.MagazineId,
+                        Date = request.Date
+
                     };
                     int rowsAffected = await _connection.ExecuteAsync(query, magazine);
                     if (rowsAffected > 0)

@@ -834,8 +834,6 @@ namespace Course_API.Repository.Implementations
                         syllabusIdToDelete = syllabusId;
                     }
 
-                 
-
                     // Create SyllabusDetails object
                     var detail = new SyllabusDetails
                     {
@@ -1229,7 +1227,7 @@ namespace Course_API.Repository.Implementations
             public string ChapterName { get; set; }
             public string TopicName { get; set; }
             public string SubTopicName { get; set; }
-            public int DisplayOrder { get; set; }
+            public int? DisplayOrder { get; set; }
         }
     }
 }
