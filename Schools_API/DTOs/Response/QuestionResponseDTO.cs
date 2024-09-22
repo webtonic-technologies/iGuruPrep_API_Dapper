@@ -8,9 +8,9 @@ namespace Schools_API.DTOs.Response
         public string QuestionDescription { get; set; } = string.Empty;
         public int QuestionTypeId { get; set; }
         public bool? Status { get; set; }
-        public int? CreatedBy { get; set; }
+        public string? CreatedBy { get; set; }
         public DateTime? CreatedOn { get; set; }
-        public int? ModifiedBy { get; set; }
+        public string? ModifiedBy { get; set; }
         public DateTime? ModifiedOn { get; set; }
         public int subjectID { get; set; }
         public string SubjectName { get; set; } = string.Empty;
@@ -29,7 +29,7 @@ namespace Schools_API.DTOs.Response
         public bool IsActive { get; set; } = true;
         public string userRole {  get; set; } = string.Empty;
         public List<QIDCourseResponse>? QIDCourses { get; set; }
-        public List<QuestionSubjectMappingResponse>? QuestionSubjectMappings { get; set; }
+      //  public List<QuestionSubjectMappingResponse>? QuestionSubjectMappings { get; set; }
         public List<AnswerMultipleChoiceCategory>? AnswerMultipleChoiceCategories { get; set; }
         public Answersingleanswercategory? Answersingleanswercategories { get; set; }
     }
@@ -42,9 +42,9 @@ namespace Schools_API.DTOs.Response
         public int? LevelId { get; set; }
         public string LevelName { get; set; } = string.Empty;
         public int Status { get; set; }
-        public int? CreatedBy { get; set; }
+        public string? CreatedBy { get; set; }
         public DateTime? CreatedDate { get; set; }
-        public int? ModifiedBy { get; set; }
+        public string? ModifiedBy { get; set; }
         public DateTime? ModifiedDate { get; set; }
         public string QuestionCode { get; set; } = string.Empty;
     }

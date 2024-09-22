@@ -184,10 +184,10 @@ namespace Schools_API.Controllers
 
         //    return Ok(data);
         //}
-        [HttpGet("GetAssignedQuestionsCount/{EmployeeId}")]
-        public async Task<IActionResult> GetAssignedQuestionsCount(int EmployeeId)
+        [HttpGet("GetAssignedQuestionsCount/{SubjectId}/{EmployeeId}")]
+        public async Task<IActionResult> GetAssignedQuestionsCount(int EmployeeId, int SubjectId)
         {
-            var data = await _questionServices.GetAssignedQuestionsCount(EmployeeId);
+            var data = await _questionServices.GetAssignedQuestionsCount(EmployeeId, SubjectId);
 
             if (data == null)
             {

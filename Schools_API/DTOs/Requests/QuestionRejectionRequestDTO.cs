@@ -7,6 +7,7 @@
         public int Rejectedby { get; set; }
         public DateTime? RejectedDate { get; set; }
         public string RejectedReason { get; set; } = string.Empty;
+        public string FileUpload { get; set; } = string.Empty;
     }
     public class QuestionApprovalRequestDTO
     {

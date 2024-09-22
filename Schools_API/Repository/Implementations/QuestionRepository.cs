@@ -26,20 +26,18 @@ namespace Schools_API.Repository.Implementations
         {
             try
             {
-                // Generate QuestionCode if not present
-                if (string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string")
+                if (!string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode != "string")
                 {
-                    request.QuestionCode = GenerateCode();
-                }
-
-                // Check for existing entries with the same QuestionCode and deactivate them
-                string deactivateQuery = @"
+                    //request.QuestionCode = GenerateCode();
+                    // Check for existing entries with the same QuestionCode and deactivate them
+                    string deactivateQuery = @"
                 UPDATE tblQuestion
                 SET IsActive = 0
                 WHERE QuestionCode = @QuestionCode AND IsActive = 1";
 
-                await _connection.ExecuteAsync(deactivateQuery, new { request.QuestionCode });
+                    await _connection.ExecuteAsync(deactivateQuery, new { request.QuestionCode });
 
+                }
                 // Prepare new question entry
                 var question = new Question
                 {
@@ -59,71 +57,129 @@ namespace Schools_API.Repository.Implementations
                     ExtraInformation = request.ExtraInformation,
                     IsActive = true
                 };
-
                 string insertQuery = @"
-                INSERT INTO tblQuestion (
-                    QuestionDescription,
-                    QuestionTypeId,
-                    Status,
-                    CreatedBy,
-                    CreatedOn,
-                    subjectID,
-                    EmployeeId,
-                    IndexTypeId,
-                    ContentIndexId,
-                    IsRejected,
-                    IsApproved,
-                    QuestionCode,
-                    Explanation,
-                    ExtraInformation,
-                    IsActive
-                ) VALUES (
-                    @QuestionDescription,
-                    @QuestionTypeId,
-                    @Status,
-                    @CreatedBy,
-                    @CreatedOn,
-                    @subjectID,
-                    @EmployeeId,
-                    @IndexTypeId,
-                    @ContentIndexId,
-                    @IsRejected,
-                    @IsApproved,
-                    @QuestionCode,
-                    @Explanation,
-                    @ExtraInformation,
-                    @IsActive
-                );
-                SELECT QuestionCode FROM tblQuestion WHERE QuestionCode = @QuestionCode AND IsActive = 1;";
+  INSERT INTO tblQuestion (
+      QuestionDescription,
+      QuestionTypeId,
+      Status,
+      CreatedBy,
+      CreatedOn,
+      subjectID,
+      EmployeeId,
+      IndexTypeId,
+      ContentIndexId,
+      IsRejected,
+      IsApproved,
+      QuestionCode,
+      Explanation,
+      ExtraInformation,
+      IsActive
+  ) VALUES (
+      @QuestionDescription,
+      @QuestionTypeId,
+      @Status,
+      @CreatedBy,
+      @CreatedOn,
+      @subjectID,
+      @EmployeeId,
+      @IndexTypeId,
+      @ContentIndexId,
+      @IsRejected,
+      @IsApproved,
+      @QuestionCode,
+      @Explanation,
+      @ExtraInformation,
+      @IsActive
+  );
+  
+  -- Fetch the QuestionId of the newly inserted row
+  SELECT CAST(SCOPE_IDENTITY() AS INT);";
+
+                //string insertQuery = @"
+                //INSERT INTO tblQuestion (
+                //    QuestionDescription,
+                //    QuestionTypeId,
+                //    Status,
+                //    CreatedBy,
+                //    CreatedOn,
+                //    subjectID,
+                //    EmployeeId,
+                //    IndexTypeId,
+                //    ContentIndexId,
+                //    IsRejected,
+                //    IsApproved,
+                //    QuestionCode,
+                //    Explanation,
+                //    ExtraInformation,
+                //    IsActive
+                //) VALUES (
+                //    @QuestionDescription,
+                //    @QuestionTypeId,
+                //    @Status,
+                //    @CreatedBy,
+                //    @CreatedOn,
+                //    @subjectID,
+                //    @EmployeeId,
+                //    @IndexTypeId,
+                //    @ContentIndexId,
+                //    @IsRejected,
+                //    @IsApproved,
+                //    @QuestionCode,
+                //    @Explanation,
+                //    @ExtraInformation,
+                //    @IsActive
+                //);
+                //SELECT QuestionCode FROM tblQuestion WHERE QuestionCode = @QuestionCode AND IsActive = 1;";
 
                 // Retrieve the QuestionCode after insertion
-                var insertedQuestionCode = await _connection.QuerySingleOrDefaultAsync<string>(insertQuery, question);
+                // var insertedQuestionCode = await _connection.QuerySingleOrDefaultAsync<string>(insertQuery, question);
+                var insertedQuestionId = await _connection.QuerySingleOrDefaultAsync<int>(insertQuery, question);
+                string code = string.Empty;
+                if (string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string")
+                {
+                    code = GenerateQuestionCode(request.IndexTypeId, request.ContentIndexId, insertedQuestionId);
+
+                    string questionCodeQuery = @"
+                UPDATE tblQuestion
+                SET QuestionCode = @QuestionCode
+                WHERE QuestionId = @QuestionId AND IsActive = 1";
+
+                    await _connection.ExecuteAsync(questionCodeQuery, new { QuestionCode = code, QuestionId = insertedQuestionId });
+                }
+                string insertedQuestionCode = string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string" ? code : request.QuestionCode;
+
                 if (!string.IsNullOrEmpty(insertedQuestionCode))
                 {
                     // Handle QIDCourses mapping
                     var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
 
-                    // Handle QuestionSubjectMappings
-                    var quesSub = await AddUpdateQuestionSubjectMap(request.QuestionSubjectMappings, insertedQuestionCode);
-
                     // Handle Answer mappings
                     string getQuesType = @"SELECT * FROM tblQBQuestionType WHERE QuestionTypeID = @QuestionTypeID;";
                     var questTypedata = await _connection.QueryFirstOrDefaultAsync<QuestionTypes>(getQuesType, new { QuestionTypeID = request.QuestionTypeId });
-                    var answer = 0;
 
-                    string insertAnswerQuery = @"
-                    INSERT INTO [tblAnswerMaster] (Questionid, QuestionTypeid, QuestionCode)
-                    VALUES (@Questionid, @QuestionTypeid, @QuestionCode);
-                    SELECT CAST(SCOPE_IDENTITY() as int);";
+                    int answer = 0;
+                    int Answerid = 0;
 
-                    // Use QuestionCode to insert into AnswerMaster
-                    var Answerid = await _connection.QuerySingleAsync<int>(insertAnswerQuery, new
+                    // Check if the answer already exists in AnswerMaster
+                    string getAnswerQuery = @"SELECT Answerid FROM tblAnswerMaster WHERE QuestionCode = @QuestionCode;";
+                    Answerid = await _connection.QueryFirstOrDefaultAsync<int>(getAnswerQuery, new { QuestionCode = insertedQuestionCode });
+
+                    if (Answerid == 0)  // If no entry exists, insert a new one
                     {
-                        Questionid = 0, // Set to 0 or remove if QuestionId is not required
-                        QuestionTypeid = questTypedata?.QuestionTypeID,
-                        QuestionCode = insertedQuestionCode
-                    });
+                        string insertAnswerQuery = @"
+        INSERT INTO [tblAnswerMaster] (Questionid, QuestionTypeid, QuestionCode)
+        VALUES (@Questionid, @QuestionTypeid, @QuestionCode);
+        SELECT CAST(SCOPE_IDENTITY() as int);";
 
+                        Answerid = await _connection.QuerySingleAsync<int>(insertAnswerQuery, new
+                        {
+                            Questionid = 0, // Set to 0 or remove if QuestionId is not required
+                            QuestionTypeid = questTypedata?.QuestionTypeID,
+                            QuestionCode = insertedQuestionCode
+                        });
+                    }
+
+                    // If the question type supports multiple-choice or similar categories
                     if (questTypedata != null)
                     {
                         if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "MT1" ||
@@ -131,31 +187,42 @@ namespace Schools_API.Repository.Implementations
                         {
                             if (request.AnswerMultipleChoiceCategories != null)
                             {
+                                // First, delete existing multiple-choice entries if present
+                                string deleteMCQQuery = @"DELETE FROM tblAnswerMultipleChoiceCategory WHERE Answerid = @Answerid;";
+                                await _connection.ExecuteAsync(deleteMCQQuery, new { Answerid });
+
+                                // Insert new multiple-choice answers
                                 foreach (var item in request.AnswerMultipleChoiceCategories)
                                 {
                                     item.Answerid = Answerid;
                                 }
-                                string insertAnsQuery = @"
-                INSERT INTO tblAnswerMultipleChoiceCategory
-                (Answerid, Answer, Iscorrect, Matchid) 
-                VALUES (@AnswerId, @Answer, @IsCorrect, @MatchId);";
-                                answer = await _connection.ExecuteAsync(insertAnsQuery, request.AnswerMultipleChoiceCategories);
+                                string insertMCQQuery = @"
+                    INSERT INTO tblAnswerMultipleChoiceCategory
+                    (Answerid, Answer, Iscorrect, Matchid) 
+                    VALUES (@Answerid, @Answer, @Iscorrect, @Matchid);";
+                                answer = await _connection.ExecuteAsync(insertMCQQuery, request.AnswerMultipleChoiceCategories);
                             }
                         }
-                        else
+                        else  // Handle single-answer category
                         {
                             string sql = @"
-            INSERT INTO tblAnswersingleanswercategory (Answerid, Answer)
-            VALUES (@AnswerId, @Answer);";
+                INSERT INTO tblAnswersingleanswercategory (Answerid, Answer)
+                VALUES (@Answerid, @Answer);";
+
                             if (request.Answersingleanswercategories != null)
                             {
+                                // First, delete existing single-answer entries if present
+                                string deleteSingleQuery = @"DELETE FROM tblAnswersingleanswercategory WHERE Answerid = @Answerid;";
+                                await _connection.ExecuteAsync(deleteSingleQuery, new { Answerid });
+
+                                // Insert new single-answer answers
                                 request.Answersingleanswercategories.Answerid = Answerid;
                                 answer = await _connection.ExecuteAsync(sql, request.Answersingleanswercategories);
                             }
                         }
                     }
 
-                    if (data > 0 && quesSub > 0 && answer > 0)
+                    if (data > 0 && answer > 0)
                     {
                         return new ServiceResponse<string>(true, "Operation Successful", "Question Added Successfully", 200);
                     }
@@ -239,7 +306,7 @@ namespace Schools_API.Repository.Implementations
                         ContentIndexId = item.ContentIndexId,
                         ContentIndexName = item.ContentIndexName,
                         QIDCourses = GetListOfQIDCourse(item.QuestionCode),
-                        QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
+                        //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
                         Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
                         AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode),
                         IsApproved = item.IsApproved,
@@ -304,7 +371,7 @@ namespace Schools_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-        public async Task<ServiceResponse<List<EmployeeListAssignedQuestionCount>>> GetAssignedQuestionsCount(int EmployeeId)
+        public async Task<ServiceResponse<List<EmployeeListAssignedQuestionCount>>> GetAssignedQuestionsCount(int EmployeeId, int SubjectId)
         {
             try
             {
@@ -313,10 +380,10 @@ namespace Schools_API.Repository.Implementations
 
                 // SQL query to get the role of the given EmployeeId
                 string employeeRoleQuery = @"
-            SELECT e.RoleID, r.RoleCode
-            FROM [tblEmployee] e
-            JOIN [tblRole] r ON e.RoleID = r.RoleID
-            WHERE e.EmployeeId = @EmployeeId";
+        SELECT e.RoleID, r.RoleCode
+        FROM [tblEmployee] e
+        JOIN [tblRole] r ON e.RoleID = r.RoleID
+        WHERE e.EmployeeId = @EmployeeId";
 
                 // Get the RoleID of the given EmployeeId
                 var employeeRole = await _connection.QueryFirstOrDefaultAsync(employeeRoleQuery, new { EmployeeId });
@@ -343,8 +410,8 @@ namespace Schools_API.Repository.Implementations
                     var roleId = await _connection.QueryFirstOrDefaultAsync<int>(sql, new { RoleCode = "PR" });
                     // If the current role is SME, target employees with Proofer and Transcriber roles
                     targetRoleIDs.Add(roleId); // Assume RoleID for Proofer is 4
-                    var roleId1 = await _connection.QueryFirstOrDefaultAsync<int>(sql, new { RoleCode = "TR" });
-                    targetRoleIDs.Add(roleId1); // Assume RoleID for Transcriber is 5
+                                               //var roleId1 = await _connection.QueryFirstOrDefaultAsync<int>(sql, new { RoleCode = "TR" });
+                                               //targetRoleIDs.Add(roleId1); // Assume RoleID for Transcriber is 5
                 }
                 else if (employeeRole.RoleCode == "PR")
                 {
@@ -358,19 +425,23 @@ namespace Schools_API.Repository.Implementations
                     return new ServiceResponse<List<EmployeeListAssignedQuestionCount>>(false, "Invalid role for the operation.", employeeList, 400);
                 }
 
-                // SQL query to fetch employees and their assigned question counts
+                // SQL query to fetch employees and their assigned question counts based on SubjectId
                 string assignedQuestionsCountQuery = @"
-            SELECT e.EmployeeId, 
-                   CONCAT(e.EmpFirstName, ' ', e.EmpMiddleName, ' ', e.EmpLastName) AS EmployeeName,
-                   COUNT(qp.Questionid) AS Count
-            FROM [tblEmployee] e
-            LEFT JOIN [tblQuestionProfiler] qp ON e.EmployeeId = qp.EmpId AND qp.Status = 1
-            WHERE e.RoleID IN @TargetRoleIDs
-            GROUP BY e.EmployeeId, e.EmpFirstName, e.EmpMiddleName, e.EmpLastName
-            ORDER BY EmployeeName";
+        SELECT e.EmployeeId, 
+               CONCAT(e.EmpFirstName, ' ', e.EmpMiddleName, ' ', e.EmpLastName) AS EmployeeName,
+               COUNT(qp.Questionid) AS Count
+        FROM [tblEmployee] e
+        LEFT JOIN [tblQuestionProfiler] qp ON e.EmployeeId = qp.EmpId AND qp.Status = 1
+        JOIN [tblEmployeeSubject] es ON e.EmployeeId = es.Employeeid
+        WHERE e.RoleID IN @TargetRoleIDs
+        AND es.SubjectID = @SubjectId
+        GROUP BY e.EmployeeId, e.EmpFirstName, e.EmpMiddleName, e.EmpLastName
+        ORDER BY EmployeeName";
 
-                // Execute query to get the list of employees with the count of assigned questions
-                employeeList = (await _connection.QueryAsync<EmployeeListAssignedQuestionCount>(assignedQuestionsCountQuery, new { TargetRoleIDs = targetRoleIDs })).ToList();
+                // Execute query to get the list of employees with the count of assigned questions, filtered by SubjectId
+                employeeList = (await _connection.QueryAsync<EmployeeListAssignedQuestionCount>(
+                    assignedQuestionsCountQuery, new { TargetRoleIDs = targetRoleIDs, SubjectId }
+                )).ToList();
 
                 return new ServiceResponse<List<EmployeeListAssignedQuestionCount>>(true, "Employee list with assigned questions count retrieved successfully.", employeeList, 200);
             }
@@ -473,7 +544,7 @@ namespace Schools_API.Repository.Implementations
                         ExtraInformation = item.ExtraInformation,
                         IsActive = item.IsActive,
                         QIDCourses = GetListOfQIDCourse(item.QuestionCode),
-                        QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
+                        //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
                         Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
                         AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
                     }).ToList();
@@ -684,7 +755,7 @@ namespace Schools_API.Repository.Implementations
                 foreach (var question in questions)
                 {
                     question.QIDCourses = GetListOfQIDCourse(question.QuestionCode);
-                    question.QuestionSubjectMappings = GetListOfQuestionSubjectMapping(question.QuestionCode);
+                   // question.QuestionSubjectMappings = GetListOfQuestionSubjectMapping(question.QuestionCode);
                     question.AnswerMultipleChoiceCategories = GetMultipleAnswers(question.QuestionCode);
                     question.Answersingleanswercategories = GetSingleAnswer(question.QuestionCode);
                 }
@@ -890,7 +961,7 @@ namespace Schools_API.Repository.Implementations
                         ContentIndexId = item.ContentIndexId,
                         ContentIndexName = item.ContentIndexName,
                         QIDCourses = GetListOfQIDCourse(item.QuestionCode),
-                        QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
+                        //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
                         Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
                         AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode),
                         IsApproved = item.IsApproved,
@@ -1105,7 +1176,7 @@ namespace Schools_API.Repository.Implementations
                         ContentIndexId = item.ContentIndexId,
                         ContentIndexName = item.ContentIndexName,
                         QIDCourses = GetListOfQIDCourse(item.QuestionCode),
-                        QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
+                        //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
                         Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
                         AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode),
                         IsApproved = item.IsApproved,
@@ -1188,7 +1259,7 @@ namespace Schools_API.Repository.Implementations
                         IndexTypeName = item.IndexTypeName,
                         ContentIndexName = item.ContentIndexName,
                         QIDCourses = GetListOfQIDCourse(item.QuestionCode),
-                        QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
+                        //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
                         Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
                         AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode),
                         ContentIndexId = item.ContentIndexId,
@@ -1262,8 +1333,8 @@ namespace Schools_API.Repository.Implementations
                 {
                     string sql = @"
             INSERT INTO [tblQuestionProfilerRejections]
-            ([Questionid], [CreatedDate], [QuestionRejectReason], [RejectedBy], QuestionCode)
-            VALUES (@QuestionId, @CreatedDate, @QuestionRejectReason, @RejectedBy, @QuestionCode);
+            ([Questionid], [CreatedDate], [QuestionRejectReason], [RejectedBy], QuestionCode, FileUpload)
+            VALUES (@QuestionId, @CreatedDate, @QuestionRejectReason, @RejectedBy, @QuestionCode, @FileUpload);
 
             SELECT CAST(SCOPE_IDENTITY() as int)";
 
@@ -1280,7 +1351,8 @@ namespace Schools_API.Repository.Implementations
                             CreatedDate = request.RejectedDate,
                             QuestionRejectReason = request.RejectedReason,
                             request.Rejectedby,
-                            request.QuestionCode
+                            request.QuestionCode,
+                            FileUpload = FileUpload(request.FileUpload)
                         });
 
                         if (newId > 0)
@@ -2271,7 +2343,7 @@ namespace Schools_API.Repository.Implementations
                         {
                             QuestionDescription = worksheet.Cells[row, 1].Text,
                             QuestionTypeId = int.Parse(worksheet.Cells[row, 2].Text),
-                            CreatedBy = int.Parse(worksheet.Cells[row, 3].Text),
+                            CreatedBy = worksheet.Cells[row, 3].Text,
                             subjectID = int.Parse(worksheet.Cells[row, 4].Text),
                             ContentIndexId = int.Parse(worksheet.Cells[row, 5].Text),
                             EmployeeId = int.Parse(worksheet.Cells[row, 6].Text),
@@ -2457,9 +2529,9 @@ namespace Schools_API.Repository.Implementations
                             CourseID = data.CourseID,
                             LevelId = data.LevelId,
                             Status = true,
-                            CreatedBy = 1,
+                           // CreatedBy = 1,
                             CreatedDate = DateTime.Now,
-                            ModifiedBy = 1,
+                          //  ModifiedBy = 1,
                             ModifiedDate = DateTime.Now,
                             QIDCourseID = data.QIDCourseID,
                             QuestionCode = questionCode
@@ -2706,7 +2778,7 @@ namespace Schools_API.Repository.Implementations
                 IndexTypeName = item.IndexTypeName,
                 ContentIndexName = item.ContentIndexName,
                 QIDCourses = GetListOfQIDCourse(item.QuestionCode),
-                QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
+                //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
                 ContentIndexId = item.ContentIndexId,
                 CreatedBy = item.CreatedBy,
                 CreatedOn = item.CreatedOn,
@@ -2736,9 +2808,81 @@ namespace Schools_API.Repository.Implementations
             var questionIds = _connection.Query<int>(query, new { QuestionCode });
             return questionIds.ToList();
         }
-        private string GenerateCode()
+        public string GenerateQuestionCode(int indexTypeId, int contentId, int questionId)
         {
-            return DateTime.Now.ToString("yyyyMMddHHmmssff");
+            string questionCode = "";
+            int subjectId = 0;
+            int chapterId = 0;
+            int topicId = 0;
+            int subTopicId = 0;
+
+            // Fetch subject ID and related hierarchy based on indexTypeId
+            if (indexTypeId == 1)  // Chapter
+            {
+                // Fetch subject directly from chapter
+                var chapter = _connection.QueryFirstOrDefault("SELECT SubjectId, ContentIndexId FROM tblContentIndexChapters WHERE ContentIndexId = @contentId", new { contentId });
+                if (chapter != null)
+                {
+                    subjectId = chapter.SubjectId;
+                    chapterId = chapter.ContentIndexId;
+                }
+            }
+            else if (indexTypeId == 2)  // Topic
+            {
+                // Fetch parent chapter from topic, then get subject from the chapter
+                var topic = _connection.QueryFirstOrDefault("SELECT ContentIndexId, ContInIdTopic FROM tblContentIndexTopics WHERE ContInIdTopic = @contentId", new { contentId });
+                if (topic != null)
+                {
+                    topicId = topic.ContInIdTopic;
+                    chapterId = topic.ContentIndexId;
+
+                    // Now fetch the subject from the parent chapter
+                    var chapter = _connection.QueryFirstOrDefault("SELECT SubjectId FROM tblContentIndexChapters WHERE ContentIndexId = @chapterId", new { chapterId });
+                    if (chapter != null)
+                    {
+                        subjectId = chapter.SubjectId;
+                    }
+                }
+            }
+            else if (indexTypeId == 3)  // SubTopic
+            {
+                // Fetch parent topic from subtopic, then get the chapter, and then the subject
+                var subTopic = _connection.QueryFirstOrDefault("SELECT ContInIdTopic, ContInIdSubTopic FROM tblContentIndexSubTopics WHERE ContInIdSubTopic = @contentId", new { contentId });
+                if (subTopic != null)
+                {
+                    subTopicId = subTopic.ContInIdSubTopic;
+                    topicId = subTopic.ContInIdTopic;
+
+                    // Now fetch the chapter from the parent topic
+                    var topic = _connection.QueryFirstOrDefault("SELECT ContentIndexId FROM tblContentIndexTopics WHERE ContInIdTopic = @topicId", new { topicId });
+                    if (topic != null)
+                    {
+                        chapterId = topic.ContentIndexId;
+
+                        // Now fetch the subject from the parent chapter
+                        var chapter = _connection.QueryFirstOrDefault("SELECT SubjectId FROM tblContentIndexChapters WHERE ContentIndexId = @chapterId", new { chapterId });
+                        if (chapter != null)
+                        {
+                            subjectId = chapter.SubjectId;
+                        }
+                    }
+                }
+            }
+            // Construct the question code based on IndexTypeId and IDs
+            if (indexTypeId == 1)  // Chapter
+            {
+                questionCode = $"S{subjectId}C{chapterId}Q{questionId}";
+            }
+            else if (indexTypeId == 2)  // Topic
+            {
+                questionCode = $"S{subjectId}C{chapterId}T{topicId}Q{questionId}";
+            }
+            else if (indexTypeId == 3)  // SubTopic
+            {
+                questionCode = $"S{subjectId}C{chapterId}T{topicId}ST{subTopicId}Q{questionId}";
+            }
+
+            return questionCode;
         }
         private string? GetRoleName(int roleId)
         {
@@ -2809,6 +2953,70 @@ namespace Schools_API.Repository.Implementations
             public string Solution { get; set; }
             public string Explanation { get; set; }
             public string QuestionCode { get; set; }
+        }
+        private string FileUpload(string base64String)
+        {
+            if (string.IsNullOrEmpty(base64String) || base64String == "string")
+            {
+                return string.Empty;
+            }
+            if (base64String == string.Empty)
+            {
+                return string.Empty;
+            }
+            byte[] data = Convert.FromBase64String(base64String);
+            string directoryPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "RejectedQuestions");
+
+            if (!Directory.Exists(directoryPath))
+            {
+                Directory.CreateDirectory(directoryPath);
+            }
+            string fileExtension = IsJpeg(data) == true ? ".jpg" : IsPng(data) == true ?
+                ".png" : IsGif(data) == true ? ".gif" : IsPdf(data) == true ? ".pdf" : string.Empty;
+
+            string fileName = Guid.NewGuid().ToString() + fileExtension;
+            string filePath = Path.Combine(directoryPath, fileName);
+            if (string.IsNullOrEmpty(fileExtension))
+            {
+                throw new InvalidOperationException("Incorrect file uploaded");
+            }
+            // Write the byte array to the image file
+            File.WriteAllBytes(filePath, data);
+            return filePath;
+        }
+        private string GetFile(string Filename)
+        {
+            var filePath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "RejectedQuestions", Filename);
+
+            if (!File.Exists(filePath))
+            {
+                return string.Empty;
+            }
+            byte[] fileBytes = File.ReadAllBytes(filePath);
+            string base64String = Convert.ToBase64String(fileBytes);
+            return base64String;
+        }
+        private bool IsJpeg(byte[] bytes)
+        {
+            // JPEG magic number: 0xFF, 0xD8
+            return bytes.Length > 1 && bytes[0] == 0xFF && bytes[1] == 0xD8;
+        }
+        private bool IsPng(byte[] bytes)
+        {
+            // PNG magic number: 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A
+            return bytes.Length > 7 && bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47
+                && bytes[4] == 0x0D && bytes[5] == 0x0A && bytes[6] == 0x1A && bytes[7] == 0x0A;
+        }
+        private bool IsGif(byte[] bytes)
+        {
+            // GIF magic number: "GIF"
+            return bytes.Length > 2 && bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46;
+        }
+        private bool IsPdf(byte[] bytes)
+        {
+            // PDF magic number: "%PDF"
+            return bytes.Length > 4 &&
+                   bytes[0] == 0x25 && bytes[1] == 0x50 && bytes[2] == 0x44 && bytes[3] == 0x46;
         }
     }
 }

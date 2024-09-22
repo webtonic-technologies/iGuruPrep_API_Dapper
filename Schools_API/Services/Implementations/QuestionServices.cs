@@ -116,11 +116,11 @@ namespace Schools_API.Services.Implementations
                 return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, [], 500);
             }
         }
-        public async Task<ServiceResponse<List<EmployeeListAssignedQuestionCount>>> GetAssignedQuestionsCount(int EmployeeId)
+        public async Task<ServiceResponse<List<EmployeeListAssignedQuestionCount>>> GetAssignedQuestionsCount(int EmployeeId, int SubjectId)
         {
             try
             {
-                return await _questionRepository.GetAssignedQuestionsCount(EmployeeId);
+                return await _questionRepository.GetAssignedQuestionsCount(EmployeeId, SubjectId);
             }
             catch (Exception ex)
             {

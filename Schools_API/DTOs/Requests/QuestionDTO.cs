@@ -12,9 +12,9 @@ namespace Schools_API.DTOs.Requests
         //public int? ApprovedBy { get; set; }
         //public string ReasonNote { get; set; } = string.Empty;
         public bool? Status { get; set; }
-        public int? CreatedBy { get; set; }
+        public string? CreatedBy { get; set; }
         public DateTime? CreatedOn { get; set; }
-        public int? ModifiedBy { get; set; }
+        public string? ModifiedBy { get; set; }
         public DateTime? ModifiedOn { get; set; }
         //public int? Verified { get; set; }
         //public int? courseid { get; set; }
@@ -35,7 +35,7 @@ namespace Schools_API.DTOs.Requests
         public string ExtraInformation { get; set; } = string.Empty;
         public bool IsActive { get; set; } = true;
         public List<QIDCourse>? QIDCourses { get; set; }
-        public List<QuestionSubjectMapping>? QuestionSubjectMappings { get; set; }
+      //  public List<QuestionSubjectMapping>? QuestionSubjectMappings { get; set; }
         public List<AnswerMultipleChoiceCategory>? AnswerMultipleChoiceCategories { get; set; }
         public Answersingleanswercategory? Answersingleanswercategories { get; set; }
         //public Reference? References { get; set; }
