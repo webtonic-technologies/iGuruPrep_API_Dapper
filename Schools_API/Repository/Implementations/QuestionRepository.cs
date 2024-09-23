@@ -7,7 +7,6 @@ using Schools_API.DTOs.ServiceResponse;
 using Schools_API.Models;
 using Schools_API.Repository.Interfaces;
 using System.Data;
-using System.Data.SqlClient;
 using System.Drawing;
 
 namespace Schools_API.Repository.Implementations
@@ -94,42 +93,6 @@ namespace Schools_API.Repository.Implementations
   
   -- Fetch the QuestionId of the newly inserted row
   SELECT CAST(SCOPE_IDENTITY() AS INT);";
-
-                //string insertQuery = @"
-                //INSERT INTO tblQuestion (
-                //    QuestionDescription,
-                //    QuestionTypeId,
-                //    Status,
-                //    CreatedBy,
-                //    CreatedOn,
-                //    subjectID,
-                //    EmployeeId,
-                //    IndexTypeId,
-                //    ContentIndexId,
-                //    IsRejected,
-                //    IsApproved,
-                //    QuestionCode,
-                //    Explanation,
-                //    ExtraInformation,
-                //    IsActive
-                //) VALUES (
-                //    @QuestionDescription,
-                //    @QuestionTypeId,
-                //    @Status,
-                //    @CreatedBy,
-                //    @CreatedOn,
-                //    @subjectID,
-                //    @EmployeeId,
-                //    @IndexTypeId,
-                //    @ContentIndexId,
-                //    @IsRejected,
-                //    @IsApproved,
-                //    @QuestionCode,
-                //    @Explanation,
-                //    @ExtraInformation,
-                //    @IsActive
-                //);
-                //SELECT QuestionCode FROM tblQuestion WHERE QuestionCode = @QuestionCode AND IsActive = 1;";
 
                 // Retrieve the QuestionCode after insertion
                 // var insertedQuestionCode = await _connection.QuerySingleOrDefaultAsync<string>(insertQuery, question);
@@ -598,134 +561,6 @@ namespace Schools_API.Repository.Implementations
                 return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, new List<QuestionResponseDTO>(), 500);
             }
         }
-
-        //public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetAllQuestionsList(GetAllQuestionListRequest request)
-        //{
-        //    try
-        //    {
-        //        // Initialize a list to hold all question codes to fetch
-        //        List<string> assignedQuestionCodes = new List<string>();
-
-        //        // Step 1: Fetch list of QuestionCodes assigned to the given employee if EmployeeId is provided
-        //        if (request.EmployeeId > 0)
-        //        {
-        //            string fetchAssignedQuestionsSql = @"
-        //    SELECT QuestionCode 
-        //    FROM tblQuestionProfiler 
-        //    WHERE EmpId = @EmployeeId AND Status = 1";
-
-        //            assignedQuestionCodes = (await _connection.QueryAsync<string>(fetchAssignedQuestionsSql, new { EmployeeId = request.EmployeeId })).ToList();
-        //        }
-
-        //        // Step 2: Fetch questions based on the provided filters
-        //        string fetchQuestionsSql = @"
-        //SELECT q.*, 
-        //       c.CourseName, 
-        //       b.BoardName, 
-        //       cl.ClassName, 
-        //       s.SubjectName,
-        //       et.ExamTypeName,
-        //       e.EmpFirstName, 
-        //       qt.QuestionType as QuestionTypeName,
-        //       it.IndexType as IndexTypeName,
-        //       CASE 
-        //           WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
-        //           WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
-        //           WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
-        //       END AS ContentIndexName
-        //FROM tblQuestion q
-        //LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
-        //LEFT JOIN tblCourse c ON q.courseid = c.CourseID
-        //LEFT JOIN tblBoard b ON q.boardid = b.BoardID
-        //LEFT JOIN tblClass cl ON q.classid = cl.ClassID
-        //LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
-        //LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
-        //LEFT JOIN tblEmployee e ON q.EmployeeId = e.Employeeid
-        //LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
-        //LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
-        //LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
-        //LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
-        //WHERE (@ContentIndexId = 0 OR q.ContentIndexId = @ContentIndexId)
-        //  AND (@IndexTypeId = 0 OR q.IndexTypeId = @IndexTypeId)
-        //  AND q.IsRejected = 0
-        //  AND q.IsApproved = 0
-        //  AND (q.EmployeeId = @EmployeeId OR q.QuestionCode IN @QuestionCodes)
-        //  AND q.IsActive = 1
-        //  AND IsLive = 0";
-
-        //        var parameters = new
-        //        {
-        //            ContentIndexId = request.ContentIndexId,
-        //            IndexTypeId = request.IndexTypeId,
-        //            EmployeeId = request.EmployeeId,
-        //            QuestionCodes = assignedQuestionCodes
-        //        };
-
-        //        var data = await _connection.QueryAsync<dynamic>(fetchQuestionsSql, parameters);
-
-        //        if (data != null)
-        //        {
-        //            var response = data.Select(item => new QuestionResponseDTO
-        //            {
-        //                QuestionId = item.QuestionId,
-        //                QuestionDescription = item.QuestionDescription,
-        //                QuestionTypeId = item.QuestionTypeId,
-        //                Status = item.Status,
-        //                CreatedBy = item.CreatedBy,
-        //                CreatedOn = item.CreatedOn,
-        //                ModifiedBy = item.ModifiedBy,
-        //                ModifiedOn = item.ModifiedOn,
-        //                subjectID = item.subjectID,
-        //                SubjectName = item.SubjectName,
-        //                EmployeeId = item.EmployeeId,
-        //                EmployeeName = item.EmpFirstName,
-        //                IndexTypeId = item.IndexTypeId,
-        //                IndexTypeName = item.IndexTypeName,
-        //                ContentIndexId = item.ContentIndexId,
-        //                ContentIndexName = item.ContentIndexName,
-        //                IsRejected = item.IsRejected,
-        //                IsApproved = item.IsApproved,
-        //                QuestionTypeName = item.QuestionTypeName,
-        //                QuestionCode = item.QuestionCode,
-        //                Explanation = item.Explanation,
-        //                ExtraInformation = item.ExtraInformation,
-        //                IsActive = item.IsActive,
-        //                QIDCourses = GetListOfQIDCourse(item.QuestionCode),
-        //                QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
-        //                Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
-        //                AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
-        //            }).ToList();
-        //            foreach (var record in response)
-        //            {
-        //                // Get role based on EmployeeId
-        //                var employeeRoleId = _connection.QuerySingleOrDefault<int?>("SELECT RoleID FROM tblEmployee WHERE EmployeeID = @EmployeeId", new { EmployeeId = record.EmployeeId });
-        //                record.userRole = employeeRoleId.HasValue ? GetRoleName(employeeRoleId.Value) : string.Empty; // Map the role name
-        //            }
-        //            int totalCount = response.Count;
-
-        //            var paginatedList = response.Skip((request.PageNumber - 1) * request.PageSize)
-        //                                        .Take(request.PageSize)
-        //                                        .ToList();
-
-        //            if (paginatedList.Count != 0)
-        //            {
-        //                return new ServiceResponse<List<QuestionResponseDTO>>(true, "Operation Successful", paginatedList, 200, totalCount);
-        //            }
-        //            else
-        //            {
-        //                return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
-        //            }
-        //        }
-        //        else
-        //        {
-        //            return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, new List<QuestionResponseDTO>(), 500);
-        //    }
-        //}
         public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetAssignedQuestionsList(int employeeId)
         {
             try
@@ -767,114 +602,26 @@ namespace Schools_API.Repository.Implementations
                 return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, null, 500);
             }
         }
-        //public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetApprovedQuestionsList(GetAllQuestionListRequest request)
-        //{
-        //    try
-        //    {
-        //        string sql = @"
-        //        SELECT q.*, 
-        //               c.CourseName, 
-        //               b.BoardName, 
-        //               cl.ClassName, 
-        //               s.SubjectName,
-        //               et.ExamTypeName,
-        //               e.EmpFirstName, 
-        //               qt.QuestionType as QuestionTypeName,
-        //               it.IndexType as IndexTypeName,
-        //               CASE 
-        //                   WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
-        //                   WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
-        //                   WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
-        //               END AS ContentIndexName
-        //        FROM tblQuestion q
-        //        LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
-        //        LEFT JOIN tblCourse c ON q.courseid = c.CourseID
-        //        LEFT JOIN tblBoard b ON q.boardid = b.BoardID
-        //        LEFT JOIN tblClass cl ON q.classid = cl.ClassID
-        //        LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
-        //        LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
-        //        LEFT JOIN tblEmployee e ON q.EmployeeId = e.Employeeid
-        //        LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
-        //        LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
-        //        LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
-        //        LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
-        //        WHERE (@ContentIndexId = 0 OR q.ContentIndexId = @ContentIndexId)
-        //          AND (@IndexTypeId = 0 OR q.IndexTypeId = @IndexTypeId)
-        //          AND q.IsApproved = 1
-        //          AND q.IsRejected = 0
-        //          AND q.IsActive = 1
-        //          AND (@EmployeeId = 0 OR q.EmployeeId = @EmployeeId)
-        //          AND IsLive = 0";
-
-        //        var parameters = new
-        //        {
-        //            ContentIndexId = request.ContentIndexId,
-        //            IndexTypeId = request.IndexTypeId,
-        //            request.EmployeeId
-        //        };
-
-        //        var data = await _connection.QueryAsync<dynamic>(sql, parameters);
-
-        //        if (data != null)
-        //        {
-        //            var response = data.Select(item => new QuestionResponseDTO
-        //            {
-        //                QuestionId = item.QuestionId,
-        //                QuestionDescription = item.QuestionDescription,
-        //                QuestionTypeId = item.QuestionTypeId,
-        //                Status = item.Status,
-        //                CreatedBy = item.CreatedBy,
-        //                CreatedOn = item.CreatedOn,
-        //                ModifiedBy = item.ModifiedBy,
-        //                ModifiedOn = item.ModifiedOn,
-        //                subjectID = item.subjectID,
-        //                SubjectName = item.SubjectName,
-        //                EmployeeId = item.EmployeeId,
-        //                EmployeeName = item.EmpFirstName,
-        //                IndexTypeId = item.IndexTypeId,
-        //                IndexTypeName = item.IndexTypeName,
-        //                ContentIndexId = item.ContentIndexId,
-        //                ContentIndexName = item.ContentIndexName,
-        //                QIDCourses = GetListOfQIDCourse(item.QuestionCode),
-        //                QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
-        //                Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
-        //                AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode),
-        //                IsApproved = item.IsApproved,
-        //                IsRejected = item.IsRejected,
-        //                QuestionTypeName = item.QuestionTypeName,
-        //                QuestionCode = item.QuestionCode,
-        //                Explanation = item.Explanation,
-        //                ExtraInformation = item.ExtraInformation,
-        //                IsActive = item.IsActive
-        //            }).ToList();
-
-        //            var paginatedList = response.Skip((request.PageNumber - 1) * request.PageSize)
-        //                                        .Take(request.PageSize)
-        //                                        .ToList();
-
-        //            if (paginatedList.Count != 0)
-        //            {
-        //                return new ServiceResponse<List<QuestionResponseDTO>>(true, "Operation Successful", paginatedList, 200);
-        //            }
-        //            else
-        //            {
-        //                return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
-        //            }
-        //        }
-        //        else
-        //        {
-        //            return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, new List<QuestionResponseDTO>(), 500);
-        //    }
-        //}
         public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetApprovedQuestionsList(GetAllQuestionListRequest request)
         {
             try
             {
+                // Step 1: Fetch the role of the employee based on EmployeeId
+                string fetchRoleSql = @"
+        SELECT r.RoleCode 
+        FROM tblEmployee e
+        JOIN tblRole r ON e.RoleID = r.RoleID
+        WHERE e.Employeeid = @EmployeeId";
+
+                string roleCode = await _connection.QueryFirstOrDefaultAsync<string>(fetchRoleSql, new { EmployeeId = request.EmployeeId });
+
+                // Step 2: Handle Transcriptor scenario
+                if (roleCode == "TR")
+                {
+                    // Return empty list for Transcriptors
+                    return new ServiceResponse<List<QuestionResponseDTO>>(false, "Transcriptors are not allowed to view questions.", new List<QuestionResponseDTO>(), 403);
+                }
+
                 // Initialize a list to hold question codes that are assigned to other employees for review
                 List<string> assignedToOtherEmployeesQuestionCodes = new List<string>();
 
@@ -882,53 +629,58 @@ namespace Schools_API.Repository.Implementations
                 if (request.EmployeeId > 0)
                 {
                     string fetchAssignedQuestionsSql = @"
-            SELECT DISTINCT QuestionCode 
-            FROM tblQuestionProfiler 
-            WHERE QuestionCode IS NOT NULL 
-              AND Status = 1 
-              AND QuestionCode IN (SELECT QuestionCode FROM tblQuestion WHERE EmployeeId = @EmployeeId) 
-              AND EmpId != @EmployeeId";
+                SELECT DISTINCT QuestionCode 
+                FROM tblQuestionProfiler 
+                WHERE QuestionCode IS NOT NULL 
+                  AND Status = 1 
+                  AND QuestionCode IN (SELECT QuestionCode FROM tblQuestion WHERE EmployeeId = @EmployeeId) 
+                  AND EmpId != @EmployeeId";
 
                     assignedToOtherEmployeesQuestionCodes = (await _connection.QueryAsync<string>(
                         fetchAssignedQuestionsSql, new { EmployeeId = request.EmployeeId })).ToList();
                 }
 
-                // Fetch approved questions based on the provided filters
+                // Step 3: Modify the query for SMEs to show only their approved questions
                 string sql = @"
-        SELECT q.*, 
-               c.CourseName, 
-               b.BoardName, 
-               cl.ClassName, 
-               s.SubjectName,
-               et.ExamTypeName,
-               e.EmpFirstName, 
-               qt.QuestionType as QuestionTypeName,
-               it.IndexType as IndexTypeName,
-               CASE 
-                   WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
-                   WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
-                   WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
-               END AS ContentIndexName
-        FROM tblQuestion q
-        LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
-        LEFT JOIN tblCourse c ON q.courseid = c.CourseID
-        LEFT JOIN tblBoard b ON q.boardid = b.BoardID
-        LEFT JOIN tblClass cl ON q.classid = cl.ClassID
-        LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
-        LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
-        LEFT JOIN tblEmployee e ON q.EmployeeId = e.Employeeid
-        LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
-        LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
-        LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
-        LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
-        WHERE (@ContentIndexId = 0 OR q.ContentIndexId = @ContentIndexId)
-          AND (@IndexTypeId = 0 OR q.IndexTypeId = @IndexTypeId)
-          AND q.IsApproved = 1
-          AND q.IsRejected = 0
-          AND q.IsActive = 1
-          AND (@EmployeeId = 0 OR q.EmployeeId = @EmployeeId)
-          AND IsLive = 0
-          AND (q.QuestionCode IS NULL OR q.QuestionCode NOT IN @AssignedToOtherEmployeesQuestionCodes)"; // Exclude questions assigned to other employees
+            SELECT q.*, 
+                   c.CourseName, 
+                   b.BoardName, 
+                   cl.ClassName, 
+                   s.SubjectName,
+                   et.ExamTypeName,
+                   e.EmpFirstName, 
+                   qt.QuestionType as QuestionTypeName,
+                   it.IndexType as IndexTypeName,
+                   CASE 
+                       WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
+                       WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
+                       WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+                   END AS ContentIndexName
+            FROM tblQuestion q
+            LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
+            LEFT JOIN tblCourse c ON q.courseid = c.CourseID
+            LEFT JOIN tblBoard b ON q.boardid = b.BoardID
+            LEFT JOIN tblClass cl ON q.classid = cl.ClassID
+            LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
+            LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
+            LEFT JOIN tblEmployee e ON q.EmployeeId = e.Employeeid
+            LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
+            LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
+            LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
+            LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
+            WHERE (@ContentIndexId = 0 OR q.ContentIndexId = @ContentIndexId)
+              AND (@IndexTypeId = 0 OR q.IndexTypeId = @IndexTypeId)
+              AND q.IsApproved = 1
+              AND q.IsRejected = 0
+              AND q.IsActive = 1
+              AND IsLive = 0
+              AND (q.QuestionCode IS NULL OR q.QuestionCode NOT IN @AssignedToOtherEmployeesQuestionCodes)";
+
+                // If role is SME, modify query to show only approved questions by the given employee
+                if (roleCode == "SM")
+                {
+                    sql += " AND q.QuestionCode IN (SELECT QuestionCode FROM tblQuestionProfilerApproval WHERE ApprovedBy = @EmployeeId)";
+                }
 
                 var parameters = new
                 {
@@ -961,7 +713,6 @@ namespace Schools_API.Repository.Implementations
                         ContentIndexId = item.ContentIndexId,
                         ContentIndexName = item.ContentIndexName,
                         QIDCourses = GetListOfQIDCourse(item.QuestionCode),
-                        //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
                         Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
                         AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode),
                         IsApproved = item.IsApproved,
@@ -996,110 +747,6 @@ namespace Schools_API.Repository.Implementations
                 return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, new List<QuestionResponseDTO>(), 500);
             }
         }
-        //public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetRejectedQuestionsList(GetAllQuestionListRequest request)
-        //{
-        //    try
-        //    {
-        //        string sql = @"
-        //        SELECT q.*, 
-        //               c.CourseName, 
-        //               b.BoardName, 
-        //               cl.ClassName, 
-        //               s.SubjectName,
-        //               et.ExamTypeName,
-        //               e.EmpFirstName, 
-        //               qt.QuestionType as QuestionTypeName,
-        //               it.IndexType as IndexTypeName,
-        //           CASE 
-        //           WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
-        //           WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
-        //           WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
-        //           END AS ContentIndexName
-        //        FROM tblQuestion q
-        //        LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
-        //        LEFT JOIN tblCourse c ON q.courseid = c.CourseID
-        //        LEFT JOIN tblBoard b ON q.boardid = b.BoardID
-        //        LEFT JOIN tblClass cl ON q.classid = cl.ClassID
-        //        LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
-        //        LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
-        //        LEFT JOIN tblEmployee e ON q.EmployeeId = e.Employeeid
-        //        LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
-        //        LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
-        //        LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
-        //        LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
-        //        WHERE (@ContentIndexId = 0 OR q.ContentIndexId = @ContentIndexId)
-        //          AND (@IndexTypeId = 0 OR q.IndexTypeId = @IndexTypeId)
-        //          AND q.IsRejected = 1
-        //          AND q.IsApproved = 0
-        //          AND q.IsActive = 1
-        //          AND (@EmployeeId = 0 OR q.EmployeeId = @EmployeeId)
-        //          AND IsLive = 0";
-
-        //        var parameters = new
-        //        {
-        //            ContentIndexId = request.ContentIndexId,
-        //            IndexTypeId = request.IndexTypeId,
-        //            request.EmployeeId
-        //        };
-
-        //        var data = await _connection.QueryAsync<dynamic>(sql, parameters);
-
-        //        if (data != null)
-        //        {
-        //            var response = data.Select(item => new QuestionResponseDTO
-        //            {
-        //                QuestionId = item.QuestionId,
-        //                QuestionDescription = item.QuestionDescription,
-        //                QuestionTypeId = item.QuestionTypeId,
-        //                Status = item.Status,
-        //                CreatedBy = item.CreatedBy,
-        //                CreatedOn = item.CreatedOn,
-        //                ModifiedBy = item.ModifiedBy,
-        //                ModifiedOn = item.ModifiedOn,
-        //                subjectID = item.subjectID,
-        //                SubjectName = item.SubjectName,
-        //                EmployeeId = item.EmployeeId,
-        //                EmployeeName = item.EmpFirstName,
-        //                IndexTypeId = item.IndexTypeId,
-        //                IndexTypeName = item.IndexTypeName,
-        //                ContentIndexId = item.ContentIndexId,
-        //                ContentIndexName = item.ContentIndexName,
-        //                QIDCourses = GetListOfQIDCourse(item.QuestionCode),
-        //                QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
-        //                Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
-        //                AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode),
-        //                IsApproved = item.IsApproved,
-        //                IsRejected = item.IsRejected,
-        //                QuestionTypeName = item.QuestionTypeName,
-        //                QuestionCode = item.QuestionCode,
-        //                Explanation = item.Explanation,
-        //                ExtraInformation = item.ExtraInformation,
-        //                IsActive = item.IsActive
-        //            }).ToList();
-
-        //            var paginatedList = response.Skip((request.PageNumber - 1) * request.PageSize)
-        //                                        .Take(request.PageSize)
-        //                                        .ToList();
-
-        //            if (paginatedList.Count != 0)
-        //            {
-        //                return new ServiceResponse<List<QuestionResponseDTO>>(true, "Operation Successful", paginatedList, 200);
-        //            }
-        //            else
-        //            {
-        //                return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
-        //            }
-        //        }
-        //        else
-        //        {
-        //            return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, new List<QuestionResponseDTO>(), 500);
-        //    }
-        //}
         public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetRejectedQuestionsList(GetAllQuestionListRequest request)
         {
             try
@@ -1138,14 +785,12 @@ namespace Schools_API.Repository.Implementations
           AND q.IsActive = 1
           AND (@EmployeeId = 0 OR q.EmployeeId = @EmployeeId)
           AND IsLive = 0
-          AND NOT EXISTS (
-              SELECT 1
+          AND EXISTS (
+              SELECT *
               FROM tblQuestionProfiler qp
               WHERE qp.QuestionCode = q.QuestionCode
                 AND qp.Status = 1
-                AND qp.EmpId != @EmployeeId
-          )";
-
+                AND qp.RejectedStatus = 1)";
                 var parameters = new
                 {
                     ContentIndexId = request.ContentIndexId,
@@ -1357,6 +1002,14 @@ namespace Schools_API.Repository.Implementations
 
                         if (newId > 0)
                         {
+                            // Update tblQuestionProfiler to set status of the current profiler to inactive
+                            string updateProfilerSql = @"
+                            UPDATE tblQuestionProfiler
+                            SET RejectedStatus = 1
+                            WHERE Status = 1 AND QuestionCode = @QuestionCode";
+
+                            await _connection.ExecuteAsync(updateProfilerSql, new { request.QuestionCode });
+
                             return new ServiceResponse<string>(true, "Question rejected successfully", "Success", 200);
                         }
                         else
@@ -1438,7 +1091,7 @@ namespace Schools_API.Repository.Implementations
                     // Update tblQuestionProfiler to set status of the current profiler to inactive
                     string updateProfilerSql = @"
             UPDATE tblQuestionProfiler
-            SET Status = 0
+            SET Status = 0, ApprovedStatus = 1
             WHERE Status = 1 AND QuestionCode = @QuestionCode";
 
                     await _connection.ExecuteAsync(updateProfilerSql, new { request.QuestionCode }, transaction);
@@ -1514,8 +1167,8 @@ namespace Schools_API.Repository.Implementations
 
                     // Insert a new record for the new profiler with ApprovedStatus = false and Status = true
                     string insertSql = @"
-                INSERT INTO tblQuestionProfiler (Questionid, QuestionCode, EmpId, ApprovedStatus, Status, AssignedDate)
-                VALUES (@Questionid, @QuestionCode, @EmpId, 0, 1, @AssignedDate)";
+                INSERT INTO tblQuestionProfiler (Questionid, QuestionCode, EmpId, RejectedStatus, ApprovedStatus, Status, AssignedDate)
+                VALUES (@Questionid, @QuestionCode, @EmpId, 0, 0, 1, @AssignedDate)";
 
                     await _connection.ExecuteAsync(insertSql, new { Questionid = questionId.Value, request.QuestionCode, request.EmpId, AssignedDate = DateTime.Now }, transaction);
 
@@ -1697,68 +1350,6 @@ namespace Schools_API.Repository.Implementations
                 return new ServiceResponse<List<ContentIndexResponses>>(false, ex.Message, new List<ContentIndexResponses>(), 500);
             }
         }
-        //public async Task<ServiceResponse<string>> AssignQuestionToProfiler(QuestionProfilerRequest request)
-        //{
-        //    try
-        //    {
-        //        if (_connection.State != ConnectionState.Open)
-        //        {
-        //            _connection.Open();
-        //        }
-        //        using (var transaction = _connection.BeginTransaction())
-        //        {
-        //            // Check if the question is already assigned to a profiler with active status based on QuestionCode
-        //            string checkSql = @"
-        //    SELECT QPID
-        //    FROM tblQuestionProfiler
-        //    WHERE QuestionCode = @QuestionCode AND Status = 1";
-
-        //            var existingProfiler = await _connection.QueryFirstOrDefaultAsync<int?>(checkSql, new { request.QuestionCode }, transaction);
-
-        //            // If the question is already assigned, update the status of the current profiler to false
-        //            if (existingProfiler.HasValue)
-        //            {
-        //                string updateSql = @"
-        //        UPDATE tblQuestionProfiler
-        //        SET Status = 0
-        //        WHERE QPID = @QPID";
-
-        //                await _connection.ExecuteAsync(updateSql, new { QPID = existingProfiler.Value }, transaction);
-        //            }
-        //            // Fetch the Questionid from the main table using QuestionCode and IsActive = 1
-        //            string fetchQuestionIdSql = @"
-        //    SELECT QuestionId
-        //    FROM tblQuestion
-        //    WHERE QuestionCode = @QuestionCode AND IsActive = 1";
-
-        //            var questionId = await _connection.QueryFirstOrDefaultAsync<int?>(fetchQuestionIdSql, new { request.QuestionCode }, transaction);
-
-        //            if (!questionId.HasValue)
-        //            {
-        //                return new ServiceResponse<string>(false, "Question not found or inactive", string.Empty, 404);
-        //            }
-        //            // Insert a new record for the new profiler with ApprovedStatus = false and Status = true
-        //            string insertSql = @"
-        //    INSERT INTO tblQuestionProfiler (Questionid, QuestionCode, EmpId, ApprovedStatus, Status, AssignedDate)
-        //    VALUES (@Questionid, @QuestionCode, @EmpId, 0, 1, @AssignedDate)";
-
-        //            await _connection.ExecuteAsync(insertSql, new { Questionid = questionId.Value, request.QuestionCode, request.EmpId, AssignedDate = DateTime.Now }, transaction);
-
-        //            // Commit the transaction
-        //            transaction.Commit();
-        //        }
-
-        //        return new ServiceResponse<string>(true, "Question successfully assigned to profiler", string.Empty, 200);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
-        //    }
-        //    finally
-        //    {
-        //        _connection.Close();
-        //    }
-        //}
         public async Task<ServiceResponse<QuestionProfilerResponse>> GetQuestionProfilerDetails(string QuestionCode)
         {
             try
