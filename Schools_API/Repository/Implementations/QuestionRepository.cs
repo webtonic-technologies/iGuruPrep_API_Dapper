@@ -57,42 +57,42 @@ namespace Schools_API.Repository.Implementations
                     IsActive = true
                 };
                 string insertQuery = @"
-  INSERT INTO tblQuestion (
-      QuestionDescription,
-      QuestionTypeId,
-      Status,
-      CreatedBy,
-      CreatedOn,
-      subjectID,
-      EmployeeId,
-      IndexTypeId,
-      ContentIndexId,
-      IsRejected,
-      IsApproved,
-      QuestionCode,
-      Explanation,
-      ExtraInformation,
-      IsActive
-  ) VALUES (
-      @QuestionDescription,
-      @QuestionTypeId,
-      @Status,
-      @CreatedBy,
-      @CreatedOn,
-      @subjectID,
-      @EmployeeId,
-      @IndexTypeId,
-      @ContentIndexId,
-      @IsRejected,
-      @IsApproved,
-      @QuestionCode,
-      @Explanation,
-      @ExtraInformation,
-      @IsActive
-  );
+              INSERT INTO tblQuestion (
+                  QuestionDescription,
+                  QuestionTypeId,
+                  Status,
+                  CreatedBy,
+                  CreatedOn,
+                  subjectID,
+                  EmployeeId,
+                  IndexTypeId,
+                  ContentIndexId,
+                  IsRejected,
+                  IsApproved,
+                  QuestionCode,
+                  Explanation,
+                  ExtraInformation,
+                  IsActive
+              ) VALUES (
+                  @QuestionDescription,
+                  @QuestionTypeId,
+                  @Status,
+                  @CreatedBy,
+                  @CreatedOn,
+                  @subjectID,
+                  @EmployeeId,
+                  @IndexTypeId,
+                  @ContentIndexId,
+                  @IsRejected,
+                  @IsApproved,
+                  @QuestionCode,
+                  @Explanation,
+                  @ExtraInformation,
+                  @IsActive
+              );
   
-  -- Fetch the QuestionId of the newly inserted row
-  SELECT CAST(SCOPE_IDENTITY() AS INT);";
+              -- Fetch the QuestionId of the newly inserted row
+              SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
                 // Retrieve the QuestionCode after insertion
                 // var insertedQuestionCode = await _connection.QuerySingleOrDefaultAsync<string>(insertQuery, question);
@@ -1486,7 +1486,7 @@ namespace Schools_API.Repository.Implementations
         LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
         LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
         WHERE q.QuestionCode = @QuestionCode
-        ORDER BY q.ModifiedOn DESC";
+        ORDER BY q.CreatedOn DESC";
 
                 var parameters = new { QuestionCode = questionCode };
 
