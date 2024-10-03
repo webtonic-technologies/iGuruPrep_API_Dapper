@@ -8,6 +8,7 @@
         public int DisplayOrder { get; set; }
         public int Status { get; set; }
         public int testseriesQuestionSectionid { get; set; }
+        public string QuestionCode { get; set; } = string.Empty;
     }
 }
 //sub id

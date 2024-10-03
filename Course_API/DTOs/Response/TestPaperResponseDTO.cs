@@ -27,8 +27,8 @@ namespace Course_API.DTOs.Response
         public List<TestPaperCourseResponse>? TestPaperCourses { get; set; }
         public List<TestPaperSubjectResponse>? TestPaperSubjects { get; set; }
         public List<TestPaperSubjectDetails>? TestPaperSubjectDetails { get; set; }
-        public List<TestPaperInstructions>? TestSeriesInstruction { get; set; }
-        public List<TestPaperQuestions>? TestSeriesQuestions { get; set; }
+        public List<TestPaperInstructions>? TestPaperInstruction { get; set; }
+        public List<TestPaperQuestions>? TestPaperQuestions { get; set; }
     }
     public class TestPaperBoardResponse
     {

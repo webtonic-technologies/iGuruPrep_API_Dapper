@@ -4,6 +4,7 @@ using Course_API.DTOs.ServiceResponse;
 using Course_API.Models;
 using Course_API.Repository.Interfaces;
 using Course_API.Services.Interfaces;
+using static System.Collections.Specialized.BitVector32;
 
 namespace Course_API.Services.Implementations
 {
@@ -41,6 +42,11 @@ namespace Course_API.Services.Implementations
             }
         }
 
+        public async Task<ServiceResponse<List<DifficultyLevelDTO>>> GetDifficultyLevelsBySectionId(int sectionId)
+        {
+            return await _testSeriesRepository.GetDifficultyLevelsBySectionId(sectionId);
+        }
+
         public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetQuestionsList(GetAllQuestionListRequest request)
         {
             try
@@ -51,6 +57,16 @@ namespace Course_API.Services.Implementations
             {
                 return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, [], 500);
             }
+        }
+
+        public async Task<ServiceResponse<List<QuestionTypeDTO>>> GetQuestionTypesBySectionId(int sectionId)
+        {
+            return await _testSeriesRepository.GetQuestionTypesBySectionId(sectionId);
+        }
+
+        public async Task<ServiceResponse<List<TestSeriesSectionDTO>>> GetSectionsByTestSeriesId(int testSeriesId)
+        {
+            return await _testSeriesRepository.GetSectionsByTestSeriesId(testSeriesId);
         }
 
         public async Task<ServiceResponse<List<ContentIndexResponses>>> GetSyllabusDetailsBySubject(SyllabusDetailsRequest request)
@@ -77,6 +93,11 @@ namespace Course_API.Services.Implementations
             }
         }
 
+        public async Task<ServiceResponse<List<ChapterDTO>>> GetTestSeriesContentIndexHierarchy(int testSeriesId)
+        {
+            return await _testSeriesRepository.GetTestSeriesContentIndexHierarchy(testSeriesId);
+        }
+
         public async Task<ServiceResponse<List<TestSeriesResponseDTO>>> GetTestSeriesList(TestSeriesListRequest request)
         {
             try
@@ -88,18 +109,78 @@ namespace Course_API.Services.Implementations
                 return new ServiceResponse<List<TestSeriesResponseDTO>>(false, ex.Message, [], 500);
             }
         }
-
-        public async Task<ServiceResponse<string>> TestSeriesContentIndexMapping(List<TestSeriesContentIndex> request, int TestSeriesId)
+        public async Task<ServiceResponse<string>> TestSeriesContentIndexMapping(ContentIndexRequest request, int TestSeriesId)
         {
             try
             {
-                return await _testSeriesRepository.TestSeriesContentIndexMapping(request, TestSeriesId);
+                // List to store the mapped content index records
+                List<TestSeriesContentIndex> contentIndexList = new List<TestSeriesContentIndex>();
+
+                // Loop through each subject in the request
+                foreach (var subject in request.Subjects)
+                {
+                    // Loop through each chapter in the subject
+                    foreach (var chapter in subject.Chapter)
+                    {
+                        // Add the chapter as TestSeriesContentIndex
+                        contentIndexList.Add(new TestSeriesContentIndex
+                        {
+                            TestSeriesSubjectIndexId = chapter.TestseriesContentIndexId,
+                            IndexTypeId = chapter.IndexTypeId,
+                            ContentIndexId = chapter.ContentIndexId,
+                            TestSeriesID = TestSeriesId,
+                            SubjectId = subject.SubjectId
+                        });
+
+                        // Loop through each concept (topic) in the chapter
+                        foreach (var concept in chapter.Concepts)
+                        {
+                            // Add the concept as TestSeriesContentIndex
+                            contentIndexList.Add(new TestSeriesContentIndex
+                            {
+                                TestSeriesSubjectIndexId = concept.TestseriesConceptIndexId,
+                                IndexTypeId = concept.IndexTypeId,
+                                ContentIndexId = concept.ContentIndexId,
+                                TestSeriesID = TestSeriesId,
+                                SubjectId = subject.SubjectId
+                            });
+
+                            // Loop through each sub-concept in the concept (topic)
+                            foreach (var subConcept in concept.SubConcepts)
+                            {
+                                // Add the sub-concept as TestSeriesContentIndex
+                                contentIndexList.Add(new TestSeriesContentIndex
+                                {
+                                    TestSeriesSubjectIndexId = subConcept.TestseriesConceptIndexId,
+                                    IndexTypeId = subConcept.IndexTypeId,
+                                    ContentIndexId = subConcept.ContInIdSubTopic,
+                                    TestSeriesID = TestSeriesId,
+                                    SubjectId = subject.SubjectId
+                                });
+                            }
+                        }
+                    }
+                }
+
+                // Call the repository to map content index
+                return await _testSeriesRepository.TestSeriesContentIndexMapping(contentIndexList, TestSeriesId);
             }
             catch (Exception ex)
             {
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
+        //public async Task<ServiceResponse<string>> TestSeriesContentIndexMapping(List<TestSeriesContentIndex> request, int TestSeriesId)
+        //{
+        //    try
+        //    {
+        //        return await _testSeriesRepository.TestSeriesContentIndexMapping(request, TestSeriesId);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+        //    }
+        //}
 
         public async Task<ServiceResponse<string>> TestSeriesInstructionsMapping(List<TestSeriesInstructions> request, int TestSeriesId)
         {
@@ -113,11 +194,46 @@ namespace Course_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<string>> TestSeriesQuestionSectionMapping(List<TestSeriesQuestionSection> request, int TestSeriesId)
+        public async Task<ServiceResponse<string>> TestSeriesQuestionSectionMapping(List<QuestionSection> request, int TestSeriesId)
         {
             try
             {
-                return await _testSeriesRepository.TestSeriesQuestionSectionMapping(request, TestSeriesId);
+                var requestBody = new List<TestSeriesQuestionSection>();
+
+                // Loop through the QuestionSection list
+                foreach (var data in request)
+                {
+                    // For each QuestionSection, map its TestSeriesQuestionSections to new entries
+                    if (data.TestSeriesQuestionSections != null)
+                    {
+                        var mappedSections = data.TestSeriesQuestionSections.Select(m => new TestSeriesQuestionSection
+                        {
+                            testseriesQuestionSectionid = m.testseriesQuestionSectionid,
+                            TestSeriesid = TestSeriesId, // Use the TestSeriesId passed to the method
+                            DisplayOrder = m.DisplayOrder,
+                            SectionName = m.SectionName,
+                            Status = m.Status,
+                            LevelID1 = m.LevelID1,
+                            QuesPerDifficulty1 = m.QuesPerDifficulty1,
+                            LevelID2 = m.LevelID2,
+                            QuesPerDifficulty2 = m.QuesPerDifficulty2,
+                            LevelID3 = m.LevelID3,
+                            QuesPerDifficulty3 = m.QuesPerDifficulty3,
+                            QuestionTypeID = m.QuestionTypeID,
+                            EntermarksperCorrectAnswer = m.EntermarksperCorrectAnswer,
+                            EnterNegativeMarks = m.EnterNegativeMarks,
+                            TotalNoofQuestions = m.TotalNoofQuestions,
+                            NoofQuestionsforChoice = m.NoofQuestionsforChoice,
+                            SubjectId = data.SubjectId // Map the SubjectId from the parent QuestionSection
+                        }).ToList();
+
+                        // Add the mapped sections to the requestBody
+                        requestBody.AddRange(mappedSections);
+                    }
+                }
+
+                // Call repository method to save the mappings
+                return await _testSeriesRepository.TestSeriesQuestionSectionMapping(requestBody, TestSeriesId);
             }
             catch (Exception ex)
             {

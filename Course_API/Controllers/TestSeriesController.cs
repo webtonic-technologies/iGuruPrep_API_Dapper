@@ -58,7 +58,7 @@ namespace Course_API.Controllers
             }
         }
         [HttpPost("TestSeriesContentIndexMapping")]
-        public async Task<IActionResult> TestSeriesContentIndexMapping(List<TestSeriesContentIndex> request, int TestSeriesId)
+        public async Task<IActionResult> TestSeriesContentIndexMapping(ContentIndexRequest request, int TestSeriesId)
         {
             try
             {
@@ -118,7 +118,7 @@ namespace Course_API.Controllers
             }
         }
         [HttpPost("TestSeriesQuestionSectionMapping")]
-        public async Task<IActionResult> TestSeriesQuestionSectionMapping(List<TestSeriesQuestionSection> request, int TestSeriesId)
+        public async Task<IActionResult> TestSeriesQuestionSectionMapping(List<QuestionSection> request, int TestSeriesId)
         {
             try
             {
@@ -216,6 +216,55 @@ namespace Course_API.Controllers
             {
                 return this.BadRequest(e.Message);
             }
+        }
+        [HttpGet("sections/{testSeriesId}")]
+        public async Task<IActionResult> GetSectionsByTestSeriesId(int testSeriesId)
+        {
+            var response = await _testSeriesServices.GetSectionsByTestSeriesId(testSeriesId);
+
+            if (!response.Success)
+            {
+                return StatusCode(response.StatusCode, response);
+            }
+
+            return Ok(response);
+        }
+        [HttpGet("questiontypes/{sectionId}")]
+        public async Task<IActionResult> GetQuestionTypesBySectionId(int sectionId)
+        {
+            var response = await _testSeriesServices.GetQuestionTypesBySectionId(sectionId);
+
+            if (!response.Success)
+            {
+                return StatusCode(response.StatusCode, response);
+            }
+
+            return Ok(response);
+        }
+        [HttpGet("difficultylevels/{sectionId}")]
+        public async Task<IActionResult> GetDifficultyLevelsBySectionId(int sectionId)
+        {
+            var response = await _testSeriesServices.GetDifficultyLevelsBySectionId(sectionId);
+
+            if (!response.Success)
+            {
+                return StatusCode(response.StatusCode, response);
+            }
+
+            return Ok(response);
+        }
+
+        [HttpGet("contentindexhierarchy/{testSeriesId}")]
+        public async Task<IActionResult> GetTestSeriesContentIndexHierarchy(int testSeriesId)
+        {
+            var response = await _testSeriesServices.GetTestSeriesContentIndexHierarchy(testSeriesId);
+
+            if (!response.Success)
+            {
+                return StatusCode(response.StatusCode, response);
+            }
+
+            return Ok(response);
         }
     }
 }

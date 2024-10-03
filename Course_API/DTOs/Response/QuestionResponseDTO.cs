@@ -10,9 +10,10 @@
         public int? ApprovedBy { get; set; }
         public string ReasonNote { get; set; } = string.Empty;
         public bool? Status { get; set; }
-        public int? CreatedBy { get; set; }
+        public int LevelId { get; set; }
+        public string CreatedBy { get; set; }
         public DateTime? CreatedOn { get; set; }
-        public int? ModifiedBy { get; set; }
+        public string ModifiedBy { get; set; }
         public DateTime? ModifiedOn { get; set; }
         public int? Verified { get; set; }
         public int? courseid { get; set; }
@@ -33,6 +34,7 @@
         public string IndexTypeName { get; set; } = string.Empty;
         public int ContentIndexId { get; set; }
         public string ContentIndexName { get; set; } = string.Empty;
+        public bool IsLive { get; set; }
         //public List<QIDCourseResponse>? QIDCourses { get; set; }
         //public List<QuestionSubjectMappingResponse>? QuestionSubjectMappings { get; set; }
         //public List<AnswerMultipleChoiceCategory>? AnswerMultipleChoiceCategories { get; set; }
@@ -92,4 +94,53 @@
         public int? Answerid { get; set; }
         public string Answer { get; set; } = string.Empty;
     }
+    public class TestSeriesSectionDTO
+    {
+        public int TestSeriesQuestionSectionId { get; set; }
+        public string SectionName { get; set; }
+        public int TotalNoOfQuestions { get; set; }
+    }
+    public class QuestionTypeDTO
+    {
+        public int TestSeriesQuestionSectionId { get; set; }
+        public int QuestionTypeID { get; set; }
+        public string QuestionType { get; set; }
+    }
+    public class DifficultyLevelDTO
+    {
+        public int LevelId { get; set; }
+        public string LevelName { get; set; }
+        public string LevelCode { get; set; }
+    }
+    public class SubConceptDTO
+    {
+        public int TestseriesConceptIndexId { get; set; }
+        public int ContInIdSubTopic { get; set; }
+        public int SubjectId { get; set; }
+        public int ContInIdTopic { get; set; }
+        public int IndexTypeId { get; set; }
+        public bool Status { get; set; }
+    }
+
+    public class ConceptDTO
+    {
+        public int TestseriesConceptIndexId { get; set; }
+        public int ContInIdTopic { get; set; }
+        public int SubjectId { get; set; }
+        public int ContentIndexId { get; set; }
+        public int IndexTypeId { get; set; }
+        public bool Status { get; set; }
+        public List<SubConceptDTO> SubConcepts { get; set; }
+    }
+
+    public class ChapterDTO
+    {
+        public int TestseriesContentIndexId { get; set; }
+        public int SubjectId { get; set; }
+        public int ContentIndexId { get; set; }
+        public int IndexTypeId { get; set; }
+        public bool Status { get; set; }
+        public List<ConceptDTO> Concepts { get; set; }
+    }
+
 }

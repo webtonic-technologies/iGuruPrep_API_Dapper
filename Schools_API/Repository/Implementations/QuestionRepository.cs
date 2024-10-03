@@ -1127,28 +1127,59 @@ namespace Schools_API.Repository.Implementations
                 {
                     // Check if the question is already assigned to a profiler with active status based on QuestionCode
                     string checkSql = @"
-                SELECT QPID
-                FROM tblQuestionProfiler
-                WHERE QuestionCode = @QuestionCode AND Status = 1";
+            SELECT QPID, EmpId
+            FROM tblQuestionProfiler
+            WHERE QuestionCode = @QuestionCode AND Status = 1";
 
-                    var existingProfiler = await _connection.QueryFirstOrDefaultAsync<int?>(checkSql, new { request.QuestionCode }, transaction);
+                    var existingProfiler = await _connection.QueryFirstOrDefaultAsync<(int? QPID, int EmpId)>(checkSql, new { request.QuestionCode }, transaction);
 
-                    // If the question is already assigned, update the status of the current profiler to false
-                    if (existingProfiler.HasValue)
+                    // If the question is already assigned, update the status of the current profiler to inactive
+                    if (existingProfiler.QPID.HasValue)
                     {
-                        string updateSql = @"
-                    UPDATE tblQuestionProfiler
-                    SET Status = 0
-                    WHERE QPID = @QPID";
+                        // Check the role of the current employee (SME or Proofer)
+                        string fetchRoleCodeSql = @"
+                        SELECT e.Employeeid, e.EmpFirstName, e.EmpLastName, r.RoleCode
+                        FROM tblEmployee e
+                        JOIN tblRole r ON e.RoleID = r.RoleID
+                        WHERE e.Employeeid = @EmpId";
 
-                        await _connection.ExecuteAsync(updateSql, new { QPID = existingProfiler.Value }, transaction);
+                        var currentRoleCode = await _connection.QueryFirstOrDefaultAsync<int>(fetchRoleCodeSql, new { EmpId = existingProfiler.EmpId }, transaction);
+
+                        // Fetch the role of the new employee (to whom the question is being assigned)
+                        var newRoleCode = await _connection.QueryFirstOrDefaultAsync<int>(fetchRoleCodeSql, new { EmpId = request.EmpId }, transaction);
+
+                        // If current role is SME and the new role is Proofer, approve the question
+                        if (currentRoleCode == 3 && newRoleCode == 4) // RoleCode 3 = SME, 4 = Proofer
+                        {
+                            // Call ApproveQuestion logic for SME approval
+                            var approvalRequest = new QuestionApprovalRequestDTO
+                            {
+                                QuestionCode = request.QuestionCode,
+                                ApprovedBy = existingProfiler.EmpId,
+                                ApprovedDate = DateTime.UtcNow
+                            };
+
+                            var approvalResponse = await ApproveQuestion(approvalRequest);
+                            if (!approvalResponse.Success)
+                            {
+                                return new ServiceResponse<string>(false, "Failed to approve question by SME", string.Empty, 500);
+                            }
+                        }
+
+                        // Update the status of the current profiler to inactive
+                        string updateSql = @"
+                UPDATE tblQuestionProfiler
+                SET Status = 0
+                WHERE QPID = @QPID";
+
+                        await _connection.ExecuteAsync(updateSql, new { QPID = existingProfiler.QPID }, transaction);
                     }
 
                     // Fetch the QuestionId from the main table using QuestionCode and IsActive = 1
                     string fetchQuestionIdSql = @"
-                SELECT QuestionId
-                FROM tblQuestion
-                WHERE QuestionCode = @QuestionCode AND IsActive = 1";
+            SELECT QuestionId
+            FROM tblQuestion
+            WHERE QuestionCode = @QuestionCode AND IsActive = 1";
 
                     var questionId = await _connection.QueryFirstOrDefaultAsync<int?>(fetchQuestionIdSql, new { request.QuestionCode }, transaction);
 
@@ -1159,18 +1190,24 @@ namespace Schools_API.Repository.Implementations
 
                     // Update the tblQuestion to set IsRejected and IsApproved to 0
                     string updateQuestionSql = @"
-                UPDATE tblQuestion
-                SET IsRejected = 0, IsApproved = 0
-                WHERE QuestionId = @QuestionId";
+            UPDATE tblQuestion
+            SET IsRejected = 0, IsApproved = 0
+            WHERE QuestionId = @QuestionId";
 
                     await _connection.ExecuteAsync(updateQuestionSql, new { QuestionId = questionId.Value }, transaction);
 
                     // Insert a new record for the new profiler with ApprovedStatus = false and Status = true
                     string insertSql = @"
-                INSERT INTO tblQuestionProfiler (Questionid, QuestionCode, EmpId, RejectedStatus, ApprovedStatus, Status, AssignedDate)
-                VALUES (@Questionid, @QuestionCode, @EmpId, 0, 0, 1, @AssignedDate)";
+            INSERT INTO tblQuestionProfiler (Questionid, QuestionCode, EmpId, RejectedStatus, ApprovedStatus, Status, AssignedDate)
+            VALUES (@Questionid, @QuestionCode, @EmpId, 0, 0, 1, @AssignedDate)";
 
-                    await _connection.ExecuteAsync(insertSql, new { Questionid = questionId.Value, request.QuestionCode, request.EmpId, AssignedDate = DateTime.Now }, transaction);
+                    await _connection.ExecuteAsync(insertSql, new
+                    {
+                        Questionid = questionId.Value,
+                        request.QuestionCode,
+                        request.EmpId,
+                        AssignedDate = DateTime.Now
+                    }, transaction);
 
                     // Commit the transaction
                     transaction.Commit();
@@ -1187,6 +1224,79 @@ namespace Schools_API.Repository.Implementations
                 _connection.Close();
             }
         }
+        //public async Task<ServiceResponse<string>> AssignQuestionToProfiler(QuestionProfilerRequest request)
+        //{
+        //    try
+        //    {
+        //        if (_connection.State != ConnectionState.Open)
+        //        {
+        //            _connection.Open();
+        //        }
+
+        //        using (var transaction = _connection.BeginTransaction())
+        //        {
+        //            // Check if the question is already assigned to a profiler with active status based on QuestionCode
+        //            string checkSql = @"
+        //        SELECT QPID
+        //        FROM tblQuestionProfiler
+        //        WHERE QuestionCode = @QuestionCode AND Status = 1";
+
+        //            var existingProfiler = await _connection.QueryFirstOrDefaultAsync<int?>(checkSql, new { request.QuestionCode }, transaction);
+
+        //            // If the question is already assigned, update the status of the current profiler to false
+        //            if (existingProfiler.HasValue)
+        //            {
+        //                string updateSql = @"
+        //            UPDATE tblQuestionProfiler
+        //            SET Status = 0
+        //            WHERE QPID = @QPID";
+
+        //                await _connection.ExecuteAsync(updateSql, new { QPID = existingProfiler.Value }, transaction);
+        //            }
+
+        //            // Fetch the QuestionId from the main table using QuestionCode and IsActive = 1
+        //            string fetchQuestionIdSql = @"
+        //        SELECT QuestionId
+        //        FROM tblQuestion
+        //        WHERE QuestionCode = @QuestionCode AND IsActive = 1";
+
+        //            var questionId = await _connection.QueryFirstOrDefaultAsync<int?>(fetchQuestionIdSql, new { request.QuestionCode }, transaction);
+
+        //            if (!questionId.HasValue)
+        //            {
+        //                return new ServiceResponse<string>(false, "Question not found or inactive", string.Empty, 404);
+        //            }
+
+        //            // Update the tblQuestion to set IsRejected and IsApproved to 0
+        //            string updateQuestionSql = @"
+        //        UPDATE tblQuestion
+        //        SET IsRejected = 0, IsApproved = 0
+        //        WHERE QuestionId = @QuestionId";
+
+        //            await _connection.ExecuteAsync(updateQuestionSql, new { QuestionId = questionId.Value }, transaction);
+
+        //            // Insert a new record for the new profiler with ApprovedStatus = false and Status = true
+        //            string insertSql = @"
+        //        INSERT INTO tblQuestionProfiler (Questionid, QuestionCode, EmpId, RejectedStatus, ApprovedStatus, Status, AssignedDate)
+        //        VALUES (@Questionid, @QuestionCode, @EmpId, 0, 0, 1, @AssignedDate)";
+
+        //            await _connection.ExecuteAsync(insertSql, new { Questionid = questionId.Value, request.QuestionCode, request.EmpId, AssignedDate = DateTime.Now }, transaction);
+
+        //            // Commit the transaction
+        //            transaction.Commit();
+        //        }
+
+        //        return new ServiceResponse<string>(true, "Question successfully assigned to profiler", string.Empty, 200);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+        //    }
+        //    finally
+        //    {
+        //        _connection.Close();
+        //    }
+        //}
         public async Task<ServiceResponse<List<ContentIndexResponses>>> GetSyllabusDetailsBySubject(SyllabusDetailsRequest request)
         {
             try

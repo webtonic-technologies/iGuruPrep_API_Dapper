@@ -63,26 +63,22 @@ namespace Course_API.DTOs.Requests
         public int Subjectid { get; set; }
         public int IndexTypeId { get; set; }
         public int ContentId { get; set; }
+        public int SectionId { get; set; }
         public int QuestionTypeId { get; set; }
         public int DifficultyLevelId { get; set; }
+        public int PageNumber {  get; set; }
+        public int PageSize {  get; set; }
     }
     public class SyllabusDetailsRequest
     {
-        public int APId { get; set; } //if APId is 1 then board, class, course will have data and exam type will be 0 , if APId is 2 then board,class,course will be 0 and exam type will have data
-        public int BoardId { get; set; }
-        public int ClassId { get; set; }
-        public int CourseId { get; set; }
-        public int ExamTypeId { get; set; }
+        public int TestSeriesId { get; set; }
         public int SubjectId { get; set; }
     }
     public class QuestionListRequest
     {
-        public int APId { get; set; } //if APId is 1 then board, class, course will have data and exam type will be 0 , if APId is 2 then board,class,course will be 0 and exam type will have data
-        public int BoardId { get; set; }
-        public int ClassId { get; set; }
-        public int CourseId { get; set; }
-        public int ExamTypeId { get; set; }
+        public int TestSeriesId { get; set; }
         public int SubjectId { get; set; }
+        public int SectionId { get; set; }
     }
     public class TestSeriesListRequest
     {
@@ -98,4 +94,45 @@ namespace Course_API.DTOs.Requests
         public int PageSize {  get; set; }
         public bool IsAdmin {  get; set; }
     }
+
+    public class ContentIndexRequest
+    {
+        public int TestSeriesID { get; set; }
+        public List<Subject> Subjects { get; set; }
+    }
+
+    public class Subject
+    {
+        public int SubjectId { get; set; }
+        public List<Chapter> Chapter { get; set; }
+    }
+
+    public class Chapter
+    {
+        public int TestseriesContentIndexId { get; set; }
+        public int ContentIndexId { get; set; }
+        public int IndexTypeId { get; set; }
+        public bool Status { get; set; }
+        public List<Concept> Concepts { get; set; }
+    }
+
+    public class Concept
+    {
+        public int TestseriesConceptIndexId { get; set; }
+        public int ContInIdTopic { get; set; }
+        public int ContentIndexId { get; set; }
+        public int IndexTypeId { get; set; }
+        public bool Status { get; set; }
+        public List<SubConcept> SubConcepts { get; set; }
+    }
+
+    public class SubConcept
+    {
+        public int TestseriesConceptIndexId { get; set; }
+        public int ContInIdSubTopic { get; set; }
+        public int ContInIdTopic { get; set; }
+        public int IndexTypeId { get; set; }
+        public bool Status { get; set; }
+    }
+
 }

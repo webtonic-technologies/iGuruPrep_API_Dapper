@@ -76,7 +76,6 @@
     public class TestPaperInstructions
     {
         public int TestPaperInstructionsId { get; set; }
-
         public string Instructions { get; set; } = string.Empty;
         public int TestPaperId { get; set; }
     }
