@@ -138,7 +138,7 @@ namespace Course_API.Controllers
             }
         }
         [HttpPost("TestSeriesInstructionsMapping")]
-        public async Task<IActionResult> TestSeriesInstructionsMapping(List<TestSeriesInstructions> request, int TestSeriesId)
+        public async Task<IActionResult> TestSeriesInstructionsMapping(TestSeriesInstructions request, int TestSeriesId)
         {
             try
             {
@@ -265,6 +265,20 @@ namespace Course_API.Controllers
             }
 
             return Ok(response);
+        }
+        [HttpPost("assign-test-series")]
+        public async Task<IActionResult> AssignTestSeries([FromBody] TestseriesProfilerRequest request)
+        {
+            var response = await _testSeriesServices.AssignTestSeries(request);
+
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+            else
+            {
+                return StatusCode(response.StatusCode, response);
+            }
         }
     }
 }

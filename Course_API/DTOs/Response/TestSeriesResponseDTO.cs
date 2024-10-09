@@ -41,7 +41,7 @@ namespace Course_API.DTOs.Response
         public List<TestSeriesCourseResponse>? TestSeriesCourses { get; set; }
         public List<TestSeriesSubjectsResponse>? TestSeriesSubject { get; set; }
         public List<TestSeriesSubjectDetails>? TestSeriesSubjectDetails { get; set; }
-        public List<TestSeriesInstructions>? TestSeriesInstruction { get; set; }
+        public TestSeriesInstructions? TestSeriesInstruction { get; set; }
         public List<TestSeriesQuestions>? TestSeriesQuestions { get; set; }
     }
     public class TestSeriesBoardsResponse

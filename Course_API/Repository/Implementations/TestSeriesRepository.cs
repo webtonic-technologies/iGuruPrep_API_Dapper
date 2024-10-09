@@ -5,7 +5,7 @@ using Course_API.Models;
 using Course_API.Repository.Interfaces;
 using Dapper;
 using System.Data;
-using System.Linq;
+using System.Data.Common;
 
 namespace Course_API.Repository.Implementations
 {
@@ -30,7 +30,7 @@ namespace Course_API.Repository.Implementations
                         MethodofAddingType, StartDate, StartTime, ResultDate, ResultTime, 
                         EmployeeID, NameOfExam, RepeatedExams, TypeOfTestSeries, 
                         createdon, createdby, RepeatExamStartDate , RepeatExamEndDate ,
-                        RepeatExamStarttime , RepeatExamResulttimeId, IsAdmin
+                        RepeatExamStarttime , RepeatExamResulttimeId, IsAdmin, TestSeriesStatusId
                     ) 
                     VALUES 
                     (
@@ -38,7 +38,7 @@ namespace Course_API.Repository.Implementations
                         @MethodofAddingType, @StartDate, @StartTime, @ResultDate, @ResultTime, 
                         @EmployeeID, @NameOfExam, @RepeatedExams, @TypeOfTestSeries, 
                         @createdon, @createdby, @RepeatExamStartDate , @RepeatExamEndDate ,
-                        @RepeatExamStarttime , @RepeatExamResulttimeId, @IsAdmin
+                        @RepeatExamStarttime , @RepeatExamResulttimeId, @IsAdmin, @TestSeriesStatusId
                     ); 
                     SELECT CAST(SCOPE_IDENTITY() as int);";
                     var parameters = new
@@ -64,7 +64,8 @@ namespace Course_API.Repository.Implementations
                         request.RepeatExamStartDate,
                         request.RepeatExamStarttime,
                         request.RepeatExamResulttimeId,
-                        request.IsAdmin
+                        request.IsAdmin,
+                        TestSeriesStatusId = 11
                     };
                     int newId = await _connection.QuerySingleAsync<int>(insertQuery, parameters);
                     if (newId > 0)
@@ -81,6 +82,20 @@ namespace Course_API.Repository.Implementations
 
                         if (sub > 0 && cla > 0 && board > 0 && course > 0)
                         {
+                            string updateQuery = @"
+                            UPDATE tblTestSeries
+                            SET TestSeriesStatusId = @TestSeriesStatusId
+                            WHERE TestSeriesId = @TestSeriesId;";
+                            var data = 0;
+                            if (!request.IsMandatory)
+                            {
+                                data = 13;
+                            }
+                            else
+                            {
+                                data = 10;
+                            }
+                            int rowsAffected = await _connection.ExecuteAsync(updateQuery, new { TestSeriesStatusId = data });
                             return new ServiceResponse<int>(true, "operation successful", newId, 200);
                         }
                         else
@@ -119,7 +134,8 @@ namespace Course_API.Repository.Implementations
                         RepeatExamStartDate = @RepeatExamStartDate,
                         RepeatExamStarttime = @RepeatExamStarttime,
                         RepeatExamResulttimeId = @RepeatExamResulttimeId,
-                        IsAdmin = @IsAdmin
+                        IsAdmin = @IsAdmin,
+                        TestSeriesStatusId = @TestSeriesStatusId
                     WHERE TestSeriesId = @TestSeriesId;";
                     var parameters = new
                     {
@@ -145,7 +161,8 @@ namespace Course_API.Repository.Implementations
                         request.RepeatExamStartDate,
                         request.RepeatExamStarttime,
                         request.RepeatExamResulttimeId,
-                        request.IsAdmin
+                        request.IsAdmin,
+                        TestSeriesStatusId = 11
                     };
                     int rowsAffected = await _connection.ExecuteAsync(updateQuery, parameters);
                     if (rowsAffected > 0)
@@ -162,6 +179,20 @@ namespace Course_API.Repository.Implementations
 
                         if (sub > 0 && cla > 0 && board > 0 && course > 0)
                         {
+                            string updateQuery1 = @"
+                            UPDATE tblTestSeries
+                            SET TestSeriesStatusId = @TestSeriesStatusId
+                            WHERE TestSeriesId = @TestSeriesId;";
+                            var data = 0;
+                            if (!request.IsMandatory)
+                            {
+                                data = 13;
+                            }
+                            else
+                            {
+                                data = 10;
+                            }
+                            int rowsAffected1 = await _connection.ExecuteAsync(updateQuery1, new { TestSeriesStatusId = data });
                             return new ServiceResponse<int>(true, "operation successful", request.TestSeriesId, 200);
                         }
                         else
@@ -293,6 +324,37 @@ namespace Course_API.Repository.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<TestSeriesResponseDTO>(false, ex.Message, new TestSeriesResponseDTO(), 500);
+            }
+        }
+        public async Task<ServiceResponse<string>> AssignTestSeries(TestseriesProfilerRequest request)
+        {
+            try
+            {
+                string sql = @"INSERT INTO [dbo].[tblTestSeriesProfiler] 
+                           (TestSeriesId, EmployeeId, AssignedDate) 
+                           VALUES (@TestSeriesId, @EmployeeId, @AssignedDate)";
+
+                var parameters = new
+                {
+                    request.TestSeriesId,
+                    request.EmployeeId,
+                    AssignedDate = DateTime.Now // Assign current date/time
+                };
+
+                int rowsAffected = await _connection.ExecuteAsync(sql, parameters);
+
+                if (rowsAffected > 0)
+                {
+                    return new ServiceResponse<string>(true, "Test series assigned successfully", string.Empty, 200);
+                }
+                else
+                {
+                    return new ServiceResponse<string>(false, "Failed to assign test series", string.Empty, 500);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
         public async Task<ServiceResponse<List<TestSeriesResponseDTO>>> GetTestSeriesList(TestSeriesListRequest request)
@@ -588,38 +650,50 @@ WHERE 1=1 AND ts.IsAdmin = @IsAdmin";
                 throw new Exception("An error occurred while updating test series question sections", ex);
             }
         }
-        public async Task<ServiceResponse<string>> TestSeriesInstructionsMapping(List<TestSeriesInstructions> request, int TestSeriesId)
+        public async Task<ServiceResponse<string>> TestSeriesInstructionsMapping(TestSeriesInstructions request, int TestSeriesId)
         {
-            foreach (var data in request)
+            // Step 1: Set TestSeriesID for the request object
+            request.TestSeriesID = TestSeriesId;
+
+            // Step 2: Check if it's an update operation (when TestInstructionsId is passed)
+            if (request.TestInstructionsId > 0)
             {
-                data.TestSeriesID = TestSeriesId;
-            }
-            string query = "SELECT COUNT(*) FROM [tblTestInstructions] WHERE [TestSeriesID] = @TestSeriesId";
-            int count =  await _connection.QueryFirstOrDefaultAsync<int>(query, new { TestSeriesId });
-            if (count > 0)
-            {
-                var deleteDuery = @"DELETE FROM [tblTestInstructions] WHERE [TestSeriesID] = @TestSeriesId;";
-                var rowsAffected = _connection.Execute(deleteDuery, new { TestSeriesId });
-                if (rowsAffected > 0)
+                // Update the existing record
+                string updateQuery = @"
+            UPDATE [tblTestInstructions]
+            SET Instructions = @Instructions,
+                InstructionName = @InstructionName,
+                InstructionId = @InstructionId
+            WHERE TestInstructionsId = @TestInstructionsId AND TestSeriesID = @TestSeriesID";
+
+                int rowsUpdated = await _connection.ExecuteAsync(updateQuery, request);
+
+                if (rowsUpdated > 0)
                 {
-                    string insertQuery = @"
-                    INSERT INTO tblTestInstructions (Instructions,TestSeriesID)
-                    VALUES (@Instructions,@TestSeriesID);";
-                    var valuesInserted = _connection.ExecuteAsync(insertQuery, request);
-                    return new ServiceResponse<string>(true, "operation successful", "values added successfully", 200);
+                    return new ServiceResponse<string>(true, "Operation successful", "Record updated successfully", 200);
                 }
                 else
                 {
-                    return new ServiceResponse<string>(false, "operation failed", string.Empty, 200);
+                    return new ServiceResponse<string>(false, "Operation failed", "Failed to update the record", 500);
                 }
             }
             else
             {
+                // Insert a new record
                 string insertQuery = @"
-                    INSERT INTO tblTestInstructions (Instructions,TestSeriesID)
-                    VALUES (@Instructions,@TestSeriesID);";
-                var valuesInserted = _connection.ExecuteAsync(insertQuery, request);
-                return new ServiceResponse<string>(true, "operation successful", "values added successfully", 200);
+            INSERT INTO [tblTestInstructions] (Instructions, TestSeriesID, InstructionName, InstructionId)
+            VALUES (@Instructions, @TestSeriesID, @InstructionName, @InstructionId)";
+
+                int rowsInserted = await _connection.ExecuteAsync(insertQuery, request);
+
+                if (rowsInserted > 0)
+                {
+                    return new ServiceResponse<string>(true, "Operation successful", "Record added successfully", 200);
+                }
+                else
+                {
+                    return new ServiceResponse<string>(false, "Operation failed", "Failed to insert the record", 500);
+                }
             }
         }
         public async Task<ServiceResponse<string>> TestSeriesQuestionsMapping(List<TestSeriesQuestions> request, int TestSeriesId, int sectionId)
@@ -1502,13 +1576,13 @@ WHERE 1=1 AND ts.IsAdmin = @IsAdmin";
             var data = _connection.Query<TestSeriesQuestionSection>(query, new { TestSeriesID = TestSeriesId });
             return data.AsList() ?? [];
         }
-        private List<TestSeriesInstructions> GetListOfTestSeriesInstructions(int TestSeriesId)
+        private TestSeriesInstructions GetListOfTestSeriesInstructions(int TestSeriesId)
         {
             string query = "SELECT * FROM tblTestInstructions WHERE [TestSeriesID] = @TestSeriesID";
 
             // Execute the SQL query with the SOTDID parameter
-            var data = _connection.Query<TestSeriesInstructions>(query, new { TestSeriesID = TestSeriesId });
-            return data != null ? data.AsList() : [];
+            var data = _connection.QueryFirstOrDefault<TestSeriesInstructions>(query, new { TestSeriesID = TestSeriesId });
+            return data != null ? data : new TestSeriesInstructions() ;
         }
         private List<TestSeriesQuestions> GetListOfTestSeriesQuestion(int sectionId)
         {

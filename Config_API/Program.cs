@@ -33,6 +33,8 @@ builder.Services.AddTransient<ITypeOfTestSeriesRepository, TypeOfTestSeriesRepos
 builder.Services.AddTransient<ITypeOfTestSeriesServices, TypeOfTestSeriesServices>();
 builder.Services.AddTransient<IContentIndexRepository, ContentIndexRepository>();
 builder.Services.AddTransient<IContentIndexServices, ContentIndexServices>();
+builder.Services.AddTransient<IInstructionsRepository, InstructionsRepository>();
+builder.Services.AddTransient<IInstructionsServices, InstructionsServices>();
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

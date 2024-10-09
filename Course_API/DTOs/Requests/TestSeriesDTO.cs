@@ -57,6 +57,7 @@ namespace Course_API.DTOs.Requests
         public string RepeatExamStarttime { get; set; } = string.Empty;
         public int RepeatExamResulttimeId { get; set; }
         public bool IsAdmin {  get; set; }
+        public bool IsMandatory { get; set; }
     }
     public class GetAllQuestionListRequest
     {
@@ -134,5 +135,9 @@ namespace Course_API.DTOs.Requests
         public int IndexTypeId { get; set; }
         public bool Status { get; set; }
     }
-
+    public class TestseriesProfilerRequest
+    {
+        public int TestSeriesId { get; set; }
+        public int EmployeeId {  get; set; }
+    }
 }
