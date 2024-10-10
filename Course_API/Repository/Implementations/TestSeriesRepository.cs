@@ -539,7 +539,8 @@ WHERE 1=1 AND ts.IsAdmin = @IsAdmin";
                     }
                     else
                     {
-                        DateTime startDateTime = testSeries.StartDate.Value.Add(TimeSpan.Parse(testSeries.StartTime));
+                        DateTime startDateTime = testSeries.StartDate.Value.Add(DateTime.Parse(testSeries.StartTime).TimeOfDay);
+
                         if (DateTime.Now < startDateTime)
                         {
                             testSeries.ExamStatus = "Upcoming";
