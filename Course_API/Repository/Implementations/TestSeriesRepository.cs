@@ -257,7 +257,7 @@ namespace Course_API.Repository.Implementations
             JOIN tblEmployee emp ON ts.EmployeeID = emp.EmployeeID
             JOIN tblTypeOfTestSeries tts ON ts.TypeOfTestSeries = tts.TTSId
             LEFT JOIN tblExamType ttt ON ts.ExamTypeID = ttt.ExamTypeID
-            JOIN tblTestSeriesResultTime rt ON ts.RepeatExamResulttimeId = rt.ResultTimeId
+            LEFT JOIN tblTestSeriesResultTime rt ON ts.RepeatExamResulttimeId = rt.ResultTimeId
             WHERE ts.TestSeriesId = @TestSeriesId";
 
                 var testSeries = await _connection.QueryFirstOrDefaultAsync<TestSeriesResponseDTO>(query, new { TestSeriesId });
@@ -395,47 +395,47 @@ namespace Course_API.Repository.Implementations
             {
                 // Construct the SQL query with parameters
                 var query = @"
-SELECT 
-    ts.TestSeriesId,
-    ts.TestPatternName,
-    ts.Duration,
-    ts.Status,
-    ts.APID,
-    ap.APName AS APName,
-    ts.TotalNoOfQuestions,
-    ts.MethodofAddingType,
-    ts.StartDate,
-    ts.StartTime,
-    ts.ResultDate,
-    ts.ResultTime,
-    ts.EmployeeID,
-    emp.EmpFirstName AS EmpFirstName,
-    ts.NameOfExam,
-    ts.RepeatedExams,
-    ts.TypeOfTestSeries,
-    tts.TestSeriesName AS TypeOfTestSeriesName,
-    ts.ExamTypeID,
-    ttt.ExamTypeName AS ExamTypeName,
-    ts.createdon,
-    ts.createdby,
-    ts.modifiedon,
-    ts.modifiedby,
-    ts.RepeatExamStartDate,
-    ts.RepeatExamEndDate,
-    ts.RepeatExamStarttime,
-    ts.RepeatExamResulttimeId,
-    rt.ResultTime AS RepeatedExamResultTime,
-    ts.IsAdmin
-FROM tblTestSeries ts
-JOIN tblCategory ap ON ts.APID = ap.APID
-JOIN tblEmployee emp ON ts.EmployeeID = emp.EmployeeID
-JOIN tblTypeOfTestSeries tts ON ts.TypeOfTestSeries = tts.TTSId
-Left JOIN tblExamType ttt ON ts.ExamTypeID = ttt.ExamTypeID
-LEFT JOIN tblTestSeriesClass tc ON ts.TestSeriesId = tc.TestSeriesId
-LEFT JOIN tblTestSeriesCourse tco ON ts.TestSeriesId = tco.TestSeriesId
-LEFT JOIN tblTestSeriesBoards tb ON ts.TestSeriesId = tb.TestSeriesId
-JOIN tblTestSeriesResultTime rt ON ts.RepeatExamResulttimeId = rt.ResultTimeId
-WHERE 1=1 AND ts.IsAdmin = @IsAdmin";
+                SELECT 
+                    ts.TestSeriesId,
+                    ts.TestPatternName,
+                    ts.Duration,
+                    ts.Status,
+                    ts.APID,
+                    ap.APName AS APName,
+                    ts.TotalNoOfQuestions,
+                    ts.MethodofAddingType,
+                    ts.StartDate,
+                    ts.StartTime,
+                    ts.ResultDate,
+                    ts.ResultTime,
+                    ts.EmployeeID,
+                    emp.EmpFirstName AS EmpFirstName,
+                    ts.NameOfExam,
+                    ts.RepeatedExams,
+                    ts.TypeOfTestSeries,
+                    tts.TestSeriesName AS TypeOfTestSeriesName,
+                    ts.ExamTypeID,
+                    ttt.ExamTypeName AS ExamTypeName,
+                    ts.createdon,
+                    ts.createdby,
+                    ts.modifiedon,
+                    ts.modifiedby,
+                    ts.RepeatExamStartDate,
+                    ts.RepeatExamEndDate,
+                    ts.RepeatExamStarttime,
+                    ts.RepeatExamResulttimeId,
+                    rt.ResultTime AS RepeatedExamResultTime,
+                    ts.IsAdmin
+                FROM tblTestSeries ts
+                JOIN tblCategory ap ON ts.APID = ap.APID
+                JOIN tblEmployee emp ON ts.EmployeeID = emp.EmployeeID
+                JOIN tblTypeOfTestSeries tts ON ts.TypeOfTestSeries = tts.TTSId
+                Left JOIN tblExamType ttt ON ts.ExamTypeID = ttt.ExamTypeID
+                LEFT JOIN tblTestSeriesClass tc ON ts.TestSeriesId = tc.TestSeriesId
+                LEFT JOIN tblTestSeriesCourse tco ON ts.TestSeriesId = tco.TestSeriesId
+                LEFT JOIN tblTestSeriesBoards tb ON ts.TestSeriesId = tb.TestSeriesId
+                LEFT JOIN tblTestSeriesResultTime rt ON ts.RepeatExamResulttimeId = rt.ResultTimeId
+                WHERE 1=1 AND ts.IsAdmin = @IsAdmin";
 
                 // Apply filters dynamically
                 if (request.APId > 0)
@@ -453,7 +453,7 @@ WHERE 1=1 AND ts.IsAdmin = @IsAdmin";
                 if (request.BoardId > 0)
                 {
                     query += " AND tb.BoardId = @BoardId";
-                }
+                } 
                 if (request.ExamTypeId > 0)
                 {
                     query += " AND ts.ExamTypeID = @ExamTypeId";
@@ -461,7 +461,7 @@ WHERE 1=1 AND ts.IsAdmin = @IsAdmin";
                 if (request.TypeOfTestSeries > 0)
                 {
                     query += " AND ts.TypeOfTestSeries = @TypeOfTestSeries";
-                }
+                } 
                 if (!string.IsNullOrEmpty(request.ExamStatus))
                 {
                     query += " AND (@ExamStatus IS NULL OR " +
@@ -498,14 +498,59 @@ WHERE 1=1 AND ts.IsAdmin = @IsAdmin";
                 // Fetch related data for each test series
                 foreach (var testSeries in testSeriesList)
                 {
+
+                    //Commented Vinita Code
                     // Calculate RepeatExamEndTime using RepeatExamStarttime and Duration
+                    //if (testSeries.RepeatedExams)
+                    //{
+                    //    // Current date and time
+                    //    DateTime currentDateTime = DateTime.Now;
+
+                    //    // Exam start and end times
+                    //    TimeSpan examStartTime = TimeSpan.Parse(testSeries.RepeatExamStarttime);
+                    //    int durationInMinutes = int.Parse(testSeries.Duration);
+
+                    //    // Calculate the end time based on the duration
+                    //    TimeSpan examEndTime = examStartTime.Add(TimeSpan.FromMinutes(durationInMinutes));
+                    //    testSeries.RepeatedExamEndTime = examEndTime.ToString();
+
+                    //    // Exam period start and end dates
+                    //    DateTime repeatExamStartDate = testSeries.RepeatExamStartDate;
+                    //    DateTime repeatExamEndDate = testSeries.RepeatExamEndDate;
+
+                    //    // Exam start and end DateTime for the current day
+                    //    DateTime dailyExamStartDateTime = repeatExamStartDate.Add(examStartTime);
+                    //    DateTime dailyExamEndDateTime = repeatExamStartDate.Add(examEndTime);
+
+                    //    if (currentDateTime < dailyExamStartDateTime)
+                    //    {
+                    //        testSeries.ExamStatus = "Upcoming";
+                    //    }
+                    //    else if (currentDateTime >= dailyExamStartDateTime && currentDateTime <= dailyExamEndDateTime)
+                    //    {
+                    //        testSeries.ExamStatus = "Ongoing";
+                    //    }
+                    //    else if (currentDateTime > dailyExamEndDateTime && currentDateTime < repeatExamEndDate.AddDays(1).Add(examStartTime))
+                    //    {
+                    //        testSeries.ExamStatus = "Upcoming";
+                    //    }
+                    //    else if (currentDateTime >= repeatExamEndDate.Add(examEndTime))
+                    //    {
+                    //        testSeries.ExamStatus = "Completed";
+                    //    }
+                    //}
+                    //Commented Vinita Code
+
+
                     if (testSeries.RepeatedExams)
                     {
                         // Current date and time
                         DateTime currentDateTime = DateTime.Now;
 
-                        // Exam start and end times
-                        TimeSpan examStartTime = TimeSpan.Parse(testSeries.RepeatExamStarttime);
+                        // Parse the RepeatExamStarttime string to a DateTime first
+                        DateTime examStartDateTime = DateTime.Parse(testSeries.RepeatExamStarttime);
+                        TimeSpan examStartTime = examStartDateTime.TimeOfDay;
+
                         int durationInMinutes = int.Parse(testSeries.Duration);
 
                         // Calculate the end time based on the duration
