@@ -1935,7 +1935,7 @@ WHERE 1=1 AND ts.IsAdmin = @IsAdmin";
                 return new ServiceResponse<byte[]>(false, ex.Message, [], 500);
             }
         }
-        public async Task<ServiceResponse<string>> UploadQuestionsFromExcel(IFormFile file)
+        public async Task<ServiceResponse<string>> UploadQuestionsFromExcel(IFormFile file, int testSeriesId, int sectionId)
         {
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
             var questions = new List<QuestionDTO>();

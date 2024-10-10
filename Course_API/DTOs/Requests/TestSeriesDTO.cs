@@ -10,9 +10,9 @@ namespace Course_API.DTOs.Requests
         //public int classId { get; set; }
         //public int CourseId { get; set; }
         public DateTime? createdon { get; set; }
-        public string createdby { get; set; } = string.Empty;
+        public string? createdby { get; set; } = string.Empty;
         public DateTime? modifiedon { get; set; }
-        public string modifiedby { get; set; } = string.Empty;
+        public string? modifiedby { get; set; } = string.Empty;
         [Required(ErrorMessage = "Pattern name cannot be empty")]
         public string TestPatternName { get; set; } = string.Empty;
         //public string BoardName { get; set; } = string.Empty;

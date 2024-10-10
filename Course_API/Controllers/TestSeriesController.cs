@@ -62,7 +62,7 @@ namespace Course_API.Controllers
         {
             try
             {
-                var data = await _testSeriesServices.TestSeriesContentIndexMapping(request,TestSeriesId);
+                var data = await _testSeriesServices.TestSeriesContentIndexMapping(request, TestSeriesId);
                 if (data != null)
                 {
                     return Ok(data);
@@ -310,15 +310,15 @@ namespace Course_API.Controllers
             }
             return StatusCode(response.StatusCode, response.Message);
         }
-        [HttpPost("upload")]
-        public async Task<IActionResult> UploadQuestionsFromExcel(IFormFile file)
+        [HttpPost("upload/{testSeriesId}/{sectionId}")]
+        public async Task<IActionResult> UploadQuestionsFromExcel(IFormFile file, int testSeriesId, int sectionId)
         {
             if (file == null || file.Length == 0)
             {
                 return BadRequest("No file uploaded");
             }
 
-            var response = await _testSeriesServices.UploadQuestionsFromExcel(file);
+            var response = await _testSeriesServices.UploadQuestionsFromExcel(file, testSeriesId, sectionId);
             if (response.Success)
             {
                 return Ok(response.Message);
