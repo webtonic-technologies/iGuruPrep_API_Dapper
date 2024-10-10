@@ -33,4 +33,41 @@
         public bool RepeatedExams { get; set; }
         public int TypeOfTestSeries {  get; set; }
     }
+    public class Question
+    {
+
+        public int QuestionId { get; set; }
+        public string QuestionDescription { get; set; } = string.Empty;
+        public int QuestionTypeId { get; set; }
+        public bool? Status { get; set; }
+        public string? CreatedBy { get; set; }
+        public DateTime? CreatedOn { get; set; }
+        public string? ModifiedBy { get; set; }
+        public DateTime? ModifiedOn { get; set; }
+        public int subjectID { get; set; }
+        public int EmployeeId { get; set; }
+        public int IndexTypeId { get; set; }
+        public int ContentIndexId { get; set; }
+        public bool? IsRejected { get; set; }
+        public bool? IsApproved { get; set; }
+        public string QuestionCode { get; set; } = string.Empty;
+        public string Explanation { get; set; } = string.Empty;
+        public string ExtraInformation { get; set; } = string.Empty;
+        public bool IsActive { get; set; } = true;
+        public bool IsConfigure {  get; set; }
+    }
+    public class QuestionTypes
+    {
+        public int QuestionTypeID { get; set; }
+        public string QuestionType { get; set; } = string.Empty;
+        public string Code { get; set; } = string.Empty;
+        public bool Status { get; set; }
+        public int MinNoOfOptions { get; set; }
+        public DateTime modifiedon { get; set; }
+        public string modifiedby { get; set; } = string.Empty;
+        public DateTime createdon { get; set; }
+        public string createdby { get; set; } = string.Empty;
+        public int EmployeeID { get; set; }
+        public int TypeOfOption { get; set; }
+    }
 }

@@ -54,7 +54,8 @@ namespace Schools_API.Repository.Implementations
                     QuestionCode = request.QuestionCode,
                     Explanation = request.Explanation,
                     ExtraInformation = request.ExtraInformation,
-                    IsActive = true
+                    IsActive = true,
+                    IsConfigure = true
                 };
                 string insertQuery = @"
               INSERT INTO tblQuestion (
@@ -72,7 +73,8 @@ namespace Schools_API.Repository.Implementations
                   QuestionCode,
                   Explanation,
                   ExtraInformation,
-                  IsActive
+                  IsActive,
+                  IsConfigure
               ) VALUES (
                   @QuestionDescription,
                   @QuestionTypeId,
@@ -88,7 +90,7 @@ namespace Schools_API.Repository.Implementations
                   @QuestionCode,
                   @Explanation,
                   @ExtraInformation,
-                  @IsActive
+                  @IsActive, @IsConfigure
               );
   
               -- Fetch the QuestionId of the newly inserted row
@@ -1737,7 +1739,10 @@ namespace Schools_API.Repository.Implementations
                     }
 
                     // Add dynamic columns for options based on maxOptions
-                    for (int i = 0; i < maxOptions; i++)
+                    int optionsToAdd = Math.Max(4, maxOptions);
+
+                    // Add dynamic columns for options
+                    for (int i = 0; i < optionsToAdd; i++)
                     {
                         worksheet.Cells[1, 12 + i].Value = $"Option{i + 1}";
                     }
@@ -1881,6 +1886,7 @@ namespace Schools_API.Repository.Implementations
             var subTopicWorksheet = package.Workbook.Worksheets.Add("SubTopics");
             var difficultyLevelWorksheet = package.Workbook.Worksheets.Add("Difficulty Levels");
             var questionTypeWorksheet = package.Workbook.Worksheets.Add("Question Types");
+            var coursesWorksheet = package.Workbook.Worksheets.Add("Courses");
 
             // Populate data for Subjects
             subjectWorksheet.Cells[1, 1].Value = "SubjectName";
@@ -1977,7 +1983,17 @@ namespace Schools_API.Repository.Implementations
                 questionTypeWorksheet.Cells[typeRow, 2].Value = type.QuestionType;
                 typeRow++;
             }
+            coursesWorksheet.Cells[1, 1].Value = "CourseName";
+            coursesWorksheet.Cells[1, 2].Value = "CourseCode";
 
+            var courses = GetCourses();
+            int courseRow = 2;
+            foreach (var course in courses)
+            {
+                coursesWorksheet.Cells[courseRow, 1].Value = course.CourseName;
+                coursesWorksheet.Cells[courseRow, 2].Value = course.CourseCode;
+                courseRow++;
+            }
             // AutoFit columns
             subjectWorksheet.Cells[subjectWorksheet.Dimension.Address].AutoFitColumns();
             chapterWorksheet.Cells[chapterWorksheet.Dimension.Address].AutoFitColumns();
@@ -1985,6 +2001,7 @@ namespace Schools_API.Repository.Implementations
             subTopicWorksheet.Cells[subTopicWorksheet.Dimension.Address].AutoFitColumns();
             difficultyLevelWorksheet.Cells[difficultyLevelWorksheet.Dimension.Address].AutoFitColumns();
             questionTypeWorksheet.Cells[questionTypeWorksheet.Dimension.Address].AutoFitColumns();
+            coursesWorksheet.Cells[coursesWorksheet.Dimension.Address].AutoFitColumns();
         }
         private IEnumerable<Subject> GetSubjects()
         {
@@ -2019,6 +2036,11 @@ namespace Schools_API.Repository.Implementations
             var query = "SELECT [LevelId], [LevelName], [LevelCode], [Status], [NoofQperLevel], [SuccessRate], [createdon], [patterncode], [modifiedon], [modifiedby], [createdby], [EmployeeID], [EmpFirstName] FROM [tbldifficultylevel]";
             return _connection.Query<DifficultyLevel>(query);
         }
+        private IEnumerable<Course> GetCourses()
+        {
+            var query = "SELECT CourseName, CourseCode FROM [tblCourse]";
+            return _connection.Query<Course>(query);
+        }
         private IEnumerable<Questiontype> GetQuestionTypes()
         {
             var query = "SELECT [QuestionTypeID], [QuestionType], [Code], [Status], [MinNoOfOptions], [modifiedon], [modifiedby], [createdon], [createdby], [EmployeeID], [EmpFirstName], [TypeOfOption], [Question] FROM [tblQBQuestionType]";
@@ -2026,7 +2048,15 @@ namespace Schools_API.Repository.Implementations
         }
         public async Task<ServiceResponse<string>> UploadQuestionsFromExcel(IFormFile file)
         {
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
             var questions = new List<QuestionDTO>();
+            Dictionary<string, int> subjectCodeDictionary = new Dictionary<string, int>();
+            Dictionary<string, int> courseCodeDictionary = new Dictionary<string, int>();
+            Dictionary<string, int> difficultyLevelDictionary = new Dictionary<string, int>();
+            Dictionary<string, int> questionTypeDictionary = new Dictionary<string, int>();
+            Dictionary<string, int> chapterDictionary = new Dictionary<string, int>();
+            Dictionary<string, int> topicDictionary = new Dictionary<string, int>();
+            Dictionary<string, int> subtopicDictionary = new Dictionary<string, int>();
 
             using (var stream = new MemoryStream())
             {
@@ -2035,70 +2065,238 @@ namespace Schools_API.Repository.Implementations
 
                 using (var package = new ExcelPackage(stream))
                 {
-                    var worksheet = package.Workbook.Worksheets[0]; // Assumes the data is in the first worksheet
+                    // Load master sheets
+                    var subjectSheet = package.Workbook.Worksheets["Subjects"];
+                    LoadSubjectCodes(subjectSheet, subjectCodeDictionary);
+
+                    var courseSheet = package.Workbook.Worksheets["Courses"];
+                    LoadCourseCodes(courseSheet, courseCodeDictionary);
+
+                    var difficultySheet = package.Workbook.Worksheets["Difficulty Levels"];
+                    LoadMasterData(difficultySheet, difficultyLevelDictionary, true);
+
+                    var questionTypeSheet = package.Workbook.Worksheets["Question Types"];
+                    LoadMasterData(questionTypeSheet, questionTypeDictionary, true);
+
+                    var chapterSheet = package.Workbook.Worksheets["Chapters"];
+                    LoadMasterData(chapterSheet, chapterDictionary, false);
+
+                    var topicSheet = package.Workbook.Worksheets["Topics"];
+                    LoadMasterData(topicSheet, topicDictionary, false);
+
+                    var subtopicSheet = package.Workbook.Worksheets["SubTopics"];
+                    LoadMasterData(subtopicSheet, subtopicDictionary, false);
+
+                    // Process main worksheet for questions
+                    var worksheet = package.Workbook.Worksheets["Questions"];
                     var rowCount = worksheet.Dimension.Rows;
 
                     for (int row = 2; row <= rowCount; row++) // Skip header row
                     {
-                        var question = new QuestionDTO
+                        // Fetch subject name from the question row
+                        var subjectName = worksheet.Cells[row, 1].Text; // Assuming subject name is in column 1
+                        int subjectId = subjectCodeDictionary.ContainsKey(subjectName) ? subjectCodeDictionary[subjectName] : 0;
+
+                        if (subjectId == 0)
                         {
-                            QuestionDescription = worksheet.Cells[row, 1].Text,
-                            QuestionTypeId = int.Parse(worksheet.Cells[row, 2].Text),
-                            CreatedBy = worksheet.Cells[row, 3].Text,
-                            subjectID = int.Parse(worksheet.Cells[row, 4].Text),
-                            ContentIndexId = int.Parse(worksheet.Cells[row, 5].Text),
-                            EmployeeId = int.Parse(worksheet.Cells[row, 6].Text),
-                            IndexTypeId = int.Parse(worksheet.Cells[row, 7].Text),
-                            Explanation = worksheet.Cells[row, 8].Text,
-                            ExtraInformation = worksheet.Cells[row, 9].Text,
-                            QuestionCode = string.IsNullOrEmpty(worksheet.Cells[row, 10].Text) ? null : worksheet.Cells[row, 10].Text,
-                            AnswerMultipleChoiceCategories = GetAnswerMultipleChoiceCategories(worksheet, row),
-                            Answersingleanswercategories = GetAnswerSingleAnswerCategories(worksheet, row)
+                            return new ServiceResponse<string>(false, $"Subject name '{subjectName}' not found at row {row}.", string.Empty, 400);
+                        }
+                        var courseName = worksheet.Cells[row, 7].Text; // Assuming subject name is in column 1
+                        int courseId = courseCodeDictionary.ContainsKey(courseName) ? courseCodeDictionary[courseName] : 0;
+                        if (courseId == 0)
+                        {
+                            return new ServiceResponse<string>(false, $"Course name '{courseName}' not found at row {row}.", string.Empty, 400);
+                        }
+
+                        // Create the QIDCourses list and populate it
+                        var qidCourses = new List<QIDCourse>
+                        {
+                            new QIDCourse
+                            {
+                                QIDCourseID = 0, // Assuming you want to set this later or handle it in the AddUpdateQuestion method
+                                QID = 0, // Populate this as needed
+                                QuestionCode = string.IsNullOrEmpty(worksheet.Cells[row, 27].Text) ? null : worksheet.Cells[row, 27].Text,
+                                CourseID = courseId,
+                                LevelId = 0, // Set this based on your logic or fetch from another source
+                                Status = true, // Set as needed
+                                CreatedBy = "YourUsername", // Set the creator's username or similar info
+                                CreatedDate = DateTime.UtcNow, // Use the current date and time
+                                ModifiedBy = "YourUsername", // Set as needed
+                                ModifiedDate = DateTime.UtcNow // Set as needed
+                            }
                         };
 
+                        if (subjectId == 0)
+                        {
+                            return new ServiceResponse<string>(false, $"Subject name '{subjectName}' not found at row {row}.", string.Empty, 400);
+                        }
+                        // Fetch question type ID
+                        var questionTypeName = worksheet.Cells[row, 5].Text; // Assuming question type name is in column 2
+                        int questionTypeId = questionTypeDictionary.ContainsKey(questionTypeName) ? questionTypeDictionary[questionTypeName] : 0;
+
+                        if (questionTypeId == 0)
+                        {
+                            return new ServiceResponse<string>(false, $"Question type '{questionTypeName}' not found at row {row}.", string.Empty, 400);
+                        }
+
+                        // Fetch chapter, topic, and subtopic names
+                        var chapterName = worksheet.Cells[row, 2].Text; // Chapter name in column 3
+                        var conceptName = worksheet.Cells[row, 3].Text; // Concept name in column 4
+                        var subConceptName = worksheet.Cells[row, 4].Text; // Subconcept name in column 5
+
+                        int indexTypeId;
+                        int contentIndexId;
+
+                        if (!string.IsNullOrEmpty(chapterName) && string.IsNullOrEmpty(conceptName) && string.IsNullOrEmpty(subConceptName))
+                        {
+                            // Only chapter name is present
+                            indexTypeId = 1;
+                            contentIndexId = chapterDictionary.ContainsKey(chapterName) ? chapterDictionary[chapterName] : 0;
+                        }
+                        else if (!string.IsNullOrEmpty(chapterName) && !string.IsNullOrEmpty(conceptName) && string.IsNullOrEmpty(subConceptName))
+                        {
+                            // Chapter name and concept name are present
+                            indexTypeId = 2;
+                            contentIndexId = topicDictionary.ContainsKey(conceptName) ? topicDictionary[conceptName] : 0;
+                        }
+                        else if (!string.IsNullOrEmpty(chapterName) && !string.IsNullOrEmpty(conceptName) && !string.IsNullOrEmpty(subConceptName))
+                        {
+                            // All three names are present
+                            indexTypeId = 3;
+                            contentIndexId = subtopicDictionary.ContainsKey(subConceptName) ? subtopicDictionary[subConceptName] : 0;
+                        }
+                        else
+                        {
+                            return new ServiceResponse<string>(false, $"Invalid data at row {row}: Must have at least a chapter name.", string.Empty, 400);
+                        }
+
+                        if (contentIndexId == 0)
+                        {
+                            return new ServiceResponse<string>(false, $"Content index not found for the specified names at row {row}.", string.Empty, 400);
+                        }
+
+                        // Create the question DTO
+                        var question = new QuestionDTO
+                        {
+                            QuestionDescription = worksheet.Cells[row, 6].Text,
+                            QuestionTypeId = questionTypeId,
+                            subjectID = subjectId,
+                            IndexTypeId = indexTypeId,
+                            Explanation = string.IsNullOrEmpty(worksheet.Cells[row, 10].Text) ? null : worksheet.Cells[row, 10].Text,
+                            QuestionCode = string.IsNullOrEmpty(worksheet.Cells[row, 27].Text) ? null : worksheet.Cells[row, 27].Text,
+                            ContentIndexId = contentIndexId,
+                            AnswerMultipleChoiceCategories = GetAnswerMultipleChoiceCategories(worksheet, row),
+                            Answersingleanswercategories = GetAnswerSingleAnswerCategories(worksheet, row, questionTypeId),
+                            QIDCourses = qidCourses,
+                            IsActive = true,
+                            IsConfigure = true
+                        };
+
+                        // Add question to the list for bulk processing
                         questions.Add(question);
+
+                        // Call AddUpdateQuestion for each question
+                        var response = await AddUpdateQuestion(question);
+                        if (!response.Success)
+                        {
+                            return new ServiceResponse<string>(false, $"Failed to add/update question at row {row}: {response.Message}", string.Empty, 500);
+                        }
                     }
                 }
             }
-            if (questions.Any())
+
+            return new ServiceResponse<string>(true, "All questions uploaded successfully.", "Data uploaded successfully.", 200);
+        }
+        // Helper method to load subject codes and their corresponding IDs
+        private void LoadSubjectCodes(ExcelWorksheet sheet, Dictionary<string, int> dictionary)
+        {
+            int rowCount = sheet.Dimension.Rows;
+            var query = "SELECT SubjectId FROM tblSubject WHERE [SubjectName] = @subjectName"; 
+            for (int row = 2; row <= rowCount; row++) // Assuming the first row contains headers
             {
-                return new ServiceResponse<string>(true, "Operation Successful", "data uploaded successfully.", 200);
+                var subjectName = sheet.Cells[row, 1].Text; // Assuming subject codes are in the second column
+                var subjectId = _connection.QuerySingleOrDefault<int>(query, new { subjectName = subjectName });
+
+                if (!string.IsNullOrEmpty(subjectName) && !dictionary.ContainsKey(subjectName))
+                {
+                    dictionary.Add(subjectName, subjectId);
+                }
             }
-            else
+        }
+        private void LoadCourseCodes(ExcelWorksheet sheet, Dictionary<string, int> dictionary)
+        {
+            int rowCount = sheet.Dimension.Rows;
+            var query = "SELECT CourseId FROM tblCourse WHERE [CourseName] = @CourseName";
+            for (int row = 2; row <= rowCount; row++) // Assuming the first row contains headers
             {
-                return new ServiceResponse<string>(false, "Operation failed", string.Empty, 500);
+                var courseName = sheet.Cells[row, 1].Text; // Assuming subject codes are in the second column
+                var courseId = _connection.QuerySingleOrDefault<int>(query, new { CourseName = courseName });
+
+                if (!string.IsNullOrEmpty(courseName) && !dictionary.ContainsKey(courseName))
+                {
+                    dictionary.Add(courseName, courseId);
+                }
+            }
+        }
+        // Helper method to load master data from a sheet into a dictionary
+        private void LoadMasterData(ExcelWorksheet sheet, Dictionary<string, int> dictionary, bool isIdInFirstColumn)
+        {
+            int rowCount = sheet.Dimension.Rows;
+
+            for (int row = 2; row <= rowCount; row++) // Assuming the first row contains headers
+            {
+                var idColumn = isIdInFirstColumn ? 1 : 2; // Determine where the ID is based on the flag
+                var nameColumn = isIdInFirstColumn ? 2 : 3; // The name will be in the other column
+
+                var id = int.Parse(sheet.Cells[row, idColumn].Text); // Get ID from the appropriate column
+                var name = sheet.Cells[row, nameColumn].Text; // Get name from the appropriate column
+
+                if (!string.IsNullOrEmpty(name) && !dictionary.ContainsKey(name))
+                {
+                    dictionary.Add(name, id);
+                }
             }
         }
         private List<AnswerMultipleChoiceCategory> GetAnswerMultipleChoiceCategories(ExcelWorksheet worksheet, int row)
         {
             var categories = new List<AnswerMultipleChoiceCategory>();
 
-            var categoryCount = int.Parse(worksheet.Cells[row, 11].Text); // Assume number of categories is in column 11
+            // Assume the number of categories is in column 11
+            var categoryCount = int.Parse(worksheet.Cells[row, 11].Text);
+
+            // Get the correct answer from cell 9
+            var correctAnswer = worksheet.Cells[row, 9].Text; // Correct answer
 
             for (int i = 0; i < categoryCount; i++)
             {
-                var answer = worksheet.Cells[row, 12 + (i * 4)].Text; // Answer
-                var isCorrect = bool.Parse(worksheet.Cells[row, 13 + (i * 4)].Text); // IsCorrect
-                var matchId = int.Parse(worksheet.Cells[row, 14 + (i * 4)].Text); // MatchId
+                var answer = worksheet.Cells[row, 12 + i ].Text; // Answer
+                bool isCorrect = answer.Equals(correctAnswer, StringComparison.OrdinalIgnoreCase); // Check if the answer matches the correct answer
 
                 categories.Add(new AnswerMultipleChoiceCategory
                 {
                     Answer = answer,
-                    Iscorrect = isCorrect,
-                    Matchid = matchId
+                    Iscorrect = isCorrect, // Set isCorrect based on the comparison
+                    Matchid = 0 // Assuming MatchId is still 0
                 });
             }
 
             return categories;
         }
-        private Answersingleanswercategory GetAnswerSingleAnswerCategories(ExcelWorksheet worksheet, int row)
+        private Answersingleanswercategory GetAnswerSingleAnswerCategories(ExcelWorksheet worksheet, int row, int questionTypeId)
         {
-            var answer = worksheet.Cells[row, 15].Text; // Single answer category in column 15
-
-            return new Answersingleanswercategory
+            if(questionTypeId == 7 || questionTypeId == 8|| questionTypeId == 10 || questionTypeId == 11 || questionTypeId == 12)
             {
-                Answer = answer
-            };
+                var answer = worksheet.Cells[row, 9].Text; // Single answer category in column 15
+
+                return new Answersingleanswercategory
+                {
+                    Answer = answer
+                };
+            }
+            else
+            {
+                return null;
+            }
         }
         // Helper method to fetch questions based on parameters
         private async Task ProcessUploadedData(IEnumerable<QuestionUploadData> data)

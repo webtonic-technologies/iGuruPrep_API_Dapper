@@ -280,5 +280,50 @@ namespace Course_API.Controllers
                 return StatusCode(response.StatusCode, response);
             }
         }
+        [HttpPut("UpdateQuestion")]
+        public async Task<IActionResult> UpdateQuestion(QuestionDTO request)
+        {
+            try
+            {
+                var data = await _testSeriesServices.UpdateQuestion(request);
+                if (data != null)
+                {
+                    return Ok(data);
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
+        [HttpPost("DownloadExcelFile")]
+        public async Task<IActionResult> DownloadExcelFile(DownExcelRequest request)
+        {
+            var response = await _testSeriesServices.GenerateExcelFile(request);
+            if (response.Success)
+            {
+                return File(response.Data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "QuestionDetails.xlsx");
+            }
+            return StatusCode(response.StatusCode, response.Message);
+        }
+        [HttpPost("upload")]
+        public async Task<IActionResult> UploadQuestionsFromExcel(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest("No file uploaded");
+            }
+
+            var response = await _testSeriesServices.UploadQuestionsFromExcel(file);
+            if (response.Success)
+            {
+                return Ok(response.Message);
+            }
+            return StatusCode(response.StatusCode, response.Message);
+        }
     }
 }

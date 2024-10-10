@@ -22,5 +22,8 @@ namespace Course_API.Repository.Interfaces
         Task<ServiceResponse<List<DifficultyLevelDTO>>> GetDifficultyLevelsBySectionId(int sectionId);
         Task<ServiceResponse<List<ChapterDTO>>> GetTestSeriesContentIndexHierarchy(int testSeriesId);
         Task<ServiceResponse<string>> AssignTestSeries(TestseriesProfilerRequest request);
+        Task<ServiceResponse<string>> UpdateQuestion(QuestionDTO request);
+        Task<ServiceResponse<byte[]>> GenerateExcelFile(DownExcelRequest request);
+        Task<ServiceResponse<string>> UploadQuestionsFromExcel(IFormFile file);
     }
 }

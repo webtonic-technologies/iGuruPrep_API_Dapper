@@ -34,6 +34,7 @@ namespace Schools_API.DTOs.Requests
         public string Explanation {  get; set; } = string.Empty;
         public string ExtraInformation { get; set; } = string.Empty;
         public bool IsActive { get; set; } = true;
+        public bool IsConfigure {  get; set; } 
         public List<QIDCourse>? QIDCourses { get; set; }
       //  public List<QuestionSubjectMapping>? QuestionSubjectMappings { get; set; }
         public List<AnswerMultipleChoiceCategory>? AnswerMultipleChoiceCategories { get; set; }
