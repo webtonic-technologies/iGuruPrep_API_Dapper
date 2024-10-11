@@ -195,7 +195,7 @@ namespace Course_API.Repository.Implementations
                             {
                                 data = 10;
                             }
-                            int rowsAffected1 = await _connection.ExecuteAsync(updateQuery1, new { TestSeriesStatusId = data });
+                            int rowsAffected1 = await _connection.ExecuteAsync(updateQuery1, new { TestSeriesStatusId = data, TestSeriesId = request.TestSeriesId });
                             return new ServiceResponse<int>(true, "operation successful", request.TestSeriesId, 200);
                         }
                         else
