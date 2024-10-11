@@ -498,50 +498,6 @@ namespace Course_API.Repository.Implementations
                 // Fetch related data for each test series
                 foreach (var testSeries in testSeriesList)
                 {
-
-                    //Commented Vinita Code
-                    // Calculate RepeatExamEndTime using RepeatExamStarttime and Duration
-                    //if (testSeries.RepeatedExams)
-                    //{
-                    //    // Current date and time
-                    //    DateTime currentDateTime = DateTime.Now;
-
-                    //    // Exam start and end times
-                    //    TimeSpan examStartTime = TimeSpan.Parse(testSeries.RepeatExamStarttime);
-                    //    int durationInMinutes = int.Parse(testSeries.Duration);
-
-                    //    // Calculate the end time based on the duration
-                    //    TimeSpan examEndTime = examStartTime.Add(TimeSpan.FromMinutes(durationInMinutes));
-                    //    testSeries.RepeatedExamEndTime = examEndTime.ToString();
-
-                    //    // Exam period start and end dates
-                    //    DateTime repeatExamStartDate = testSeries.RepeatExamStartDate;
-                    //    DateTime repeatExamEndDate = testSeries.RepeatExamEndDate;
-
-                    //    // Exam start and end DateTime for the current day
-                    //    DateTime dailyExamStartDateTime = repeatExamStartDate.Add(examStartTime);
-                    //    DateTime dailyExamEndDateTime = repeatExamStartDate.Add(examEndTime);
-
-                    //    if (currentDateTime < dailyExamStartDateTime)
-                    //    {
-                    //        testSeries.ExamStatus = "Upcoming";
-                    //    }
-                    //    else if (currentDateTime >= dailyExamStartDateTime && currentDateTime <= dailyExamEndDateTime)
-                    //    {
-                    //        testSeries.ExamStatus = "Ongoing";
-                    //    }
-                    //    else if (currentDateTime > dailyExamEndDateTime && currentDateTime < repeatExamEndDate.AddDays(1).Add(examStartTime))
-                    //    {
-                    //        testSeries.ExamStatus = "Upcoming";
-                    //    }
-                    //    else if (currentDateTime >= repeatExamEndDate.Add(examEndTime))
-                    //    {
-                    //        testSeries.ExamStatus = "Completed";
-                    //    }
-                    //}
-                    //Commented Vinita Code
-
-
                     if (testSeries.RepeatedExams)
                     {
                         // Current date and time
@@ -971,65 +927,6 @@ namespace Course_API.Repository.Implementations
                 return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, new List<QuestionResponseDTO>(), 500);
             }
         }
-        //public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetQuestionsList(GetAllQuestionListRequest request)
-        //{
-        //    try
-        //    {
-        //        // Define the SQL query with additional filters, including DifficultyLevelId
-        //        string sql = @"
-        //        SELECT 
-        //            q.QuestionId, q.QuestionDescription, q.QuestionFormula, q.QuestionTypeId, q.ApprovedStatus, 
-        //            q.ApprovedBy, q.ReasonNote, q.Status, q.CreatedBy, q.CreatedOn, q.ModifiedBy, q.ModifiedOn, 
-        //            q.Verified, q.courseid, c.CourseName, q.boardid, b.BoardName, q.classid, cl.ClassName, 
-        //            q.subjectID, s.SubjectName, q.ExamTypeId, e.ExamTypeName, q.EmployeeId, emp.EmpFirstName as EmployeeName, 
-        //            q.Rejectedby, q.RejectedReason, q.IndexTypeId, it.IndexType as IndexTypeName, q.ContentIndexId,
-        //            CASE 
-        //                WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
-        //                WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
-        //                WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
-        //            END AS ContentIndexName
-        //        FROM tblQuestion q
-        //        LEFT JOIN tblCourse c ON q.courseid = c.CourseId
-        //        LEFT JOIN tblBoard b ON q.boardid = b.BoardId
-        //        LEFT JOIN tblClass cl ON q.classid = cl.ClassId
-        //        LEFT JOIN tblSubject s ON q.subjectID = s.SubjectId
-        //        LEFT JOIN tblExamType e ON q.ExamTypeId = e.ExamTypeId
-        //        LEFT JOIN tblEmployee emp ON q.EmployeeId = emp.EmployeeId
-        //        LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
-        //        LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
-        //        LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
-        //        LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
-        //        LEFT JOIN tblQIDCourse qc ON q.QuestionCode = qc.QuestionCode
-        //        WHERE q.subjectID = @Subjectid
-        //          AND (@IndexTypeId = 0 OR q.IndexTypeId = @IndexTypeId)
-        //          AND (@ContentId = 0 OR q.ContentIndexId = @ContentId)
-        //          AND (@QuestionTypeId = 0 OR q.QuestionTypeId = @QuestionTypeId)
-        //          AND (@DifficultyLevelId = 0 OR qc.LevelId = @DifficultyLevelId)
-        //          AND q.IsLive = 1";
-
-        //        // Execute the query and retrieve the questions
-        //        var questions = await _connection.QueryAsync<QuestionResponseDTO>(sql, new
-        //        {
-        //            Subjectid = request.Subjectid,
-        //            IndexTypeId = request.IndexTypeId,
-        //            ContentId = request.ContentId,
-        //            QuestionTypeId = request.QuestionTypeId,
-        //            DifficultyLevelId = request.DifficultyLevelId
-        //        });
-
-        //        // If no questions found, return empty response
-        //        if (!questions.Any())
-        //        {
-        //            return new ServiceResponse<List<QuestionResponseDTO>>(true, "Operation Successful", new List<QuestionResponseDTO>(), 200);
-        //        }
-
-        //        return new ServiceResponse<List<QuestionResponseDTO>>(true, "Questions retrieved successfully", questions.ToList(), 200);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, new List<QuestionResponseDTO>(), 500);
-        //    }
-        //}
         public async Task<ServiceResponse<List<ContentIndexResponses>>> GetSyllabusDetailsBySubject(SyllabusDetailsRequest request)
         {
             try
@@ -1733,6 +1630,7 @@ namespace Course_API.Repository.Implementations
         {
             try
             {
+                
                 ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
                 // Create an ExcelPackage

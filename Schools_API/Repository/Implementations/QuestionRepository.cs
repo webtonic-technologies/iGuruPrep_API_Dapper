@@ -2108,6 +2108,12 @@ namespace Schools_API.Repository.Implementations
                             return new ServiceResponse<string>(false, $"Course name '{courseName}' not found at row {row}.", string.Empty, 400);
                         }
 
+                        var difficultyName = worksheet.Cells[row, 8].Text; // Assuming subject name is in column 1
+                        int diffiId = difficultyLevelDictionary.ContainsKey(difficultyName) ? difficultyLevelDictionary[difficultyName] : 0;
+                        if (diffiId == 0)
+                        {
+                            return new ServiceResponse<string>(false, $"Course name '{difficultyName}' not found at row {row}.", string.Empty, 400);
+                        }
                         // Create the QIDCourses list and populate it
                         var qidCourses = new List<QIDCourse>
                         {
@@ -2117,7 +2123,7 @@ namespace Schools_API.Repository.Implementations
                                 QID = 0, // Populate this as needed
                                 QuestionCode = string.IsNullOrEmpty(worksheet.Cells[row, 27].Text) ? null : worksheet.Cells[row, 27].Text,
                                 CourseID = courseId,
-                                LevelId = 0, // Set this based on your logic or fetch from another source
+                                LevelId = diffiId, // Set this based on your logic or fetch from another source
                                 Status = true, // Set as needed
                                 CreatedBy = "YourUsername", // Set the creator's username or similar info
                                 CreatedDate = DateTime.UtcNow, // Use the current date and time
