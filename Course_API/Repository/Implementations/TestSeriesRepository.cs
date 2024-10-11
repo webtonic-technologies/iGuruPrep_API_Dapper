@@ -90,7 +90,7 @@ namespace Course_API.Repository.Implementations
                             SET TestSeriesStatusId = @TestSeriesStatusId
                             WHERE TestSeriesId = @TestSeriesId;";
                             var data = 0;
-                            if (!request.IsMandatory)
+                            if (request.IsMandatory == false)
                             {
                                 data = 13;
                             }
@@ -187,7 +187,7 @@ namespace Course_API.Repository.Implementations
                             SET TestSeriesStatusId = @TestSeriesStatusId
                             WHERE TestSeriesId = @TestSeriesId;";
                             var data = 0;
-                            if (!request.IsMandatory)
+                            if (request.IsMandatory == false)
                             {
                                 data = 13;
                             }
@@ -257,7 +257,7 @@ namespace Course_API.Repository.Implementations
             JOIN tblEmployee emp ON ts.EmployeeID = emp.EmployeeID
             JOIN tblTypeOfTestSeries tts ON ts.TypeOfTestSeries = tts.TTSId
             LEFT JOIN tblExamType ttt ON ts.ExamTypeID = ttt.ExamTypeID
-            JOIN tblTestSeriesResultTime rt ON ts.RepeatExamResulttimeId = rt.ResultTimeId
+            LEFT JOIN tblTestSeriesResultTime rt ON ts.RepeatExamResulttimeId = rt.ResultTimeId
             WHERE ts.TestSeriesId = @TestSeriesId";
 
                 var testSeries = await _connection.QueryFirstOrDefaultAsync<TestSeriesResponseDTO>(query, new { TestSeriesId });
@@ -434,7 +434,7 @@ Left JOIN tblExamType ttt ON ts.ExamTypeID = ttt.ExamTypeID
 LEFT JOIN tblTestSeriesClass tc ON ts.TestSeriesId = tc.TestSeriesId
 LEFT JOIN tblTestSeriesCourse tco ON ts.TestSeriesId = tco.TestSeriesId
 LEFT JOIN tblTestSeriesBoards tb ON ts.TestSeriesId = tb.TestSeriesId
-JOIN tblTestSeriesResultTime rt ON ts.RepeatExamResulttimeId = rt.ResultTimeId
+Left JOIN tblTestSeriesResultTime rt ON ts.RepeatExamResulttimeId = rt.ResultTimeId
 WHERE 1=1 AND ts.IsAdmin = @IsAdmin";
 
                 // Apply filters dynamically
@@ -504,8 +504,9 @@ WHERE 1=1 AND ts.IsAdmin = @IsAdmin";
                         // Current date and time
                         DateTime currentDateTime = DateTime.Now;
 
-                        // Exam start and end times
-                        TimeSpan examStartTime = TimeSpan.Parse(testSeries.RepeatExamStarttime);
+                        // Parse the RepeatExamStarttime string to a DateTime first
+                        DateTime examStartDateTime = DateTime.Parse(testSeries.RepeatExamStarttime);
+                        TimeSpan examStartTime = examStartDateTime.TimeOfDay;
                         int durationInMinutes = int.Parse(testSeries.Duration);
 
                         // Calculate the end time based on the duration
