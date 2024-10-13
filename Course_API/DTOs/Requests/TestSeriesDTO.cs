@@ -142,9 +142,7 @@ namespace Course_API.DTOs.Requests
     }
     public class DownExcelRequest
     {
-        public int subjectId { get; set; }
-        public int indexTypeId { get; set; } //1 means chapter, 2 means topic and 3 means sub topic
-        public int contentId { get; set; }
+       public int TestSeriesId { get; set; }
     }
     public class QuestionDTO
     {

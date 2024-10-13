@@ -268,13 +268,13 @@ namespace Course_API.Repository.Implementations
                 }
 
                 // Fetch related data
-                var testSeriesBoards =  GetListOfTestSeriesBoards(TestSeriesId);
-                var testSeriesClasses =  GetListOfTestSeriesClasses(TestSeriesId);
-                var testSeriesCourses =  GetListOfTestSeriesCourse(TestSeriesId);
-                var testSeriesSubjects =  GetListOfTestSeriesSubjects(TestSeriesId);
-                var testSeriesContentIndexes =  GetListOfTestSeriesSubjectIndex(TestSeriesId);
-                var testSeriesQuestionsSections =  GetTestSeriesQuestionSection(TestSeriesId);
-                var testSeriesInstructions =  GetListOfTestSeriesInstructions(TestSeriesId);
+                var testSeriesBoards = GetListOfTestSeriesBoards(TestSeriesId);
+                var testSeriesClasses = GetListOfTestSeriesClasses(TestSeriesId);
+                var testSeriesCourses = GetListOfTestSeriesCourse(TestSeriesId);
+                var testSeriesSubjects = GetListOfTestSeriesSubjects(TestSeriesId);
+                var testSeriesContentIndexes = GetListOfTestSeriesSubjectIndex(TestSeriesId);
+                var testSeriesQuestionsSections = GetTestSeriesQuestionSection(TestSeriesId);
+                var testSeriesInstructions = GetListOfTestSeriesInstructions(TestSeriesId);
 
                 // Initialize the SubjectDetails list
                 var testSeriesSubjectDetailsList = new List<TestSeriesSubjectDetails>();
@@ -333,56 +333,56 @@ namespace Course_API.Repository.Implementations
         {
             try
             {
-               
-                    // Step 1: Check if there is an active assignment for this TestSeriesId
-                    string checkActiveSql = @"SELECT TOP 1 TSProfilerId 
+
+                // Step 1: Check if there is an active assignment for this TestSeriesId
+                string checkActiveSql = @"SELECT TOP 1 TSProfilerId 
                                       FROM [dbo].[tblTestSeriesProfiler]
                                       WHERE TestSeriesId = @TestSeriesId 
                                       AND IsActive = 1";
 
-                    var existingProfilerId = await _connection.QueryFirstOrDefaultAsync<int?>(checkActiveSql, new
-                    {
-                        request.TestSeriesId
-                    });
+                var existingProfilerId = await _connection.QueryFirstOrDefaultAsync<int?>(checkActiveSql, new
+                {
+                    request.TestSeriesId
+                });
 
-                    // Step 2: If there is an active record, deactivate it
-                    if (existingProfilerId.HasValue)
-                    {
-                        string deactivateSql = @"UPDATE [dbo].[tblTestSeriesProfiler]
+                // Step 2: If there is an active record, deactivate it
+                if (existingProfilerId.HasValue)
+                {
+                    string deactivateSql = @"UPDATE [dbo].[tblTestSeriesProfiler]
                                          SET IsActive = 0
                                          WHERE TSProfilerId = @TSProfilerId";
 
-                        await _connection.ExecuteAsync(deactivateSql, new
-                        {
-                            TSProfilerId = existingProfilerId.Value
-                        });
-                    }
+                    await _connection.ExecuteAsync(deactivateSql, new
+                    {
+                        TSProfilerId = existingProfilerId.Value
+                    });
+                }
 
-                    // Step 3: Insert a new active record for the new employee
-                    string insertSql = @"INSERT INTO [dbo].[tblTestSeriesProfiler] 
+                // Step 3: Insert a new active record for the new employee
+                string insertSql = @"INSERT INTO [dbo].[tblTestSeriesProfiler] 
                                  (TestSeriesId, EmployeeId, AssignedDate, IsActive) 
                                  VALUES (@TestSeriesId, @EmployeeId, @AssignedDate, 1)";
 
-                    var parameters = new
-                    {
-                        request.TestSeriesId,
-                        request.EmployeeId,
-                        AssignedDate = DateTime.Now
-                    };
+                var parameters = new
+                {
+                    request.TestSeriesId,
+                    request.EmployeeId,
+                    AssignedDate = DateTime.Now
+                };
 
-                    int rowsAffected = await _connection.ExecuteAsync(insertSql, parameters);
+                int rowsAffected = await _connection.ExecuteAsync(insertSql, parameters);
 
-                    if (rowsAffected > 0)
-                    {
-                    
-                        return new ServiceResponse<string>(true, "Test series assigned successfully", string.Empty, 200);
-                    }
-                    else
-                    {
-                      // Rollback the transaction in case of failure
-                        return new ServiceResponse<string>(false, "Failed to assign test series", string.Empty, 500);
-                    }
-                
+                if (rowsAffected > 0)
+                {
+
+                    return new ServiceResponse<string>(true, "Test series assigned successfully", string.Empty, 200);
+                }
+                else
+                {
+                    // Rollback the transaction in case of failure
+                    return new ServiceResponse<string>(false, "Failed to assign test series", string.Empty, 500);
+                }
+
             }
             catch (Exception ex)
             {
@@ -453,7 +453,7 @@ namespace Course_API.Repository.Implementations
                 if (request.BoardId > 0)
                 {
                     query += " AND tb.BoardId = @BoardId";
-                } 
+                }
                 if (request.ExamTypeId > 0)
                 {
                     query += " AND ts.ExamTypeID = @ExamTypeId";
@@ -461,7 +461,7 @@ namespace Course_API.Repository.Implementations
                 if (request.TypeOfTestSeries > 0)
                 {
                     query += " AND ts.TypeOfTestSeries = @TypeOfTestSeries";
-                } 
+                }
                 if (!string.IsNullOrEmpty(request.ExamStatus))
                 {
                     query += " AND (@ExamStatus IS NULL OR " +
@@ -1530,7 +1530,7 @@ namespace Course_API.Repository.Implementations
                 // Retrieve the QuestionCode after insertion
                 // var insertedQuestionCode = await _connection.QuerySingleOrDefaultAsync<string>(insertQuery, question);
                 var insertedQuestionId = await _connection.QuerySingleOrDefaultAsync<int>(insertQuery, question);
-               
+
                 string insertedQuestionCode = request.QuestionCode;
 
                 if (!string.IsNullOrEmpty(insertedQuestionCode))
@@ -1630,12 +1630,25 @@ namespace Course_API.Repository.Implementations
         {
             try
             {
-                
+
                 ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
                 // Create an ExcelPackage
                 using (var package = new ExcelPackage())
                 {
+                    // Fetch the list of subject IDs, IndexTypeIds, and ContentIndexIds based on the provided TestSeriesId
+                    var testSeriesContentQuery = @"
+                SELECT distinct SubjectId 
+                FROM [tblTestSeriesSubjects] 
+                WHERE TestSeriesID = @TestSeriesId";
+
+                    var testSeriesContent = await _connection.QueryAsync<int>(testSeriesContentQuery, new { TestSeriesId = request.TestSeriesId });
+
+                    if (testSeriesContent == null || !testSeriesContent.Any())
+                    {
+                        return new ServiceResponse<byte[]>(false, "", [], 500);
+                    }
+
                     // Create a worksheet for Questions
                     var worksheet = package.Workbook.Worksheets.Add("Questions");
 
@@ -1662,80 +1675,11 @@ namespace Course_API.Repository.Implementations
                         range.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
                     }
 
-                    int rowIndex = 2;
-                    // Dictionaries to hold data
-                    var chapters = new List<ContentIndexData>();
-                    var topics = new List<ContentIndexData>();
-                    var subTopics = new List<ContentIndexData>();
-
-                    try
-                    {
-                        _connection.Open();
-
-                        if (request.indexTypeId == 1)
-                        {
-                            // Fetch Chapters
-                            var chapterQuery = "SELECT ContentIndexId AS ChildId, NULL AS ParentId, ContentName_Chapter AS ContentName FROM tblContentIndexChapters WHERE SubjectId = @SubjectId AND ContentIndexId = @ContentIndexId";
-                            chapters = (await _connection.QueryAsync<ContentIndexData>(chapterQuery, new { SubjectId = request.subjectId, ContentIndexId = request.contentId })).ToList();
-                        }
-
-                        if (request.indexTypeId == 2)
-                        {
-                            // Fetch Topics
-                            var topicQuery = "SELECT ContInIdTopic AS ChildId, ContentIndexId AS ParentId, ContentName_Topic AS ContentName FROM tblContentIndexTopics WHERE ContentIndexId = @ContentId";
-                            topics = (await _connection.QueryAsync<ContentIndexData>(topicQuery, new { ContentId = request.contentId })).ToList();
-
-                            // Fetch Chapters based on the ContentIndexId from Topics
-                            var chapterQuery = "SELECT ContentIndexId AS ChildId, NULL AS ParentId, ContentName_Chapter AS ContentName FROM tblContentIndexChapters WHERE ContentIndexId IN @TopicParentIds";
-                            chapters = (await _connection.QueryAsync<ContentIndexData>(chapterQuery, new { TopicParentIds = topics.Select(t => t.ParentId).Distinct().ToList() })).ToList();
-                        }
-
-                        if (request.indexTypeId == 3)
-                        {
-                            // Fetch SubTopics
-                            var subTopicQuery = "SELECT ContInIdSubTopic AS ChildId, ContInIdTopic AS ParentId, ContentName_SubTopic AS ContentName FROM tblContentIndexSubTopics WHERE ContInIdSubTopic = @ContentId";
-                            subTopics = (await _connection.QueryAsync<ContentIndexData>(subTopicQuery, new { ContentId = request.contentId })).ToList();
-
-                            // Fetch Topics based on ContInIdTopic from SubTopics
-                            var topicQuery = "SELECT ContInIdTopic AS ChildId, ContentIndexId AS ParentId, ContentName_Topic AS ContentName FROM tblContentIndexTopics WHERE ContInIdTopic IN @SubTopicParentIds";
-                            topics = (await _connection.QueryAsync<ContentIndexData>(topicQuery, new { SubTopicParentIds = subTopics.Select(st => st.ParentId).Distinct().ToList() })).ToList();
-
-                            // Fetch Chapters based on ContentIndexId from Topics
-                            var chapterQuery = "SELECT ContentIndexId AS ChildId, NULL AS ParentId, ContentName_Chapter AS ContentName FROM tblContentIndexChapters WHERE ContentIndexId IN @TopicParentIds";
-                            chapters = (await _connection.QueryAsync<ContentIndexData>(chapterQuery, new { TopicParentIds = topics.Select(t => t.ParentId).Distinct().ToList() })).ToList();
-                        }
-                    }
-                    finally
-                    {
-                        _connection.Close();
-                    }
-
-                    // Fetch Master Data
-                    var subjects = GetSubjects().ToDictionary(s => s.SubjectId, s => s.SubjectName);
-                    var courses = (await _connection.QueryAsync<Course>("SELECT CourseId, CourseName FROM tblCourse")).ToDictionary(c => c.CourseId, c => c.CourseName);
-                    var difficultyLevels = (await _connection.QueryAsync<DifficultyLevel>("SELECT LevelId, LevelName FROM tbldifficultylevel")).ToDictionary(dl => dl.LevelId, dl => dl.LevelName);
-                    var questionTypes = GetQuestionTypes().ToDictionary(qt => qt.QuestionTypeID, qt => qt.QuestionType);
-
-                    // Fetch Questions Data
-                    var questionsData = await GetQuestionsData(request.subjectId, request.indexTypeId, request.contentId);
-
-                    // Fetch Course and Difficulty Level from tblQIDCourse
-                    var qidCourseQuery = @"SELECT QuestionCode, CourseID, LevelId 
-                            FROM tblQIDCourse
-                            WHERE QuestionCode IN @QuestionCodes";
-                    var qidCourseMappings = (await _connection.QueryAsync<QIDCourse>(qidCourseQuery, new { QuestionCodes = questionsData.Select(q => q.QuestionCode) })).ToList();
+                  
 
                     int maxOptions = 0;
 
-                    // Determine the maximum number of options
-                    foreach (var question in questionsData)
-                    {
-                        if (question.QuestionTypeId == (int)QuestionTypesEnum.MCQ || question.QuestionTypeId == (int)QuestionTypesEnum.MAQ) // Handle multiple choice and multiple answers
-                        {
-                            var options = await GetOptionsForQuestion(question.QuestionCode);
-                            maxOptions = Math.Max(maxOptions, options.Count);
-                        }
-                    }
+               
 
                     // Add dynamic columns for options based on maxOptions
                     int optionsToAdd = Math.Max(4, maxOptions);
@@ -1746,126 +1690,13 @@ namespace Course_API.Repository.Implementations
                         worksheet.Cells[1, 12 + i].Value = $"Option{i + 1}";
                     }
 
-                    // Add data to worksheet
-                    if (questionsData != null && questionsData.Any())
-                    {
-                        foreach (var question in questionsData)
-                        {
-                            worksheet.Cells[rowIndex, 1].Value = subjects.ContainsKey(question.subjectID) ? subjects[question.subjectID] : "Unknown"; // Map Subject
-
-                            if (request.indexTypeId == 1)
-                            {
-                                // Map Chapter
-                                var chapter = chapters.FirstOrDefault(c => c.ChildId == question.ContentIndexId);
-                                worksheet.Cells[rowIndex, 2].Value = chapter != null ? chapter.ContentName : "Unknown";
-                            }
-
-                            if (request.indexTypeId == 2)
-                            {
-                                // Map Topic and its Parent Chapter
-                                var topic = topics.FirstOrDefault(t => t.ChildId == question.ContentIndexId);
-                                worksheet.Cells[rowIndex, 3].Value = topic != null ? topic.ContentName : "Unknown";
-
-                                if (topic != null)
-                                {
-                                    // Get the parent chapter for the topic
-                                    var chapter = chapters.FirstOrDefault(c => c.ChildId == topic.ParentId);
-                                    worksheet.Cells[rowIndex, 2].Value = chapter != null ? chapter.ContentName : "Unknown";
-                                }
-                                else
-                                {
-                                    worksheet.Cells[rowIndex, 2].Value = "Unknown";
-                                }
-                            }
-
-                            if (request.indexTypeId == 3)
-                            {
-                                // Map Sub-Topic, its Parent Topic, and Chapter
-                                var subTopic = subTopics.FirstOrDefault(st => st.ChildId == question.ContentIndexId);
-                                worksheet.Cells[rowIndex, 4].Value = subTopic != null ? subTopic.ContentName : "Unknown";
-
-                                if (subTopic != null)
-                                {
-                                    // Get the parent topic for the sub-topic
-                                    var topic = topics.FirstOrDefault(t => t.ChildId == subTopic.ParentId);
-                                    worksheet.Cells[rowIndex, 3].Value = topic != null ? topic.ContentName : "Unknown";
-
-                                    if (topic != null)
-                                    {
-                                        // Get the parent chapter for the topic
-                                        var chapter = chapters.FirstOrDefault(c => c.ChildId == topic.ParentId);
-                                        worksheet.Cells[rowIndex, 2].Value = chapter != null ? chapter.ContentName : "Unknown";
-                                    }
-                                    else
-                                    {
-                                        worksheet.Cells[rowIndex, 2].Value = "Unknown";
-                                    }
-                                }
-                                else
-                                {
-                                    worksheet.Cells[rowIndex, 3].Value = "Unknown";
-                                    worksheet.Cells[rowIndex, 2].Value = "Unknown";
-                                }
-                            }
-
-                            worksheet.Cells[rowIndex, 5].Value = questionTypes.ContainsKey(question.QuestionTypeId) ? questionTypes[question.QuestionTypeId] : "Unknown"; // Map Question Type
-                            worksheet.Cells[rowIndex, 6].Value = question.QuestionDescription;
-
-                            // Map Course and Difficulty Level from the QIDCourse mapping table
-                            var qidCourseMapping = qidCourseMappings.FirstOrDefault(q => q.QuestionCode == question.QuestionCode);
-                            worksheet.Cells[rowIndex, 7].Value = qidCourseMapping != null && courses.ContainsKey(qidCourseMapping.CourseID) ? courses[qidCourseMapping.CourseID] : "Unknown";
-                            worksheet.Cells[rowIndex, 8].Value = qidCourseMapping != null && difficultyLevels.ContainsKey(qidCourseMapping.LevelId) ? difficultyLevels[qidCourseMapping.LevelId] : "Unknown";
-
-                            // Handle Options and Solution
-                            if (question.QuestionTypeId == (int)QuestionTypesEnum.MCQ || question.QuestionTypeId == (int)QuestionTypesEnum.MAQ ||
-                                question.QuestionTypeId == (int)QuestionTypesEnum.TF || question.QuestionTypeId == (int)QuestionTypesEnum.FB ||
-                                question.QuestionTypeId == (int)QuestionTypesEnum.MT || question.QuestionTypeId == (int)QuestionTypesEnum.MT2)
-                            {
-                                // Fetch options for this question
-                                var options = await GetOptionsForQuestion(question.QuestionCode);
-
-                                // Populate options into dynamic columns
-                                for (int i = 0; i < options.Count; i++)
-                                {
-                                    worksheet.Cells[rowIndex, 12 + i].Value = options[i].Answer;
-                                }
-
-                                // Map the correct answers to the Solution column
-                                if (question.QuestionTypeId == (int)QuestionTypesEnum.MAQ) // Multiple Answer Question
-                                {
-                                    var correctAnswers = options.Where(o => o.IsCorrect).Select(o => o.Answer).ToList();
-                                    worksheet.Cells[rowIndex, 9].Value = string.Join(", ", correctAnswers); // Correct answers in CSV format
-                                }
-                                else
-                                {
-                                    var correctAnswer = options.FirstOrDefault(o => o.IsCorrect)?.Answer;
-                                    worksheet.Cells[rowIndex, 9].Value = correctAnswer ?? "None";
-                                }
-                            }
-                            else if (question.QuestionTypeId == (int)QuestionTypesEnum.SA || question.QuestionTypeId == (int)QuestionTypesEnum.LA ||
-                                     question.QuestionTypeId == (int)QuestionTypesEnum.VSA || question.QuestionTypeId == (int)QuestionTypesEnum.AR ||
-                                     question.QuestionTypeId == (int)QuestionTypesEnum.NMR || question.QuestionTypeId == (int)QuestionTypesEnum.CMPR)
-                            {
-                                // For single-answer question types, use GetSingleAnswer method
-                                var singleAnswer = GetSingleAnswer(question.QuestionCode);
-                                worksheet.Cells[rowIndex, 9].Value = singleAnswer?.Answer ?? "None";
-                            }
-
-                            worksheet.Cells[rowIndex, 10].Value = question.Explanation;
-                            worksheet.Cells[rowIndex, 27].Value = question.QuestionCode; // Hidden Question Code
-
-                            rowIndex++;
-                        }
-                    }
+                   
 
                     // Auto fit columns for better readability
                     worksheet.Cells.AutoFitColumns();
 
-                    AddMasterDataSheets(package, request.subjectId);
-
-                    // Convert the ExcelPackage to a byte array
+                    AddMasterDataSheets(package, testSeriesContent.ToList());
                     var fileBytes = package.GetAsByteArray();
-
                     // Return the file as a response
                     return new ServiceResponse<byte[]>(true, "Excel file generated successfully", fileBytes, 200);
                 }
@@ -2482,7 +2313,7 @@ namespace Course_API.Repository.Implementations
             var query = "SELECT CourseName, CourseCode FROM [tblCourse]";
             return _connection.Query<Course>(query);
         }
-        private void AddMasterDataSheets(ExcelPackage package, int subjectId)
+        private void AddMasterDataSheets(ExcelPackage package, List<int> subjectIds)
         {
             // Create worksheets for master data
             var subjectWorksheet = package.Workbook.Worksheets.Add("Subjects");
@@ -2493,70 +2324,64 @@ namespace Course_API.Repository.Implementations
             var questionTypeWorksheet = package.Workbook.Worksheets.Add("Question Types");
             var coursesWorksheet = package.Workbook.Worksheets.Add("Courses");
 
-            // Populate data for Subjects
+            // Set headers for each worksheet
             subjectWorksheet.Cells[1, 1].Value = "SubjectName";
             subjectWorksheet.Cells[1, 2].Value = "SubjectCode";
 
-            var subjects = GetSubjects();
-            int subjectRow = 2;
-            foreach (var subject in subjects)
-            {
-                subjectWorksheet.Cells[subjectRow, 1].Value = subject.SubjectName;
-                subjectWorksheet.Cells[subjectRow, 2].Value = subject.SubjectCode;
-                subjectRow++;
-            }
-
-            // Populate data for Chapters based on the selected SubjectId
             chapterWorksheet.Cells[1, 1].Value = "SubjectId";
             chapterWorksheet.Cells[1, 2].Value = "ContentIndexId";
             chapterWorksheet.Cells[1, 3].Value = "ContentName_Chapter";
 
-            var chapters = GetChapters(subjectId);
-            int chapterRow = 2;
-            foreach (var chapter in chapters)
-            {
-                chapterWorksheet.Cells[chapterRow, 1].Value = chapter.SubjectId;
-                chapterWorksheet.Cells[chapterRow, 2].Value = chapter.ContentIndexId;
-                chapterWorksheet.Cells[chapterRow, 3].Value = chapter.ContentName_Chapter;
-                chapterRow++;
-            }
-
-            // Populate data for Topics based on the selected ChapterId
             topicWorksheet.Cells[1, 1].Value = "ChapterId";
             topicWorksheet.Cells[1, 2].Value = "ContInIdTopic";
             topicWorksheet.Cells[1, 3].Value = "ContentName_Topic";
 
-            int topicRow = 2;
-            foreach (var chapter in chapters)
-            {
-                var topics = GetTopics(chapter.ContentIndexId);
-                foreach (var topic in topics)
-                {
-                    topicWorksheet.Cells[topicRow, 1].Value = chapter.ContentIndexId;
-                    topicWorksheet.Cells[topicRow, 2].Value = topic.ContInIdTopic;
-                    topicWorksheet.Cells[topicRow, 3].Value = topic.ContentName_Topic;
-                    topicRow++;
-                }
-            }
-
-            // Populate data for SubTopics based on the selected TopicId
             subTopicWorksheet.Cells[1, 1].Value = "TopicId";
             subTopicWorksheet.Cells[1, 2].Value = "ContInIdSubTopic";
             subTopicWorksheet.Cells[1, 3].Value = "ContentName_SubTopic";
 
-            int subTopicRow = 2;
-            foreach (var chapter in chapters)
+            // Initialize row counters
+            int subjectRow = 2, chapterRow = 2, topicRow = 2, subTopicRow = 2;
+
+            // Loop through each subjectId and populate data for Subjects, Chapters, Topics, and SubTopics
+            foreach (var subjectId in subjectIds)
             {
-                var topics = GetTopics(chapter.ContentIndexId);
-                foreach (var topic in topics)
+                // Fetch subjects based on the current subjectId
+                var subjects = GetSubjects().Where(s => s.SubjectId == subjectId);
+                foreach (var subject in subjects)
                 {
-                    var subTopics = GetSubTopics(topic.ContInIdTopic);
-                    foreach (var subTopic in subTopics)
+                    subjectWorksheet.Cells[subjectRow, 1].Value = subject.SubjectName;
+                    subjectWorksheet.Cells[subjectRow, 2].Value = subject.SubjectCode;
+                    subjectRow++;
+                }
+
+                // Fetch chapters based on the current subjectId
+                var chapters = GetChapters(subjectId);
+                foreach (var chapter in chapters)
+                {
+                    chapterWorksheet.Cells[chapterRow, 1].Value = chapter.SubjectId;
+                    chapterWorksheet.Cells[chapterRow, 2].Value = chapter.ContentIndexId;
+                    chapterWorksheet.Cells[chapterRow, 3].Value = chapter.ContentName_Chapter;
+                    chapterRow++;
+
+                    // Fetch topics for each chapter
+                    var topics = GetTopics(chapter.ContentIndexId);
+                    foreach (var topic in topics)
                     {
-                        subTopicWorksheet.Cells[subTopicRow, 1].Value = topic.ContInIdTopic;
-                        subTopicWorksheet.Cells[subTopicRow, 2].Value = subTopic.ContInIdSubTopic;
-                        subTopicWorksheet.Cells[subTopicRow, 3].Value = subTopic.ContentName_SubTopic;
-                        subTopicRow++;
+                        topicWorksheet.Cells[topicRow, 1].Value = chapter.ContentIndexId;
+                        topicWorksheet.Cells[topicRow, 2].Value = topic.ContInIdTopic;
+                        topicWorksheet.Cells[topicRow, 3].Value = topic.ContentName_Topic;
+                        topicRow++;
+
+                        // Fetch subtopics for each topic
+                        var subTopics = GetSubTopics(topic.ContInIdTopic);
+                        foreach (var subTopic in subTopics)
+                        {
+                            subTopicWorksheet.Cells[subTopicRow, 1].Value = topic.ContInIdTopic;
+                            subTopicWorksheet.Cells[subTopicRow, 2].Value = subTopic.ContInIdSubTopic;
+                            subTopicWorksheet.Cells[subTopicRow, 3].Value = subTopic.ContentName_SubTopic;
+                            subTopicRow++;
+                        }
                     }
                 }
             }
@@ -2588,6 +2413,8 @@ namespace Course_API.Repository.Implementations
                 questionTypeWorksheet.Cells[typeRow, 2].Value = type.QuestionType;
                 typeRow++;
             }
+
+            // Populate data for Courses
             coursesWorksheet.Cells[1, 1].Value = "CourseName";
             coursesWorksheet.Cells[1, 2].Value = "CourseCode";
 
@@ -2599,7 +2426,8 @@ namespace Course_API.Repository.Implementations
                 coursesWorksheet.Cells[courseRow, 2].Value = course.CourseCode;
                 courseRow++;
             }
-            // AutoFit columns
+
+            // AutoFit columns for all worksheets
             subjectWorksheet.Cells[subjectWorksheet.Dimension.Address].AutoFitColumns();
             chapterWorksheet.Cells[chapterWorksheet.Dimension.Address].AutoFitColumns();
             topicWorksheet.Cells[topicWorksheet.Dimension.Address].AutoFitColumns();
@@ -2720,7 +2548,7 @@ namespace Course_API.Repository.Implementations
 
             // Execute the SQL query with the SOTDID parameter
             var data = _connection.QueryFirstOrDefault<TestSeriesInstructions>(query, new { TestSeriesID = TestSeriesId });
-            return data != null ? data : new TestSeriesInstructions() ;
+            return data != null ? data : new TestSeriesInstructions();
         }
         private List<TestSeriesQuestions> GetListOfTestSeriesQuestion(int sectionId)
         {
@@ -2930,148 +2758,10 @@ namespace Course_API.Repository.Implementations
             }
         }
     }
-    public class Option
+    public class ContentIndexDetails
     {
-        public string Answer { get; set; }
-        public bool IsCorrect { get; set; }
-    }
-    public enum QuestionTypesEnum
-    {
-        MCQ = 1,
-        TF = 2,
-        SA = 3,
-        FB = 4,
-        MT = 5,
-        MAQ = 6,
-        LA = 7,
-        VSA = 8,
-        MT2 = 9,
-        AR = 10,
-        NMR = 11,
-        CMPR = 12
-    }
-    public class ContentIndexData
-    {
-        public int ParentId { get; set; }
-        public int ChildId { get; set; }
-        public string ContentName { get; set; } = string.Empty;
-    }
-    public class SubjectData
-    {
-        public int SubjectId { get; set; }
-        public string SubjectName { get; set; } = string.Empty;
-        public string SubjectCode { get; set; } = string.Empty;
-        public string Icon { get; set; } = string.Empty;
-        public string ColorCode { get; set; } = string.Empty;
-        public bool? Status { get; set; }
-        public int? DisplayOrder { get; set; }
-        public int? CreatedBy { get; set; }
-        public DateTime? CreatedOn { get; set; }
-        public int? ModifiedBy { get; set; }
-        public DateTime? ModifiedOn { get; set; }
-        public string GroupName { get; set; } = string.Empty;
-        public int? SubjectType { get; set; }
-    }
-    public class Course
-    {
-        public int CourseId { get; set; }
-        public string CourseName { get; set; } = string.Empty;
-        public string CourseCode { get; set; } = string.Empty;
-        public bool? Status { get; set; }
-        public int? CreatedBy { get; set; }
-        public DateTime? CreatedOn { get; set; }
-        public int? ModifiedBy { get; set; }
-        public DateTime? ModifiedOn { get; set; }
-        public int? DisplayOrder { get; set; }
-    }
-    public class DifficultyLevel
-    {
-        public int LevelId { get; set; }
-        public string LevelName { get; set; }
-        public string LevelCode { get; set; }
-        public string Status { get; set; }
-        public int NoofQperLevel { get; set; }
-        public decimal SuccessRate { get; set; }
-        public DateTime createdon { get; set; }
-        public string patterncode { get; set; }
-        public DateTime? modifiedon { get; set; }
-        public string modifiedby { get; set; }
-        public string createdby { get; set; }
-        public int EmployeeID { get; set; }
-        public string EmpFirstName { get; set; }
-    }
-    public class Questiontype
-    {
-        public int QuestionTypeID { get; set; }
-        public string QuestionType { get; set; } = string.Empty;
-        public string Code { get; set; } = string.Empty;
-        public string Question { get; set; } = string.Empty;
-        public bool Status { get; set; }
-        public int MinNoOfOptions { get; set; }
-        public DateTime modifiedon { get; set; }
-        public string modifiedby { get; set; } = string.Empty;
-        public DateTime createdon { get; set; }
-        public string createdby { get; set; } = string.Empty;
-        public int EmployeeID { get; set; }
-        public int TypeOfOption { get; set; }
-    }
-    public class AnswerMaster
-    {
-        public int Answerid { get; set; }
-        public int Questionid { get; set; }
-        public int QuestionTypeid { get; set; }
-    }
-    public class Chapters
-    {
+        public int IndexTypeId { get; set; }
         public int ContentIndexId { get; set; }
         public int SubjectId { get; set; }
-        public string ContentName_Chapter { get; set; } = string.Empty;
-        public bool Status { get; set; }
-        public int IndexTypeId { get; set; }
-        public int BoardId { get; set; }
-        public int ClassId { get; set; }
-        public int CourseId { get; set; }
-        public int APID { get; set; }
-        public DateTime? CreatedOn { get; set; }
-        public string CreatedBy { get; set; } = string.Empty;
-        public DateTime? ModifiedOn { get; set; }
-        public string ModifiedBy { get; set; } = string.Empty;
-        public int EmployeeId { get; set; }
-        public int ExamTypeId { get; set; }
-    }
-    public class Topics
-    {
-        public int ContInIdTopic { get; set; }
-        public int ContentIndexId { get; set; }
-        public string ContentName_Topic { get; set; } = string.Empty;
-        public bool Status { get; set; }
-        public int IndexTypeId { get; set; }
-        public DateTime? CreatedOn { get; set; }
-        public string CreatedBy { get; set; } = string.Empty;
-        public DateTime? ModifiedOn { get; set; }
-        public string? ModifiedBy { get; set; }
-        public int EmployeeId { get; set; }
-        public bool IsActive { get; set; }
-        public string TopicCode { get; set; } = string.Empty;
-        public string DisplayName { get; set; } = string.Empty;
-        public int DisplayOrder { get; set; }
-    }
-    public class SubTopic
-    {
-        public int ContInIdSubTopic { get; set; }
-        public int ContInIdTopic { get; set; }
-        public string ContentName_SubTopic { get; set; } = string.Empty;
-        public bool Status { get; set; }
-        public int IndexTypeId { get; set; }
-        public DateTime? CreatedOn { get; set; }
-        public string CreatedBy { get; set; } = string.Empty;
-        public DateTime? ModifiedOn { get; set; }
-        public string ModifiedBy { get; set; } = string.Empty;
-        public int EmployeeId { get; set; }
-        public bool IsActive { get; set; }
-        public string SubTopicCode { get; set; } = string.Empty;
-        public string DisplayName { get; set; } = string.Empty;
-        public int DisplayOrder { get; set; }
-        public string TopicCode { get; set; } = string.Empty;
     }
 }
