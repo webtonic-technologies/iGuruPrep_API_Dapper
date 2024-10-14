@@ -1648,24 +1648,52 @@ namespace Course_API.Repository.Implementations
                     {
                         return new ServiceResponse<byte[]>(false, "", [], 500);
                     }
+                    // Fetch the section data, including question type and difficulty levels
+                    var sectionDataQuery = @"
+                SELECT [SubjectId], [QuestionTypeID], [LevelID1], [QuesPerDifficulty1], [LevelID2], 
+                       [QuesPerDifficulty2], [LevelID3], [QuesPerDifficulty3]
+                FROM [tbltestseriesQuestionSection]
+                WHERE TestSeriesId = @TestSeriesId";
 
+                    var sectionData = await _connection.QueryAsync<dynamic>(sectionDataQuery, new { TestSeriesId = request.TestSeriesId });
+
+                    if (sectionData == null || !sectionData.Any())
+                    {
+                        return new ServiceResponse<byte[]>(false, "No section data found", [], 500);
+                    }
+                    // Fetch test series details from tblTestSeries
+                    var testSeriesQuery = @"
+                SELECT ts.TestSeriesId, ts.TotalNoOfQuestions
+                FROM [tblTestSeries] ts
+                WHERE ts.TestSeriesId = @TestSeriesId";
+
+                    var testSeriesDetails = await _connection.QuerySingleOrDefaultAsync<dynamic>(testSeriesQuery, new { TestSeriesId = request.TestSeriesId });
+
+                    if (testSeriesDetails == null)
+                    {
+                        return new ServiceResponse<byte[]>(false, "Test Series not found", null, 404);
+                    }
                     // Create a worksheet for Questions
                     var worksheet = package.Workbook.Worksheets.Add("Questions");
+                    
+                    // Add static headers
+                    worksheet.Cells[1, 1].Value = "Exam Paper ID";
+                    worksheet.Cells[1, 2].Value = "Subject ID";
+                    worksheet.Cells[1, 3].Value = "Question Type";
+                    worksheet.Cells[1, 4].Value = "Difficulty Level";
+                    worksheet.Cells[1, 6].Value = "Question";
+                    worksheet.Cells[1, 7].Value = "Answer";
 
-                    // Add headers for Questions
-                    worksheet.Cells[1, 1].Value = "SubjectName";
-                    worksheet.Cells[1, 2].Value = "ChapterName";
-                    worksheet.Cells[1, 3].Value = "ConceptName"; // Only relevant if IndexTypeId >= 2
-                    worksheet.Cells[1, 4].Value = "SubConceptName"; // Only relevant if IndexTypeId == 3
-                    worksheet.Cells[1, 5].Value = "QuestionType";
-                    worksheet.Cells[1, 6].Value = "QuestionDescription";
-                    worksheet.Cells[1, 7].Value = "CourseName";
-                    worksheet.Cells[1, 8].Value = "DifficultyLevel";
-                    worksheet.Cells[1, 9].Value = "Solution";
-                    worksheet.Cells[1, 10].Value = "Explanation";
-                    worksheet.Cells[1, 27].Value = "QuestionCode";
-                    worksheet.Column(27).Hidden = true;
+                    // Add headers for options and other details
+                    for (int i = 1; i <= 4; i++)
+                    {
+                        worksheet.Cells[1, 7 + i].Value = $"Option{i}";
+                    }
 
+                    worksheet.Cells[1, 12].Value = "Explanation";
+                    worksheet.Cells[1, 13].Value = "Extra Information";
+                    worksheet.Cells[1, 5].Value = "Display Order";
+                    
                     // Format headers
                     using (var range = worksheet.Cells[1, 1, 1, 27])
                     {
@@ -1675,26 +1703,81 @@ namespace Course_API.Repository.Implementations
                         range.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
                     }
 
-                  
+                    // Loop through the questions and add rows
+                    int row = 2;
+                    int displayOrder = 1; // To increment display order
 
-                    int maxOptions = 0;
-
-               
-
-                    // Add dynamic columns for options based on maxOptions
-                    int optionsToAdd = Math.Max(4, maxOptions);
-
-                    // Add dynamic columns for options
-                    for (int i = 0; i < optionsToAdd; i++)
+                    foreach (var data in sectionData)
                     {
-                        worksheet.Cells[1, 12 + i].Value = $"Option{i + 1}";
-                    }
+                        // Repeat the row for each difficulty level (Level 1, 2, and 3)
+                        for(int i = 0;i< data.QuesPerDifficulty1; i++)
+                        {
+                            // 1st Row for Difficulty Level 1
+                            worksheet.Cells[row, 1].Value = request.TestSeriesId; // Exam Paper ID
+                            worksheet.Cells[row, 2].Value = data.SubjectId; // Subject ID
+                            worksheet.Cells[row, 3].Value = data.QuestionTypeID; // Question Type
+                            worksheet.Cells[row, 4].Value = data.LevelID1; // Difficulty Level 1
+                            worksheet.Cells[row, 6].Value = "Q"; // Question
+                            worksheet.Cells[row, 7].Value = "A"; // Answer
 
-                   
+                            FillOptionsBasedOnQuestionType(data.QuestionTypeID, worksheet, row);
+
+                            // Fill explanation, extra information, and display order
+                            worksheet.Cells[row, 12].Value = "Explanation"; // Dummy explanation
+                            worksheet.Cells[row, 13].Value = "Extra Info"; // Dummy extra information
+                            worksheet.Cells[row, 5].Value = displayOrder++; // Display order
+                            row++; // Move to next row
+                        }
+
+                        for (int i = 0; i < data.QuesPerDifficulty2; i++)
+                        {
+                            // 2nd Row for Difficulty Level 2
+                            worksheet.Cells[row, 1].Value = request.TestSeriesId; // Exam Paper ID
+                            worksheet.Cells[row, 2].Value = data.SubjectId; // Subject ID
+                            worksheet.Cells[row, 3].Value = data.QuestionTypeID; // Question Type
+                            worksheet.Cells[row, 4].Value = data.LevelID2; // Difficulty Level 2
+                            worksheet.Cells[row, 6].Value = "Q"; // Question
+                            worksheet.Cells[row, 7].Value = "A"; // Answer
+
+                            FillOptionsBasedOnQuestionType(data.QuestionTypeID, worksheet, row);
+
+                            // Fill explanation, extra information, and display order
+                            worksheet.Cells[row, 12].Value = "Explanation"; // Dummy explanation
+                            worksheet.Cells[row, 13].Value = "Extra Info"; // Dummy extra information
+                            worksheet.Cells[row, 5].Value = displayOrder++; // Display order
+                            row++; // Move to next row
+                        }
+
+                        for (int i = 0; i < data.QuesPerDifficulty3; i++)
+                        {
+                            // 3rd Row for Difficulty Level 3
+                            worksheet.Cells[row, 1].Value = request.TestSeriesId; // Exam Paper ID
+                            worksheet.Cells[row, 2].Value = data.SubjectId; // Subject ID
+                            worksheet.Cells[row, 3].Value = data.QuestionTypeID; // Question Type
+                            worksheet.Cells[row, 4].Value = data.LevelID3; // Difficulty Level 3
+                            worksheet.Cells[row, 6].Value = "Q"; // Question
+                            worksheet.Cells[row, 7].Value = "A"; // Answer
+
+                            FillOptionsBasedOnQuestionType(data.QuestionTypeID, worksheet, row);
+
+                            // Fill explanation, extra information, and display order
+                            worksheet.Cells[row, 12].Value = "Explanation"; // Dummy explanation
+                            worksheet.Cells[row, 13].Value = "Extra Info"; // Dummy extra information
+                            worksheet.Cells[row, 5].Value = displayOrder++; // Display order
+                            row++; // Move to next row
+                        }
+                    }
 
                     // Auto fit columns for better readability
                     worksheet.Cells.AutoFitColumns();
+                    // Protect the worksheet without setting a password
+                    worksheet.Protection.IsProtected = true;
 
+                    // Unlock the columns that should be editable (from column 7 onward)
+                    for (int col = 6; col <= worksheet.Dimension.End.Column; col++) // Start from column 7 onwards
+                    {
+                        worksheet.Column(col).Style.Locked = false;
+                    }
                     AddMasterDataSheets(package, testSeriesContent.ToList());
                     var fileBytes = package.GetAsByteArray();
                     // Return the file as a response
@@ -1705,6 +1788,44 @@ namespace Course_API.Repository.Implementations
             {
                 // Handle exception
                 return new ServiceResponse<byte[]>(false, ex.Message, [], 500);
+            }
+        }
+        private void FillOptionsBasedOnQuestionType(int questionTypeId, ExcelWorksheet worksheet, int row)
+        {
+            switch (questionTypeId)
+            {
+                case 1: // Multiple choice (4 columns)
+                case 4: // Fill in the blanks (4 columns)
+                case 5: // Matching (4 columns)
+                case 6: // Multiple answers (4 columns)
+                case 9: // Matching 2 (4 columns)
+                    worksheet.Cells[row, 8].Value = "A"; // Option 1
+                    worksheet.Cells[row, 9].Value = "B"; // Option 2
+                    worksheet.Cells[row, 10].Value = "C"; // Option 3
+                    worksheet.Cells[row, 11].Value = "D"; // Option 4
+                    break;
+
+                case 2: // True/False (2 columns)
+                    worksheet.Cells[row, 8].Value = "A";  // Option 1
+                    worksheet.Cells[row, 9].Value = "B"; // Option 2
+                    break;
+
+                case 3: // Short Answer (1 column)
+                case 7: // Long Answer (1 column)
+                case 8: // Very Short Answer (1 column)
+                case 10: // Assertion and Reason (1 column)
+                case 11: // Numerical (1 column)
+                case 12: // Comprehensive (1 column)
+                    worksheet.Cells[row, 8].Value = "A"; // Option 1 only
+                    break;
+
+                default:
+                    // Default case if there is an unexpected question type.
+                    worksheet.Cells[row, 8].Value = "A"; // Option 1
+                    worksheet.Cells[row, 9].Value = "B"; // Option 2
+                    worksheet.Cells[row, 10].Value = "C"; // Option 3
+                    worksheet.Cells[row, 11].Value = "D"; // Option 4
+                    break;
             }
         }
         public async Task<ServiceResponse<string>> UploadQuestionsFromExcel(IFormFile file, int testSeriesId, int sectionId)
@@ -2336,28 +2457,28 @@ namespace Course_API.Repository.Implementations
         {
             // Create worksheets for master data
             var subjectWorksheet = package.Workbook.Worksheets.Add("Subjects");
-            var chapterWorksheet = package.Workbook.Worksheets.Add("Chapters");
-            var topicWorksheet = package.Workbook.Worksheets.Add("Topics");
-            var subTopicWorksheet = package.Workbook.Worksheets.Add("SubTopics");
+          //  var chapterWorksheet = package.Workbook.Worksheets.Add("Chapters");
+          //  var topicWorksheet = package.Workbook.Worksheets.Add("Topics");
+          //  var subTopicWorksheet = package.Workbook.Worksheets.Add("SubTopics");
             var difficultyLevelWorksheet = package.Workbook.Worksheets.Add("Difficulty Levels");
             var questionTypeWorksheet = package.Workbook.Worksheets.Add("Question Types");
-            var coursesWorksheet = package.Workbook.Worksheets.Add("Courses");
+         //   var coursesWorksheet = package.Workbook.Worksheets.Add("Courses");
 
             // Set headers for each worksheet
             subjectWorksheet.Cells[1, 1].Value = "SubjectName";
             subjectWorksheet.Cells[1, 2].Value = "SubjectCode";
 
-            chapterWorksheet.Cells[1, 1].Value = "SubjectId";
-            chapterWorksheet.Cells[1, 2].Value = "ContentIndexId";
-            chapterWorksheet.Cells[1, 3].Value = "ContentName_Chapter";
+            //chapterWorksheet.Cells[1, 1].Value = "SubjectId";
+            //chapterWorksheet.Cells[1, 2].Value = "ContentIndexId";
+            //chapterWorksheet.Cells[1, 3].Value = "ContentName_Chapter";
 
-            topicWorksheet.Cells[1, 1].Value = "ChapterId";
-            topicWorksheet.Cells[1, 2].Value = "ContInIdTopic";
-            topicWorksheet.Cells[1, 3].Value = "ContentName_Topic";
+            //topicWorksheet.Cells[1, 1].Value = "ChapterId";
+            //topicWorksheet.Cells[1, 2].Value = "ContInIdTopic";
+            //topicWorksheet.Cells[1, 3].Value = "ContentName_Topic";
 
-            subTopicWorksheet.Cells[1, 1].Value = "TopicId";
-            subTopicWorksheet.Cells[1, 2].Value = "ContInIdSubTopic";
-            subTopicWorksheet.Cells[1, 3].Value = "ContentName_SubTopic";
+            //subTopicWorksheet.Cells[1, 1].Value = "TopicId";
+            //subTopicWorksheet.Cells[1, 2].Value = "ContInIdSubTopic";
+            //subTopicWorksheet.Cells[1, 3].Value = "ContentName_SubTopic";
 
             // Initialize row counters
             int subjectRow = 2, chapterRow = 2, topicRow = 2, subTopicRow = 2;
@@ -2376,33 +2497,33 @@ namespace Course_API.Repository.Implementations
 
                 // Fetch chapters based on the current subjectId
                 var chapters = GetChapters(subjectId);
-                foreach (var chapter in chapters)
-                {
-                    chapterWorksheet.Cells[chapterRow, 1].Value = chapter.SubjectId;
-                    chapterWorksheet.Cells[chapterRow, 2].Value = chapter.ContentIndexId;
-                    chapterWorksheet.Cells[chapterRow, 3].Value = chapter.ContentName_Chapter;
-                    chapterRow++;
+                //foreach (var chapter in chapters)
+                //{
+                //    chapterWorksheet.Cells[chapterRow, 1].Value = chapter.SubjectId;
+                //    chapterWorksheet.Cells[chapterRow, 2].Value = chapter.ContentIndexId;
+                //    chapterWorksheet.Cells[chapterRow, 3].Value = chapter.ContentName_Chapter;
+                //    chapterRow++;
 
-                    // Fetch topics for each chapter
-                    var topics = GetTopics(chapter.ContentIndexId);
-                    foreach (var topic in topics)
-                    {
-                        topicWorksheet.Cells[topicRow, 1].Value = chapter.ContentIndexId;
-                        topicWorksheet.Cells[topicRow, 2].Value = topic.ContInIdTopic;
-                        topicWorksheet.Cells[topicRow, 3].Value = topic.ContentName_Topic;
-                        topicRow++;
+                //    // Fetch topics for each chapter
+                //    var topics = GetTopics(chapter.ContentIndexId);
+                //    foreach (var topic in topics)
+                //    {
+                //        topicWorksheet.Cells[topicRow, 1].Value = chapter.ContentIndexId;
+                //        topicWorksheet.Cells[topicRow, 2].Value = topic.ContInIdTopic;
+                //        topicWorksheet.Cells[topicRow, 3].Value = topic.ContentName_Topic;
+                //        topicRow++;
 
-                        // Fetch subtopics for each topic
-                        var subTopics = GetSubTopics(topic.ContInIdTopic);
-                        foreach (var subTopic in subTopics)
-                        {
-                            subTopicWorksheet.Cells[subTopicRow, 1].Value = topic.ContInIdTopic;
-                            subTopicWorksheet.Cells[subTopicRow, 2].Value = subTopic.ContInIdSubTopic;
-                            subTopicWorksheet.Cells[subTopicRow, 3].Value = subTopic.ContentName_SubTopic;
-                            subTopicRow++;
-                        }
-                    }
-                }
+                //        // Fetch subtopics for each topic
+                //        var subTopics = GetSubTopics(topic.ContInIdTopic);
+                //        foreach (var subTopic in subTopics)
+                //        {
+                //            subTopicWorksheet.Cells[subTopicRow, 1].Value = topic.ContInIdTopic;
+                //            subTopicWorksheet.Cells[subTopicRow, 2].Value = subTopic.ContInIdSubTopic;
+                //            subTopicWorksheet.Cells[subTopicRow, 3].Value = subTopic.ContentName_SubTopic;
+                //            subTopicRow++;
+                //        }
+                //    }
+                //}
             }
 
             // Populate data for Difficulty Levels
@@ -2433,27 +2554,27 @@ namespace Course_API.Repository.Implementations
                 typeRow++;
             }
 
-            // Populate data for Courses
-            coursesWorksheet.Cells[1, 1].Value = "CourseName";
-            coursesWorksheet.Cells[1, 2].Value = "CourseCode";
+            //// Populate data for Courses
+            //coursesWorksheet.Cells[1, 1].Value = "CourseName";
+            //coursesWorksheet.Cells[1, 2].Value = "CourseCode";
 
-            var courses = GetCourses();
-            int courseRow = 2;
-            foreach (var course in courses)
-            {
-                coursesWorksheet.Cells[courseRow, 1].Value = course.CourseName;
-                coursesWorksheet.Cells[courseRow, 2].Value = course.CourseCode;
-                courseRow++;
-            }
+            //var courses = GetCourses();
+            //int courseRow = 2;
+            //foreach (var course in courses)
+            //{
+            //    coursesWorksheet.Cells[courseRow, 1].Value = course.CourseName;
+            //    coursesWorksheet.Cells[courseRow, 2].Value = course.CourseCode;
+            //    courseRow++;
+            //}
 
             // AutoFit columns for all worksheets
             subjectWorksheet.Cells[subjectWorksheet.Dimension.Address].AutoFitColumns();
-            chapterWorksheet.Cells[chapterWorksheet.Dimension.Address].AutoFitColumns();
-            topicWorksheet.Cells[topicWorksheet.Dimension.Address].AutoFitColumns();
-            subTopicWorksheet.Cells[subTopicWorksheet.Dimension.Address].AutoFitColumns();
+          //  chapterWorksheet.Cells[chapterWorksheet.Dimension.Address].AutoFitColumns();
+          //  topicWorksheet.Cells[topicWorksheet.Dimension.Address].AutoFitColumns();
+         //   subTopicWorksheet.Cells[subTopicWorksheet.Dimension.Address].AutoFitColumns();
             difficultyLevelWorksheet.Cells[difficultyLevelWorksheet.Dimension.Address].AutoFitColumns();
             questionTypeWorksheet.Cells[questionTypeWorksheet.Dimension.Address].AutoFitColumns();
-            coursesWorksheet.Cells[coursesWorksheet.Dimension.Address].AutoFitColumns();
+          //  coursesWorksheet.Cells[coursesWorksheet.Dimension.Address].AutoFitColumns();
         }
         public async Task<List<Option>> GetOptionsForQuestion(string questionId)
         {
