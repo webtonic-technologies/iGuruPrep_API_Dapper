@@ -99,13 +99,13 @@ namespace Course_API.DTOs.Requests
     public class ContentIndexRequest
     {
         public int TestSeriesID { get; set; }
-        public List<Subject> Subjects { get; set; }
+        public List<Subject>? Subjects { get; set; }
     }
 
     public class Subject
     {
         public int SubjectId { get; set; }
-        public List<Chapter> Chapter { get; set; }
+        public List<Chapter>? Chapter { get; set; }
     }
 
     public class Chapter
@@ -114,7 +114,7 @@ namespace Course_API.DTOs.Requests
         public int ContentIndexId { get; set; }
         public int IndexTypeId { get; set; }
         public bool Status { get; set; }
-        public List<Concept> Concepts { get; set; }
+        public List<Concept>? Concepts { get; set; }
     }
 
     public class Concept
@@ -124,7 +124,7 @@ namespace Course_API.DTOs.Requests
         public int ContentIndexId { get; set; }
         public int IndexTypeId { get; set; }
         public bool Status { get; set; }
-        public List<SubConcept> SubConcepts { get; set; }
+        public List<SubConcept>? SubConcepts { get; set; }
     }
 
     public class SubConcept

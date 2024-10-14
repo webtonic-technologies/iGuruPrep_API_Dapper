@@ -1884,7 +1884,7 @@ namespace Course_API.Repository.Implementations
                 };
                 testSeriesQuestionsList.Add(testSeriesQuestion);
             }
-            var quesMapping = TestSeriesQuestionsMapping(testSeriesQuestionsList, testSeriesId, sectionId);
+            var quesMapping = await TestSeriesQuestionsMapping(testSeriesQuestionsList, testSeriesId, sectionId);
             return new ServiceResponse<string>(true, "All questions uploaded successfully.", "Data uploaded successfully.", 200);
         }
         public async Task<ServiceResponse<string>> AddUpdateQuestion(QuestionDTO request)
