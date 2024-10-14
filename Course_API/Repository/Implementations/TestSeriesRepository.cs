@@ -1709,6 +1709,8 @@ namespace Course_API.Repository.Implementations
         }
         public async Task<ServiceResponse<string>> UploadQuestionsFromExcel(IFormFile file, int testSeriesId, int sectionId)
         {
+            var quesionsList = new List<string>();
+            List<TestSeriesQuestions> testSeriesQuestionsList = new List<TestSeriesQuestions>();
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
             var questions = new List<QuestionDTO>();
             Dictionary<string, int> subjectCodeDictionary = new Dictionary<string, int>();
@@ -1768,7 +1770,12 @@ namespace Course_API.Repository.Implementations
                         {
                             return new ServiceResponse<string>(false, $"Course name '{courseName}' not found at row {row}.", string.Empty, 400);
                         }
-
+                        var difficultyName = worksheet.Cells[row, 8].Text; // Assuming subject name is in column 1
+                        int diffiId = difficultyLevelDictionary.ContainsKey(difficultyName) ? difficultyLevelDictionary[difficultyName] : 0;
+                        if (diffiId == 0)
+                        {
+                            return new ServiceResponse<string>(false, $"Course name '{difficultyName}' not found at row {row}.", string.Empty, 400);
+                        }
                         // Create the QIDCourses list and populate it
                         var qidCourses = new List<QIDCourse>
                         {
@@ -1778,7 +1785,7 @@ namespace Course_API.Repository.Implementations
                                 QID = 0, // Populate this as needed
                                 QuestionCode = string.IsNullOrEmpty(worksheet.Cells[row, 27].Text) ? null : worksheet.Cells[row, 27].Text,
                                 CourseID = courseId,
-                                LevelId = 0, // Set this based on your logic or fetch from another source
+                                LevelId = diffiId, // Set this based on your logic or fetch from another source
                                 Status = true, // Set as needed
                                 CreatedBy = "YourUsername", // Set the creator's username or similar info
                                 CreatedDate = DateTime.UtcNow, // Use the current date and time
@@ -1858,6 +1865,7 @@ namespace Course_API.Repository.Implementations
 
                         // Call AddUpdateQuestion for each question
                         var response = await AddUpdateQuestion(question);
+                        quesionsList.Add(response.Data);
                         if (!response.Success)
                         {
                             return new ServiceResponse<string>(false, $"Failed to add/update question at row {row}: {response.Message}", string.Empty, 500);
@@ -1865,7 +1873,18 @@ namespace Course_API.Repository.Implementations
                     }
                 }
             }
-
+            foreach (string questionCode in quesionsList)
+            {
+                TestSeriesQuestions testSeriesQuestion = new TestSeriesQuestions
+                {
+                    TestSeriesid = testSeriesId,
+                    testseriesQuestionSectionid = sectionId,
+                    QuestionCode = questionCode,
+                    Status = 1 // Assuming status is active or some default value
+                };
+                testSeriesQuestionsList.Add(testSeriesQuestion);
+            }
+            var quesMapping = TestSeriesQuestionsMapping(testSeriesQuestionsList, testSeriesId, sectionId);
             return new ServiceResponse<string>(true, "All questions uploaded successfully.", "Data uploaded successfully.", 200);
         }
         public async Task<ServiceResponse<string>> AddUpdateQuestion(QuestionDTO request)
@@ -2036,7 +2055,7 @@ namespace Course_API.Repository.Implementations
 
                     if (data > 0 && answer > 0)
                     {
-                        return new ServiceResponse<string>(true, "Operation Successful", "Question Added Successfully", 200);
+                        return new ServiceResponse<string>(true, "Operation Successful", insertedQuestionCode, 200);
                     }
                     else
                     {
