@@ -9,6 +9,7 @@
         public int Status { get; set; }
         public int testseriesQuestionSectionid { get; set; }
         public string QuestionCode { get; set; } = string.Empty;
+        public string QuestionDescription {  get; set; } = string.Empty;
     }
 }
 //sub id

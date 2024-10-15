@@ -314,7 +314,7 @@ namespace Course_API.Repository.Implementations
                     testSeries.TestSeriesQuestions = new List<TestSeriesQuestions>();
                     foreach (var section in testSeriesQuestionsSections)
                     {
-                        var questions = GetListOfTestSeriesQuestion(section.testseriesQuestionSectionid);
+                        var questions = GetListOfTestSeriesQuestion(TestSeriesId);
                         if (questions != null)
                         {
                             testSeries.TestSeriesQuestions.AddRange(questions);
@@ -750,10 +750,10 @@ namespace Course_API.Repository.Implementations
 
                 var questionSection = await _connection.QueryFirstOrDefaultAsync(getQuestionSectionQuery, new { TestSeriesId, testseriesQuestionSectionid = sectionId });
 
-                if (questionSection == null)
-                {
-                    return new ServiceResponse<string>(false, "operation failed", "Test series question section not found.", 400);
-                }
+                //if (questionSection == null)
+                //{
+                //    return new ServiceResponse<string>(false, "operation failed", "Test series question section not found.", 400);
+                //}
 
                 // Step 3: Validate total number of questions
                 //if (request.Count > questionSection.TotalNoofQuestions)
@@ -795,15 +795,14 @@ namespace Course_API.Repository.Implementations
                 //}
 
                 // Step 7: Check if there are existing questions for this section and delete them if necessary
-                string existingQuestionsQuery = "SELECT COUNT(*) FROM tbltestseriesQuestions WHERE testseriesQuestionSectionid = @testseriesQuestionSectionid";
-                int existingQuestionsCount = await _connection.QueryFirstOrDefaultAsync<int>(existingQuestionsQuery, new { testseriesQuestionSectionid = sectionId });
+                string existingQuestionsQuery = "SELECT COUNT(*) FROM tbltestseriesQuestions WHERE TestSeriesid = @TestSeriesid";
+                int existingQuestionsCount = await _connection.QueryFirstOrDefaultAsync<int>(existingQuestionsQuery, new { TestSeriesid = TestSeriesId });
 
-                if (existingQuestionsCount > 0)
-                {
-                    // Step 8: Delete existing questions
-                    string deleteQuery = "DELETE FROM tbltestseriesQuestions WHERE testseriesQuestionSectionid = @testseriesQuestionSectionid";
-                    await _connection.ExecuteAsync(deleteQuery, new { testseriesQuestionSectionid = sectionId });
-                }
+
+                // Step 8: Delete existing questions
+                string deleteQuery = "DELETE FROM tbltestseriesQuestions WHERE TestSeriesid = @TestSeriesid";
+                await _connection.ExecuteAsync(deleteQuery, new { TestSeriesid = TestSeriesId });
+
 
                 // Step 9: Insert new questions
                 string insertQuery = @"
@@ -1472,7 +1471,7 @@ namespace Course_API.Repository.Implementations
                 }
                 // Prepare new question entry
                 string query = @"
-                    UPDATE tblQuestions
+                    UPDATE tblQuestion
                     SET 
                         QuestionDescription = @QuestionDescription,
                         QuestionTypeId = @QuestionTypeId,
@@ -1483,7 +1482,6 @@ namespace Course_API.Repository.Implementations
                         ModifiedOn = @ModifiedOn,
                         subjectID = @SubjectID,
                         EmployeeId = @EmployeeId,
-                        ModifierId = @ModifierId,
                         IndexTypeId = @IndexTypeId,
                         ContentIndexId = @ContentIndexId,
                         IsRejected = @IsRejected,
@@ -1494,7 +1492,7 @@ namespace Course_API.Repository.Implementations
                         IsActive = @IsActive,
                         IsConfigure = @IsConfigure
                     WHERE 
-                        QuestionCode = @QuestionCode";
+                        QuestionId = @QuestionId";
                 var parameters = new
                 {
                     QuestionId = request.QuestionId,
@@ -1520,7 +1518,7 @@ namespace Course_API.Repository.Implementations
 
                 // Retrieve the QuestionCode after insertion
                 // var insertedQuestionCode = await _connection.QuerySingleOrDefaultAsync<string>(insertQuery, question);
-                var insertedQuestionId = await _connection.QuerySingleOrDefaultAsync<int>(query, parameters);
+                var insertedQuestionId = request.QuestionId;//await _connection.QuerySingleOrDefaultAsync<int>(query, parameters);
 
                 string insertedQuestionCode = request.QuestionCode;
 
@@ -1537,8 +1535,8 @@ namespace Course_API.Repository.Implementations
                     int Answerid = 0;
 
                     // Check if the answer already exists in AnswerMaster
-                    string getAnswerQuery = @"SELECT Answerid FROM tblAnswerMaster WHERE QuestionCode = @QuestionCode;";
-                    Answerid = await _connection.QueryFirstOrDefaultAsync<int>(getAnswerQuery, new { QuestionCode = insertedQuestionCode });
+                    string getAnswerQuery = @"SELECT Answerid FROM tblAnswerMaster WHERE Questionid = @Questionid;";
+                    Answerid = await _connection.QueryFirstOrDefaultAsync<int>(getAnswerQuery, new { Questionid = insertedQuestionId });
 
                     if (Answerid == 0)  // If no entry exists, insert a new one
                     {
@@ -1819,7 +1817,7 @@ namespace Course_API.Repository.Implementations
                     break;
             }
         }
-        public async Task<ServiceResponse<string>> UploadQuestionsFromExcel(IFormFile file, int testSeriesId, int sectionId)
+        public async Task<ServiceResponse<string>> UploadQuestionsFromExcel(IFormFile file, int testSeriesId)
         {
             var quesionsList = new List<int>();
             List<TestSeriesQuestions> testSeriesQuestionsList = new List<TestSeriesQuestions>();
@@ -1869,7 +1867,9 @@ namespace Course_API.Repository.Implementations
                             Answersingleanswercategories = GetAnswerSingleAnswerCategories(worksheet, row, int.Parse(worksheet.Cells[row, 3].Text)),
                             QIDCourses = qidCourses,
                             IsActive = true,
-                            IsConfigure = false
+                            IsConfigure = false,
+                            ExtraInformation = worksheet.Cells[row, 13].Text,
+                            DifficultyLevel = int.Parse(worksheet.Cells[row, 4].Text)
                         };
 
                         // Add question to the list for bulk processing
@@ -1890,14 +1890,14 @@ namespace Course_API.Repository.Implementations
                 TestSeriesQuestions testSeriesQuestion = new TestSeriesQuestions
                 {
                     TestSeriesid = testSeriesId,
-                    testseriesQuestionSectionid = sectionId,
+                    testseriesQuestionSectionid = 0,
                     QuestionCode = "",
                     Questionid = questionId,
                     Status = 1 // Assuming status is active or some default value
                 };
                 testSeriesQuestionsList.Add(testSeriesQuestion);
             }
-            var quesMapping = await TestSeriesQuestionsMapping(testSeriesQuestionsList, testSeriesId, sectionId);
+            var quesMapping = await TestSeriesQuestionsMapping(testSeriesQuestionsList, testSeriesId, 0);
             return new ServiceResponse<string>(true, "All questions uploaded successfully.", "Data uploaded successfully.", 200);
         }
         public async Task<ServiceResponse<int>> AddUpdateQuestion(QuestionDTO request)
@@ -1934,7 +1934,8 @@ namespace Course_API.Repository.Implementations
                     Explanation = request.Explanation,
                     ExtraInformation = request.ExtraInformation,
                     IsActive = true,
-                    IsConfigure = false
+                    IsConfigure = false,
+                    DifficultyLevelId = request.DifficultyLevel
                 };
                 string insertQuery = @"
               INSERT INTO tblQuestion (
@@ -1953,7 +1954,8 @@ namespace Course_API.Repository.Implementations
                   Explanation,
                   ExtraInformation,
                   IsActive,
-                  IsConfigure
+                  IsConfigure,
+                  DifficultyLevelId
               ) VALUES (
                   @QuestionDescription,
                   @QuestionTypeId,
@@ -1969,7 +1971,7 @@ namespace Course_API.Repository.Implementations
                   @QuestionCode,
                   @Explanation,
                   @ExtraInformation,
-                  @IsActive, @IsConfigure
+                  @IsActive, @IsConfigure, @DifficultyLevelId
               );
   
               -- Fetch the QuestionId of the newly inserted row
@@ -2599,14 +2601,39 @@ namespace Course_API.Repository.Implementations
             var data = _connection.QueryFirstOrDefault<TestSeriesInstructions>(query, new { TestSeriesID = TestSeriesId });
             return data != null ? data : new TestSeriesInstructions();
         }
-        private List<TestSeriesQuestions> GetListOfTestSeriesQuestion(int sectionId)
+        private List<TestSeriesQuestions> GetListOfTestSeriesQuestion(int TestSeriesId)
         {
-            string query = "SELECT * FROM tbltestseriesQuestions WHERE [testseriesQuestionSectionid] = @testseriesQuestionSectionid";
+            // Query to join tbltestseriesQuestions with tblQuestion to fetch QuestionDescription
+            string query = @"
+    SELECT 
+        tsq.testseriesquestionsid,
+        tsq.TestSeriesid,
+        tsq.Questionid,
+        tsq.DisplayOrder,
+        tsq.Status,
+        tsq.testseriesQuestionSectionid,
+        tsq.QuestionCode,
+        q.QuestionDescription
+    FROM 
+        tbltestseriesQuestions tsq
+    JOIN 
+        tblQuestion q ON tsq.Questionid = q.QuestionId
+    WHERE 
+        tsq.TestSeriesid = @TestSeriesid";
 
-            // Execute the SQL query with the SOTDID parameter
-            var data = _connection.Query<TestSeriesQuestions>(query, new { testseriesQuestionSectionid = sectionId });
-            return data != null ? data.AsList() : [];
+            // Execute the query using Dapper
+            var data = _connection.Query<TestSeriesQuestions>(query, new { TestSeriesid = TestSeriesId });
+
+            return data != null ? data.AsList() : new List<TestSeriesQuestions>();
         }
+        //private List<TestSeriesQuestions> GetListOfTestSeriesQuestion(int TestSeriesId)
+        //{
+        //    string query = "SELECT * FROM tbltestseriesQuestions WHERE [TestSeriesid] = @TestSeriesid";
+
+        //    // Execute the SQL query with the SOTDID parameter
+        //    var data = _connection.Query<TestSeriesQuestions>(query, new { TestSeriesid = TestSeriesId });
+        //    return data != null ? data.AsList() : [];
+        //}
         private int TestSeriesSubjectMapping(List<TestSeriesSubjects> request, int TestSeriesId)
         {
             foreach (var data in request)

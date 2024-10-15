@@ -310,15 +310,15 @@ namespace Course_API.Controllers
             }
             return StatusCode(response.StatusCode, response.Message);
         }
-        [HttpPost("upload/{testSeriesId}/{sectionId}")]
-        public async Task<IActionResult> UploadQuestionsFromExcel(IFormFile file, int testSeriesId, int sectionId)
+        [HttpPost("upload/{testSeriesId}")]
+        public async Task<IActionResult> UploadQuestionsFromExcel(IFormFile file, int testSeriesId)
         {
             if (file == null || file.Length == 0)
             {
                 return BadRequest("No file uploaded");
             }
 
-            var response = await _testSeriesServices.UploadQuestionsFromExcel(file, testSeriesId, sectionId);
+            var response = await _testSeriesServices.UploadQuestionsFromExcel(file, testSeriesId);
             if (response.Success)
             {
                 return Ok(response.Message);

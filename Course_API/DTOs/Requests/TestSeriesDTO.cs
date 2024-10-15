@@ -165,6 +165,7 @@ namespace Course_API.DTOs.Requests
         public string ExtraInformation { get; set; } = string.Empty;
         public bool IsActive { get; set; } = true;
         public bool IsConfigure { get; set; }
+        public int DifficultyLevel {  get; set; }
         public List<QIDCourse>? QIDCourses { get; set; }
         public List<AnswerMultipleChoiceCategory>? AnswerMultipleChoiceCategories { get; set; }
         public Answersingleanswercategory? Answersingleanswercategories { get; set; }

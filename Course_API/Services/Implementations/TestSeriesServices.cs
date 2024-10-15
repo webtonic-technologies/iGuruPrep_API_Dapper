@@ -267,9 +267,9 @@ namespace Course_API.Services.Implementations
             return await _testSeriesRepository.UpdateQuestion(request);
         }
 
-        public async Task<ServiceResponse<string>> UploadQuestionsFromExcel(IFormFile file, int testSeriesId, int sectionId)
+        public async Task<ServiceResponse<string>> UploadQuestionsFromExcel(IFormFile file, int testSeriesId)
         {
-            return await _testSeriesRepository.UploadQuestionsFromExcel(file, testSeriesId, sectionId);
+            return await _testSeriesRepository.UploadQuestionsFromExcel(file, testSeriesId);
         }
     }
 }
