@@ -1518,9 +1518,10 @@ namespace Course_API.Repository.Implementations
 
                 // Retrieve the QuestionCode after insertion
                 // var insertedQuestionCode = await _connection.QuerySingleOrDefaultAsync<string>(insertQuery, question);
-                var insertedQuestionId = request.QuestionId;//await _connection.QuerySingleOrDefaultAsync<int>(query, parameters);
+                var insertedQuestionId = request.QuestionId;
+                await _connection.QuerySingleOrDefaultAsync<int>(query, parameters);
 
-                string insertedQuestionCode = request.QuestionCode;
+                string insertedQuestionCode = "string";
 
                 if (!string.IsNullOrEmpty(insertedQuestionCode))
                 {
