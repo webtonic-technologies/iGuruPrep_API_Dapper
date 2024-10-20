@@ -25,5 +25,6 @@ namespace Course_API.Repository.Interfaces
         Task<ServiceResponse<string>> UpdateQuestion(QuestionDTO request);
         Task<ServiceResponse<byte[]>> GenerateExcelFile(DownExcelRequest request);
         Task<ServiceResponse<string>> UploadQuestionsFromExcel(IFormFile file, int testSeriesId);
+        Task<ServiceResponse<string>> TestSeriesRejectedQuestionRemarks(RejectedQuestionRemark request);
     }
 }

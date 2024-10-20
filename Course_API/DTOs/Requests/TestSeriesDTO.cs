@@ -1,4 +1,6 @@
 ﻿using Course_API.Models;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
+using Microsoft.AspNetCore.Http.HttpResults;
 using System.ComponentModel.DataAnnotations;
 
 namespace Course_API.DTOs.Requests
@@ -89,11 +91,12 @@ namespace Course_API.DTOs.Requests
         public int BoardId { get; set; }
         public int ExamTypeId { get; set; }
         public int TypeOfTestSeries { get; set; }
-        public string? ExamStatus { get; set; } = string.Empty;
+        public int? ExamStatus { get; set; }
         public DateTime? Date { get; set; }
         public int PageNumber {  get; set; }
         public int PageSize {  get; set; }
-        public bool IsAdmin {  get; set; }
+        public bool? IsAdmin {  get; set; }
+        public int EmployeeId {  get; set; }
     }
 
     public class ContentIndexRequest
@@ -196,5 +199,14 @@ namespace Course_API.DTOs.Requests
         public int Answersingleanswercategoryid { get; set; }
         public int? Answerid { get; set; }
         public string Answer { get; set; } = string.Empty;
+    }
+    public class RejectedQuestionRemark
+    {
+        public int TRRId { get; set; }
+        public int TestSeriesId { get; set; }
+        public int QuestionId { get; set; }
+        public string Remarks { get; set; }
+        public int RejectedBy { get; set; }
+        public string ImageOrPdf { get; set; }
     }
 }

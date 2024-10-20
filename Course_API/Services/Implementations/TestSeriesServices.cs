@@ -262,6 +262,11 @@ namespace Course_API.Services.Implementations
             }
         }
 
+        public async Task<ServiceResponse<string>> TestSeriesRejectedQuestionRemarks(RejectedQuestionRemark request)
+        {
+            return await _testSeriesRepository.TestSeriesRejectedQuestionRemarks(request);
+        }
+
         public async Task<ServiceResponse<string>> UpdateQuestion(QuestionDTO request)
         {
             return await _testSeriesRepository.UpdateQuestion(request);

@@ -253,7 +253,6 @@ namespace Course_API.Controllers
 
             return Ok(response);
         }
-
         [HttpGet("contentindexhierarchy/{testSeriesId}")]
         public async Task<IActionResult> GetTestSeriesContentIndexHierarchy(int testSeriesId)
         {
@@ -324,6 +323,26 @@ namespace Course_API.Controllers
                 return Ok(response.Message);
             }
             return StatusCode(response.StatusCode, response.Message);
+        }
+        [HttpPost("TestSeriesRejectedQuestionRemarks")]
+        public async Task<IActionResult> TestSeriesRejectedQuestionRemarks(RejectedQuestionRemark request)
+        {
+            try
+            {
+                var data = await _testSeriesServices.TestSeriesRejectedQuestionRemarks(request);
+                if (data != null)
+                {
+                    return Ok(data);
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
         }
     }
 }

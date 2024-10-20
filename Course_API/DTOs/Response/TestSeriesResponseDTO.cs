@@ -34,7 +34,7 @@ namespace Course_API.DTOs.Response
         public int RepeatExamResulttimeId { get; set; }
         public string RepeatedExamResultTime {  set; get; } = string.Empty;
         public string RepeatedExamEndTime {  get; set; } = string.Empty;
-        public string ExamStatus {  get; set; } = string.Empty;
+        public string ExamStatus {  get; set; }
         public bool IsAdmin {  get; set; }
         public List<TestSeriesBoardsResponse>? TestSeriesBoard { get; set; }
         public List<TestSeriesClassResponse>? TestSeriesClasses { get; set; }
