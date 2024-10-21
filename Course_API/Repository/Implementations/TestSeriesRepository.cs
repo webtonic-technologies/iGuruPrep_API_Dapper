@@ -582,7 +582,15 @@ namespace Course_API.Repository.Implementations
                     var d1 = await _connection.QueryFirstOrDefaultAsync<int>(q1, new { TestSeriesId = data.TestSeriesId });
                     string currentowner = @"select EmployeeId from tblTestSeriesProfiler where TestSeriesId = @TestSeriesId  AND IsActive = 1";
                     var owner = _connection.QueryFirstOrDefault<int>(currentowner, new { TestSeriesId = data.TestSeriesId });
-                    data.ExamStatus = TestSeriesStatus(request.EmployeeId, d1, owner, false);
+                    int count = await _connection.QueryFirstOrDefaultAsync<int>(@"select count(*) from tblTestSeriesRejectedRemarks where TestSeriesId = @TestSeriesId", new { TestSeriesId = data.TestSeriesId });
+                    if (count > 0)
+                    {
+                        data.ExamStatus = TestSeriesStatus(request.EmployeeId, d1, owner, true);
+                    }
+                    else
+                    {
+                        data.ExamStatus = TestSeriesStatus(request.EmployeeId, d1, owner, false);
+                    }
                 }
                 // Return the paginated result
                 return new ServiceResponse<List<TestSeriesResponseDTO>>(true, "Test series retrieved successfully", paginatedTestSeriesList, 200);
