@@ -205,11 +205,11 @@ namespace Schools_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<string>> UploadQuestionsFromExcel(IFormFile file)
+        public async Task<ServiceResponse<string>> UploadQuestionsFromExcel(IFormFile file, int EmployeeId)
         {
             try
             {
-                return await _questionRepository.UploadQuestionsFromExcel(file);
+                return await _questionRepository.UploadQuestionsFromExcel(file, EmployeeId);
             }
             catch (Exception ex)
             {

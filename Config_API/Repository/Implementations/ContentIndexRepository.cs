@@ -363,11 +363,10 @@ namespace Config_API.Repository.Implementations
                 {
                     // Insert new content index
                     string insertQuery = @"
-                INSERT INTO tblContentIndexChapters (SubjectId, ContentName_Chapter, IndexTypeId, Status, ClassId, BoardId, APID, CreatedOn, CreatedBy, CourseId, EmployeeId, ExamTypeId, ChapterCode, DisplayName, DisplayOrder, IsActive)
-                VALUES (@SubjectId, @ContentName_Chapter, @IndexTypeId, @Status, @ClassId, @BoardId, @APID, @CreatedOn, @CreatedBy, @CourseId, @EmployeeId, @ExamTypeId, @ChapterCode, @DisplayName, @DisplayOrder, @IsActive);
+                INSERT INTO tblContentIndexChapters (SubjectId, ContentName_Chapter, IndexTypeId, Status, ClassId, BoardId, APID, CreatedOn, CreatedBy, CourseId, EmployeeId, ExamTypeId, DisplayName, DisplayOrder, IsActive)
+                VALUES (@SubjectId, @ContentName_Chapter, @IndexTypeId, @Status, @ClassId, @BoardId, @APID, @CreatedOn, @CreatedBy, @CourseId, @EmployeeId, @ExamTypeId, @DisplayName, @DisplayOrder, @IsActive);
                 SELECT CAST(SCOPE_IDENTITY() as int);";
 
-                    string newChapterCode = GenerateCode();
 
                     int insertedId = await _connection.QuerySingleAsync<int>(insertQuery, new
                     {
@@ -383,12 +382,12 @@ namespace Config_API.Repository.Implementations
                         request.CourseId,
                         request.EmployeeId,
                         request.ExamTypeId,
-                        ChapterCode = newChapterCode,
                         request.DisplayName,
                         request.DisplayOrder,
                         request.IsActive
                     });
-
+                    string newChapterCode = GenerateCode(request.IndexTypeId, insertedId);
+                    await _connection.ExecuteAsync(@"update tblContentIndexChapters set ChapterCode = @ChapterCode where ContentIndexId = @ContentIndexId", new { ChapterCode = newChapterCode, ContentIndexId = insertedId });
                     if (insertedId > 0)
                     {
                         await InsertOrUpdateContentIndexTopics(newChapterCode, request.ContentIndexTopics);
@@ -550,10 +549,10 @@ namespace Config_API.Repository.Implementations
             {
                 string insertSql = @"
                 INSERT INTO tblContentIndexChapters 
-                (SubjectId, ContentName_Chapter, Status, IndexTypeId, BoardId, ClassId, CourseId, APID, CreatedOn, CreatedBy, ModifiedOn, ModifiedBy, EmployeeId, ExamTypeId, DisplayName, DisplayOrder, IsActive, ChapterCode) 
+                (SubjectId, ContentName_Chapter, Status, IndexTypeId, BoardId, ClassId, CourseId, APID, CreatedOn, CreatedBy, ModifiedOn, ModifiedBy, EmployeeId, ExamTypeId, DisplayName, DisplayOrder, IsActive) 
                 VALUES 
-                (@SubjectId, @ContentName_Chapter, @Status, @IndexTypeId, @BoardId, @ClassId, @CourseId, @APID, @CreatedOn, @CreatedBy, @ModifiedOn, @ModifiedBy, @EmployeeId, @ExamTypeId, @DisplayName, @DisplayOrder, @IsActive, @ChapterCode);
-                SELECT @ChapterCode;";
+                (@SubjectId, @ContentName_Chapter, @Status, @IndexTypeId, @BoardId, @ClassId, @CourseId, @APID, @CreatedOn, @CreatedBy, @ModifiedOn, @ModifiedBy, @EmployeeId, @ExamTypeId, @DisplayName, @DisplayOrder, @IsActive);
+                 SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
                 string updateSql = @"
                 UPDATE tblContentIndexChapters SET 
@@ -579,8 +578,7 @@ namespace Config_API.Repository.Implementations
                 string result;
                 if (request.ContentIndexId == 0)
                 {
-                    string chapterCode = GenerateCode();
-                    result = await _connection.ExecuteScalarAsync<string>(insertSql, new
+                    int newentry = await _connection.ExecuteScalarAsync<int>(insertSql, new
                     {
                         request.SubjectId,
                         request.ContentName_Chapter,
@@ -598,9 +596,10 @@ namespace Config_API.Repository.Implementations
                         request.ExamTypeId,
                         request.DisplayName,
                         request.DisplayOrder,
-                        request.IsActive,
-                        ChapterCode = chapterCode
+                        request.IsActive
                     });
+                    result = GenerateCode(request.IndexTypeId, newentry);
+                    await _connection.ExecuteAsync(@"update tblContentIndexChapters set ChapterCode = @ChapterCode where ContentIndexId = @ContentIndexId", new { ChapterCode = result, ContentIndexId = newentry });
                 }
                 else
                 {
@@ -633,10 +632,10 @@ namespace Config_API.Repository.Implementations
 
                 string insertSql = @"
         INSERT INTO tblContentIndexTopics 
-        (ContentIndexId, ContentName_Topic, Status, IndexTypeId, CreatedOn, CreatedBy, ModifiedOn, ModifiedBy, EmployeeId, DisplayName, DisplayOrder, IsActive, TopicCode, ChapterCode) 
+        (ContentIndexId, ContentName_Topic, Status, IndexTypeId, CreatedOn, CreatedBy, ModifiedOn, ModifiedBy, EmployeeId, DisplayName, DisplayOrder, IsActive, ChapterCode) 
         VALUES 
-        (@ContentIndexId, @ContentName_Topic, @Status, @IndexTypeId, @CreatedOn, @CreatedBy, @ModifiedOn, @ModifiedBy, @EmployeeId, @DisplayName, @DisplayOrder, @IsActive, @TopicCode, @ChapterCode);
-        SELECT @TopicCode;";
+        (@ContentIndexId, @ContentName_Topic, @Status, @IndexTypeId, @CreatedOn, @CreatedBy, @ModifiedOn, @ModifiedBy, @EmployeeId, @DisplayName, @DisplayOrder, @IsActive, @ChapterCode);
+         SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
                 string updateSql = @"
         UPDATE tblContentIndexTopics SET 
@@ -657,8 +656,8 @@ namespace Config_API.Repository.Implementations
                 string result;
                 if (request.ContInIdTopic == 0)
                 {
-                    string topicCode = GenerateCode();
-                    result = await _connection.ExecuteScalarAsync<string>(insertSql, new
+                 
+                    int newentry = await _connection.QueryFirstOrDefaultAsync<int>(insertSql, new
                     {
                         request.ContentIndexId,
                         request.ContentName_Topic,
@@ -672,9 +671,10 @@ namespace Config_API.Repository.Implementations
                         request.DisplayName,
                         request.DisplayOrder,
                         request.IsActive,
-                        request.ChapterCode,
-                        TopicCode = topicCode
+                        request.ChapterCode
                     });
+                    result = GenerateCode(request.IndexTypeId, newentry);
+                    await _connection.ExecuteAsync(@"update tblContentIndexTopics set TopicCode = @TopicCode where ContInIdTopic = @ContInIdTopic", new { TopicCode = result, ContInIdTopic = newentry });
                 }
                 else
                 {
@@ -707,10 +707,10 @@ namespace Config_API.Repository.Implementations
 
                 string insertSql = @"
         INSERT INTO tblContentIndexSubTopics 
-        (ContInIdTopic, ContentName_SubTopic, Status, IndexTypeId, CreatedOn, CreatedBy, ModifiedOn, ModifiedBy, EmployeeId, DisplayName, DisplayOrder, IsActive, SubTopicCode, TopicCode) 
+        (ContInIdTopic, ContentName_SubTopic, Status, IndexTypeId, CreatedOn, CreatedBy, ModifiedOn, ModifiedBy, EmployeeId, DisplayName, DisplayOrder, IsActive, TopicCode) 
         VALUES 
-        (@ContInIdTopic, @ContentName_SubTopic, @Status, @IndexTypeId, @CreatedOn, @CreatedBy, @ModifiedOn, @ModifiedBy, @EmployeeId, @DisplayName, @DisplayOrder, @IsActive, @SubTopicCode, @TopicCode);
-        SELECT @SubTopicCode;";
+        (@ContInIdTopic, @ContentName_SubTopic, @Status, @IndexTypeId, @CreatedOn, @CreatedBy, @ModifiedOn, @ModifiedBy, @EmployeeId, @DisplayName, @DisplayOrder, @IsActive, @TopicCode);
+         SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
                 string updateSql = @"
         UPDATE tblContentIndexSubTopics SET 
@@ -731,8 +731,7 @@ namespace Config_API.Repository.Implementations
                 string result;
                 if (request.ContInIdSubTopic == 0)
                 {
-                    string subTopicCode = GenerateCode();
-                    result = await _connection.ExecuteScalarAsync<string>(insertSql, new
+                    var newentry = await _connection.QueryFirstOrDefaultAsync<int>(insertSql, new
                     {
                         request.ContInIdTopic,
                         request.ContentName_SubTopic,
@@ -746,9 +745,10 @@ namespace Config_API.Repository.Implementations
                         request.DisplayName,
                         request.DisplayOrder,
                         request.IsActive,
-                        SubTopicCode = subTopicCode,
                         request.TopicCode
                     });
+                    result = GenerateCode(request.IndexTypeId, newentry);
+                    await _connection.ExecuteAsync(@"update tblContentIndexSubTopics set SubTopicCode = @SubTopicCode where ContInIdSubTopic = @ContInIdSubTopic", new { SubTopicCode = result, ContInIdSubTopic = newentry });
                 }
                 else
                 {
@@ -1381,9 +1381,81 @@ namespace Config_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, null, StatusCodes.Status500InternalServerError);
             }
         }
-        private string GenerateCode()
+        public string GenerateCode(int indexTypeId, int contentId)
         {
-            return DateTime.Now.ToString("yyyyMMddHHmmssff");
+            string contentCode = "";
+            int subjectId = 0;
+            int chapterId = 0;
+            int topicId = 0;
+            int subTopicId = 0;
+
+            // Fetch subject ID and related hierarchy based on indexTypeId
+            if (indexTypeId == 1)  // Chapter
+            {
+                // Fetch subject directly from chapter
+                var chapter = _connection.QueryFirstOrDefault("SELECT SubjectId, ContentIndexId FROM tblContentIndexChapters WHERE ContentIndexId = @contentId", new { contentId });
+                if (chapter != null)
+                {
+                    subjectId = chapter.SubjectId;
+                    chapterId = chapter.ContentIndexId;
+                }
+            }
+            else if (indexTypeId == 2)  // Topic
+            {
+                // Fetch parent chapter from topic, then get subject from the chapter
+                var topic = _connection.QueryFirstOrDefault("SELECT ContentIndexId, ContInIdTopic FROM tblContentIndexTopics WHERE ContInIdTopic = @contentId", new { contentId });
+                if (topic != null)
+                {
+                    topicId = topic.ContInIdTopic;
+                    chapterId = topic.ContentIndexId;
+
+                    // Now fetch the subject from the parent chapter
+                    var chapter = _connection.QueryFirstOrDefault("SELECT SubjectId FROM tblContentIndexChapters WHERE ContentIndexId = @chapterId", new { chapterId });
+                    if (chapter != null)
+                    {
+                        subjectId = chapter.SubjectId;
+                    }
+                }
+            }
+            else if (indexTypeId == 3)  // SubTopic
+            {
+                // Fetch parent topic from subtopic, then get the chapter, and then the subject
+                var subTopic = _connection.QueryFirstOrDefault("SELECT ContInIdTopic, ContInIdSubTopic FROM tblContentIndexSubTopics WHERE ContInIdSubTopic = @contentId", new { contentId });
+                if (subTopic != null)
+                {
+                    subTopicId = subTopic.ContInIdSubTopic;
+                    topicId = subTopic.ContInIdTopic;
+
+                    // Now fetch the chapter from the parent topic
+                    var topic = _connection.QueryFirstOrDefault("SELECT ContentIndexId FROM tblContentIndexTopics WHERE ContInIdTopic = @topicId", new { topicId });
+                    if (topic != null)
+                    {
+                        chapterId = topic.ContentIndexId;
+
+                        // Now fetch the subject from the parent chapter
+                        var chapter = _connection.QueryFirstOrDefault("SELECT SubjectId FROM tblContentIndexChapters WHERE ContentIndexId = @chapterId", new { chapterId });
+                        if (chapter != null)
+                        {
+                            subjectId = chapter.SubjectId;
+                        }
+                    }
+                }
+            }
+            // Construct the question code based on IndexTypeId and IDs
+            if (indexTypeId == 1)  // Chapter
+            {
+                contentCode = $"S{subjectId}C{chapterId}";
+            }
+            else if (indexTypeId == 2)  // Topic
+            {
+                contentCode = $"S{subjectId}C{chapterId}T{topicId}";
+            }
+            else if (indexTypeId == 3)  // SubTopic
+            {
+                contentCode = $"S{subjectId}C{chapterId}T{topicId}ST{subTopicId}";
+            }
+
+            return contentCode;
         }
         private async Task InsertOrUpdateContentIndexTopics(string chapterCode, List<ContentIndexTopics>? topics)
         {
@@ -1395,13 +1467,11 @@ namespace Config_API.Repository.Implementations
                     {
                         // Insert new topic
                         string insertTopicQuery = @"
-                    INSERT INTO tblContentIndexTopics (ContentIndexId, ContentName_Topic, Status, IndexTypeId, CreatedOn, CreatedBy, EmployeeId, TopicCode, DisplayName, DisplayOrder, IsActive, ChapterCode)
-                    VALUES (@ContentIndexId, @ContentName_Topic, @Status, @IndexTypeId, @CreatedOn, @CreatedBy, @EmployeeId, @TopicCode, @DisplayName, @DisplayOrder, @IsActive, @ChapterCode);
+                    INSERT INTO tblContentIndexTopics (ContentIndexId, ContentName_Topic, Status, IndexTypeId, CreatedOn, CreatedBy, EmployeeId, DisplayName, DisplayOrder, IsActive, ChapterCode)
+                    VALUES (@ContentIndexId, @ContentName_Topic, @Status, @IndexTypeId, @CreatedOn, @CreatedBy, @EmployeeId, @DisplayName, @DisplayOrder, @IsActive, @ChapterCode);
                     SELECT CAST(SCOPE_IDENTITY() as int);";
 
-                        string newTopicCode = GenerateCode();
-
-                        await _connection.ExecuteAsync(insertTopicQuery, new
+                        int insertedId = await _connection.QuerySingleAsync<int>(insertTopicQuery, new
                         {
                             ContentIndexId = await GetContentIndexIdByChapterCode(chapterCode),
                             ChapterCode = chapterCode,
@@ -1411,12 +1481,12 @@ namespace Config_API.Repository.Implementations
                             CreatedOn = DateTime.Now,
                             topic.CreatedBy,
                             topic.EmployeeId,
-                            TopicCode = newTopicCode,
                             topic.DisplayName,
                             topic.DisplayOrder,
-                            topic.IsActive,
+                            topic.IsActive
                         });
-
+                        string newTopicCode = GenerateCode(topic.IndexTypeId, insertedId);
+                        await _connection.ExecuteAsync(@"update tblContentIndexTopics set TopicCode = @TopicCode where ContInIdTopic = @ContInIdTopic", new { TopicCode = newTopicCode, ContInIdTopic = insertedId });
                         await InsertOrUpdateContentIndexSubTopics(newTopicCode, topic.ContentIndexSubTopics);
                     }
                     else
@@ -1466,10 +1536,10 @@ namespace Config_API.Repository.Implementations
                     {
                         // Insert new subtopic
                         string insertSubTopicQuery = @"
-                    INSERT INTO tblContentIndexSubTopics (ContInIdTopic, ContentName_SubTopic, Status, IndexTypeId, CreatedOn, CreatedBy, EmployeeId, SubTopicCode, DisplayName, DisplayOrder, IsActive, TopicCode)
-                    VALUES (@ContInIdTopic, @ContentName_SubTopic, @Status, @IndexTypeId, @CreatedOn, @CreatedBy, @EmployeeId, @SubTopicCode, @DisplayName, @DisplayOrder, @IsActive, @TopicCode);";
-
-                        await _connection.ExecuteAsync(insertSubTopicQuery, new
+                    INSERT INTO tblContentIndexSubTopics (ContInIdTopic, ContentName_SubTopic, Status, IndexTypeId, CreatedOn, CreatedBy, EmployeeId, DisplayName, DisplayOrder, IsActive, TopicCode)
+                    VALUES (@ContInIdTopic, @ContentName_SubTopic, @Status, @IndexTypeId, @CreatedOn, @CreatedBy, @EmployeeId, @DisplayName, @DisplayOrder, @IsActive, @TopicCode);
+                        SELECT CAST(SCOPE_IDENTITY() as int)";
+                       int insertedId = await _connection.QuerySingleAsync<int>(insertSubTopicQuery, new
                         {
                             TopicCode = topicCode,
                             subTopic.ContentName_SubTopic,
@@ -1478,12 +1548,13 @@ namespace Config_API.Repository.Implementations
                             CreatedOn = DateTime.Now,
                             subTopic.CreatedBy,
                             subTopic.EmployeeId,
-                            SubTopicCode = GenerateCode(),
                             subTopic.DisplayName,
                             subTopic.DisplayOrder,
                             subTopic.IsActive,
                             ContInIdTopic = await GetContInIdTopicByTopicCode(topicCode)
                         });
+                        string newSubTopicCode = GenerateCode(subTopic.IndexTypeId, insertedId);
+                        await _connection.ExecuteAsync(@"update tblContentIndexSubTopics set SubTopicCode = @SubTopicCode where ContInIdSubTopic = @ContInIdSubTopic", new { SubTopicCode = newSubTopicCode, ContInIdSubTopic = insertedId });
                     }
                     else
                     {

@@ -251,15 +251,15 @@ namespace Schools_API.Controllers
             }
             return StatusCode(response.StatusCode, response.Message);
         }
-        [HttpPost("upload")]
-        public async Task<IActionResult> UploadQuestionsFromExcel(IFormFile file)
+        [HttpPost("upload/{EmployeeId}")]
+        public async Task<IActionResult> UploadQuestionsFromExcel(IFormFile file, int EmployeeId)
         {
             if (file == null || file.Length == 0)
             {
                 return BadRequest("No file uploaded");
             }
 
-            var response = await _questionServices.UploadQuestionsFromExcel(file);
+            var response = await _questionServices.UploadQuestionsFromExcel(file, EmployeeId);
             if (response.Success)
             {
                 return Ok(response.Message);

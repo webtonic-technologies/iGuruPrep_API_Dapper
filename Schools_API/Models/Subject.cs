@@ -33,6 +33,7 @@
         public string ModifiedBy { get; set; } = string.Empty;
         public int EmployeeId { get; set; }
         public int ExamTypeId { get; set; }
+        public string ChapterCode {  get; set; }
     }
     public class Topics
     {
