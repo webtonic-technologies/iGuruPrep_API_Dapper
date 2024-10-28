@@ -348,10 +348,16 @@ namespace Schools_API.Repository.Implementations
                 }
                 else if (request.EmployeeId == request.ModifierId && request.ModifierId > 0)
                 {
-                    var count = _connection.QueryFirstOrDefault<int>(@"select * from tblQuestionProfiler where QuestionCode = @QuestionCode "
+                    var count1 = _connection.QueryFirstOrDefault<int>(@"select * from tblQuestionProfiler where QuestionCode = @QuestionCode "
                                 , new { QuestionCode = request.QuestionCode, EmpId = request.ModifierId });
-                    if (count > 0)
+                    if (count1 > 0)
                     {
+                        int count = await _connection.QueryFirstOrDefaultAsync<int>(@"select count(*) from tblQuestionProfilerRejections where QuestionCode = @QuestionCode", new { QuestionCode = request.QuestionCode });
+                        bool isRejected = false;
+                        if (count > 0)
+                        {
+                            isRejected = true;
+                        }
                         var question = new Question
                         {
                             QuestionDescription = request.QuestionDescription,
@@ -364,7 +370,7 @@ namespace Schools_API.Repository.Implementations
                             EmployeeId = request.EmployeeId,
                             IndexTypeId = request.IndexTypeId,
                             IsApproved = false,
-                            IsRejected = true,
+                            IsRejected = isRejected,
                             QuestionCode = request.QuestionCode,
                             Explanation = request.Explanation,
                             ExtraInformation = request.ExtraInformation,
@@ -954,7 +960,7 @@ namespace Schools_API.Repository.Implementations
                 WHERE QuestionCode = @QuestionCode";
 
                     await _connection.ExecuteAsync(updateSql, new { QuestionCode = questionCode });
-
+          
                     return new ServiceResponse<string>(true, "Question marked as live successfully", string.Empty, 200);
                 }
                 else
@@ -1938,15 +1944,20 @@ namespace Schools_API.Repository.Implementations
                     {
                         return new ServiceResponse<string>(false, "Question not found or inactive", string.Empty, 404);
                     }
-
-                    // Update the tblQuestion to set IsRejected and IsApproved to 0
-                    string updateQuestionSql = @"
+                    string roleQuery = @"select r.RoleName from  [tblEmployee] e 
+                                                 LEFT JOIN [tblRole] r ON e.RoleID = r.RoleID
+                                                 WHERE e.Employeeid = @EmployeeId";
+                    string GetRoleName = await _connection.QueryFirstOrDefaultAsync<string>(roleQuery, new { EmployeeId = request.EmpId }, transaction);
+                    if (GetRoleName == "SME")
+                    {
+                        // Update the tblQuestion to set IsRejected and IsApproved to 0
+                        string updateQuestionSql = @"
             UPDATE tblQuestion
             SET IsRejected = 0, IsApproved = 0
             WHERE QuestionId = @QuestionId";
 
-                    await _connection.ExecuteAsync(updateQuestionSql, new { QuestionId = questionId.Value }, transaction);
-
+                        await _connection.ExecuteAsync(updateQuestionSql, new { QuestionId = questionId.Value }, transaction);
+                    }
                     // Insert a new record for the new profiler with ApprovedStatus = false and Status = true
                     string insertSql = @"
             INSERT INTO tblQuestionProfiler (Questionid, QuestionCode, EmpId, RejectedStatus, ApprovedStatus, Status, AssignedDate)
@@ -2058,17 +2069,11 @@ namespace Schools_API.Repository.Implementations
             FROM [tblSyllabus] s
             JOIN [tblSyllabusDetails] sd ON s.SyllabusId = sd.SyllabusID
             WHERE s.APID = @APId
-            AND (s.BoardID = @BoardId OR @BoardId = 0)
-            AND (s.ClassId = @ClassId OR @ClassId = 0)
-            AND (s.CourseId = @CourseId OR @CourseId = 0)
             AND (sd.SubjectId = @SubjectId OR @SubjectId = 0)";
 
                 var syllabusDetails = await _connection.QueryAsync<dynamic>(sql, new
                 {
                     request.APId,
-                    request.BoardId,
-                    request.ClassId,
-                    request.CourseId,
                     request.SubjectId
                 });
 
