@@ -28,6 +28,11 @@ namespace Course_API.Services.Implementations
             }
         }
 
+        public async Task<ServiceResponse<string>> ApproveRejectedQuestion(int testSeriesId, int QuestionId)
+        {
+            return await _testSeriesRepository.ApproveRejectedQuestion(testSeriesId, QuestionId);
+        }
+
         public async Task<ServiceResponse<string>> AssignTestSeries(TestseriesProfilerRequest request)
         {
             return await _testSeriesRepository.AssignTestSeries(request);
@@ -126,51 +131,59 @@ namespace Course_API.Services.Implementations
                 List<TestSeriesContentIndex> contentIndexList = new List<TestSeriesContentIndex>();
 
                 // Loop through each subject in the request
-                foreach (var subject in request.Subjects)
+                if (request.Subjects != null)
                 {
-                    // Loop through each chapter in the subject
-                    foreach (var chapter in subject.Chapter)
+                    foreach (var subject in request.Subjects)
                     {
-                        // Add the chapter as TestSeriesContentIndex
-                        contentIndexList.Add(new TestSeriesContentIndex
+                        if (subject.Chapter != null)
                         {
-                            TestSeriesSubjectIndexId = chapter.TestseriesContentIndexId,
-                            IndexTypeId = chapter.IndexTypeId,
-                            ContentIndexId = chapter.ContentIndexId,
-                            TestSeriesID = TestSeriesId,
-                            SubjectId = subject.SubjectId
-                        });
-
-                        // Loop through each concept (topic) in the chapter
-                        foreach (var concept in chapter.Concepts)
-                        {
-                            // Add the concept as TestSeriesContentIndex
-                            contentIndexList.Add(new TestSeriesContentIndex
+                            foreach (var chapter in subject.Chapter)
                             {
-                                TestSeriesSubjectIndexId = concept.TestseriesConceptIndexId,
-                                IndexTypeId = concept.IndexTypeId,
-                                ContentIndexId = concept.ContInIdTopic,
-                                TestSeriesID = TestSeriesId,
-                                SubjectId = subject.SubjectId
-                            });
-
-                            // Loop through each sub-concept in the concept (topic)
-                            foreach (var subConcept in concept.SubConcepts)
-                            {
-                                // Add the sub-concept as TestSeriesContentIndex
+                                // Add the chapter as TestSeriesContentIndex
                                 contentIndexList.Add(new TestSeriesContentIndex
                                 {
-                                    TestSeriesSubjectIndexId = subConcept.TestseriesConceptIndexId,
-                                    IndexTypeId = subConcept.IndexTypeId,
-                                    ContentIndexId = subConcept.ContInIdSubTopic,
+                                    TestSeriesSubjectIndexId = chapter.TestseriesContentIndexId,
+                                    IndexTypeId = chapter.IndexTypeId,
+                                    ContentIndexId = chapter.ContentIndexId,
                                     TestSeriesID = TestSeriesId,
                                     SubjectId = subject.SubjectId
                                 });
+                                if (chapter.Concepts != null)
+                                {
+                                    // Loop through each concept (topic) in the chapter
+                                    foreach (var concept in chapter.Concepts)
+                                    {
+                                        // Add the concept as TestSeriesContentIndex
+                                        contentIndexList.Add(new TestSeriesContentIndex
+                                        {
+                                            TestSeriesSubjectIndexId = concept.TestseriesConceptIndexId,
+                                            IndexTypeId = concept.IndexTypeId,
+                                            ContentIndexId = concept.ContInIdTopic,
+                                            TestSeriesID = TestSeriesId,
+                                            SubjectId = subject.SubjectId
+                                        });
+                                        if (concept.SubConcepts != null)
+                                        {
+                                            // Loop through each sub-concept in the concept (topic)
+                                            foreach (var subConcept in concept.SubConcepts)
+                                            {
+                                                // Add the sub-concept as TestSeriesContentIndex
+                                                contentIndexList.Add(new TestSeriesContentIndex
+                                                {
+                                                    TestSeriesSubjectIndexId = subConcept.TestseriesConceptIndexId,
+                                                    IndexTypeId = subConcept.IndexTypeId,
+                                                    ContentIndexId = subConcept.ContInIdSubTopic,
+                                                    TestSeriesID = TestSeriesId,
+                                                    SubjectId = subject.SubjectId
+                                                });
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
                 }
-
                 // Call the repository to map content index
                 return await _testSeriesRepository.TestSeriesContentIndexMapping(contentIndexList, TestSeriesId);
             }
@@ -272,9 +285,9 @@ namespace Course_API.Services.Implementations
             return await _testSeriesRepository.UpdateQuestion(request);
         }
 
-        public async Task<ServiceResponse<string>> UploadQuestionsFromExcel(IFormFile file, int testSeriesId)
+        public async Task<ServiceResponse<string>> UploadQuestionsFromExcel(IFormFile file, int testSeriesId, int EmployeeId)
         {
-            return await _testSeriesRepository.UploadQuestionsFromExcel(file, testSeriesId);
+            return await _testSeriesRepository.UploadQuestionsFromExcel(file, testSeriesId, EmployeeId);
         }
     }
 }

@@ -23,7 +23,8 @@ namespace Course_API.Services.Interfaces
         Task<ServiceResponse<string>> AssignTestSeries(TestseriesProfilerRequest request);
         Task<ServiceResponse<string>>UpdateQuestion(QuestionDTO request);
         Task<ServiceResponse<byte[]>> GenerateExcelFile(DownExcelRequest request);
-        Task<ServiceResponse<string>> UploadQuestionsFromExcel(IFormFile file, int testSeriesId);
+        Task<ServiceResponse<string>> UploadQuestionsFromExcel(IFormFile file, int testSeriesId, int EmployeeId);
         Task<ServiceResponse<string>> TestSeriesRejectedQuestionRemarks(RejectedQuestionRemark request);
+        Task<ServiceResponse<string>> ApproveRejectedQuestion(int testSeriesId, int QuestionId);
     }
 }

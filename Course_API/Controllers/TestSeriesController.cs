@@ -309,15 +309,15 @@ namespace Course_API.Controllers
             }
             return StatusCode(response.StatusCode, response.Message);
         }
-        [HttpPost("upload/{testSeriesId}")]
-        public async Task<IActionResult> UploadQuestionsFromExcel(IFormFile file, int testSeriesId)
+        [HttpPost("upload/{testSeriesId}/{EmployeeId}")]
+        public async Task<IActionResult> UploadQuestionsFromExcel(IFormFile file, int testSeriesId, int EmployeeId)
         {
             if (file == null || file.Length == 0)
             {
                 return BadRequest("No file uploaded");
             }
 
-            var response = await _testSeriesServices.UploadQuestionsFromExcel(file, testSeriesId);
+            var response = await _testSeriesServices.UploadQuestionsFromExcel(file, testSeriesId, EmployeeId);
             if (response.Success)
             {
                 return Ok(response.Message);
@@ -343,6 +343,16 @@ namespace Course_API.Controllers
             {
                 return this.BadRequest(e.Message);
             }
+        }
+        [HttpPost("ApproveRejectedQuestion/{testSeriesId}/{QuestionId}")]
+        public async Task<IActionResult> ApproveRejectedQuestion(int testSeriesId, int QuestionId)
+        {
+            var response = await _testSeriesServices.ApproveRejectedQuestion(testSeriesId, QuestionId);
+            if (response.Success)
+            {
+                return Ok(response.Message);
+            }
+            return StatusCode(response.StatusCode, response.Message);
         }
     }
 }

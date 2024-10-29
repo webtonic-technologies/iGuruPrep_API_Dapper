@@ -29,12 +29,10 @@ namespace Course_API.DTOs.Requests
         // public string APName { get; set; } = string.Empty;
         [Required(ErrorMessage = "Total number of questions cannot be empty")]
         public int? TotalNoOfQuestions { get; set; }
-        public bool? MethodofAddingType { get; set; }
-        [Required(ErrorMessage = "Start Date cannot be empty")]
+        public bool? ManualQuestionSelect { get; set; }
         public DateTime? StartDate { get; set; }
         [Required(ErrorMessage = "Start time cannot be empty")]
         public string? StartTime { get; set; } = string.Empty;
-        [Required(ErrorMessage = "Result date cannot be empty")]
         public DateTime? ResultDate { get; set; }
         [Required(ErrorMessage = "Result time cannot be empty")]
         public string? ResultTime { get; set; } = string.Empty;

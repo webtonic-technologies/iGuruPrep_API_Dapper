@@ -15,7 +15,7 @@ namespace Course_API.DTOs.Response
         public int APID { get; set; }
         public string APName { get; set; } = string.Empty;
         public int TotalNoOfQuestions { get; set; }
-        public bool MethodofAddingType { get; set; }
+        public bool ManualQuestionSelect { get; set; }
         public DateTime? StartDate { get; set; }
         public string StartTime { get; set; } = string.Empty;
         public DateTime? ResultDate { get; set; }
@@ -36,6 +36,7 @@ namespace Course_API.DTOs.Response
         public string RepeatedExamEndTime {  get; set; } = string.Empty;
         public string ExamStatus {  get; set; }
         public bool IsAdmin {  get; set; }
+        public int DownloadStatusId {  get; set; }
         public List<TestSeriesBoardsResponse>? TestSeriesBoard { get; set; }
         public List<TestSeriesClassResponse>? TestSeriesClasses { get; set; }
         public List<TestSeriesCourseResponse>? TestSeriesCourses { get; set; }

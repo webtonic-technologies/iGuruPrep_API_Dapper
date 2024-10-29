@@ -29,7 +29,7 @@ namespace Course_API.Repository.Implementations
                     INSERT INTO tblTestSeries 
                     (
                         TestPatternName, Duration, Status, APID, TotalNoOfQuestions, ExamTypeID,
-                        MethodofAddingType, StartDate, StartTime, ResultDate, ResultTime, 
+                        ManualQuestionSelect, StartDate, StartTime, ResultDate, ResultTime, 
                         EmployeeID, NameOfExam, RepeatedExams, TypeOfTestSeries, 
                         createdon, createdby, RepeatExamStartDate , RepeatExamEndDate ,
                         RepeatExamStarttime , RepeatExamResulttimeId, IsAdmin, DownloadStatusId
@@ -37,7 +37,7 @@ namespace Course_API.Repository.Implementations
                     VALUES 
                     (
                         @TestPatternName, @Duration, @Status, @APID, @TotalNoOfQuestions, @ExamTypeID,
-                        @MethodofAddingType, @StartDate, @StartTime, @ResultDate, @ResultTime, 
+                        @ManualQuestionSelect, @StartDate, @StartTime, @ResultDate, @ResultTime, 
                         @EmployeeID, @NameOfExam, @RepeatedExams, @TypeOfTestSeries, 
                         @createdon, @createdby, @RepeatExamStartDate , @RepeatExamEndDate ,
                         @RepeatExamStarttime , @RepeatExamResulttimeId, @IsAdmin, @DownloadStatusId
@@ -50,7 +50,7 @@ namespace Course_API.Repository.Implementations
                         request.Status,
                         request.APID,
                         request.TotalNoOfQuestions,
-                        request.MethodofAddingType,
+                        request.ManualQuestionSelect,
                         request.StartDate,
                         request.StartTime,
                         request.ResultDate,
@@ -106,7 +106,7 @@ namespace Course_API.Repository.Implementations
                         Status = @Status,
                         APID = @APID,
                         TotalNoOfQuestions = @TotalNoOfQuestions,
-                        MethodofAddingType = @MethodofAddingType,
+                        ManualQuestionSelect = @ManualQuestionSelect,
                         StartDate = @StartDate,
                         StartTime = @StartTime,
                         ResultDate = @ResultDate,
@@ -131,7 +131,7 @@ namespace Course_API.Repository.Implementations
                         request.Status,
                         request.APID,
                         request.TotalNoOfQuestions,
-                        request.MethodofAddingType,
+                        request.ManualQuestionSelect,
                         request.StartDate,
                         request.StartTime,
                         request.ResultDate,
@@ -198,7 +198,7 @@ namespace Course_API.Repository.Implementations
                 ts.APID,
                 ap.APName AS APName,
                 ts.TotalNoOfQuestions,
-                ts.MethodofAddingType,
+                ts.ManualQuestionSelect,
                 ts.StartDate,
                 ts.StartTime,
                 ts.ResultDate,
@@ -325,8 +325,18 @@ namespace Course_API.Repository.Implementations
                     {
                         TSProfilerId = existingProfilerId.Value
                     });
-                    string updateDownloadstatus = @"update tblTestSeries set DownloadStatusId = 5 where TestSeriesId = @TestSeriesId";
-                    await _connection.ExecuteAsync(updateDownloadstatus, new { TestSeriesId = request.TestSeriesId });
+                    int downloadStatus = await _connection.QueryFirstOrDefaultAsync<int>(@"select DownloadStatusId from tblTestSeries where TestSeriesId = @TestSeriesId", new { TestSeriesId = request.TestSeriesId });
+                    if (downloadStatus == 6)
+                    {
+                        string updateDownloadstatus = @"update tblTestSeries set DownloadStatusId = 7 where TestSeriesId = @TestSeriesId";
+                        await _connection.ExecuteAsync(updateDownloadstatus, new { TestSeriesId = request.TestSeriesId });
+                    }
+                    else
+                    {
+                        string updateDownloadstatus = @"update tblTestSeries set DownloadStatusId = 5 where TestSeriesId = @TestSeriesId";
+                        await _connection.ExecuteAsync(updateDownloadstatus, new { TestSeriesId = request.TestSeriesId });
+                    }
+
                     string roleQuery = @"
                     SELECT r.RoleName 
                     FROM tblEmployee e 
@@ -336,8 +346,12 @@ namespace Course_API.Repository.Implementations
 
                     if (string.Equals(roledata, "Admin"))
                     {
-                        string updateDownloadstatus1 = @"update tblTestSeries set DownloadStatusId = 8 where TestSeriesId = @TestSeriesId";
-                        await _connection.ExecuteAsync(updateDownloadstatus1, new { TestSeriesId = request.TestSeriesId });
+                        int count = await _connection.QueryFirstOrDefaultAsync<int>(@"select count(*) from tblTestSeriesRejectedRemarks where TestSeriesId = @TestSeriesId", new { TestSeriesId = request.TestSeriesId });
+                        if (count == 0)
+                        {
+                            string updateDownloadstatus1 = @"update tblTestSeries set DownloadStatusId = 8 where TestSeriesId = @TestSeriesId";
+                            await _connection.ExecuteAsync(updateDownloadstatus1, new { TestSeriesId = request.TestSeriesId });
+                        }
                     }
                 }
                 else
@@ -390,8 +404,9 @@ namespace Course_API.Repository.Implementations
             ts.APID,
             ap.APName AS APName,
             ts.TotalNoOfQuestions,
-            ts.MethodofAddingType,
+            ts.ManualQuestionSelect,
             ts.StartDate,
+            ts.IsMandatory,
             ts.StartTime,
             ts.ResultDate,
             ts.ResultTime,
@@ -408,6 +423,7 @@ namespace Course_API.Repository.Implementations
             ts.modifiedon,
             ts.modifiedby,
             ts.RepeatExamStartDate,
+            ts.DownloadStatusId,
             ts.RepeatExamEndDate,
             ts.RepeatExamStarttime,
             ts.RepeatExamResulttimeId,
@@ -578,18 +594,104 @@ namespace Course_API.Repository.Implementations
                 }
                 foreach(var data in paginatedTestSeriesList)
                 {
-                    string q1 = @"Select DownloadStatusId from tblTestSeries where TestSeriesId = @TestSeriesId";
-                    var d1 = await _connection.QueryFirstOrDefaultAsync<int>(q1, new { TestSeriesId = data.TestSeriesId });
-                    string currentowner = @"select EmployeeId from tblTestSeriesProfiler where TestSeriesId = @TestSeriesId  AND IsActive = 1";
-                    var owner = _connection.QueryFirstOrDefault<int>(currentowner, new { TestSeriesId = data.TestSeriesId });
-                    int count = await _connection.QueryFirstOrDefaultAsync<int>(@"select count(*) from tblTestSeriesRejectedRemarks where TestSeriesId = @TestSeriesId", new { TestSeriesId = data.TestSeriesId });
-                    if (count > 0)
+                    if (data.IsAdmin == false)
                     {
-                        data.ExamStatus = TestSeriesStatus(request.EmployeeId, d1, owner, true);
+                        if (data.DownloadStatusId >= 8)
+                        {
+                            DateTime startDateTime = data.StartDate.Value.Add(DateTime.Parse(data.StartTime).TimeOfDay);
+
+                            if (DateTime.Now < startDateTime)
+                            {
+                                data.ExamStatus = "Upcoming";
+                            }
+                            else if (DateTime.Now >= startDateTime && DateTime.Now <= data.ResultDate)
+                            {
+                                data.ExamStatus = "Ongoing";
+                            }
+                            else
+                            {
+                                data.ExamStatus = "Completed";
+                            }
+                        }
+                        else
+                        {
+                            string q1 = @"Select DownloadStatusId from tblTestSeries where TestSeriesId = @TestSeriesId";
+                            var d1 = await _connection.QueryFirstOrDefaultAsync<int>(q1, new { TestSeriesId = data.TestSeriesId });
+                            string currentowner = @"select EmployeeId from tblTestSeriesProfiler where TestSeriesId = @TestSeriesId  AND IsActive = 1";
+                            var owner = _connection.QueryFirstOrDefault<int>(currentowner, new { TestSeriesId = data.TestSeriesId });
+                            if (owner == 0)
+                            {
+                                owner = request.EmployeeId;
+                            }
+                            int count = await _connection.QueryFirstOrDefaultAsync<int>(@"select count(*) from tblTestSeriesRejectedRemarks where TestSeriesId = @TestSeriesId", new { TestSeriesId = data.TestSeriesId });
+                            if (count > 0)
+                            {
+                                data.ExamStatus = TestSeriesStatus(request.EmployeeId, d1, owner, true);
+                            }
+                            else
+                            {
+                                data.ExamStatus = TestSeriesStatus(request.EmployeeId, d1, owner, false);
+                            }
+                        }
                     }
                     else
                     {
-                        data.ExamStatus = TestSeriesStatus(request.EmployeeId, d1, owner, false);
+                        if (data.RepeatedExams)
+                        {
+                            // Current date and time
+                            DateTime currentDateTime = DateTime.Now;
+
+                            // Exam start and end times
+                            TimeSpan examStartTime = TimeSpan.Parse(data.RepeatExamStarttime);
+                            int durationInMinutes = int.Parse(data.Duration);
+
+                            // Calculate the end time based on the duration
+                            TimeSpan examEndTime = examStartTime.Add(TimeSpan.FromMinutes(durationInMinutes));
+                            data.RepeatedExamEndTime = examEndTime.ToString();
+
+                            // Exam period start and end dates
+                            DateTime repeatExamStartDate = data.RepeatExamStartDate;
+                            DateTime repeatExamEndDate = data.RepeatExamEndDate;
+
+                            // Exam start and end DateTime for the current day
+                            DateTime dailyExamStartDateTime = repeatExamStartDate.Add(examStartTime);
+                            DateTime dailyExamEndDateTime = repeatExamStartDate.Add(examEndTime);
+
+                            if (currentDateTime < dailyExamStartDateTime)
+                            {
+                                data.ExamStatus = "Upcoming";
+                            }
+                            else if (currentDateTime >= dailyExamStartDateTime && currentDateTime <= dailyExamEndDateTime)
+                            {
+                                data.ExamStatus = "Ongoing";
+                            }
+                            else if (currentDateTime > dailyExamEndDateTime && currentDateTime < repeatExamEndDate.AddDays(1).Add(examStartTime))
+                            {
+                                data.ExamStatus = "Upcoming";
+                            }
+                            else if (currentDateTime >= repeatExamEndDate.Add(examEndTime))
+                            {
+                                data.ExamStatus = "Completed";
+                            }
+                        }
+                        else
+                        {
+                            DateTime startDateTime = data.StartDate.Value.Add(DateTime.Parse(data.StartTime).TimeOfDay);
+
+                            if (DateTime.Now < startDateTime)
+                            {
+                                data.ExamStatus = "Upcoming";
+                            }
+                            else if (DateTime.Now >= startDateTime && DateTime.Now <= data.ResultDate)
+                            {
+                                data.ExamStatus = "Ongoing";
+                            }
+                            else
+                            {
+                                data.ExamStatus = "Completed";
+                            }
+                        }
+
                     }
                 }
                 // Return the paginated result
@@ -611,6 +713,41 @@ namespace Course_API.Repository.Implementations
 
             var status = _connection.QueryFirstOrDefault<string>(@"select RQSName from tblStatus where RQSID = @statusId", new { statusId = data });
             return status;
+        }
+        public async Task<ServiceResponse<string>> SMECreatedTestseriesAssignTime(TestSeriesAddTime request)
+        {
+            try
+            {
+                if (!request.IsMandatory)
+                {
+                    //add a check to see if given test series is repeated type;
+                    string updateDownloadstatus = @"update tblTestSeries set DownloadStatusId = 9,
+                                               IsMandatory = 0 where TestSeriesId = @TestSeriesId";
+                    await _connection.ExecuteAsync(updateDownloadstatus, new { TestSeriesId = request.TestSeriesID });
+                    return new ServiceResponse<string>(true, "Operation successful", "status updated successfully", 200);
+                }
+                else
+                {
+                    string updateDownloadstatus = @"update tblTestSeries set StartDate = @StartDate,
+                        StartTime = @StartTime,
+                        ResultDate = @ResultDate,
+                        ResultTime = @ResultTime,
+                        IsMandatory = 1 where TestSeriesId = @TestSeriesId";
+                    await _connection.ExecuteAsync(updateDownloadstatus, new
+                    {
+                        TestSeriesId = request.TestSeriesID,
+                        StartDate = request.StartDate,
+                        StartTime = request.StartTime,
+                        ResultDate = request.ResultDate,
+                        ResultTime = request.ResultTime
+                    });
+                    return new ServiceResponse<string>(true, "Operation successful", "status updated successfully", 200);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+            }
         }
         public async Task<ServiceResponse<string>> TestSeriesContentIndexMapping(List<TestSeriesContentIndex> request, int TestSeriesId)
         {
@@ -1521,8 +1658,11 @@ namespace Course_API.Repository.Implementations
                 if (!string.IsNullOrEmpty(insertedQuestionCode))
                 {
                     // Handle QIDCourses mapping
-                    var data = await AddUpdateQIDCourses(request.QIDCourses, request.QuestionId);
-
+                    if (request.QIDCourses != null)
+                    {
+                        var data = await AddUpdateQIDCourses(request.QIDCourses, request.QuestionId);
+                    }
+                 
                     // Handle Answer mappings
                     string getQuesType = @"SELECT * FROM tblQBQuestionType WHERE QuestionTypeID = @QuestionTypeID;";
                     var questTypedata = await _connection.QueryFirstOrDefaultAsync<QuestionTypes>(getQuesType, new { QuestionTypeID = request.QuestionTypeId });
@@ -1592,7 +1732,7 @@ namespace Course_API.Repository.Implementations
                         }
                     }
 
-                    if (data > 0 && answer > 0)
+                    if ( answer > 0)
                     {
                         return new ServiceResponse<string>(true, "Operation Successful", "Question Added Successfully", 200);
                     }
@@ -1611,7 +1751,7 @@ namespace Course_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-        public async Task<ServiceResponse<string>> ApproveRejectedQuestion(int QuestionId)
+        public async Task<ServiceResponse<string>> ApproveRejectedQuestion(int testSeriesId, int QuestionId)
         {
             try
             {
@@ -1620,12 +1760,13 @@ namespace Course_API.Repository.Implementations
                 var data = await _connection.ExecuteAsync(updateQuery, new { QuestionId = QuestionId });
 
                 await _connection.ExecuteAsync(@"delete from tblTestSeriesRejectedRemarks where QuestionId = QuestionId", new { QuestionId = QuestionId });
+               
                 return new ServiceResponse<string>(true, "question approval successfully done.", "operation successful", 200);
             }
             catch (Exception ex)
             {
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
-            }    
+            }
         }
         public async Task<ServiceResponse<string>> TestSeriesRejectedQuestionRemarks(RejectedQuestionRemark request)
         {
@@ -1652,7 +1793,7 @@ namespace Course_API.Repository.Implementations
                 var data = await _connection.ExecuteAsync(updateQuery, new { QuestionId = request.QuestionId });
                 // If the query succeeds, return a success response
 
-                int count = await _connection.QueryFirstOrDefaultAsync<int>(@"select coutn (*) from tblTestSeriesRejectedRemarks where TestSeriesId = @TestSeriesId",
+                int count = await _connection.QueryFirstOrDefaultAsync<int>(@"select count (*) from tblTestSeriesRejectedRemarks where TestSeriesId = @TestSeriesId",
                     new { TestSeriesId = request.TestSeriesId });
                 if (count == 0)
                 {
@@ -1775,7 +1916,7 @@ namespace Course_API.Repository.Implementations
                         range.Style.Font.Bold = true;
                         range.Style.Fill.PatternType = ExcelFillStyle.Solid;
                         range.Style.Fill.BackgroundColor.SetColor(Color.LightGray);
-                        range.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
+                       // range.Style.HorizontalAlignment = ExcelHorizontalAlignment.Center;
                     }
 
                     // Loop through the questions and add rows
@@ -1906,7 +2047,7 @@ namespace Course_API.Repository.Implementations
                     break;
             }
         }
-        public async Task<ServiceResponse<string>> UploadQuestionsFromExcel(IFormFile file, int testSeriesId)
+        public async Task<ServiceResponse<string>> UploadQuestionsFromExcel(IFormFile file, int testSeriesId, int EmployeeId)
         {
             var quesionsList = new List<int>();
             List<TestSeriesQuestions> testSeriesQuestionsList = new List<TestSeriesQuestions>();
@@ -1958,7 +2099,8 @@ namespace Course_API.Repository.Implementations
                             IsActive = true,
                             IsConfigure = false,
                             ExtraInformation = worksheet.Cells[row, 13].Text,
-                            DifficultyLevel = int.Parse(worksheet.Cells[row, 4].Text)
+                            DifficultyLevel = int.Parse(worksheet.Cells[row, 4].Text),
+                            EmployeeId = EmployeeId
                         };
 
                         // Add question to the list for bulk processing
