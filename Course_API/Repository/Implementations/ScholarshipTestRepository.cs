@@ -273,14 +273,14 @@ namespace Course_API.Repository.Implementations
                     string insertQuery = @"
             INSERT INTO tblSSQuestionSection
             (
-                ScholarshipTestId, DisplayOrder, SectionName, Status,
+                ScholarshipTestId, DisplayOrder, SectionName,
                 LevelId1, QuesPerDifficulty1, LevelId2, QuesPerDifficulty2,
                 LevelId3, QuesPerDifficulty3, QuestionTypeId, MarksPerQuestion,
                 NegativeMarks, TotalNumberOfQuestions, NoOfQuestionsPerChoice, SubjectId
             )
             VALUES
             (
-                @ScholarshipTestId, @DisplayOrder, @SectionName, @Status,
+                @ScholarshipTestId, @DisplayOrder, @SectionName,
                 @LevelId1, @QuesPerDifficulty1, @LevelId2, @QuesPerDifficulty2,
                 @LevelId3, @QuesPerDifficulty3, @QuestionTypeId, @MarksPerQuestion,
                 @NegativeMarks, @TotalNumberOfQuestions, @NoOfQuestionsPerChoice, @SubjectId
@@ -486,7 +486,7 @@ namespace Course_API.Repository.Implementations
         FROM tblScholarshipTest st
         JOIN tblCategory ap ON st.APID = ap.APID
         JOIN tblEmployee emp ON st.EmployeeID = emp.EmployeeID
-        JOIN tblExamType et ON st.ExamTypeId = et.ExamTypeId
+        left JOIN tblExamType et ON st.ExamTypeId = et.ExamTypeId
         WHERE st.ScholarshipTestId = @ScholarshipTestId";
 
                 var scholarshipTest = await _connection.QueryFirstOrDefaultAsync<ScholarshipTestResponseDTO>(query, new { ScholarshipTestId });
@@ -537,6 +537,7 @@ namespace Course_API.Repository.Implementations
                 scholarshipTest.ScholarshipSubjectDetails = scholarshipSubjectDetailsList;
                 scholarshipTest.ScholarshipTestInstructions = scholarshipInstructions;
                 scholarshipTest.ScholarshipTestDiscountSchemes = scholarshipDiscounts;
+                scholarshipTest.ScholarshipSubjects = scholarshipSubjects;
                 // Fetch ScholarshipTestQuestions based on ScholarshipQuestionSections
                 if (scholarshipQuestionSections != null && scholarshipQuestionSections.Any())
                 {
@@ -560,7 +561,15 @@ namespace Course_API.Repository.Implementations
         }
         private async Task<List<ScholarshipBoardsResponse>> GetListOfScholarshipBoards(int ScholarshipTestId)
         {
-            string query = "SELECT * FROM tblScholarshipBoards WHERE ScholarshipTestId = @ScholarshipTestId";
+            string query = @"
+        SELECT 
+            stsb.SSTBoardId,
+            stsb.ScholarshipTestId,
+            stsb.BoardId,
+            b.BoardName AS Name
+        FROM tblScholarshipBoards stsb
+        JOIN tblBoard b ON stsb.BoardId = b.BoardId
+        WHERE stsb.ScholarshipTestId = @ScholarshipTestId";
             var data = await _connection.QueryAsync<ScholarshipBoardsResponse>(query, new { ScholarshipTestId });
             return data.ToList();
         }
@@ -584,41 +593,69 @@ namespace Course_API.Repository.Implementations
         }
         private async Task<List<ScholarshipClassResponse>> GetListOfScholarshipClasses(int ScholarshipTestId)
         {
-            string query = "SELECT * FROM tblScholarshipClass WHERE ScholarshipTestId = @ScholarshipTestId";
+            string query = @"
+        SELECT 
+            tsc.SSTClassId,
+            tsc.ScholarshipTestId,
+            tsc.ClassId,
+            c.ClassName AS Name
+        FROM tblScholarshipClass tsc
+        JOIN tblClass c ON tsc.ClassId = c.ClassId
+        WHERE tsc.ScholarshipTestId = @ScholarshipTestId";
             var data = await _connection.QueryAsync<ScholarshipClassResponse>(query, new { ScholarshipTestId });
             return data.ToList();
         }
         private async Task<List<ScholarshipCourseResponse>> GetListOfScholarshipCourses(int ScholarshipTestId)
         {
-            string query = "SELECT * FROM tblScholarshipCourse WHERE ScholarshipTestId = @ScholarshipTestId";
+            string query = @"
+        SELECT 
+            tsc.SSTCourseId,
+            tsc.ScholarshipTestId,
+            tsc.CourseId,
+            c.CourseName AS Name
+        FROM tblScholarshipCourse tsc
+        JOIN tblCourse c ON tsc.CourseId = c.CourseId
+        WHERE tsc.ScholarshipTestId = @ScholarshipTestId";
             var data = await _connection.QueryAsync<ScholarshipCourseResponse>(query, new { ScholarshipTestId });
             return data.ToList();
         }
         private async Task<List<ScholarshipSubjectsResponse>> GetListOfScholarshipSubjects(int ScholarshipTestId)
         {
-            string query = "SELECT * FROM tblScholarshipSubject WHERE ScholarshipTestId = @ScholarshipTestId";
+            string query = @"
+        SELECT 
+            tss.SSTSubjectId,
+            tss.SubjectId,
+            tss.ScholarshipTestId,
+            s.SubjectName AS SubjectName
+        FROM tblScholarshipSubject tss
+        JOIN tblSubject s ON tss.SubjectID = s.SubjectID
+        WHERE tss.ScholarshipTestId = @ScholarshipTestId";
             var data = await _connection.QueryAsync<ScholarshipSubjectsResponse>(query, new { ScholarshipTestId });
             return data.ToList();
         }
         private async Task<List<ScholarshipContentIndexResponse>> GetListOfScholarshipContentIndexes(int ScholarshipTestId)
         {
             string query = @"
-    SELECT 
-        sci.IndexTypeId,
-        it.IndexTypeName,
-        sci.ContentIndexId,
-        ci.ContentIndexName,
-        sci.SubjectId,
-        s.SubjectName,
-        sci.SSTContIndId,
-        sci.ScholarshipTestId
-    FROM tblScholarshipContentIndex sci
-    LEFT JOIN tblSubject s ON sci.SubjectId = s.SubjectID
-    LEFT JOIN tblIndexType it ON sci.IndexTypeId = it.IndexTypeId
-    LEFT JOIN tblContentIndexChapters ci ON sci.ContentIndexId = ci.ContentIndexId AND sci.IndexTypeId = 1
-    LEFT JOIN tblContentIndexTopics ct ON sci.ContentIndexId = ct.ContInIdTopic AND sci.IndexTypeId = 2
-    LEFT JOIN tblContentIndexSubTopics cst ON sci.ContentIndexId = cst.ContInIdSubTopic AND sci.IndexTypeId = 3
-    WHERE sci.ScholarshipTestId = @ScholarshipTestId";
+  SELECT 
+      sci.ContentIndexId,
+      sci.IndexTypeId,
+      it.IndexType AS IndexTypeName,
+      sci.SubjectId,
+      s.SubjectName AS SubjectName,
+      sci.SSTContIndId,
+      CASE 
+          WHEN sci.IndexTypeId = 1 THEN ci.ContentName_Chapter
+          WHEN sci.IndexTypeId = 2 THEN ct.ContentName_Topic
+          WHEN sci.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+      END AS ContentIndexName,
+      sci.ScholarshipTestId
+  FROM tblScholarshipContentIndex sci
+  LEFT JOIN tblSubject s ON sci.SubjectId = s.SubjectId
+  LEFT JOIN tblQBIndexType it ON sci.IndexTypeId = it.IndexId
+  LEFT JOIN tblContentIndexChapters ci ON sci.ContentIndexId = ci.ContentIndexId AND sci.IndexTypeId = 1
+  LEFT JOIN tblContentIndexTopics ct ON sci.ContentIndexId = ct.ContInIdTopic AND sci.IndexTypeId = 2
+  LEFT JOIN tblContentIndexSubTopics cst ON sci.ContentIndexId = cst.ContInIdSubTopic AND sci.IndexTypeId = 3
+  WHERE sci.ScholarshipTestId = @ScholarshipTestId";
 
             var data = await _connection.QueryAsync<ScholarshipContentIndexResponse>(query, new { ScholarshipTestId });
             return data.ToList();

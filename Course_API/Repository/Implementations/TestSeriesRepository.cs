@@ -1795,16 +1795,10 @@ namespace Course_API.Repository.Implementations
 
                 int count = await _connection.QueryFirstOrDefaultAsync<int>(@"select count (*) from tblTestSeriesRejectedRemarks where TestSeriesId = @TestSeriesId",
                     new { TestSeriesId = request.TestSeriesId });
-                if (count == 0)
-                {
-                    string updateDownloadstatus = @"update tblTestSeries set DownloadStatusId = 7 where TestSeriesId = @TestSeriesId";
-                    await _connection.ExecuteAsync(updateDownloadstatus, new { TestSeriesId = request.TestSeriesId });
-                }
-                else
-                {
+                
                     string updateDownloadstatus = @"update tblTestSeries set DownloadStatusId = 6 where TestSeriesId = @TestSeriesId";
                     await _connection.ExecuteAsync(updateDownloadstatus, new { TestSeriesId = request.TestSeriesId });
-                }
+                
                 return new ServiceResponse<string>(true, "Rejection remark added successfully.", "operation successful", 200);
             }
             catch (Exception ex)
