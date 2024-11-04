@@ -23,8 +23,104 @@ namespace Course_API.Repository.Implementations
         {
             try
             {
+                // Fetch existing test papers for the test series (both regular and repeated exams)
+                string timeValidationQuery = @"
+SELECT StartDate, StartTime, Duration, RepeatedExams, RepeatExamStartDate, RepeatExamEndDate
+FROM tblTestSeries 
+WHERE TestSeriesId != @TestSeriesId 
+  AND APID = @APID";  // Fetch test papers for the same APID
+
+                var existingTestPapers = await _connection.QueryAsync<(DateTime StartDate, TimeSpan StartTime, int Duration, bool RepeatedExams, DateTime? RepeatExamStartDate, DateTime? RepeatExamEndDate)>(timeValidationQuery,
+                    new
+                    {
+                        TestSeriesId = request.TestSeriesId,
+                        APID = request.APID
+                    });
+
+                // Check if RepeatedExams is false (Non-repeated test case)
+                if (request.RepeatedExams == false)
+                {
+                    // Regular exam - check for overlap based on StartDate and StartTime
+                    DateTime requestedStartDateTime = request.StartDate.Value.Add(TimeSpan.Parse(request.StartTime));
+
+                    foreach (var testPaper in existingTestPapers)
+                    {
+                        // Check for overlap with other regular tests
+                        if (!testPaper.RepeatedExams)
+                        {
+                            DateTime existingStartDateTime = testPaper.StartDate.Add(testPaper.StartTime);
+                            DateTime existingEndDateTime = existingStartDateTime.AddMinutes(testPaper.Duration);
+
+                            // Ensure the new test does not overlap and has at least 15 minutes gap
+                            if (requestedStartDateTime < existingEndDateTime.AddMinutes(15))
+                            {
+                                return new ServiceResponse<int>(false, "Test papers cannot overlap or be less than 15 minutes apart.", 0, 400);
+                            }
+                        }
+
+                        // Check for overlap with repeated exams' time window
+                        if (testPaper.RepeatedExams && testPaper.RepeatExamStartDate.HasValue && testPaper.RepeatExamEndDate.HasValue)
+                        {
+                            if (request.StartDate >= testPaper.RepeatExamStartDate && request.StartDate <= testPaper.RepeatExamEndDate)
+                            {
+                                return new ServiceResponse<int>(false, "The test cannot overlap with an existing repeated exam period.", 0, 400);
+                            }
+                        }
+                    }
+                }
+                else // Repeated exam case
+                {
+                    // Ensure no overlap with other repeated exams' time windows
+                    if (request.RepeatExamStartDate.HasValue && request.RepeatExamEndDate.HasValue)
+                    {
+                        foreach (var testPaper in existingTestPapers)
+                        {
+                            // Check for overlap with other repeated exams
+                            if (testPaper.RepeatedExams)
+                            {
+                                if ((request.RepeatExamStartDate <= testPaper.RepeatExamEndDate && request.RepeatExamStartDate >= testPaper.RepeatExamStartDate) ||
+                                    (request.RepeatExamEndDate <= testPaper.RepeatExamEndDate && request.RepeatExamEndDate >= testPaper.RepeatExamStartDate))
+                                {
+                                    return new ServiceResponse<int>(false, "Repeated exams cannot overlap with each other.", 0, 400);
+                                }
+                            }
+
+                            // Check for overlap with regular test timings during repeat exam period
+                            if (!testPaper.RepeatedExams)
+                            {
+                                DateTime existingStartDateTime = testPaper.StartDate.Add(testPaper.StartTime);
+                                DateTime existingEndDateTime = existingStartDateTime.AddMinutes(testPaper.Duration);
+
+                                // Ensure repeated test's repeat period does not overlap with non-repeated test timings
+                                if ((existingStartDateTime >= request.RepeatExamStartDate && existingStartDateTime <= request.RepeatExamEndDate) ||
+                                    (existingEndDateTime >= request.RepeatExamStartDate && existingEndDateTime <= request.RepeatExamEndDate))
+                                {
+                                    return new ServiceResponse<int>(false, "Regular test timings cannot overlap with the repeated exam period.", 0, 400);
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        return new ServiceResponse<int>(false, "Invalid repeat exam period provided.", 0, 400);
+                    }
+                }
+
+                // Proceed with inserting or updating the test after validation
                 if (request.TestSeriesId == 0)
                 {
+                    bool IsAdmin;
+                    string roleQuery = @"
+                    SELECT r.RoleName 
+                    FROM tblEmployee e 
+                    JOIN tblRole r ON e.RoleID = r.RoleID 
+                    WHERE e.EmployeeId = @EmployeeId";
+
+                    string roledata = _connection.QueryFirstOrDefault<string>(roleQuery, new { EmployeeId = request.EmployeeID });
+
+                    // Correct ternary assignment
+                    IsAdmin = roledata == "Admin" ? true : false;
+
                     string insertQuery = @"
                     INSERT INTO tblTestSeries 
                     (
@@ -66,7 +162,7 @@ namespace Course_API.Repository.Implementations
                         request.RepeatExamStartDate,
                         request.RepeatExamStarttime,
                         request.RepeatExamResulttimeId,
-                        request.IsAdmin,
+                        IsAdmin = IsAdmin,
                         DownloadStatusId = 1
                     };
                     int newId = await _connection.QuerySingleAsync<int>(insertQuery, parameters);
@@ -121,8 +217,7 @@ namespace Course_API.Repository.Implementations
                         RepeatExamEndDate = @RepeatExamEndDate,
                         RepeatExamStartDate = @RepeatExamStartDate,
                         RepeatExamStarttime = @RepeatExamStarttime,
-                        RepeatExamResulttimeId = @RepeatExamResulttimeId,
-                        IsAdmin = @IsAdmin
+                        RepeatExamResulttimeId = @RepeatExamResulttimeId
                     WHERE TestSeriesId = @TestSeriesId;";
                     var parameters = new
                     {
@@ -148,7 +243,7 @@ namespace Course_API.Repository.Implementations
                         request.RepeatExamStartDate,
                         request.RepeatExamStarttime,
                         request.RepeatExamResulttimeId,
-                        request.IsAdmin
+                       // request.IsAdmin
                     };
                     int rowsAffected = await _connection.ExecuteAsync(updateQuery, parameters);
                     if (rowsAffected > 0)
@@ -788,30 +883,55 @@ namespace Course_API.Repository.Implementations
         }
         public async Task<ServiceResponse<string>> TestSeriesQuestionSectionMapping(List<TestSeriesQuestionSection> request, int TestSeriesId)
         {
-            // Update TestSeriesId for all items in the request list
-            foreach (var section in request)
-            {
-                section.TestSeriesid = TestSeriesId;
-            }
             try
             {
-                // Delete existing records for the given TestSeriesId
+                // Step 1: Retrieve the total number of questions for the test series from tblTestSeries
+                var testSeriesQuery = "SELECT TotalNoOfQuestions FROM tblTestSeries WHERE TestSeriesId = @TestSeriesId";
+                int totalNoOfQuestionsForTestSeries = await _connection.QueryFirstOrDefaultAsync<int>(testSeriesQuery, new { TestSeriesId });
+
+                // Step 2: Retrieve all existing sections for the given TestSeriesId
+                var existingSectionsQuery = "SELECT TotalNoofQuestions FROM tbltestseriesQuestionSection WHERE TestSeriesid = @TestSeriesId";
+                var existingSections = await _connection.QueryAsync<int>(existingSectionsQuery, new { TestSeriesId });
+
+                // Step 3: Sum up the total number of questions from existing sections
+                int totalExistingQuestions = existingSections.Sum();
+
+                // Step 4: Sum up TotalNoofQuestions from the request body
+                int totalRequestedQuestions = request.Sum(section => section.TotalNoofQuestions);
+
+                // Step 5: Calculate the total number of questions (existing + requested)
+                int totalAssignedQuestions = totalExistingQuestions + totalRequestedQuestions;
+
+                // Step 6: Validate that the total assigned questions do not exceed the total number of questions for the test series
+                if (totalAssignedQuestions > totalNoOfQuestionsForTestSeries)
+                {
+                    return new ServiceResponse<string>(false, $"The total number of questions assigned ({totalAssignedQuestions}) exceeds the limit of {totalNoOfQuestionsForTestSeries} for the test series.", null, StatusCodes.Status400BadRequest);
+                }
+
+                // Step 7: Update TestSeriesId for all sections in the request
+                foreach (var section in request)
+                {
+                    section.TestSeriesid = TestSeriesId;
+                }
+
+                // Step 8: Delete existing records for the given TestSeriesId (if you want to replace them)
                 var deleteQuery = "DELETE FROM [tbltestseriesQuestionSection] WHERE [TestSeriesid] = @TestSeriesId";
                 await _connection.ExecuteAsync(deleteQuery, new { TestSeriesId });
 
-                // Insert new records
+                // Step 9: Insert new records for sections
                 string insertQuery = @"
             INSERT INTO tbltestseriesQuestionSection 
             (TestSeriesid, DisplayOrder, SectionName, Status, LevelID1, QuesPerDifficulty1, LevelID2, QuesPerDifficulty2, LevelID3, QuesPerDifficulty3, QuestionTypeID, EntermarksperCorrectAnswer, EnterNegativeMarks, TotalNoofQuestions, NoofQuestionsforChoice, SubjectId)
             VALUES 
             (@TestSeriesid, @DisplayOrder, @SectionName, @Status, @LevelID1, @QuesPerDifficulty1, @LevelID2, @QuesPerDifficulty2, @LevelID3, @QuesPerDifficulty3, @QuestionTypeID, @EntermarksperCorrectAnswer, @EnterNegativeMarks, @TotalNoofQuestions, @NoofQuestionsforChoice, @SubjectId);";
 
-                var valuesInserted = await _connection.ExecuteAsync(insertQuery, request);
-                return new ServiceResponse<string>(true, "operation successful", "values added successfully", 200);
+                await _connection.ExecuteAsync(insertQuery, request);
+
+                return new ServiceResponse<string>(true, "Operation successful", "Sections mapped successfully", StatusCodes.Status200OK);
             }
             catch (Exception ex)
             {
-                throw new Exception("An error occurred while updating test series question sections", ex);
+                throw new Exception("An error occurred while mapping test series sections", ex);
             }
         }
         public async Task<ServiceResponse<string>> TestSeriesInstructionsMapping(TestSeriesInstructions request, int TestSeriesId)

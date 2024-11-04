@@ -31,14 +31,11 @@ namespace Course_API.DTOs.Requests
         public int? TotalNoOfQuestions { get; set; }
         public bool? ManualQuestionSelect { get; set; }
         public DateTime? StartDate { get; set; }
-        [Required(ErrorMessage = "Start time cannot be empty")]
         public string? StartTime { get; set; } = string.Empty;
         public DateTime? ResultDate { get; set; }
-        [Required(ErrorMessage = "Result time cannot be empty")]
         public string? ResultTime { get; set; } = string.Empty;
         public int? EmployeeID { get; set; }
         //public string EmpFirstName { get; set; } = string.Empty;
-        [Required(ErrorMessage = "Exam name cannot be empty")]
         public string? NameOfExam { get; set; } = string.Empty;
         public bool? RepeatedExams { get; set; }
         public int? TypeOfTestSeries { get; set; }
@@ -56,7 +53,7 @@ namespace Course_API.DTOs.Requests
         public DateTime? RepeatExamEndDate { get; set; }
         public string? RepeatExamStarttime { get; set; } = string.Empty;
         public int? RepeatExamResulttimeId { get; set; }
-        public bool IsAdmin {  get; set; }
+       // public bool IsAdmin {  get; set; }
         public bool? IsMandatory { get; set; }
     }
     public class GetAllQuestionListRequest
