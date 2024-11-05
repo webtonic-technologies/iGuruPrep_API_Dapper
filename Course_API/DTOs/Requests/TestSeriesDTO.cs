@@ -72,6 +72,11 @@ namespace Course_API.DTOs.Requests
         public int TestSeriesId { get; set; }
         public int SubjectId { get; set; }
     }
+    public class SyllabusDetailsRequestScholarship
+    {
+        public int ScholarshipTestId { get; set; }
+        public int SubjectId { get; set; }
+    }
     public class QuestionListRequest
     {
         public int TestSeriesId { get; set; }

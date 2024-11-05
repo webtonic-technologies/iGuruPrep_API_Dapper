@@ -12,7 +12,7 @@ namespace Course_API.Repository.Interfaces
         Task<ServiceResponse<string>> ScholarshipContentIndexMapping(List<ScholarshipContentIndex> request, int ScholarshipTestId);
         Task<ServiceResponse<string>> ScholarshipQuestionsMapping(List<ScholarshipTestQuestion> request, int ScholarshipTestId, int SSTSectionId);
         Task<ServiceResponse<string>> ScholarshipQuestionSectionMapping(List<ScholarshipQuestionSection> request, int ScholarshipTestId);
-        Task<ServiceResponse<string>> ScholarshipInstructionsMapping(List<ScholarshipTestInstructions>? request, int ScholarshipTestId);
+        Task<ServiceResponse<string>> ScholarshipInstructionsMapping(ScholarshipTestInstructions? request, int ScholarshipTestId);
         Task<ServiceResponse<string>> ScholarshipDiscountSchemeMapping(List<ScholarshipTestDiscountScheme>? request, int ScholarshipTestId);
         //Task<ServiceResponse<List<QuestionResponseDTO>>> GetQuestionsList(GetAllQuestionListRequest request);
         //we have an API to fetch list of questions depending on subjectid in Test series module

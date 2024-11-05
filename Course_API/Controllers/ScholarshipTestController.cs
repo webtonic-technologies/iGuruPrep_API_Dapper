@@ -83,7 +83,7 @@ namespace Course_API.Controllers
 
         }
         [HttpPost("ScholarshipContentIndexMapping/{ScholarshipTestId}")]
-        public async Task<IActionResult> ScholarshipContentIndexMapping(List<ScholarshipContentIndex> request, int ScholarshipTestId)
+        public async Task<IActionResult> ScholarshipContentIndexMapping(ContentIndexRequest request, int ScholarshipTestId)
         {
             try
             {
@@ -129,7 +129,7 @@ namespace Course_API.Controllers
 
         }
         [HttpPost("ScholarshipQuestionSectionMapping/{ScholarshipTestId}")]
-        public async Task<IActionResult> ScholarshipQuestionSectionMapping(List<ScholarshipQuestionSection> request, int ScholarshipTestId)
+        public async Task<IActionResult> ScholarshipQuestionSectionMapping(List<QuestionSectionScholarship> request, int ScholarshipTestId)
         {
             try
             {
@@ -152,7 +152,7 @@ namespace Course_API.Controllers
 
         }
         [HttpPost("ScholarshipInstructionsMapping/{ScholarshipTestId}")]
-        public async Task<IActionResult> ScholarshipInstructionsMapping(List<ScholarshipTestInstructions>? request, int ScholarshipTestId)
+        public async Task<IActionResult> ScholarshipInstructionsMapping(ScholarshipTestInstructions? request, int ScholarshipTestId)
         {
             try
             {

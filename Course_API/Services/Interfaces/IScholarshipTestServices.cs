@@ -9,10 +9,10 @@ namespace Course_API.Services.Interfaces
         Task<ServiceResponse<int>> AddUpdateScholarshipTest(ScholarshipTestRequestDTO request);
         Task<ServiceResponse<ScholarshipTestResponseDTO>> GetScholarshipTestById(int ScholarshipTestId);
         Task<ServiceResponse<List<ScholarshipTestResponseDTO>>> GetScholarshipTestList(ScholarshipGetListRequest request);
-        Task<ServiceResponse<string>> ScholarshipContentIndexMapping(List<ScholarshipContentIndex> request, int ScholarshipTestId);
+        Task<ServiceResponse<string>> ScholarshipContentIndexMapping(ContentIndexRequest request, int ScholarshipTestId);
         Task<ServiceResponse<string>> ScholarshipQuestionsMapping(List<ScholarshipTestQuestion> request, int ScholarshipTestId, int SSTSectionId);
-        Task<ServiceResponse<string>> ScholarshipQuestionSectionMapping(List<ScholarshipQuestionSection> request, int ScholarshipTestId);
-        Task<ServiceResponse<string>> ScholarshipInstructionsMapping(List<ScholarshipTestInstructions>? request, int ScholarshipTestId);
+        Task<ServiceResponse<string>> ScholarshipQuestionSectionMapping(List<QuestionSectionScholarship> request, int ScholarshipTestId);
+        Task<ServiceResponse<string>> ScholarshipInstructionsMapping(ScholarshipTestInstructions? request, int ScholarshipTestId);
         Task<ServiceResponse<string>> ScholarshipDiscountSchemeMapping(List<ScholarshipTestDiscountScheme>? request, int ScholarshipTestId);
     }
 }

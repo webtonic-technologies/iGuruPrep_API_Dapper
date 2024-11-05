@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.DataProtection.KeyManagement;
+﻿using Course_API.Models;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using System.ComponentModel.DataAnnotations;
 
 namespace Course_API.DTOs.Requests
@@ -83,6 +84,8 @@ namespace Course_API.DTOs.Requests
     {
         public int SSTInstructionsId { get; set; }
         public string Instructions { get; set; } = string.Empty;
+        public string InstructionName { get; set; } = string.Empty;
+        public int InstructionId { get; set; }
         public int ScholarshipTestId { get; set; }
     }
     public class ScholarshipTestDiscountScheme
@@ -112,5 +115,10 @@ namespace Course_API.DTOs.Requests
         public int ExamTypeId {  get; set; }
         public int PageSize { get; set; }
         public int PageNumber { get; set; }
+    }
+    public class QuestionSectionScholarship
+    {
+        public int SubjectId { get; set; }
+        public List<ScholarshipQuestionSection>? ScholarshipQuestionSections { get; set; }
     }
 }

@@ -124,6 +124,212 @@ namespace Course_API.Repository.Implementations
                 return new ServiceResponse<int>(false, ex.Message, 0, 500);
             }
         }
+        public async Task<ServiceResponse<List<ContentIndexResponses>>> GetSyllabusDetailsBySubject(SyllabusDetailsRequestScholarship request)
+        {
+            try
+            {
+                // Fetch APID and ExamTypeID from the TestSeries table
+                string scholarshipSql = @"
+            SELECT APID, ExamTypeId
+            FROM tblScholarshipTest
+            WHERE ScholarshipTestId = @ScholarshipTestId";
+
+                var scholarship = await _connection.QueryFirstOrDefaultAsync<dynamic>(scholarshipSql, new { request.ScholarshipTestId});
+
+                if (scholarship == null)
+                {
+                    return new ServiceResponse<List<ContentIndexResponses>>(false, "Test Series not found", new List<ContentIndexResponses>(), 404);
+                }
+
+                int APId = scholarship.APID;
+                int? examTypeId = scholarship.ExamTypeId;
+
+                int boardId = 0, classId = 0, courseId = 0;
+
+                if (APId == 1)
+                {
+                    // Fetch Board, Class, and Course details if APId is 1
+                    var boardSql = @"SELECT BoardId FROM tblScholarshipBoards WHERE ScholarshipTestId = @ScholarshipTestId";
+                    var classSql = @"SELECT ClassId FROM tblScholarshipClass WHERE ScholarshipTestId = @ScholarshipTestId";
+                    var courseSql = @"SELECT CourseId FROM tblScholarshipCourse WHERE ScholarshipTestId = @ScholarshipTestId";
+
+                    boardId = await _connection.QueryFirstOrDefaultAsync<int>(boardSql, new { request.ScholarshipTestId });
+                    classId = await _connection.QueryFirstOrDefaultAsync<int>(classSql, new { request.ScholarshipTestId });
+                    courseId = await _connection.QueryFirstOrDefaultAsync<int>(courseSql, new { request.ScholarshipTestId });
+                }
+
+                // Now proceed with syllabus details retrieval
+                string sql = @"
+        SELECT sd.*, s.*
+        FROM [tblSyllabus] s
+        JOIN [tblSyllabusDetails] sd ON s.SyllabusId = sd.SyllabusID
+        WHERE s.APID = @APId
+        AND (s.BoardID = @BoardId OR @BoardId = 0)
+        AND (s.ClassId = @ClassId OR @ClassId = 0)
+        AND (s.CourseId = @CourseId OR @CourseId = 0)
+        AND (sd.SubjectId = @SubjectId OR @SubjectId = 0)";
+
+                var syllabusDetails = await _connection.QueryAsync<dynamic>(sql, new
+                {
+                    APId = APId,
+                    BoardId = boardId,
+                    ClassId = classId,
+                    CourseId = courseId,
+                    SubjectId = request.SubjectId
+                });
+
+                var contentIndexResponse = new List<ContentIndexResponses>();
+
+                // Existing logic to process the syllabus details goes here
+                foreach (var detail in syllabusDetails)
+                {
+                    int indexTypeId = detail.IndexTypeId;
+                    if (indexTypeId == 1) // Chapter
+                    {
+                        // Fetch and map chapter data
+                        string getchapter = @"select * from tblContentIndexChapters where ContentIndexId = @ContentIndexId;";
+                        var data = await _connection.QueryFirstOrDefaultAsync<ContentIndexResponses>(getchapter, new { ContentIndexId = detail.ContentIndexId });
+
+                        var chapter = new ContentIndexResponses
+                        {
+                            ContentIndexId = data.ContentIndexId,
+                            SubjectId = data.SubjectId,
+                            ContentName_Chapter = data.ContentName_Chapter,
+                            Status = data.Status,
+                            IndexTypeId = indexTypeId,
+                            BoardId = data.BoardId,
+                            ClassId = data.ClassId,
+                            CourseId = data.CourseId,
+                            APID = data.APID,
+                            CreatedOn = data.CreatedOn,
+                            CreatedBy = data.CreatedBy,
+                            ModifiedOn = data.ModifiedOn,
+                            ModifiedBy = data.ModifiedBy,
+                            EmployeeId = data.EmployeeId,
+                            ExamTypeId = data.ExamTypeId,
+                            IsActive = data.Status, // Assuming Status is used for IsActive
+                            ChapterCode = data.ChapterCode,
+                            DisplayName = data.DisplayName,
+                            DisplayOrder = data.DisplayOrder,
+                            ContentIndexTopics = new List<ContentIndexTopicsResponse>()
+                        };
+
+                        // Add chapter to response list
+                        contentIndexResponse.Add(chapter);
+                    }
+                    else if (indexTypeId == 2) // Topic
+                    {
+                        // Fetch and map topic data
+                        string gettopic = @"select * from tblContentIndexTopics where ContInIdTopic = @ContentIndexId;";
+                        var data = await _connection.QueryFirstOrDefaultAsync<ContentIndexTopicsResponse>(gettopic, new { ContentIndexId = detail.ContentIndexId });
+
+                        var topic = new ContentIndexTopicsResponse
+                        {
+                            ContInIdTopic = data.ContInIdTopic,
+                            ContentIndexId = data.ContentIndexId,
+                            ContentName_Topic = data.ContentName_Topic,
+                            Status = data.Status,
+                            IndexTypeId = indexTypeId,
+                            CreatedOn = data.CreatedOn,
+                            CreatedBy = data.CreatedBy,
+                            ModifiedOn = data.ModifiedOn,
+                            ModifiedBy = data.ModifiedBy,
+                            EmployeeId = data.EmployeeId,
+                            IsActive = data.Status,
+                            TopicCode = data.TopicCode,
+                            DisplayName = data.DisplayName,
+                            DisplayOrder = data.DisplayOrder,
+                            ChapterCode = data.ChapterCode,
+                            ContentIndexSubTopics = new List<ContentIndexSubTopicResponse>()
+                        };
+
+                        // Ensure chapter exists or create a dummy one
+                        var existingChapter = contentIndexResponse.FirstOrDefault(c => c.ChapterCode == data.ChapterCode);
+                        if (existingChapter == null)
+                        {
+                            existingChapter = new ContentIndexResponses
+                            {
+                                ChapterCode = data.ChapterCode,
+                                ContentName_Chapter = "N/A", // Dummy entry for the chapter
+                                ContentIndexTopics = new List<ContentIndexTopicsResponse> { topic }
+                            };
+                            contentIndexResponse.Add(existingChapter);
+                        }
+                        else
+                        {
+                            existingChapter.ContentIndexTopics.Add(topic);
+                        }
+                    }
+                    else if (indexTypeId == 3) // SubTopic
+                    {
+                        // Fetch and map subtopic data
+                        string getsubtopic = @"select * from tblContentIndexSubTopics where ContInIdSubTopic = @ContentIndexId;";
+                        var data = await _connection.QueryFirstOrDefaultAsync<ContentIndexSubTopicResponse>(getsubtopic, new { ContentIndexId = detail.ContentIndexId });
+
+                        var subTopic = new ContentIndexSubTopicResponse
+                        {
+                            ContInIdSubTopic = data.ContInIdSubTopic,
+                            ContInIdTopic = data.ContInIdTopic,
+                            ContentName_SubTopic = data.ContentName_SubTopic,
+                            Status = data.Status,
+                            IndexTypeId = indexTypeId,
+                            CreatedOn = data.CreatedOn,
+                            CreatedBy = data.CreatedBy,
+                            ModifiedOn = data.ModifiedOn,
+                            ModifiedBy = data.ModifiedBy,
+                            EmployeeId = data.EmployeeId,
+                            IsActive = data.Status,
+                            SubTopicCode = data.SubTopicCode,
+                            DisplayName = data.DisplayName,
+                            DisplayOrder = data.DisplayOrder,
+                            TopicCode = data.TopicCode
+                        };
+
+                        // Ensure topic exists or create a dummy one
+                        var existingTopic = contentIndexResponse
+                            .SelectMany(c => c.ContentIndexTopics)
+                            .FirstOrDefault(t => t.TopicCode == data.TopicCode);
+
+                        if (existingTopic == null)
+                        {
+                            var dummyTopic = new ContentIndexTopicsResponse
+                            {
+                                TopicCode = data.TopicCode,
+                                ContentName_Topic = "N/A", // Dummy entry for the topic
+                                ContentIndexSubTopics = new List<ContentIndexSubTopicResponse> { subTopic }
+                            };
+
+                            // Ensure chapter exists or create a dummy one
+                            var chapterForTopic = contentIndexResponse.FirstOrDefault(c => c.ChapterCode == detail.ChapterCode);
+                            if (chapterForTopic == null)
+                            {
+                                chapterForTopic = new ContentIndexResponses
+                                {
+                                    ChapterCode = detail.ChapterCode,
+                                    ContentName_Chapter = "N/A", // Dummy entry for the chapter
+                                    ContentIndexTopics = new List<ContentIndexTopicsResponse> { dummyTopic }
+                                };
+                                contentIndexResponse.Add(chapterForTopic);
+                            }
+                            else
+                            {
+                                chapterForTopic.ContentIndexTopics.Add(dummyTopic);
+                            }
+                        }
+                        else
+                        {
+                            existingTopic.ContentIndexSubTopics.Add(subTopic);
+                        }
+                    }
+                }
+
+                return new ServiceResponse<List<ContentIndexResponses>>(true, "Syllabus details retrieved successfully", contentIndexResponse, 200);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<ContentIndexResponses>>(false, ex.Message, new List<ContentIndexResponses>(), 500);
+            }
+        }
         public async Task<ServiceResponse<string>> ScholarshipDiscountSchemeMapping(List<ScholarshipTestDiscountScheme>? request, int ScholarshipTestId)
         {
             // Ensure the connection is initialized
@@ -228,37 +434,74 @@ namespace Course_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, null, 500);
             }
         }
-        public async Task<ServiceResponse<string>> ScholarshipInstructionsMapping(List<ScholarshipTestInstructions>? request, int ScholarshipTestId)
+        public async Task<ServiceResponse<string>> ScholarshipInstructionsMapping(ScholarshipTestInstructions? request, int ScholarshipTestId)
         {
+
+
+            if (request == null)
+            {
+                return new ServiceResponse<string>(false, "Invalid request.", string.Empty, 500);
+            }
+            string query;
+
+            // If SSTInstructionsId is provided and greater than 0, we update the existing record
+            if (request.SSTInstructionsId > 0)
+            {
+                query = @"
+                UPDATE [tblSSTInstructions]
+                SET 
+                    [Instructions] = @Instructions,
+                    [InstructionName] = @InstructionName,
+                    [InstructionId] = @InstructionId,
+                    [ScholarshipTestId] = @ScholarshipTestId
+                WHERE [SSTInstructionsId] = @SSTInstructionsId;
+            ";
+            }
+            else
+            {
+                // Otherwise, we insert a new record
+                query = @"
+                INSERT INTO [tblSSTInstructions] 
+                    ([Instructions], [InstructionName], [InstructionId], [ScholarshipTestId])
+                VALUES 
+                    (@Instructions, @InstructionName, @InstructionId, @ScholarshipTestId);
+                
+                -- Optionally return the newly generated SSTInstructionsId
+                SELECT CAST(SCOPE_IDENTITY() as int);
+            ";
+            }
+
+            // Set the parameters and execute the query
+            var parameters = new
+            {
+                request.Instructions,
+                request.InstructionName,
+                request.InstructionId,
+                ScholarshipTestId = request.ScholarshipTestId > 0 ? request.ScholarshipTestId : ScholarshipTestId,
+                request.SSTInstructionsId // Used only for updates
+            };
+
             try
             {
-                // Delete existing instructions for the given ScholarshipTestId
-                await DeleteScholarshipTestInstructions(ScholarshipTestId);
-
-                if (request != null && request.Any())
+                string responseData;
+                if (request.SSTInstructionsId > 0)
                 {
-                    string insertQuery = @"
-            INSERT INTO tblSSTInstructions
-            (ScholarshipTestId, Instructions)
-            VALUES
-            (@ScholarshipTestId, @Instructions)";
-
-                    int rowsAffected = await _connection.ExecuteAsync(insertQuery, request.Select(instr => new
-                    {
-                        ScholarshipTestId = ScholarshipTestId,
-                        Instructions = instr.Instructions
-                    }));
-
-                    return rowsAffected > 0
-                        ? new ServiceResponse<string>(true, "Operation successful", null, 200)
-                        : new ServiceResponse<string>(false, "Some error occurred", null, 500);
+                    // Perform the update operation
+                    await _connection.ExecuteAsync(query, parameters);
+                    responseData = $"Updated ScholarshipTestInstruction with ID: {request.SSTInstructionsId}";
+                }
+                else
+                {
+                    // Perform the insert operation and get the newly inserted ID
+                    var newId = await _connection.QuerySingleAsync<int>(query, parameters);
+                    responseData = $"Inserted new ScholarshipTestInstruction with ID: {newId}";
                 }
 
-                return new ServiceResponse<string>(true, "No instructions to process", null, 200);
+                return new ServiceResponse<string>(true, "Operation Successful", responseData, 200);
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<string>(false, ex.Message, null, 500);
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
         public async Task<ServiceResponse<string>> ScholarshipQuestionSectionMapping(List<ScholarshipQuestionSection> request, int ScholarshipTestId)
