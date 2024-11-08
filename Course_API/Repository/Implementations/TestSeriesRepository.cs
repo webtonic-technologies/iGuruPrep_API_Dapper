@@ -30,7 +30,7 @@ FROM tblTestSeries
 WHERE TestSeriesId != @TestSeriesId 
   AND APID = @APID";  // Fetch test papers for the same APID
 
-                var existingTestPapers = await _connection.QueryAsync<(DateTime StartDate, TimeSpan StartTime, int Duration, bool RepeatedExams, DateTime? RepeatExamStartDate, DateTime? RepeatExamEndDate)>(timeValidationQuery,
+                var existingTestPapers = await _connection.QueryAsync<(DateTime StartDate, string StartTime, string Duration, bool RepeatedExams, DateTime? RepeatExamStartDate, DateTime? RepeatExamEndDate)>(timeValidationQuery,
                     new
                     {
                         TestSeriesId = request.TestSeriesId,
@@ -40,24 +40,52 @@ WHERE TestSeriesId != @TestSeriesId
                 // Check if RepeatedExams is false (Non-repeated test case)
                 if (request.RepeatedExams == false)
                 {
-                    // Regular exam - check for overlap based on StartDate and StartTime
-                    DateTime requestedStartDateTime = request.StartDate.Value.Add(TimeSpan.Parse(request.StartTime));
+                    DateTime requestedStartDateTime;
+                    if (DateTime.TryParse(request.StartTime, out DateTime parsedStartTime))
+                    {
+                        // Combine StartDate with parsed StartTime (the date part of parsedStartTime will be ignored)
+                         requestedStartDateTime = request.StartDate.Value.Add(parsedStartTime.TimeOfDay);
+
+                        // Now you can proceed with the rest of your logic using requestedStartDateTime
+                    }
+                    else
+                    {
+                        // Handle invalid time format
+                        return new ServiceResponse<int>(false, "Invalid StartTime format.", 0, 400);
+                    }
 
                     foreach (var testPaper in existingTestPapers)
                     {
                         // Check for overlap with other regular tests
                         if (!testPaper.RepeatedExams)
                         {
-                            DateTime existingStartDateTime = testPaper.StartDate.Add(testPaper.StartTime);
-                            DateTime existingEndDateTime = existingStartDateTime.AddMinutes(testPaper.Duration);
-
-                            // Ensure the new test does not overlap and has at least 15 minutes gap
-                            if (requestedStartDateTime < existingEndDateTime.AddMinutes(15))
+                            // Assuming testPaper.StartTime is a string in the format "HH:mm:ss"
+                            if (TimeSpan.TryParse(testPaper.StartTime, out TimeSpan startTimeSpan))
                             {
-                                return new ServiceResponse<int>(false, "Test papers cannot overlap or be less than 15 minutes apart.", 0, 400);
+                                // Combine StartDate with StartTime to create the full DateTime for the test start
+                                DateTime existingStartDateTime = testPaper.StartDate.Add(startTimeSpan);
+
+                                // Convert testPaper.Duration to double if necessary
+                                if (double.TryParse(testPaper.Duration.ToString(), out double durationInMinutes))
+                                {
+                                    DateTime existingEndDateTime = existingStartDateTime.AddMinutes(durationInMinutes);
+
+                                    // Ensure the new test does not overlap and has at least 15 minutes gap
+                                    if (requestedStartDateTime < existingEndDateTime.AddMinutes(15))
+                                    {
+                                        return new ServiceResponse<int>(false, "Test papers cannot overlap or be less than 15 minutes apart.", 0, 400);
+                                    }
+                                }
+                                else
+                                {
+                                    return new ServiceResponse<int>(false, "Invalid test duration.", 0, 400);
+                                }
+                            }
+                            else
+                            {
+                                return new ServiceResponse<int>(false, "Invalid StartTime format.", 0, 400);
                             }
                         }
-
                         // Check for overlap with repeated exams' time window
                         if (testPaper.RepeatedExams && testPaper.RepeatExamStartDate.HasValue && testPaper.RepeatExamEndDate.HasValue)
                         {
@@ -88,14 +116,32 @@ WHERE TestSeriesId != @TestSeriesId
                             // Check for overlap with regular test timings during repeat exam period
                             if (!testPaper.RepeatedExams)
                             {
-                                DateTime existingStartDateTime = testPaper.StartDate.Add(testPaper.StartTime);
-                                DateTime existingEndDateTime = existingStartDateTime.AddMinutes(testPaper.Duration);
-
-                                // Ensure repeated test's repeat period does not overlap with non-repeated test timings
-                                if ((existingStartDateTime >= request.RepeatExamStartDate && existingStartDateTime <= request.RepeatExamEndDate) ||
-                                    (existingEndDateTime >= request.RepeatExamStartDate && existingEndDateTime <= request.RepeatExamEndDate))
+                                // Assuming testPaper.StartTime is a string in the format "HH:mm:ss"
+                                if (TimeSpan.TryParse(testPaper.StartTime, out TimeSpan startTimeSpan))
                                 {
-                                    return new ServiceResponse<int>(false, "Regular test timings cannot overlap with the repeated exam period.", 0, 400);
+                                    // Combine StartDate with StartTime to create the full DateTime for the test start
+                                    DateTime existingStartDateTime = testPaper.StartDate.Add(startTimeSpan);
+
+                                    // Convert testPaper.Duration to double if necessary
+                                    if (double.TryParse(testPaper.Duration.ToString(), out double durationInMinutes))
+                                    {
+                                        DateTime existingEndDateTime = existingStartDateTime.AddMinutes(durationInMinutes);
+
+                                        // Ensure repeated test's repeat period does not overlap with non-repeated test timings
+                                        if ((existingStartDateTime >= request.RepeatExamStartDate && existingStartDateTime <= request.RepeatExamEndDate) ||
+                                            (existingEndDateTime >= request.RepeatExamStartDate && existingEndDateTime <= request.RepeatExamEndDate))
+                                        {
+                                            return new ServiceResponse<int>(false, "Regular test timings cannot overlap with the repeated exam period.", 0, 400);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        return new ServiceResponse<int>(false, "Invalid test duration.", 0, 400);
+                                    }
+                                }
+                                else
+                                {
+                                    return new ServiceResponse<int>(false, "Invalid StartTime format.", 0, 400);
                                 }
                             }
                         }
