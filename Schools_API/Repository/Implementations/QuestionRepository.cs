@@ -7,6 +7,7 @@ using Schools_API.DTOs.ServiceResponse;
 using Schools_API.Models;
 using Schools_API.Repository.Interfaces;
 using System.Data;
+using System.Data.Common;
 using System.Drawing;
 using System.Transactions;
 
@@ -53,7 +54,8 @@ namespace Schools_API.Repository.Implementations
                         Explanation = @Explanation,
                         ExtraInformation = @ExtraInformation,
                         IsActive = @IsActive,
-                        IsConfigure = @IsConfigure
+                        IsConfigure = @IsConfigure,
+                        CategoryId = @CategoryId
                         
                     WHERE 
                         QuestionCode = @QuestionCode and IsActive = 1";
@@ -79,6 +81,7 @@ namespace Schools_API.Repository.Implementations
                             ExtraInformation = request.ExtraInformation,
                             IsActive = request.IsActive,
                             IsConfigure = request.IsConfigure,
+                            CategoryId = request.CategoryId
                         };
 
                         int rowsAffected = _connection.Execute(query, parameters);
@@ -117,8 +120,8 @@ namespace Schools_API.Repository.Implementations
                             // If the question type supports multiple-choice or similar categories
                             if (questTypedata != null)
                             {
-                                if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "MT1" ||
-                                    questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MT2" || questTypedata.Code.Trim() == "AR" || questTypedata.Code.Trim() == "C")
+                                if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "MF" ||
+                                    questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MF2" || questTypedata.Code.Trim() == "AR" || questTypedata.Code.Trim() == "CT")
                                 {
                                     if (request.AnswerMultipleChoiceCategories != null)
                                     {
@@ -159,7 +162,7 @@ namespace Schools_API.Repository.Implementations
 
                             if (data > 0 && answer > 0)
                             {
-                                return new ServiceResponse<string>(true, "Operation Successful", "Question Added Successfully", 200);
+                                return new ServiceResponse<string>(true, "Operation Successful", "Question Updated Successfully", 200);
                             }
                             else
                             {
@@ -174,8 +177,13 @@ namespace Schools_API.Repository.Implementations
                     else
                     {
                         int count = await _connection.QueryFirstOrDefaultAsync<int>(@"select count(*) from tblQuestionProfilerRejections where QuestionCode = @QuestionCode", new { QuestionCode = request.QuestionCode });
+                        bool isRejectedQuestion = await _connection.QueryFirstOrDefaultAsync<bool>(@"select IsRejected from tblQuestion where QuestionCode = @QuestionCode and IsActive = 1", new { QuestionCode = request.QuestionCode });
                         bool isRejected = false;
-                        if (count > 0)
+                        if (count == 0 || !isRejectedQuestion)
+                        {
+                            isRejected = false;
+                        }
+                        else
                         {
                             isRejected = true;
                         }
@@ -197,7 +205,8 @@ namespace Schools_API.Repository.Implementations
                             ExtraInformation = request.ExtraInformation,
                             IsActive = true,
                             IsConfigure = true,
-                            ModifierId = request.ModifierId
+                            ModifierId = request.ModifierId,
+                            CategoryId = request.CategoryId
                         };
                         string insertQuery = @"
               INSERT INTO tblQuestion (
@@ -217,7 +226,7 @@ namespace Schools_API.Repository.Implementations
                   ExtraInformation,
                   IsActive,
                   IsConfigure,
-                  ModifierId
+                  ModifierId, CategoryId
               ) VALUES (
                   @QuestionDescription,
                   @QuestionTypeId,
@@ -233,7 +242,7 @@ namespace Schools_API.Repository.Implementations
                   @QuestionCode,
                   @Explanation,
                   @ExtraInformation,
-                  @IsActive, @IsConfigure, @ModifierId
+                  @IsActive, @IsConfigure, @ModifierId, @CategoryId
               );
 
               -- Fetch the QuestionId of the newly inserted row
@@ -291,8 +300,8 @@ namespace Schools_API.Repository.Implementations
                             // If the question type supports multiple-choice or similar categories
                             if (questTypedata != null)
                             {
-                                if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "MT1" ||
-                                    questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MT2" || questTypedata.Code.Trim() == "AR" || questTypedata.Code.Trim() == "C")
+                                if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "MF" ||
+                                    questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MF2" || questTypedata.Code.Trim() == "AR" || questTypedata.Code.Trim() == "CT")
                                 {
                                     if (request.AnswerMultipleChoiceCategories != null)
                                     {
@@ -353,11 +362,13 @@ namespace Schools_API.Repository.Implementations
                     if (count1 > 0)
                     {
                         int count = await _connection.QueryFirstOrDefaultAsync<int>(@"select count(*) from tblQuestionProfilerRejections where QuestionCode = @QuestionCode", new { QuestionCode = request.QuestionCode });
+                        //bool isRejectedQuestion = await _connection.QueryFirstOrDefaultAsync<bool>(@"select IsRejected from tblQuestion where QuestionCode = @QuestionCode and IsActive = 1", new { QuestionCode = request.QuestionCode });
                         bool isRejected = false;
                         if (count > 0)
                         {
                             isRejected = true;
                         }
+                      
                         var question = new Question
                         {
                             QuestionDescription = request.QuestionDescription,
@@ -376,7 +387,8 @@ namespace Schools_API.Repository.Implementations
                             ExtraInformation = request.ExtraInformation,
                             IsActive = true,
                             IsConfigure = true,
-                            ModifierId = request.ModifierId
+                            ModifierId = request.ModifierId,
+                            CategoryId = request.CategoryId
                         };
                         string insertQuery = @"
               INSERT INTO tblQuestion (
@@ -396,7 +408,8 @@ namespace Schools_API.Repository.Implementations
                   ExtraInformation,
                   IsActive,
                   IsConfigure,
-                  ModifierId
+                  ModifierId,
+                CategoryId
               ) VALUES (
                   @QuestionDescription,
                   @QuestionTypeId,
@@ -412,7 +425,7 @@ namespace Schools_API.Repository.Implementations
                   @QuestionCode,
                   @Explanation,
                   @ExtraInformation,
-                  @IsActive, @IsConfigure, @ModifierId
+                  @IsActive, @IsConfigure, @ModifierId, @CategoryId
               );
 
               -- Fetch the QuestionId of the newly inserted row
@@ -470,8 +483,8 @@ namespace Schools_API.Repository.Implementations
                             // If the question type supports multiple-choice or similar categories
                             if (questTypedata != null)
                             {
-                                if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "MT1" ||
-                                    questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MT2" || questTypedata.Code.Trim() == "AR" || questTypedata.Code.Trim() == "C")
+                                if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "MF" ||
+                                    questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MF2" || questTypedata.Code.Trim() == "AR" || questTypedata.Code.Trim() == "CT")
                                 {
                                     if (request.AnswerMultipleChoiceCategories != null)
                                     {
@@ -547,7 +560,8 @@ namespace Schools_API.Repository.Implementations
                         Explanation = @Explanation,
                         ExtraInformation = @ExtraInformation,
                         IsActive = @IsActive,
-                        IsConfigure = @IsConfigure
+                        IsConfigure = @IsConfigure,
+                        CategoryId = @CategoryId
                     WHERE 
                         QuestionCode = @QuestionCode and IsActive = 1";
                         var parameters = new
@@ -571,7 +585,8 @@ namespace Schools_API.Repository.Implementations
                             Explanation = request.Explanation,
                             ExtraInformation = request.ExtraInformation,
                             IsActive = request.IsActive,
-                            IsConfigure = request.IsConfigure
+                            IsConfigure = request.IsConfigure,
+                            CategoryId = request.CategoryId
                         };
 
                         int rowsAffected = _connection.Execute(query, parameters);
@@ -610,8 +625,8 @@ namespace Schools_API.Repository.Implementations
                             // If the question type supports multiple-choice or similar categories
                             if (questTypedata != null)
                             {
-                                if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "MT1" ||
-                                    questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MT2" || questTypedata.Code.Trim() == "AR" || questTypedata.Code.Trim() == "C")
+                                if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "MF" ||
+                                    questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MF2" || questTypedata.Code.Trim() == "AR" || questTypedata.Code.Trim() == "CT")
                                 {
                                     if (request.AnswerMultipleChoiceCategories != null)
                                     {
@@ -652,7 +667,7 @@ namespace Schools_API.Repository.Implementations
 
                             if (data > 0 && answer > 0)
                             {
-                                return new ServiceResponse<string>(true, "Operation Successful", "Question Added Successfully", 200);
+                                return new ServiceResponse<string>(true, "Operation Successful", "Question updated Successfully", 200);
                             }
                             else
                             {
@@ -689,7 +704,8 @@ namespace Schools_API.Repository.Implementations
                         Explanation = request.Explanation,
                         ExtraInformation = request.ExtraInformation,
                         IsActive = true,
-                        IsConfigure = true
+                        IsConfigure = true,
+                        CategoryId = request.CategoryId
                     };
                     string insertQuery = @"
               INSERT INTO tblQuestion (
@@ -708,7 +724,8 @@ namespace Schools_API.Repository.Implementations
                   Explanation,
                   ExtraInformation,
                   IsActive,
-                  IsConfigure
+                  IsConfigure,
+                  CategoryId
               ) VALUES (
                   @QuestionDescription,
                   @QuestionTypeId,
@@ -724,7 +741,7 @@ namespace Schools_API.Repository.Implementations
                   @QuestionCode,
                   @Explanation,
                   @ExtraInformation,
-                  @IsActive, @IsConfigure
+                  @IsActive, @IsConfigure, @CategoryId
               );
 
               -- Fetch the QuestionId of the newly inserted row
@@ -782,8 +799,8 @@ namespace Schools_API.Repository.Implementations
                         // If the question type supports multiple-choice or similar categories
                         if (questTypedata != null)
                         {
-                            if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "MT1" ||
-                                questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MT2" || questTypedata.Code.Trim() == "AR" || questTypedata.Code.Trim() == "C")
+                            if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "MF" ||
+                                questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MF2" || questTypedata.Code.Trim() == "AR" || questTypedata.Code.Trim() == "CT")
                             {
                                 if (request.AnswerMultipleChoiceCategories != null)
                                 {
@@ -824,7 +841,7 @@ namespace Schools_API.Repository.Implementations
 
                         if (data > 0 && answer > 0)
                         {
-                            return new ServiceResponse<string>(true, "Operation Successful", "Question updated Successfully", 200);
+                            return new ServiceResponse<string>(true, "Operation Successful", "Question Added Successfully", 200);
                         }
                         else
                         {
@@ -1001,12 +1018,12 @@ namespace Schools_API.Repository.Implementations
                 if (employeeRole.RoleCode == "TR")
                 {
                     string sql = "SELECT [RoleID] FROM [tblRole] WHERE [RoleCode] = @RoleCode;";
-                    var roleId = await _connection.QueryFirstOrDefaultAsync<int>(sql, new { RoleCode = "SM" });
+                    var roleId = await _connection.QueryFirstOrDefaultAsync<int>(sql, new { RoleCode = "SE" });
 
                     // If the current role is Transcriber, target employees with SME role
                     targetRoleIDs.Add(roleId); // Assume RoleID for SME is 3
                 }
-                else if (employeeRole.RoleCode == "SM")
+                else if (employeeRole.RoleCode == "SE")
                 {
                     string sql = "SELECT [RoleID] FROM [tblRole] WHERE [RoleCode] = @RoleCode;";
                     var roleId = await _connection.QueryFirstOrDefaultAsync<int>(sql, new { RoleCode = "PR" });
@@ -1018,7 +1035,7 @@ namespace Schools_API.Repository.Implementations
                 else if (employeeRole.RoleCode == "PR")
                 {
                     string sql = "SELECT [RoleID] FROM [tblRole] WHERE [RoleCode] = @RoleCode;";
-                    var roleId = await _connection.QueryFirstOrDefaultAsync<int>(sql, new { RoleCode = "SM" });
+                    var roleId = await _connection.QueryFirstOrDefaultAsync<int>(sql, new { RoleCode = "SE" });
                     // If the current role is Proofer, target employees with SME role
                     targetRoleIDs.Add(roleId); // Assume RoleID for SME is 3
                 }
@@ -1377,12 +1394,12 @@ namespace Schools_API.Repository.Implementations
             try
             {
 
-                string roleQuery = @"select r.RoleName from  [tblEmployee] e 
+                string roleQuery = @"select r.RoleCode from  [tblEmployee] e 
                                                  LEFT JOIN [tblRole] r ON e.RoleID = r.RoleID
                                                  WHERE e.Employeeid = @EmployeeId";
                 string Role = await _connection.QueryFirstOrDefaultAsync<string>(roleQuery, new { EmployeeId = request.EmployeeId });
                 string sql;
-                if (Role == "Proofer")
+                if (Role == "PR")
                 {
                     sql = @"
         SELECT q.*, 
@@ -1696,13 +1713,13 @@ namespace Schools_API.Repository.Implementations
                             int questionOwner = await _connection.QueryFirstOrDefaultAsync<int>(@"select EmployeeId from [tblQuestion] where QuestionCode = @QuestionCode and 
                             IsActive = 1", new { QuestionCode = request.QuestionCode });
 
-                            string roleQuery = @"select r.RoleName from  [tblEmployee] e 
+                            string roleQuery = @"select r.RoleCode from  [tblEmployee] e 
                                                  LEFT JOIN [tblRole] r ON e.RoleID = r.RoleID
                                                  WHERE e.Employeeid = @EmployeeId";
                             string ownerRole = await _connection.QueryFirstOrDefaultAsync<string>(roleQuery, new { EmployeeId = questionOwner });
                             string rejectorRole = await _connection.QueryFirstOrDefaultAsync<string>(roleQuery, new { EmployeeId = request.Rejectedby });
 
-                            if (ownerRole == "Transcriptor" && rejectorRole == "Proofer")
+                            if (ownerRole == "TR" && rejectorRole == "PR")
                             {
                                 // Fetch second last record from tblQuestionProfiler
                                 var profilerList = (await _connection.QueryAsync<dynamic>(@"
@@ -1880,48 +1897,69 @@ namespace Schools_API.Repository.Implementations
                     _connection.Open();
                 }
 
-                using (var transaction = _connection.BeginTransaction())
-                {
+              
                     // Check if the question is already assigned to a profiler with active status based on QuestionCode
                     string checkSql = @"
             SELECT QPID, EmpId
             FROM tblQuestionProfiler
             WHERE QuestionCode = @QuestionCode AND Status = 1";
 
-                    var existingProfiler = await _connection.QueryFirstOrDefaultAsync<(int? QPID, int EmpId)>(checkSql, new { request.QuestionCode }, transaction);
+                    var existingProfiler = await _connection.QueryFirstOrDefaultAsync<(int? QPID, int EmpId)>(checkSql, new { request.QuestionCode });
 
                     // If the question is already assigned, update the status of the current profiler to inactive
                     if (existingProfiler.QPID.HasValue)
                     {
                         // Check the role of the current employee (SME or Proofer)
                         string fetchRoleCodeSql = @"
-                        SELECT e.Employeeid, e.EmpFirstName, e.EmpLastName, r.RoleCode
+                        SELECT r.RoleCode
                         FROM tblEmployee e
                         JOIN tblRole r ON e.RoleID = r.RoleID
                         WHERE e.Employeeid = @EmpId";
 
-                        var currentRoleCode = await _connection.QueryFirstOrDefaultAsync<int>(fetchRoleCodeSql, new { EmpId = existingProfiler.EmpId }, transaction);
+                        var currentRoleCode = await _connection.QueryFirstOrDefaultAsync<string>(fetchRoleCodeSql, new { EmpId = existingProfiler.EmpId });
 
                         // Fetch the role of the new employee (to whom the question is being assigned)
-                        var newRoleCode = await _connection.QueryFirstOrDefaultAsync<int>(fetchRoleCodeSql, new { EmpId = request.EmpId }, transaction);
+                        var newRoleCode = await _connection.QueryFirstOrDefaultAsync<string>(fetchRoleCodeSql, new { EmpId = request.EmpId });
 
-                        // If current role is SME and the new role is Proofer, approve the question
-                        if (currentRoleCode == 3 && newRoleCode == 4) // RoleCode 3 = SME, 4 = Proofer
+                    // If current role is SME and the new role is Proofer, approve the question
+                    if (currentRoleCode == "SE" && newRoleCode == "PR") // RoleCode 3 = SME, 4 = Proofer
+                    {
+                        // Get the QuestionId based on QuestionCode and IsActive = 1
+                        var questionId1 = await _connection.QueryFirstOrDefaultAsync<int>(@"
+            SELECT QuestionId FROM [tblQuestion]
+            WHERE QuestionCode = @QuestionCode AND IsActive = 1",
+                        new { request.QuestionCode });
+
+                        if (questionId1 == 0)
                         {
-                            // Call ApproveQuestion logic for SME approval
-                            var approvalRequest = new QuestionApprovalRequestDTO
-                            {
-                                QuestionCode = request.QuestionCode,
-                                ApprovedBy = existingProfiler.EmpId,
-                                ApprovedDate = DateTime.UtcNow
-                            };
-
-                            var approvalResponse = await ApproveQuestion(approvalRequest);
-                            if (!approvalResponse.Success)
-                            {
-                                return new ServiceResponse<string>(false, "Failed to approve question by SME", string.Empty, 500);
-                            }
+                            return new ServiceResponse<string>(false, "Question not found or already inactive", "Failure", 404);
                         }
+
+                        // Insert into tblQuestionProfilerApproval
+                        string insertApprovalSql = @"
+            INSERT INTO [tblQuestionProfilerApproval]
+            ([QuestionId], [ApprovedBy], [ApprovedDate], QuestionCode)
+            VALUES (@QuestionId, @ApprovedBy, @ApprovedDate, @QuestionCode)";
+
+                        var insertApprovalParameters = new
+                        {
+                            QuestionId = questionId1,
+                            ApprovedBy = existingProfiler.EmpId,
+                            ApprovedDate = DateTime.UtcNow,
+                            QuestionCode = request.QuestionCode
+                        };
+
+                        await _connection.ExecuteAsync(insertApprovalSql, insertApprovalParameters);
+
+                        // Update tblQuestionProfiler to set status of the current profiler to inactive
+                        string updateProfilerSql = @"
+            UPDATE tblQuestionProfiler
+            SET Status = 0, ApprovedStatus = 1
+            WHERE Status = 1 AND QuestionCode = @QuestionCode";
+
+                        await _connection.ExecuteAsync(updateProfilerSql, new { request.QuestionCode });
+
+                    }
 
                         // Update the status of the current profiler to inactive
                         string updateSql = @"
@@ -1929,7 +1967,7 @@ namespace Schools_API.Repository.Implementations
                 SET Status = 0
                 WHERE QPID = @QPID";
 
-                        await _connection.ExecuteAsync(updateSql, new { QPID = existingProfiler.QPID }, transaction);
+                        await _connection.ExecuteAsync(updateSql, new { QPID = existingProfiler.QPID });
                     }
 
                     // Fetch the QuestionId from the main table using QuestionCode and IsActive = 1
@@ -1938,17 +1976,17 @@ namespace Schools_API.Repository.Implementations
             FROM tblQuestion
             WHERE QuestionCode = @QuestionCode AND IsActive = 1";
 
-                    var questionId = await _connection.QueryFirstOrDefaultAsync<int?>(fetchQuestionIdSql, new { request.QuestionCode }, transaction);
+                    var questionId = await _connection.QueryFirstOrDefaultAsync<int?>(fetchQuestionIdSql, new { request.QuestionCode });
 
                     if (!questionId.HasValue)
                     {
                         return new ServiceResponse<string>(false, "Question not found or inactive", string.Empty, 404);
                     }
-                    string roleQuery = @"select r.RoleName from  [tblEmployee] e 
+                    string roleQuery = @"select r.RoleCode from  [tblEmployee] e 
                                                  LEFT JOIN [tblRole] r ON e.RoleID = r.RoleID
                                                  WHERE e.Employeeid = @EmployeeId";
-                    string GetRoleName = await _connection.QueryFirstOrDefaultAsync<string>(roleQuery, new { EmployeeId = request.EmpId }, transaction);
-                    if (GetRoleName == "SME")
+                    string GetRoleName = await _connection.QueryFirstOrDefaultAsync<string>(roleQuery, new { EmployeeId = request.EmpId });
+                    if (GetRoleName == "SE")
                     {
                         // Update the tblQuestion to set IsRejected and IsApproved to 0
                         string updateQuestionSql = @"
@@ -1956,7 +1994,7 @@ namespace Schools_API.Repository.Implementations
             SET IsRejected = 0, IsApproved = 0
             WHERE QuestionId = @QuestionId";
 
-                        await _connection.ExecuteAsync(updateQuestionSql, new { QuestionId = questionId.Value }, transaction);
+                        await _connection.ExecuteAsync(updateQuestionSql, new { QuestionId = questionId.Value });
                     }
                     // Insert a new record for the new profiler with ApprovedStatus = false and Status = true
                     string insertSql = @"
@@ -1969,11 +2007,8 @@ namespace Schools_API.Repository.Implementations
                         request.QuestionCode,
                         request.EmpId,
                         AssignedDate = DateTime.Now
-                    }, transaction);
-
-                    // Commit the transaction
-                    transaction.Commit();
-                }
+                    });
+                
 
                 return new ServiceResponse<string>(true, "Question successfully assigned to profiler", string.Empty, 200);
             }
@@ -2391,6 +2426,38 @@ namespace Schools_API.Repository.Implementations
                 // Create an ExcelPackage
                 using (var package = new ExcelPackage())
                 {
+                    string contentCode = string.Empty;
+                    int subjectId = request.subjectId;
+
+                    if (request.indexTypeId == 1)
+                    {
+                        // Fetch Chapter Data
+                        var chapter = await _connection.QueryFirstOrDefaultAsync("SELECT ChapterCode, SubjectId FROM tblContentIndexChapters WHERE ContentIndexId = @contentId AND IndexTypeId = @indexTypeId",
+                        new { contentId = request.contentId, indexTypeId = request.indexTypeId });
+
+                        contentCode = chapter?.ChapterCode;
+                        //subjectId = chapter?.SubjectId ?? 0;
+                    }
+                    else if (request.indexTypeId == 2)
+                    {
+                        // Fetch Topic Data
+                        var topic = await _connection.QueryFirstOrDefaultAsync("SELECT TopicCode, SubjectId FROM tblContentIndexTopics WHERE ContInIdTopic = @contentId",
+                        new { contentId = request.contentId });
+
+                        contentCode = topic?.TopicCode;
+                        //subjectId = topic?.SubjectId ?? 0;
+                    }
+                    else if (request.indexTypeId == 3)
+                    {
+                        // Fetch SubTopic Data
+                        var subTopic = await _connection.QueryFirstOrDefaultAsync("SELECT SubTopicCode, SubjectId FROM tblContentIndexSubTopics WHERE ContInIdSubTopic = @contentId",
+                        new { contentId = request.contentId });
+
+                        contentCode = subTopic?.SubTopicCode;
+                        //subjectId = subTopic?.SubjectId ?? 0;
+                    }
+
+
                     int maxOptions = 0;
                     int optionsToAdd = Math.Max(4, maxOptions);
 
@@ -2399,14 +2466,18 @@ namespace Schools_API.Repository.Implementations
                     var worksheet = package.Workbook.Worksheets.Add("Questions");
 
                     // Add headers for Questions
-                    worksheet.Cells[1, 1].Value = "SubjectId";
-                    worksheet.Cells[1, 2].Value = "Chapter/Concept/Sub-ConceptId";
-                    worksheet.Cells[1, 3].Value = "QuestionTypeId"; 
-                    worksheet.Cells[1, 4].Value = "Question"; 
-                    worksheet.Cells[1, 5].Value = "Answer";
+                    worksheet.Cells[1, 1].Value = "CategoryId";
+                    worksheet.Cells[1, 2].Value = "SubjectId";
+                    worksheet.Cells[1, 3].Value = "Chapter/Concept/Sub-ConceptId";
+                    worksheet.Cells[1, 4].Value = "QuestionTypeId"; 
+                    worksheet.Cells[1, 5].Value = "Question"; 
+                    worksheet.Cells[1, 6].Value = "Answer";
 
+                    worksheet.Cells[2, 1].Value = request.CategoryId;
+                    worksheet.Cells[2, 2].Value = subjectId; // Fetched subjectId
+                    worksheet.Cells[2, 3].Value = contentCode;
                     // Add dynamic columns for options starting from column 6
-                    int optionStartIndex = 6;
+                    int optionStartIndex = 7;
                     for (int i = 0; i < optionsToAdd; i++)
                     {
                         worksheet.Cells[1, optionStartIndex + i].Value = $"Option{i + 1}";
@@ -2457,7 +2528,7 @@ namespace Schools_API.Repository.Implementations
                 return new ServiceResponse<byte[]>(false, ex.Message, [], 500);
             }
         }
-        private void AddMasterDataSheets(ExcelPackage package, int subjectId)
+        private async void AddMasterDataSheets(ExcelPackage package, int subjectId)
         {
             // Create worksheets for master data
             var subjectWorksheet = package.Workbook.Worksheets.Add("Subjects");
@@ -2465,13 +2536,26 @@ namespace Schools_API.Repository.Implementations
             var difficultyLevelWorksheet = package.Workbook.Worksheets.Add("Difficulty Levels");
             var questionTypeWorksheet = package.Workbook.Worksheets.Add("Question Types");
             var coursesWorksheet = package.Workbook.Worksheets.Add("Courses");
+            var categoryWorksheet = package.Workbook.Worksheets.Add("Category");
 
+
+            categoryWorksheet.Cells[1, 1].Value = "CategoryId";
+            categoryWorksheet.Cells[1, 2].Value = "Category";
+
+            var category = await _connection.QueryAsync<dynamic>(@"select * from tblCategory where Status = 1");
+            int categoryRow = 2;
+            foreach (var data in category)
+            {
+                categoryWorksheet.Cells[categoryRow, 1].Value = data.APId;
+                categoryWorksheet.Cells[categoryRow, 2].Value = data.APName;
+                categoryRow++;
+            }
             // Populate data for Subjects
             subjectWorksheet.Cells[1, 1].Value = "SubjectId";
             subjectWorksheet.Cells[1, 2].Value = "SubjectCode";
-            subjectWorksheet.Cells[1, 2].Value = "SubjectName";
+            subjectWorksheet.Cells[1, 3].Value = "SubjectName";
 
-            var subjects = GetSubjects();
+            var subjects = GetSubjects(subjectId);
             int subjectRow = 2;
             foreach (var subject in subjects)
             {
@@ -2564,11 +2648,12 @@ namespace Schools_API.Repository.Implementations
             difficultyLevelWorksheet.Cells[difficultyLevelWorksheet.Dimension.Address].AutoFitColumns();
             questionTypeWorksheet.Cells[questionTypeWorksheet.Dimension.Address].AutoFitColumns();
             coursesWorksheet.Cells[coursesWorksheet.Dimension.Address].AutoFitColumns();
+            categoryWorksheet.Cells[categoryWorksheet.Dimension.Address].AutoFitColumns();
         }
-        private IEnumerable<Subject> GetSubjects()
+        private IEnumerable<Subject> GetSubjects(int subjectId)
         {
-            var query = "SELECT * FROM tblSubject WHERE Status = 1";
-            var result = _connection.Query<dynamic>(query);
+            var query = "SELECT * FROM tblSubject WHERE SubjectId = @subjectId AND Status = 1";
+            var result = _connection.Query<dynamic>(query, new { subjectId = subjectId });
             var resposne = result.Select(item => new Subject
             {
                 SubjectCode = item.SubjectCode,
@@ -2613,7 +2698,7 @@ namespace Schools_API.Repository.Implementations
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
             var questions = new List<QuestionDTO>();
             Dictionary<string, int> courseCodeDictionary = new Dictionary<string, int>();
-        
+            Dictionary<string, int> subjectDictionary = new Dictionary<string, int>();
 
             using (var stream = new MemoryStream())
             {
@@ -2626,13 +2711,26 @@ namespace Schools_API.Repository.Implementations
                     var worksheet = package.Workbook.Worksheets["Questions"];
                     var rowCount = worksheet.Dimension.Rows;
                     var courseSheet = package.Workbook.Worksheets["Courses"];
+                    var subjectSheet = package.Workbook.Worksheets["Subjects"];
                     LoadCourseCodes(courseSheet, courseCodeDictionary);
+                    LoadSubjectCodes(subjectSheet, subjectDictionary);
 
                     for (int row = 2; row <= rowCount; row++) // Skip header row
                     {
+                        int courseStartCol = 0;
+                        for (int col = 1; col <= worksheet.Dimension.Columns; col++)
+                        {
+                            if (worksheet.Cells[1, col].Text.Equals("Extra Information", StringComparison.OrdinalIgnoreCase))
+                            {
+                                courseStartCol = col + 1; // Start right after "Extra Information"
+                                break;
+                            }
+                        }
 
-                        // Identify the starting column index for courses (after "Extra Information")
-                        int courseStartCol = 12; // Assuming 'Extra Information' is in column K (11), so courses start from column L (12)
+                        if (courseStartCol == 0)
+                        {
+                            return new ServiceResponse<string>(false, "Extra Information column not found.", string.Empty, 400);
+                        }
 
                         var qidCourses = new List<QIDCourse>();
 
@@ -2671,7 +2769,7 @@ namespace Schools_API.Repository.Implementations
                         }
 
                         // Fetch chapter, topic, and subtopic names
-                        string contentCode = worksheet.Cells[row, 2].Text;  // Fetch Content Code from the sheet
+                        string contentCode = worksheet.Cells[row, 3].Text;  // Fetch Content Code from the sheet
                         int indexTypeId = 0;
                         int contentIndexId = 0;
 
@@ -2703,23 +2801,46 @@ namespace Schools_API.Repository.Implementations
                         {
                             return new ServiceResponse<string>(false, $"Content index not found for the specified names at row {row}.", string.Empty, 400);
                         }
+                        string extraInfo = worksheet.Cells[row, courseStartCol - 1].Text; // Assuming extra info column is just before courses
+                        int explanationCol = 0;
+                        for (int col = 1; col <= worksheet.Dimension.Columns; col++)
+                        {
+                            if (worksheet.Cells[1, col].Text.Equals("Explanation", StringComparison.OrdinalIgnoreCase))
+                            {
+                                explanationCol = col;
+                                break;
+                            }
+                        }
 
+                        string explanation = explanationCol > 0 ? worksheet.Cells[row, explanationCol].Text : null;
+                        // Fetch the SubjectID from the row
+                        int subjectIDFromRow = Convert.ToInt32(worksheet.Cells[row, 2].Text);
+                        int validSubjectId = subjectDictionary.ContainsValue(subjectIDFromRow) ? subjectIDFromRow : 0;
+                        // Subject ID validation - if it doesn't match, skip this record
+                        if (subjectIDFromRow != validSubjectId)
+                        {
+                            // Log the skipped question if needed
+                            Console.WriteLine($"Skipped question at row {row}: Subject ID {subjectIDFromRow} does not match {validSubjectId}.");
+                            continue; // Skip to the next question
+                        }
                         // Create the question DTO
                         var question = new QuestionDTO
                         {
-                            QuestionDescription = worksheet.Cells[row, 4].Text,
-                            QuestionTypeId = Convert.ToInt32(worksheet.Cells[row, 3].Text),
-                            subjectID = Convert.ToInt32(worksheet.Cells[row, 1].Text),
+                            QuestionDescription = worksheet.Cells[row, 5].Text,
+                            QuestionTypeId = Convert.ToInt32(worksheet.Cells[row, 4].Text),
+                            subjectID = Convert.ToInt32(worksheet.Cells[row, 2].Text),
                             IndexTypeId = indexTypeId,
-                            Explanation = string.IsNullOrEmpty(worksheet.Cells[row, 10].Text) ? null : worksheet.Cells[row, 10].Text,
+                            Explanation = explanation,
                             QuestionCode = string.IsNullOrEmpty(worksheet.Cells[row, 27].Text) ? null : worksheet.Cells[row, 27].Text,
                             ContentIndexId = contentIndexId,
                             AnswerMultipleChoiceCategories = GetAnswerMultipleChoiceCategories(worksheet, row),
-                            Answersingleanswercategories = GetAnswerSingleAnswerCategories(worksheet, row, Convert.ToInt32(worksheet.Cells[row, 3].Text)),
+                            Answersingleanswercategories = GetAnswerSingleAnswerCategories(worksheet, row, Convert.ToInt32(worksheet.Cells[row, 4].Text)),
                             QIDCourses = qidCourses,
                             IsActive = true,
                             IsConfigure = true,
-                            EmployeeId = EmployeeId
+                            EmployeeId = EmployeeId,
+                            CategoryId = Convert.ToInt32(worksheet.Cells[row, 1].Text),
+                            ExtraInformation = extraInfo
                         };
 
                         // Add question to the list for bulk processing
@@ -2760,7 +2881,7 @@ namespace Schools_API.Repository.Implementations
             var query = "SELECT SubjectId FROM tblSubject WHERE [SubjectName] = @subjectName"; 
             for (int row = 2; row <= rowCount; row++) // Assuming the first row contains headers
             {
-                var subjectName = sheet.Cells[row, 1].Text; // Assuming subject codes are in the second column
+                var subjectName = sheet.Cells[row, 3].Text; // Assuming subject codes are in the second column
                 var subjectId = _connection.QuerySingleOrDefault<int>(query, new { subjectName = subjectName });
 
                 if (!string.IsNullOrEmpty(subjectName) && !dictionary.ContainsKey(subjectName))
@@ -2789,9 +2910,9 @@ namespace Schools_API.Repository.Implementations
             var categories = new List<AnswerMultipleChoiceCategory>();
 
             // Get the correct answers from cell 5 (comma-separated for multiple answers)
-            var correctAnswers = worksheet.Cells[row, 5].Text.Split(',').Select(a => a.Trim()).ToList();
+            var correctAnswers = worksheet.Cells[row, 6].Text.Split(',').Select(a => a.Trim()).ToList();
 
-            int optionColumn = 6; // Start from column 6 where the options begin
+            int optionColumn = 7; // Start from column 6 where the options begin
 
             // Loop through the columns until the Explanation column is found
             while (true)
@@ -2828,20 +2949,30 @@ namespace Schools_API.Repository.Implementations
         }
         private Answersingleanswercategory GetAnswerSingleAnswerCategories(ExcelWorksheet worksheet, int row, int questionTypeId)
         {
-            if(questionTypeId == 7 || questionTypeId == 8|| questionTypeId == 10 || questionTypeId == 11 || questionTypeId == 12)
+            string answer = null;
+            // Define which question types are considered descriptive
+            if (questionTypeId == 7 || questionTypeId == 8 || questionTypeId == 10 || questionTypeId == 11 || questionTypeId == 12)
             {
-                var answer = worksheet.Cells[row, 5].Text; // Single answer category in column 15
 
-                return new Answersingleanswercategory
+                // Loop through the columns to find the "Explanation" column
+                for (int col = 1; col <= worksheet.Dimension.Columns; col++)
                 {
-                    Answer = answer
-                };
+                    var headerText = worksheet.Cells[1, col].Text;
+
+                    if (headerText.Equals("Explanation", StringComparison.OrdinalIgnoreCase))
+                    {
+                        answer = worksheet.Cells[row, col].Text; // Fetch the explanation text as the answer
+                        break;
+                    }
+                }
             }
-            else
+            // Return the answer for single-answer category questions
+            return new Answersingleanswercategory
             {
-                return null;
-            }
+                Answer = answer
+            };
         }
+
         // Helper method to fetch questions based on parameters
         private double CalculateSimilarity(string question1, string question2)
         {

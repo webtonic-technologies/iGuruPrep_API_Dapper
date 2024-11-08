@@ -28,6 +28,7 @@
         public int subjectID { get; set; }
         //public int ExamTypeId { get; set; }
         public int EmployeeId { get; set; }
+        public int CategoryId {  get; set; }
         public int ModifierId { get; set; }
         //public int userid { get; set; }
         //public string Rejectedby { get; set; } = string.Empty;

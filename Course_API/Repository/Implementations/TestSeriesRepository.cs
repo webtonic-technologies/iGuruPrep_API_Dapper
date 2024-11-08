@@ -1812,8 +1812,8 @@ WHERE TestSeriesId != @TestSeriesId
                     // If the question type supports multiple-choice or similar categories
                     if (questTypedata != null)
                     {
-                        if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "MT1" ||
-                            questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MT2" || questTypedata.Code.Trim() == "AR" || questTypedata.Code.Trim() == "C")
+                        if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "MF" ||
+                            questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MF2" || questTypedata.Code.Trim() == "AR" || questTypedata.Code.Trim() == "CT")
                         {
                             if (request.AnswerMultipleChoiceCategories != null)
                             {
@@ -2375,8 +2375,8 @@ WHERE TestSeriesId != @TestSeriesId
                     // If the question type supports multiple-choice or similar categories
                     if (questTypedata != null)
                     {
-                        if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "MT1" || questTypedata.Code.Trim() == "FB" || questTypedata.Code.Trim() == "MT" ||
-                            questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MT2" || questTypedata.Code.Trim() == "AR" || questTypedata.Code.Trim() == "C")
+                        if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "FB" || questTypedata.Code.Trim() == "MF" ||
+                            questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MF2" || questTypedata.Code.Trim() == "AR" || questTypedata.Code.Trim() == "CT")
                         {
                             if (request.AnswerMultipleChoiceCategories != null)
                             {

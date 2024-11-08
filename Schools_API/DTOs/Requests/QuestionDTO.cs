@@ -8,6 +8,7 @@ namespace Schools_API.DTOs.Requests
         public string QuestionDescription { get; set; } = string.Empty;
         public int QuestionTypeId { get; set; }
         public bool? Status { get; set; }
+        public int CategoryId { get; set; }
         public string? CreatedBy { get; set; }
         public DateTime? CreatedOn { get; set; }
         public string? ModifiedBy { get; set; }
