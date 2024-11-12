@@ -2441,7 +2441,7 @@ namespace Schools_API.Repository.Implementations
                     else if (request.indexTypeId == 2)
                     {
                         // Fetch Topic Data
-                        var topic = await _connection.QueryFirstOrDefaultAsync("SELECT TopicCode, SubjectId FROM tblContentIndexTopics WHERE ContInIdTopic = @contentId",
+                        var topic = await _connection.QueryFirstOrDefaultAsync("SELECT TopicCode FROM tblContentIndexTopics WHERE ContInIdTopic = @contentId",
                         new { contentId = request.contentId });
 
                         contentCode = topic?.TopicCode;
@@ -2450,7 +2450,7 @@ namespace Schools_API.Repository.Implementations
                     else if (request.indexTypeId == 3)
                     {
                         // Fetch SubTopic Data
-                        var subTopic = await _connection.QueryFirstOrDefaultAsync("SELECT SubTopicCode, SubjectId FROM tblContentIndexSubTopics WHERE ContInIdSubTopic = @contentId",
+                        var subTopic = await _connection.QueryFirstOrDefaultAsync("SELECT SubTopicCode FROM tblContentIndexSubTopics WHERE ContInIdSubTopic = @contentId",
                         new { contentId = request.contentId });
 
                         contentCode = subTopic?.SubTopicCode;
@@ -2528,7 +2528,7 @@ namespace Schools_API.Repository.Implementations
                 return new ServiceResponse<byte[]>(false, ex.Message, [], 500);
             }
         }
-        private async void AddMasterDataSheets(ExcelPackage package, int subjectId)
+        private void AddMasterDataSheets(ExcelPackage package, int subjectId)
         {
             // Create worksheets for master data
             var subjectWorksheet = package.Workbook.Worksheets.Add("Subjects");
@@ -2542,7 +2542,7 @@ namespace Schools_API.Repository.Implementations
             categoryWorksheet.Cells[1, 1].Value = "CategoryId";
             categoryWorksheet.Cells[1, 2].Value = "Category";
 
-            var category = await _connection.QueryAsync<dynamic>(@"select * from tblCategory where Status = 1");
+            var category =  _connection.Query<dynamic>(@"select * from tblCategory where Status = 1");
             int categoryRow = 2;
             foreach (var data in category)
             {
