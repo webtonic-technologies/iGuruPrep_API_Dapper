@@ -12,9 +12,9 @@ namespace StudentApp_API.Services.Interfaces
         Task<ServiceResponse<VerifyOTPResponse>> VerifyOTPAsync(VerifyOTPRequest request);
         Task<ServiceResponse<LoginResponse>> LoginAsync(LoginRequest request);
         Task<ServiceResponse<AssignCourseResponse>> AssignCourseAsync(AssignCourseRequest request);
-
+        Task<ServiceResponse<int>> AddUpdateProfile(UpdateProfileRequest request);
         Task<ServiceResponse<AssignClassResponse>> AssignClassAsync(AssignClassRequest request);
-
+        Task<ServiceResponse<RegistrationDTO>> GetRegistrationByIdAsync(int registrationId);
 
     }
 }

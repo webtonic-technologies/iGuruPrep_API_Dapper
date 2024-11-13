@@ -34,7 +34,17 @@ namespace StudentApp_API.Controllers
 
             return BadRequest(response);
         }
+        [HttpPost("AddUpdateProfile")]
+        public async Task<IActionResult> AddUpdateProfile(UpdateProfileRequest request)
+        {
+            var response = await _registrationService.AddUpdateProfile(request);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
 
+            return BadRequest(response);
+        }
         [HttpPost("GetCourse")]
         public async Task<IActionResult> GetCourses()
         {
@@ -58,7 +68,17 @@ namespace StudentApp_API.Controllers
 
             return BadRequest(response);
         }
+        [HttpGet("GetProfileById/{registrationId}")]
+        public async Task<IActionResult> GetRegistrationByIdAsync(int registrationId)
+        {
+            var response = await _registrationService.GetRegistrationByIdAsync(registrationId);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
 
+            return BadRequest(response);
+        }
 
         [HttpPost("SendOTP")]
         public async Task<IActionResult> SendOTP([FromBody] SendOTPRequest request)

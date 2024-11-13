@@ -215,5 +215,124 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<AssignClassResponse>(false, ex.Message, null, 500);
             }
         }
+        public async Task<ServiceResponse<int>> AddUpdateProfile(UpdateProfileRequest request)
+        {
+            if (_connection.State != ConnectionState.Open)
+            {
+                _connection.Open();
+            }
+
+            using (var transaction = _connection.BeginTransaction()) // Use a transaction to ensure atomicity
+            {
+                try
+                {
+                    // Skip tblRegistration update/insert logic completely
+                    int registrationId = request.RegistrationID;  // Assume RegistrationID is passed in request
+
+                    // Now, handle parent information (insert or update based on ParentID)
+                    if (request.ParentRequests != null && request.ParentRequests.Count > 0)
+                    {
+                        foreach (var parent in request.ParentRequests)
+                        {
+                            // Check if parent info already exists for the given RegistrationID
+                            string checkParentQuery = @"
+                        SELECT COUNT(1) 
+                        FROM tblParentsInfo 
+                        WHERE ParentID = @ParentID AND RegistrationID = @RegistrationID";
+
+                            var parentExists = await _connection.ExecuteScalarAsync<int>(checkParentQuery, new
+                            {
+                                parent.ParentID,
+                                RegistrationID = registrationId
+                            }, transaction);
+
+                            if (parentExists > 0)
+                            {
+                                // Update parent information if record exists
+                                string updateParentQuery = @"
+                        UPDATE tblParentsInfo
+                        SET ParentType = @ParentType,
+                            MobileNo = @MobileNo,
+                            EmailID = @EmailID
+                        WHERE ParentID = @ParentID AND RegistrationID = @RegistrationID";
+
+                                await _connection.ExecuteAsync(updateParentQuery, new
+                                {
+                                    parent.ParentID,
+                                    parent.ParentType,
+                                    parent.MobileNo,
+                                    parent.EmailID,
+                                    RegistrationID = registrationId
+                                }, transaction);
+                            }
+                            else
+                            {
+                                // Insert new parent information if record doesn't exist
+                                string insertParentQuery = @"
+                        INSERT INTO tblParentsInfo (ParentType, MobileNo, EmailID, RegistrationID)
+                        VALUES (@ParentType, @MobileNo, @EmailID, @RegistrationID)";
+
+                                await _connection.ExecuteAsync(insertParentQuery, new
+                                {
+                                    parent.ParentType,
+                                    parent.MobileNo,
+                                    parent.EmailID,
+                                    RegistrationID = registrationId
+                                }, transaction);
+                            }
+                        }
+                    }
+
+                    transaction.Commit();  // Commit the transaction
+                    return new ServiceResponse<int>(true, "Parent information updated successfully.", registrationId, 200);
+                }
+                catch (Exception ex)
+                {
+                    transaction.Rollback();  // Rollback in case of an error
+                    return new ServiceResponse<int>(false, ex.Message, 0, 500);
+                }
+            }
+        }
+        public async Task<ServiceResponse<RegistrationDTO>> GetRegistrationByIdAsync(int registrationId)
+        {
+            var queryRegistration = @"
+        SELECT RegistrationID, FirstName, LastName, CountryCodeID, MobileNumber, EmailID, Password, 
+               CountryID, StatusID, Location, ReferralCode, SchoolCode, RegistrationDate, IsActive, 
+               IsTermsAgreed, Photo, OTP
+        FROM tblRegistration
+        WHERE RegistrationID = @RegistrationID";
+
+            var queryParents = @"
+        SELECT ParentID, ParentType, MobileNo, EmailID, RegistrationID
+        FROM tblParentsInfo
+        WHERE RegistrationID = @RegistrationID";
+
+            if (_connection.State != ConnectionState.Open)
+            {
+                _connection.Open();
+            }
+
+            try
+            {
+                // Fetch registration details
+                var registration = await _connection.QueryFirstOrDefaultAsync<RegistrationDTO>(queryRegistration, new { RegistrationID = registrationId });
+
+                if (registration == null)
+                {
+                    return new ServiceResponse<RegistrationDTO>(false, "Registration not found.", null, 404);
+                }
+
+                // Fetch parent details
+                var parents = await _connection.QueryAsync<ParentDTO>(queryParents, new { RegistrationID = registrationId });
+
+                registration.Parents = parents.ToList();
+
+                return new ServiceResponse<RegistrationDTO>(true, "Success", registration, 200);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<RegistrationDTO>(false, ex.Message, null, 500);
+            }
+        }
     }
 }

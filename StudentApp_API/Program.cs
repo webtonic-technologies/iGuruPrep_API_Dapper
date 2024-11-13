@@ -26,6 +26,11 @@ builder.Services.AddTransient<IClassCourseRepository, ClassCourseRepository>();
 builder.Services.AddTransient<IScholarshipService, ScholarshipService>();
 builder.Services.AddTransient<IScholarshipRepository, ScholarshipRepository>();
 
+builder.Services.AddTransient<IProjectForStudentsServices, ProjectForStudentsServices>();
+builder.Services.AddTransient<IProjectForStudentsRepository, ProjectForStudentsRepository>();
+
+builder.Services.AddTransient<IRefresherGuideRepository, RefresherGuideRepository>();
+builder.Services.AddTransient<IRefresherGuideServices, RefresherGuideServices>();
 
 // Add other services as needed in the future
 // builder.Services.AddTransient<IOtherService, OtherService>();

@@ -44,5 +44,15 @@ namespace StudentApp_API.Services.Implementations
         {
             return await _registrationRepository.AssignClassAsync(request);
         }
+
+        public async Task<ServiceResponse<int>> AddUpdateProfile(UpdateProfileRequest request)
+        {
+            return await _registrationRepository.AddUpdateProfile(request);
+        }
+
+        public async Task<ServiceResponse<RegistrationDTO>> GetRegistrationByIdAsync(int registrationId)
+        {
+            return await _registrationRepository.GetRegistrationByIdAsync(registrationId);
+        }
     }
 }

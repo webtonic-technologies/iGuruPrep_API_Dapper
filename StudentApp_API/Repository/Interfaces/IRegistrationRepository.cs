@@ -17,6 +17,7 @@ namespace StudentApp_API.Repository.Interfaces
 
         Task<ServiceResponse<AssignClassResponse>> AssignClassAsync(AssignClassRequest request);
 
-
+        Task<ServiceResponse<int>> AddUpdateProfile(UpdateProfileRequest request);
+        Task<ServiceResponse<RegistrationDTO>> GetRegistrationByIdAsync(int registrationId);
     }
 }
