@@ -53,17 +53,17 @@ namespace StudentApp_API.Controllers
 
             return BadRequest(response);
         }
-        [HttpGet("GetQuestionsBySectionSettings/{scholarshipTestId}")]
-        public async Task<IActionResult> GetQuestionsBySectionSettings(int scholarshipTestId)
-        {
-            var response = await _scholarshipService.GetQuestionsBySectionSettings(scholarshipTestId);
-            if (response.Success)
-            {
-                return Ok(response);
-            }
+        //[HttpGet("GetQuestionsBySectionSettings/{scholarshipTestId}")]
+        //public async Task<IActionResult> GetQuestionsBySectionSettings(int scholarshipTestId)
+        //{
+        //    var response = await _scholarshipService.GetQuestionsBySectionSettings(scholarshipTestId);
+        //    if (response.Success)
+        //    {
+        //        return Ok(response);
+        //    }
 
-            return BadRequest(response);
-        }
+        //    return BadRequest(response);
+        //}
         [HttpGet("GetScholarshipSubjectQuestionCount/{scholarshipTestId}")]
         public async Task<IActionResult> GetScholarshipSubjectQuestionCount(int scholarshipTestId)
         {

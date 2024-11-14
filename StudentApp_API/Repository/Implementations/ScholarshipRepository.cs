@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using StudentApp_API.DTOs.Requests;
 using StudentApp_API.DTOs.Responses;
 using StudentApp_API.DTOs.ServiceResponse;
+using StudentApp_API.Models;
 using StudentApp_API.Repository.Interfaces;
 using System.Data;
 using System.Data.Common;
@@ -22,48 +23,22 @@ namespace StudentApp_API.Repository.Implementations
         {
             try
             {
-                // Part I: Get CourseID and ClassID
-                var courseClassQuery = @"SELECT CourseID, ClassID 
-                                         FROM tblStudentClassCourseMapping 
-                                         WHERE RegistrationID = @RegistrationID";
-                var courseClass = await _connection.QueryFirstOrDefaultAsync(courseClassQuery, new { request.RegistrationID });
+                var scholarshipData = await GetScholarshipTestByRegistrationId(request.RegistrationID);
 
-                if (courseClass == null)
-                {
-                    return new ServiceResponse<bool>(false, "No course and class found for this registration ID.", false, 404);
-                }
+                var scholarshipQuestion = await GetQuestionsBySectionSettings(scholarshipData.Data.ScholarshipTest.ScholarshipTestId);
 
-                int courseId = courseClass.CourseID;
-                int classId = courseClass.ClassID;
-
-                // Part II: Fetch ScholarshipTest and Questions based on CourseID and ClassID
-                var scholarshipQuery = @"SELECT ST.ScholarshipTestId AS ScholarshipID, 
-                                                Q.QuestionId AS QuestionID, 
-                                                Q.SubjectID AS SubjectID, 
-                                                A.QuestionTypeID AS QuestionTypeID
-                                         FROM [tblQuestion] Q
-                                         LEFT JOIN [tblAnswerMaster] A ON Q.QuestionId = A.QuestionID
-                                         LEFT JOIN [tblSSTQuestions] SS ON SS.QuestionId = Q.QuestionId
-                                         LEFT JOIN [tblScholarshipTest] ST ON ST.ScholarshipTestId = SS.ScholarshipTestId
-                                         LEFT JOIN [tblScholarshipCourse] C ON C.ScholarshipTestId = ST.ScholarshipTestId
-                                         LEFT JOIN [tblScholarshipClass] CL ON CL.ScholarshipTestId = ST.ScholarshipTestId
-                                         WHERE C.CourseId = @CourseId AND CL.ClassId = @ClassId";
-
-                var scholarshipData = await _connection.QueryAsync(scholarshipQuery, new { courseId, classId });
-
-                // Part III: Insert fetched data into tblStudentScholarship
                 string insertQuery = @"INSERT INTO tblStudentScholarship (ScholarshipID, StudentID, QuestionID, SubjectID, QuestionTypeID, ExamDate)
                                        VALUES (@ScholarshipID, @StudentID, @QuestionID, @SubjectID, @QuestionTypeID, @ExamDate)";
 
-                foreach (var data in scholarshipData)
+                foreach (var data in scholarshipQuestion.Data)
                 {
                     await _connection.ExecuteAsync(insertQuery, new
                     {
-                        ScholarshipID = data.ScholarshipID,
+                        ScholarshipID = scholarshipData.Data.ScholarshipTest.ScholarshipTestId,
                         StudentID = request.RegistrationID,
-                        QuestionID = data.QuestionID,
-                        SubjectID = data.SubjectID,
-                        QuestionTypeID = data.QuestionTypeID,
+                        QuestionID = data.QuestionId,
+                        SubjectID = data.subjectID,
+                        QuestionTypeID = data.QuestionTypeId,
                         ExamDate = DateTime.Now
                     });
                 }
