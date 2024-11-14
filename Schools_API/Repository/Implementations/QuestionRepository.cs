@@ -2499,11 +2499,13 @@ namespace Schools_API.Repository.Implementations
                         courseStartIndex++;
                     }
 
-                    worksheet.Cells[1, 27].Value = "QuestionCode";
-                    worksheet.Column(27).Hidden = true;
+                    //// Leave 10 empty columns
+                    //int questionCodeColumnIndex = courseStartIndex + 10;
+                    //worksheet.Cells[1, questionCodeColumnIndex].Value = "QuestionCode";
+                    //worksheet.Column(questionCodeColumnIndex).Hidden = true;
 
                     // Format headers
-                    using (var range = worksheet.Cells[1, 1, 1, 27])
+                    using (var range = worksheet.Cells[1, 1, 1, 1])
                     {
                         range.Style.Font.Bold = true;
                         range.Style.Fill.PatternType = ExcelFillStyle.Solid;
@@ -2757,7 +2759,7 @@ namespace Schools_API.Repository.Implementations
                             {
                                 QIDCourseID = 0, // Assuming you want to set this later or handle it in the AddUpdateQuestion method
                                 QID = 0, // Populate this as needed
-                                QuestionCode = string.IsNullOrEmpty(worksheet.Cells[row, 27].Text) ? null : worksheet.Cells[row, 27].Text, // Assuming QuestionCode is in column 27
+                                QuestionCode = "string",//string.IsNullOrEmpty(worksheet.Cells[row, 27].Text) ? null : worksheet.Cells[row, 27].Text, // Assuming QuestionCode is in column 27
                                 CourseID = courseId,
                                 LevelId = diffiId, // Difficulty level ID fetched from the current cell
                                 Status = true, // Set as needed
@@ -2831,7 +2833,7 @@ namespace Schools_API.Repository.Implementations
                             subjectID = Convert.ToInt32(worksheet.Cells[row, 2].Text),
                             IndexTypeId = indexTypeId,
                             Explanation = explanation,
-                            QuestionCode = string.IsNullOrEmpty(worksheet.Cells[row, 27].Text) ? null : worksheet.Cells[row, 27].Text,
+                            QuestionCode = "string",//string.IsNullOrEmpty(worksheet.Cells[row, 27].Text) ? null : worksheet.Cells[row, 27].Text,
                             ContentIndexId = contentIndexId,
                             AnswerMultipleChoiceCategories = GetAnswerMultipleChoiceCategories(worksheet, row),
                             Answersingleanswercategories = GetAnswerSingleAnswerCategories(worksheet, row, Convert.ToInt32(worksheet.Cells[row, 4].Text)),
