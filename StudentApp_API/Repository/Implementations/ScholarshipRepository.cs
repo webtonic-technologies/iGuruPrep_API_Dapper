@@ -1,11 +1,11 @@
 ﻿using Dapper;
+using Microsoft.AspNetCore.Mvc;
 using StudentApp_API.DTOs.Requests;
 using StudentApp_API.DTOs.Responses;
 using StudentApp_API.DTOs.ServiceResponse;
 using StudentApp_API.Repository.Interfaces;
-using System;
 using System.Data;
-using System.Threading.Tasks;
+using System.Data.Common;
 
 namespace StudentApp_API.Repository.Implementations
 {
@@ -191,6 +191,423 @@ namespace StudentApp_API.Repository.Implementations
             {
                 return new ServiceResponse<UpdateQuestionNavigationResponse>(false, ex.Message, null, 500);
             }
+        }
+
+        public async Task<ServiceResponse<ScholarshipTestResponse>> GetScholarshipTestByRegistrationId(int registrationId)
+        {
+            var response = new ServiceResponse<ScholarshipTestResponse>(true,string.Empty,null,200);
+
+            // Step 1: Fetch Board, Class, Course based on RegistrationId
+            string queryMapping = @"
+            SELECT TOP 1 [BoardId], [ClassID], [CourseID]
+            FROM [tblStudentClassCourseMapping]
+            WHERE [RegistrationID] = @RegistrationId";
+
+            var studentMapping = await _connection.QueryFirstOrDefaultAsync<StudentClassCourseMappings>(
+                queryMapping, new { RegistrationId = registrationId });
+
+            if (studentMapping == null)
+            {
+                response.Success = false;
+                response.Message = "No mapping found for the given Registration ID.";
+                return response;
+            }
+
+            // Step 2: Fetch Scholarship Test based on Board, Class, Course
+            string queryScholarshipTest = @"
+            SELECT TOP 1 st.[ScholarshipTestId], st.[APID], st.[ExamTypeId], st.[PatternName], 
+                         st.[TotalNumberOfQuestions], st.[Duration], st.[Status], st.[createdon], 
+                         st.[createdby], st.[modifiedon], st.[modifiedby], st.[EmployeeID]
+            FROM [tblScholarshipTest] st
+            INNER JOIN [tblScholarshipBoards] sb ON st.[ScholarshipTestId] = sb.[ScholarshipTestId]
+            INNER JOIN [tblScholarshipClass] sc ON st.[ScholarshipTestId] = sc.[ScholarshipTestId]
+            INNER JOIN [tblScholarshipCourse] scc ON st.[ScholarshipTestId] = scc.[ScholarshipTestId]
+            WHERE sb.[BoardId] = @BoardId AND sc.[ClassId] = @ClassId AND scc.[CourseId] = @CourseId";
+
+            var scholarshipTest = await _connection.QueryFirstOrDefaultAsync<ScholarshipTest>(
+                queryScholarshipTest,
+                new { studentMapping.BoardId, studentMapping.ClassId, studentMapping.CourseId });
+
+            if (scholarshipTest == null)
+            {
+                response.Success = false;
+                response.Message = "No scholarship test found for the given combination.";
+                return response;
+            }
+
+            // Step 3: Fetch Instructions associated with the Scholarship Test
+            string queryInstructions = @"
+            SELECT [SSTInstructionsId], [Instructions], [ScholarshipTestId], [InstructionName], [InstructionId]
+            FROM [tblSSTInstructions]
+            WHERE [ScholarshipTestId] = @ScholarshipTestId";
+
+            var instructions = await _connection.QueryAsync<ScholarshipTestInstruction>(
+                queryInstructions, new { ScholarshipTestId = scholarshipTest.ScholarshipTestId });
+
+            // Combine Scholarship Test and Instructions into response
+            var result = new ScholarshipTestResponse
+            {
+                ScholarshipTest = scholarshipTest,
+                Instructions = instructions.ToList()
+            };
+
+            response.Data = result;
+            response.Success = true;
+            return response;
+        }
+        public async Task<ServiceResponse<List<SubjectQuestionCountResponse>>> GetScholarshipSubjectQuestionCount(int scholarshipTestId)
+        {
+            var response = new ServiceResponse<List<SubjectQuestionCountResponse>>(true, string.Empty, [],200);
+           
+                string query = @"
+            WITH SubjectQuestionCount AS (
+                SELECT 
+                    s.SubjectId,
+                    SUM(qs.TotalNumberOfQuestions) AS TotalQuestions
+                FROM tblScholarshipSubject s
+                INNER JOIN tblSSQuestionSection qs 
+                    ON s.ScholarshipTestId = qs.ScholarshipTestId 
+                    AND s.SubjectId = qs.SubjectId
+                WHERE s.ScholarshipTestId = @ScholarshipTestId
+                GROUP BY s.SubjectId
+            )
+            SELECT 
+                s.SubjectId, 
+                s.SubjectName, 
+                qc.TotalQuestions
+            FROM SubjectQuestionCount qc
+            INNER JOIN tblSubject s 
+                ON qc.SubjectId = s.SubjectId;";
+
+                var result = await _connection.QueryAsync<SubjectQuestionCountResponse>(
+                    query, new { ScholarshipTestId = scholarshipTestId });
+
+                if (result != null && result.Any())
+                {
+                    response.Data = result.ToList();
+                    response.Success = true;
+                }
+                else
+                {
+                    response.Success = false;
+                    response.Message = "No subjects found for the given ScholarshipTestId.";
+                }
+            return response;
+        }
+        public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetQuestionsBySectionSettings(int scholarshipTestId)
+        {
+            ServiceResponse<List<QuestionResponseDTO>> response = new ServiceResponse<List<QuestionResponseDTO>>(true, string.Empty, [], 200);
+            try
+            {
+                // Fetch the sections with their question type and question count settings
+                string sectionQuery = @"
+            SELECT 
+                qs.SSTSectionId, 
+                qs.SectionName, 
+                qs.QuestionTypeId, 
+                qs.TotalNumberOfQuestions, 
+                qs.SubjectId 
+            FROM tblSSQuestionSection qs
+            WHERE qs.ScholarshipTestId = @ScholarshipTestId";
+
+                var sections = await _connection.QueryAsync<SectionSettingDTO>(sectionQuery, new { ScholarshipTestId = scholarshipTestId });
+
+                // Initialize the question list
+                List<QuestionResponseDTO> questionsList = new List<QuestionResponseDTO>();
+
+                // Loop through each section to fetch the corresponding questions
+                foreach (var section in sections)
+                {
+                    // Determine if the question type is single or multiple answer
+                    var isSingleAnswer = section.QuestionTypeId == 3 || section.QuestionTypeId == 7 ||
+                                         section.QuestionTypeId == 8 || section.QuestionTypeId == 10 ||
+                                         section.QuestionTypeId == 11;
+                    string questionQuery = @"
+SELECT q.*, 
+       c.CourseName, 
+       b.BoardName, 
+       cl.ClassName, 
+       s.SubjectName,
+       et.ExamTypeName,
+       e.EmpFirstName,
+       qt.QuestionType as QuestionTypeName,
+       it.IndexType as IndexTypeName,
+       CASE 
+           WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
+           WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
+           WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+       END AS ContentIndexName
+FROM tblQuestion q
+LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
+LEFT JOIN tblCourse c ON q.courseid = c.CourseID
+LEFT JOIN tblBoard b ON q.boardid = b.BoardID
+LEFT JOIN tblClass cl ON q.classid = cl.ClassID
+LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
+LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
+LEFT JOIN tblEmployee e ON q.EmployeeId = e.EmployeeId
+LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
+LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
+LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
+LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
+WHERE q.IsActive = 1 
+  AND q.SubjectID = @SubjectId 
+  AND q.QuestionTypeId = @QuestionTypeId 
+  AND q.IsConfigure = 1
+ORDER BY q.CreatedOn
+OFFSET 0 ROWS FETCH NEXT @TotalNumberOfQuestions ROWS ONLY";
+
+                    //    // Query to fetch questions that match the section settings and are configured
+                    //    string questionQuery = @"
+                    //SELECT 
+                    //    q.QuestionId, 
+                    //    q.QuestionDescription, 
+                    //    q.QuestionTypeId, 
+                    //    q.Status, 
+                    //    q.CreatedBy, 
+                    //    q.CreatedOn, 
+                    //    q.ModifiedBy, 
+                    //    q.ModifiedOn, 
+                    //    q.SubjectID, 
+                    //    s.SubjectName, 
+                    //    q.EmployeeId, 
+                    //    e.EmpFirstName AS EmployeeName, 
+                    //    q.IndexTypeId, 
+                    //    i.IndexTypeName, 
+                    //    q.ContentIndexId, 
+                    //    ci.ContentIndexName, 
+                    //    q.IsRejected, 
+                    //    q.IsApproved, 
+                    //    q.QuestionCode, 
+                    //    q.Explanation, 
+                    //    q.ExtraInformation, 
+                    //    q.IsActive, 
+                    //    q.IsConfigure 
+                    //FROM tblQuestion q
+                    //INNER JOIN tblSubject s ON q.SubjectID = s.SubjectId
+                    //INNER JOIN tblEmployee e ON q.EmployeeId = e.EmployeeID
+                    //INNER JOIN [tblQBIndexType] i ON q.IndexTypeId = i.IndexTypeId
+                    //INNER JOIN tblContentIndex ci ON q.ContentIndexId = ci.ContentIndexId
+                    //WHERE q.SubjectID = @SubjectId AND q.QuestionTypeId = @QuestionTypeId AND q.IsConfigure = 1
+                    //ORDER BY q.CreatedOn
+                    //OFFSET 0 ROWS FETCH NEXT @TotalNumberOfQuestions ROWS ONLY";
+
+                    var questions = await _connection.QueryAsync<QuestionResponseDTO>(questionQuery,
+                        new { SubjectId = section.SubjectId, QuestionTypeId = section.QuestionTypeId, TotalNumberOfQuestions = section.TotalNumberOfQuestions });
+
+                    // Loop through each question to fetch its answers
+                    foreach (var question in questions)
+                    {
+                        if (isSingleAnswer)
+                        {
+                            // Fetch the single-answer category
+                            string singleAnswerQuery = @"
+                        SELECT 
+                            a.Answersingleanswercategoryid, 
+                            a.Answerid, 
+                            a.Answer 
+                        FROM tblAnswersingleanswercategory a
+                        INNER JOIN tblAnswerMaster am ON am.Answerid = a.Answerid
+                        WHERE am.Questionid = @QuestionId";
+
+                            question.Answersingleanswercategories = await _connection.QuerySingleOrDefaultAsync<Answersingleanswercategory>(singleAnswerQuery, new { QuestionId = question.QuestionId });
+                        }
+                        else
+                        {
+                            // Fetch the multiple-answer category
+                            string multipleAnswerQuery = @"
+                        SELECT 
+                            a.Answermultiplechoicecategoryid, 
+                            a.Answerid, 
+                            a.Answer, 
+                            a.Iscorrect, 
+                            a.Matchid 
+                        FROM tblAnswerMultipleChoiceCategory a
+                        INNER JOIN tblAnswerMaster am ON am.Answerid = a.Answerid
+                        WHERE am.Questionid = @QuestionId";
+
+                            question.AnswerMultipleChoiceCategories = (await _connection.QueryAsync<AnswerMultipleChoiceCategory>(multipleAnswerQuery, new { QuestionId = question.QuestionId })).ToList();
+                        }
+                    }
+
+                    // Add questions to the list
+                    questionsList.AddRange(questions);
+                }
+
+                // Return the fetched questions list
+                response.Data = questionsList;
+                response.Success = true;
+            }
+            catch (Exception ex)
+            {
+                response.Success = false;
+                response.Message = ex.Message;
+            }
+
+            return response;
+        }
+        public async Task<ServiceResponse<string>> SubmitAnswer(AnswerSubmissionRequest request)
+        {
+            try
+            {
+                // Fetch section ID based on the subject ID from tblSSQuestionSection
+                var sectionQuery = @"
+        SELECT SSTSectionId
+        FROM tblSSQuestionSection
+        WHERE SubjectId = @SubjectID";
+
+                var sectionId = await _connection.QueryFirstOrDefaultAsync<int>(sectionQuery, new { request.SubjectID });
+
+                if (sectionId == 0)
+                    return new ServiceResponse<string>(false, "Section not found for the given subject.", string.Empty, 500);
+
+                // Fetch correct answer and question details from tblQuestion and tblSSQuestionSection using section ID
+                var query = @"
+        SELECT q.QuestionId, 
+               q.QuestionTypeId, 
+               a.Answerid AS CorrectAnswerId, 
+               s.MarksPerQuestion, 
+               s.NegativeMarks
+        FROM tblQuestion q
+        LEFT JOIN tblAnswerMaster a ON q.QuestionId = a.Questionid
+        LEFT JOIN tblSSQuestionSection s ON s.SSTSectionId = @SectionID
+        WHERE q.QuestionId = @QuestionID";
+
+                var questionData = await _connection.QueryFirstOrDefaultAsync<QuestionAnswerData>(query, new
+                {
+                    request.QuestionID,
+                    SectionID = sectionId
+                });
+
+                if (questionData == null)
+                    return new ServiceResponse<string>(false, "Question not found.", string.Empty, 500);
+
+                decimal marksAwarded = 0;
+                string answerStatus = "Incorrect";
+
+                // Logic to handle single answer questions (MCQ, True/False, etc.)
+                // Check if the question is a single-answer type (MCQ, True/False, etc.)
+                if (IsSingleAnswerType(questionData.QuestionTypeId))
+                {
+                    // Fetch correct answer for single-answer type from tblAnswersingleanswercategory
+                    var singleAnswerQuery = @"
+    SELECT sac.Answerid
+    FROM tblAnswersingleanswercategory sac
+    INNER JOIN tblAnswerMaster am ON sac.Answerid = am.Answerid
+    WHERE am.Questionid = @QuestionID";
+
+                    var correctAnswerId = await _connection.QueryFirstOrDefaultAsync<int>(singleAnswerQuery, new { request.QuestionID });
+
+                    // Compare the submitted answer with the correct answer
+                    if (correctAnswerId == request.AnswerID)
+                    {
+                        marksAwarded = questionData.MarksPerQuestion;
+                        answerStatus = "Correct";
+                    }
+                    else
+                    {
+                        marksAwarded = -questionData.NegativeMarks;
+                    }
+                }
+                // Logic to handle multiple choice answers (MAQ)
+                else
+                {
+                    // Fetch all correct answers for multiple-choice type from tblAnswerMultipleChoiceCategory
+                    var multipleAnswersQuery = @"
+    SELECT amc.Answermultiplechoicecategoryid
+    FROM tblAnswerMultipleChoiceCategory amc
+    INNER JOIN tblAnswerMaster am ON amc.Answerid = am.Answerid
+    WHERE am.Questionid = @QuestionID AND amc.IsCorrect = 1";
+
+                    var correctAnswers = await _connection.QueryAsync<int>(multipleAnswersQuery, new { request.QuestionID });
+
+                    // Check if the submitted answer is one of the correct answers
+                    if (correctAnswers.Contains(request.AnswerID))
+                    {
+                        // Partial marks for a correct answer (proportional to total correct answers)
+                        marksAwarded = questionData.MarksPerQuestion / correctAnswers.Count();
+                        answerStatus = "PartialCorrect";
+                    }
+                    else
+                    {
+                        marksAwarded = -questionData.NegativeMarks;
+                    }
+                }
+
+                // Check if the student has already submitted an answer for this question
+                var existingRecordQuery = @"
+        SELECT COUNT(*) 
+        FROM tblStudentScholarshipAnswerSubmission
+        WHERE StudentID = @StudentID AND QuestionID = @QuestionID AND ScholarshipID = @ScholarshipID";
+
+                var existingRecordCount = await _connection.ExecuteScalarAsync<int>(existingRecordQuery, new
+                {
+                    request.StudentID,
+                    request.QuestionID,
+                    request.ScholarshipID
+                });
+
+                // If a record exists, delete the existing answer submission
+                if (existingRecordCount > 0)
+                {
+                    var deleteQuery = @"
+            DELETE FROM tblStudentScholarshipAnswerSubmission
+            WHERE StudentID = @StudentID AND QuestionID = @QuestionID AND ScholarshipID = @ScholarshipID";
+
+                    await _connection.ExecuteAsync(deleteQuery, new
+                    {
+                        request.StudentID,
+                        request.QuestionID,
+                        request.ScholarshipID
+                    });
+                }
+
+                // Insert the new submission
+                var insertQuery = @"
+        INSERT INTO tblStudentScholarshipAnswerSubmission 
+            (ScholarshipID, StudentID, QuestionID, SubjectID, QuestionTypeID, AnswerID, AnswerStatus, Marks)
+        VALUES 
+            (@ScholarshipID, @StudentID, @QuestionID, @SubjectID, @QuestionTypeID, @AnswerID, @AnswerStatus, @Marks)";
+
+                await _connection.ExecuteAsync(insertQuery, new
+                {
+                    request.ScholarshipID,
+                    request.StudentID,
+                    request.QuestionID,
+                    request.SubjectID,
+                    request.QuestionTypeID,
+                    request.AnswerID,
+                    AnswerStatus = answerStatus,
+                    Marks = marksAwarded
+                });
+
+                return new ServiceResponse<string>(true, "operation successful", "Answer marked successfully", 200);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+            }
+        }
+        private bool IsSingleAnswerType(int questionTypeId)
+        {
+            // Assuming the following are single answer type IDs based on your data
+            return questionTypeId == 3 || questionTypeId == 7 || questionTypeId == 8 || questionTypeId == 10 || questionTypeId == 11;
+        }
+        public class AnswerSubmissionRequest
+        {
+            public int ScholarshipID { get; set; }
+            public int StudentID { get; set; }
+            public int QuestionID { get; set; }
+            public int SubjectID { get; set; }
+            public int QuestionTypeID { get; set; }
+            public int AnswerID { get; set; }
+        }
+        public class QuestionAnswerData
+        {
+            public int QuestionId { get; set; }
+            public int QuestionTypeId { get; set; }
+            public int CorrectAnswerId { get; set; }
+            public decimal MarksPerQuestion { get; set; }
+            public decimal NegativeMarks { get; set; }
         }
     }
 }

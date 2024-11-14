@@ -1,9 +1,9 @@
 ﻿using StudentApp_API.DTOs.Requests;
 using StudentApp_API.DTOs.Responses;
 using StudentApp_API.DTOs.ServiceResponse;
+using StudentApp_API.Repository.Implementations;
 using StudentApp_API.Repository.Interfaces;
 using StudentApp_API.Services.Interfaces;
-using System.Threading.Tasks;
 
 namespace StudentApp_API.Services.Implementations
 {
@@ -21,9 +21,29 @@ namespace StudentApp_API.Services.Implementations
             return await _scholarshipRepository.AssignScholarshipAsync(request);
         }
 
+        public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetQuestionsBySectionSettings(int scholarshipTestId)
+        {
+            return await _scholarshipRepository.GetQuestionsBySectionSettings(scholarshipTestId);
+        }
+
+        public async Task<ServiceResponse<List<SubjectQuestionCountResponse>>> GetScholarshipSubjectQuestionCount(int scholarshipTestId)
+        {
+            return await _scholarshipRepository.GetScholarshipSubjectQuestionCount(scholarshipTestId);
+        }
+
         public async Task<ServiceResponse<GetScholarshipTestResponseWrapper>> GetScholarshipTestAsync(GetScholarshipTestRequest request)
         {
             return await _scholarshipRepository.GetScholarshipTestAsync(request);
+        }
+
+        public async Task<ServiceResponse<ScholarshipTestResponse>> GetScholarshipTestByRegistrationId(int registrationId)
+        {
+            return await _scholarshipRepository.GetScholarshipTestByRegistrationId(registrationId);
+        }
+
+        public async Task<ServiceResponse<string>> SubmitAnswer(ScholarshipRepository.AnswerSubmissionRequest request)
+        {
+            return await _scholarshipRepository.SubmitAnswer(request);
         }
 
         public async Task<ServiceResponse<UpdateQuestionNavigationResponse>> UpdateQuestionNavigationAsync(UpdateQuestionNavigationRequest request)
