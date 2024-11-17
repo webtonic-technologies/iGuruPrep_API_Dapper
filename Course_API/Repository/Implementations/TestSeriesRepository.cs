@@ -65,12 +65,14 @@ WHERE TestSeriesId != @TestSeriesId
                                 // Combine StartDate with StartTime to create the full DateTime for the test start
                                 DateTime existingStartDateTime = testPaper.StartDate.Add(startTimeSpan);
 
-                                // Convert testPaper.Duration to double if necessary
-                                if (double.TryParse(testPaper.Duration.ToString(), out double durationInMinutes))
+                                // Extract numeric value from testPaper.Duration (e.g., "120 minutes")
+                                if (!string.IsNullOrWhiteSpace(testPaper.Duration) &&
+                                    double.TryParse(new string(testPaper.Duration.TakeWhile(char.IsDigit).ToArray()), out double durationInMinutes))
                                 {
+                                    // Calculate the end time of the existing test
                                     DateTime existingEndDateTime = existingStartDateTime.AddMinutes(durationInMinutes);
 
-                                    // Ensure the new test does not overlap and has at least 15 minutes gap
+                                    // Ensure the requested test does not overlap or is less than 15 minutes apart
                                     if (requestedStartDateTime < existingEndDateTime.AddMinutes(15))
                                     {
                                         return new ServiceResponse<int>(false, "Test papers cannot overlap or be less than 15 minutes apart.", 0, 400);
@@ -78,8 +80,10 @@ WHERE TestSeriesId != @TestSeriesId
                                 }
                                 else
                                 {
+                                    // Handle invalid or missing duration
                                     return new ServiceResponse<int>(false, "Invalid test duration.", 0, 400);
                                 }
+
                             }
                             else
                             {
