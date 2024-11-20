@@ -2679,7 +2679,7 @@ namespace Schools_API.Repository.Implementations
                                     IsActive = true,
                                     IsConfigure = true,
                                     QIDCourses = ExtractQIDCourses(paragraphSheet, courseCodeDictionary, 2), // Populate from the row
-                                    Questions = GetChildQuestions(worksheet, rowCount, courseCodeDictionary, subjectDictionary, EmployeeId), // Populate child questions as needed
+                                    Questions = GetChildQuestions(worksheet, rowCount, courseCodeDictionary, subjectDictionary, EmployeeId, paragraphId), // Populate child questions as needed
                                 };
 
                                 var comprehensiveResponse = await AddUpdateComprehensiveQuestion(comprehensiveQuestionRequest);
@@ -2895,13 +2895,21 @@ namespace Schools_API.Repository.Implementations
 
             return null; // Return null if no matching ParagraphId is found
         }
-        private List<ParagraphQuestionDTO> GetChildQuestions(ExcelWorksheet worksheet, int rowCount, 
+        private List<ParagraphQuestionDTO> GetChildQuestions(ExcelWorksheet worksheet, int rowCount,
         Dictionary<string, int> courseCodeDictionary,
-        Dictionary<string, int> subjectDictionary, int EmployeeId)
+        Dictionary<string, int> subjectDictionary, int EmployeeId, int ParagraphId)
         {
             var questions = new List<ParagraphQuestionDTO>();
             for (int row = 2; row <= rowCount; row++) // Skip header row
             {
+
+                var paragraphID = string.IsNullOrWhiteSpace(worksheet.Cells[row, 5].Text)
+       ? 0
+       : Convert.ToInt32(worksheet.Cells[row, 5].Text);
+                if (paragraphID != ParagraphId)
+                {
+                    break;
+                }
                 int questionTypeId = Convert.ToInt32(worksheet.Cells[row, 4].Text);
                 int courseStartCol = 0;
                 for (int col = 1; col <= worksheet.Dimension.Columns; col++)
@@ -2966,20 +2974,20 @@ namespace Schools_API.Repository.Implementations
                     indexTypeId = 1;
                     contentIndexId = _connection.QueryFirstOrDefault<int>(@"SELECT TOP 1 ContentIndexId FROM tblContentIndexChapters WHERE ChapterCode = @ChapterCode AND IsActive = 1",
                         new { ChapterCode = contentCode });
-                     
+
                 }
                 else if (!string.IsNullOrEmpty(contentCode) && contentCode.Contains("T") && !contentCode.Contains("ST"))
                 {
                     // It's a Concept/Topic Code
                     indexTypeId = 2;
-                    contentIndexId = _connection.QueryFirstOrDefault<int>(@"SELECT TOP 1 ContentIndexId FROM tblContentIndexTopics WHERE TopicCode = @TopicCode AND IsActive = 1", 
+                    contentIndexId = _connection.QueryFirstOrDefault<int>(@"SELECT TOP 1 ContentIndexId FROM tblContentIndexTopics WHERE TopicCode = @TopicCode AND IsActive = 1",
                         new { TopicCode = contentCode });
                 }
                 else if (!string.IsNullOrEmpty(contentCode) && contentCode.Contains("ST"))
                 {
                     // It's a Sub-Concept Code
                     indexTypeId = 3;
-                    contentIndexId =  _connection.QueryFirstOrDefault<int>(@"SELECT TOP 1 ContInIdSubTopic FROM tblContentIndexSubTopics WHERE SubTopicCode = @SubTopicCode AND IsActive = 1",
+                    contentIndexId = _connection.QueryFirstOrDefault<int>(@"SELECT TOP 1 ContInIdSubTopic FROM tblContentIndexSubTopics WHERE SubTopicCode = @SubTopicCode AND IsActive = 1",
                         new { SubTopicCode = contentCode });
                 }
                 else
