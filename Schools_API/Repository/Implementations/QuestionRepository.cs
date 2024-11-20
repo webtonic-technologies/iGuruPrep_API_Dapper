@@ -7,9 +7,7 @@ using Schools_API.DTOs.ServiceResponse;
 using Schools_API.Models;
 using Schools_API.Repository.Interfaces;
 using System.Data;
-using System.Data.Common;
 using System.Drawing;
-using System.Transactions;
 
 namespace Schools_API.Repository.Implementations
 {
@@ -90,77 +88,9 @@ namespace Schools_API.Repository.Implementations
                         {
                             // Handle QIDCourses mapping
                             var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
+                            var answer = await AnswerHandling(request.QuestionTypeId, request.AnswerMultipleChoiceCategories, request.QuestionId, insertedQuestionCode, request.Answersingleanswercategories);
 
-                            // Handle Answer mappings
-                            string getQuesType = @"SELECT * FROM tblQBQuestionType WHERE QuestionTypeID = @QuestionTypeID;";
-                            var questTypedata = await _connection.QueryFirstOrDefaultAsync<QuestionTypes>(getQuesType, new { QuestionTypeID = request.QuestionTypeId });
-
-                            int answer = 0;
-                            int Answerid = 0;
-
-                            // Check if the answer already exists in AnswerMaster
-                            string getAnswerQuery = @"SELECT Answerid FROM tblAnswerMaster WHERE QuestionCode = @QuestionCode;";
-                            Answerid = await _connection.QueryFirstOrDefaultAsync<int>(getAnswerQuery, new { QuestionCode = insertedQuestionCode });
-
-                            if (Answerid == 0)  // If no entry exists, insert a new one
-                            {
-                                string insertAnswerQuery = @"
-        INSERT INTO [tblAnswerMaster] (Questionid, QuestionTypeid, QuestionCode)
-        VALUES (@Questionid, @QuestionTypeid, @QuestionCode);
-        SELECT CAST(SCOPE_IDENTITY() as int);";
-
-                                Answerid = await _connection.QuerySingleAsync<int>(insertAnswerQuery, new
-                                {
-                                    Questionid = 0, // Set to 0 or remove if QuestionId is not required
-                                    QuestionTypeid = questTypedata?.QuestionTypeID,
-                                    QuestionCode = insertedQuestionCode
-                                });
-                            }
-
-                            // If the question type supports multiple-choice or similar categories
-                            if (questTypedata != null)
-                            {
-                                if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "MF" ||
-                                    questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MF2" || questTypedata.Code.Trim() == "AR" || questTypedata.Code.Trim() == "CT")
-                                {
-                                    if (request.AnswerMultipleChoiceCategories != null)
-                                    {
-                                        // First, delete existing multiple-choice entries if present
-                                        string deleteMCQQuery = @"DELETE FROM tblAnswerMultipleChoiceCategory WHERE Answerid = @Answerid;";
-                                        await _connection.ExecuteAsync(deleteMCQQuery, new { Answerid });
-
-                                        // Insert new multiple-choice answers
-                                        foreach (var item in request.AnswerMultipleChoiceCategories)
-                                        {
-                                            item.Answerid = Answerid;
-                                        }
-                                        string insertMCQQuery = @"
-                    INSERT INTO tblAnswerMultipleChoiceCategory
-                    (Answerid, Answer, Iscorrect, Matchid) 
-                    VALUES (@Answerid, @Answer, @Iscorrect, @Matchid);";
-                                        answer = await _connection.ExecuteAsync(insertMCQQuery, request.AnswerMultipleChoiceCategories);
-                                    }
-                                }
-                                else  // Handle single-answer category
-                                {
-                                    string sql = @"
-                INSERT INTO tblAnswersingleanswercategory (Answerid, Answer)
-                VALUES (@Answerid, @Answer);";
-
-                                    if (request.Answersingleanswercategories != null)
-                                    {
-                                        // First, delete existing single-answer entries if present
-                                        string deleteSingleQuery = @"DELETE FROM tblAnswersingleanswercategory WHERE Answerid = @Answerid;";
-                                        await _connection.ExecuteAsync(deleteSingleQuery, new { Answerid });
-
-                                        // Insert new single-answer answers
-                                        request.Answersingleanswercategories.Answerid = Answerid;
-                                        answer = await _connection.ExecuteAsync(sql, request.Answersingleanswercategories);
-                                    }
-                                }
-                            }
-
-                            if (data > 0 && answer > 0)
+                            if (data > 0 && answer.Data > 0)
                             {
                                 return new ServiceResponse<string>(true, "Operation Successful", "Question Updated Successfully", 200);
                             }
@@ -271,76 +201,9 @@ namespace Schools_API.Repository.Implementations
                             // Handle QIDCourses mapping
                             var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
 
-                            // Handle Answer mappings
-                            string getQuesType = @"SELECT * FROM tblQBQuestionType WHERE QuestionTypeID = @QuestionTypeID;";
-                            var questTypedata = await _connection.QueryFirstOrDefaultAsync<QuestionTypes>(getQuesType, new { QuestionTypeID = request.QuestionTypeId });
+                            var answer = await AnswerHandling(request.QuestionTypeId, request.AnswerMultipleChoiceCategories, insertedQuestionId, insertedQuestionCode, request.Answersingleanswercategories);
 
-                            int answer = 0;
-                            int Answerid = 0;
-
-                            // Check if the answer already exists in AnswerMaster
-                            string getAnswerQuery = @"SELECT Answerid FROM tblAnswerMaster WHERE QuestionCode = @QuestionCode;";
-                            Answerid = await _connection.QueryFirstOrDefaultAsync<int>(getAnswerQuery, new { QuestionCode = insertedQuestionCode });
-
-                            if (Answerid == 0)  // If no entry exists, insert a new one
-                            {
-                                string insertAnswerQuery = @"
-        INSERT INTO [tblAnswerMaster] (Questionid, QuestionTypeid, QuestionCode)
-        VALUES (@Questionid, @QuestionTypeid, @QuestionCode);
-        SELECT CAST(SCOPE_IDENTITY() as int);";
-
-                                Answerid = await _connection.QuerySingleAsync<int>(insertAnswerQuery, new
-                                {
-                                    Questionid = 0, // Set to 0 or remove if QuestionId is not required
-                                    QuestionTypeid = questTypedata?.QuestionTypeID,
-                                    QuestionCode = insertedQuestionCode
-                                });
-                            }
-
-                            // If the question type supports multiple-choice or similar categories
-                            if (questTypedata != null)
-                            {
-                                if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "MF" ||
-                                    questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MF2" || questTypedata.Code.Trim() == "AR" || questTypedata.Code.Trim() == "CT")
-                                {
-                                    if (request.AnswerMultipleChoiceCategories != null)
-                                    {
-                                        // First, delete existing multiple-choice entries if present
-                                        string deleteMCQQuery = @"DELETE FROM tblAnswerMultipleChoiceCategory WHERE Answerid = @Answerid;";
-                                        await _connection.ExecuteAsync(deleteMCQQuery, new { Answerid });
-
-                                        // Insert new multiple-choice answers
-                                        foreach (var item in request.AnswerMultipleChoiceCategories)
-                                        {
-                                            item.Answerid = Answerid;
-                                        }
-                                        string insertMCQQuery = @"
-                    INSERT INTO tblAnswerMultipleChoiceCategory
-                    (Answerid, Answer, Iscorrect, Matchid) 
-                    VALUES (@Answerid, @Answer, @Iscorrect, @Matchid);";
-                                        answer = await _connection.ExecuteAsync(insertMCQQuery, request.AnswerMultipleChoiceCategories);
-                                    }
-                                }
-                                else  // Handle single-answer category
-                                {
-                                    string sql = @"
-                INSERT INTO tblAnswersingleanswercategory (Answerid, Answer)
-                VALUES (@Answerid, @Answer);";
-
-                                    if (request.Answersingleanswercategories != null)
-                                    {
-                                        // First, delete existing single-answer entries if present
-                                        string deleteSingleQuery = @"DELETE FROM tblAnswersingleanswercategory WHERE Answerid = @Answerid;";
-                                        await _connection.ExecuteAsync(deleteSingleQuery, new { Answerid });
-
-                                        // Insert new single-answer answers
-                                        request.Answersingleanswercategories.Answerid = Answerid;
-                                        answer = await _connection.ExecuteAsync(sql, request.Answersingleanswercategories);
-                                    }
-                                }
-                            }
-
-                            if (data > 0 && answer > 0)
+                            if (data > 0 && answer.Data > 0)
                             {
                                 return new ServiceResponse<string>(true, "Operation Successful", "Question Added Successfully", 200);
                             }
@@ -454,76 +317,9 @@ namespace Schools_API.Repository.Implementations
                             // Handle QIDCourses mapping
                             var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
 
-                            // Handle Answer mappings
-                            string getQuesType = @"SELECT * FROM tblQBQuestionType WHERE QuestionTypeID = @QuestionTypeID;";
-                            var questTypedata = await _connection.QueryFirstOrDefaultAsync<QuestionTypes>(getQuesType, new { QuestionTypeID = request.QuestionTypeId });
+                            var answer = await AnswerHandling(request.QuestionTypeId, request.AnswerMultipleChoiceCategories, insertedQuestionId, insertedQuestionCode, request.Answersingleanswercategories);
 
-                            int answer = 0;
-                            int Answerid = 0;
-
-                            // Check if the answer already exists in AnswerMaster
-                            string getAnswerQuery = @"SELECT Answerid FROM tblAnswerMaster WHERE QuestionCode = @QuestionCode;";
-                            Answerid = await _connection.QueryFirstOrDefaultAsync<int>(getAnswerQuery, new { QuestionCode = insertedQuestionCode });
-
-                            if (Answerid == 0)  // If no entry exists, insert a new one
-                            {
-                                string insertAnswerQuery = @"
-        INSERT INTO [tblAnswerMaster] (Questionid, QuestionTypeid, QuestionCode)
-        VALUES (@Questionid, @QuestionTypeid, @QuestionCode);
-        SELECT CAST(SCOPE_IDENTITY() as int);";
-
-                                Answerid = await _connection.QuerySingleAsync<int>(insertAnswerQuery, new
-                                {
-                                    Questionid = 0, // Set to 0 or remove if QuestionId is not required
-                                    QuestionTypeid = questTypedata?.QuestionTypeID,
-                                    QuestionCode = insertedQuestionCode
-                                });
-                            }
-
-                            // If the question type supports multiple-choice or similar categories
-                            if (questTypedata != null)
-                            {
-                                if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "MF" ||
-                                    questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MF2" || questTypedata.Code.Trim() == "AR" || questTypedata.Code.Trim() == "CT")
-                                {
-                                    if (request.AnswerMultipleChoiceCategories != null)
-                                    {
-                                        // First, delete existing multiple-choice entries if present
-                                        string deleteMCQQuery = @"DELETE FROM tblAnswerMultipleChoiceCategory WHERE Answerid = @Answerid;";
-                                        await _connection.ExecuteAsync(deleteMCQQuery, new { Answerid });
-
-                                        // Insert new multiple-choice answers
-                                        foreach (var item in request.AnswerMultipleChoiceCategories)
-                                        {
-                                            item.Answerid = Answerid;
-                                        }
-                                        string insertMCQQuery = @"
-                    INSERT INTO tblAnswerMultipleChoiceCategory
-                    (Answerid, Answer, Iscorrect, Matchid) 
-                    VALUES (@Answerid, @Answer, @Iscorrect, @Matchid);";
-                                        answer = await _connection.ExecuteAsync(insertMCQQuery, request.AnswerMultipleChoiceCategories);
-                                    }
-                                }
-                                else  // Handle single-answer category
-                                {
-                                    string sql = @"
-                INSERT INTO tblAnswersingleanswercategory (Answerid, Answer)
-                VALUES (@Answerid, @Answer);";
-
-                                    if (request.Answersingleanswercategories != null)
-                                    {
-                                        // First, delete existing single-answer entries if present
-                                        string deleteSingleQuery = @"DELETE FROM tblAnswersingleanswercategory WHERE Answerid = @Answerid;";
-                                        await _connection.ExecuteAsync(deleteSingleQuery, new { Answerid });
-
-                                        // Insert new single-answer answers
-                                        request.Answersingleanswercategories.Answerid = Answerid;
-                                        answer = await _connection.ExecuteAsync(sql, request.Answersingleanswercategories);
-                                    }
-                                }
-                            }
-
-                            if (data > 0 && answer > 0)
+                            if (data > 0 && answer.Data > 0)
                             {
                                 return new ServiceResponse<string>(true, "Operation Successful", "Question Added Successfully", 200);
                             }
@@ -596,76 +392,9 @@ namespace Schools_API.Repository.Implementations
                             // Handle QIDCourses mapping
                             var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
 
-                            // Handle Answer mappings
-                            string getQuesType = @"SELECT * FROM tblQBQuestionType WHERE QuestionTypeID = @QuestionTypeID;";
-                            var questTypedata = await _connection.QueryFirstOrDefaultAsync<QuestionTypes>(getQuesType, new { QuestionTypeID = request.QuestionTypeId });
+                            var answer = await AnswerHandling(request.QuestionTypeId, request.AnswerMultipleChoiceCategories, request.QuestionId, insertedQuestionCode, request.Answersingleanswercategories);
 
-                            int answer = 0;
-                            int Answerid = 0;
-
-                            // Check if the answer already exists in AnswerMaster
-                            string getAnswerQuery = @"SELECT Answerid FROM tblAnswerMaster WHERE QuestionCode = @QuestionCode;";
-                            Answerid = await _connection.QueryFirstOrDefaultAsync<int>(getAnswerQuery, new { QuestionCode = insertedQuestionCode });
-
-                            if (Answerid == 0)  // If no entry exists, insert a new one
-                            {
-                                string insertAnswerQuery = @"
-        INSERT INTO [tblAnswerMaster] (Questionid, QuestionTypeid, QuestionCode)
-        VALUES (@Questionid, @QuestionTypeid, @QuestionCode);
-        SELECT CAST(SCOPE_IDENTITY() as int);";
-
-                                Answerid = await _connection.QuerySingleAsync<int>(insertAnswerQuery, new
-                                {
-                                    Questionid = 0, // Set to 0 or remove if QuestionId is not required
-                                    QuestionTypeid = questTypedata?.QuestionTypeID,
-                                    QuestionCode = insertedQuestionCode
-                                });
-                            }
-
-                            // If the question type supports multiple-choice or similar categories
-                            if (questTypedata != null)
-                            {
-                                if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "MF" ||
-                                    questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MF2" || questTypedata.Code.Trim() == "AR" || questTypedata.Code.Trim() == "CT")
-                                {
-                                    if (request.AnswerMultipleChoiceCategories != null)
-                                    {
-                                        // First, delete existing multiple-choice entries if present
-                                        string deleteMCQQuery = @"DELETE FROM tblAnswerMultipleChoiceCategory WHERE Answerid = @Answerid;";
-                                        await _connection.ExecuteAsync(deleteMCQQuery, new { Answerid });
-
-                                        // Insert new multiple-choice answers
-                                        foreach (var item in request.AnswerMultipleChoiceCategories)
-                                        {
-                                            item.Answerid = Answerid;
-                                        }
-                                        string insertMCQQuery = @"
-                    INSERT INTO tblAnswerMultipleChoiceCategory
-                    (Answerid, Answer, Iscorrect, Matchid) 
-                    VALUES (@Answerid, @Answer, @Iscorrect, @Matchid);";
-                                        answer = await _connection.ExecuteAsync(insertMCQQuery, request.AnswerMultipleChoiceCategories);
-                                    }
-                                }
-                                else  // Handle single-answer category
-                                {
-                                    string sql = @"
-                INSERT INTO tblAnswersingleanswercategory (Answerid, Answer)
-                VALUES (@Answerid, @Answer);";
-
-                                    if (request.Answersingleanswercategories != null)
-                                    {
-                                        // First, delete existing single-answer entries if present
-                                        string deleteSingleQuery = @"DELETE FROM tblAnswersingleanswercategory WHERE Answerid = @Answerid;";
-                                        await _connection.ExecuteAsync(deleteSingleQuery, new { Answerid });
-
-                                        // Insert new single-answer answers
-                                        request.Answersingleanswercategories.Answerid = Answerid;
-                                        answer = await _connection.ExecuteAsync(sql, request.Answersingleanswercategories);
-                                    }
-                                }
-                            }
-
-                            if (data > 0 && answer > 0)
+                            if (data > 0 && answer.Data > 0)
                             {
                                 return new ServiceResponse<string>(true, "Operation Successful", "Question updated Successfully", 200);
                             }
@@ -770,76 +499,9 @@ namespace Schools_API.Repository.Implementations
                         // Handle QIDCourses mapping
                         var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
 
-                        // Handle Answer mappings
-                        string getQuesType = @"SELECT * FROM tblQBQuestionType WHERE QuestionTypeID = @QuestionTypeID;";
-                        var questTypedata = await _connection.QueryFirstOrDefaultAsync<QuestionTypes>(getQuesType, new { QuestionTypeID = request.QuestionTypeId });
+                        var answer = await AnswerHandling(request.QuestionTypeId, request.AnswerMultipleChoiceCategories, insertedQuestionId, insertedQuestionCode, request.Answersingleanswercategories);
 
-                        int answer = 0;
-                        int Answerid = 0;
-
-                        // Check if the answer already exists in AnswerMaster
-                        string getAnswerQuery = @"SELECT Answerid FROM tblAnswerMaster WHERE QuestionCode = @QuestionCode;";
-                        Answerid = await _connection.QueryFirstOrDefaultAsync<int>(getAnswerQuery, new { QuestionCode = insertedQuestionCode });
-
-                        if (Answerid == 0)  // If no entry exists, insert a new one
-                        {
-                            string insertAnswerQuery = @"
-        INSERT INTO [tblAnswerMaster] (Questionid, QuestionTypeid, QuestionCode)
-        VALUES (@Questionid, @QuestionTypeid, @QuestionCode);
-        SELECT CAST(SCOPE_IDENTITY() as int);";
-
-                            Answerid = await _connection.QuerySingleAsync<int>(insertAnswerQuery, new
-                            {
-                                Questionid = 0, // Set to 0 or remove if QuestionId is not required
-                                QuestionTypeid = questTypedata?.QuestionTypeID,
-                                QuestionCode = insertedQuestionCode
-                            });
-                        }
-
-                        // If the question type supports multiple-choice or similar categories
-                        if (questTypedata != null)
-                        {
-                            if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "MF" ||
-                                questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MF2" || questTypedata.Code.Trim() == "AR" || questTypedata.Code.Trim() == "CT")
-                            {
-                                if (request.AnswerMultipleChoiceCategories != null)
-                                {
-                                    // First, delete existing multiple-choice entries if present
-                                    string deleteMCQQuery = @"DELETE FROM tblAnswerMultipleChoiceCategory WHERE Answerid = @Answerid;";
-                                    await _connection.ExecuteAsync(deleteMCQQuery, new { Answerid });
-
-                                    // Insert new multiple-choice answers
-                                    foreach (var item in request.AnswerMultipleChoiceCategories)
-                                    {
-                                        item.Answerid = Answerid;
-                                    }
-                                    string insertMCQQuery = @"
-                    INSERT INTO tblAnswerMultipleChoiceCategory
-                    (Answerid, Answer, Iscorrect, Matchid) 
-                    VALUES (@Answerid, @Answer, @Iscorrect, @Matchid);";
-                                    answer = await _connection.ExecuteAsync(insertMCQQuery, request.AnswerMultipleChoiceCategories);
-                                }
-                            }
-                            else  // Handle single-answer category
-                            {
-                                string sql = @"
-                INSERT INTO tblAnswersingleanswercategory (Answerid, Answer)
-                VALUES (@Answerid, @Answer);";
-
-                                if (request.Answersingleanswercategories != null)
-                                {
-                                    // First, delete existing single-answer entries if present
-                                    string deleteSingleQuery = @"DELETE FROM tblAnswersingleanswercategory WHERE Answerid = @Answerid;";
-                                    await _connection.ExecuteAsync(deleteSingleQuery, new { Answerid });
-
-                                    // Insert new single-answer answers
-                                    request.Answersingleanswercategories.Answerid = Answerid;
-                                    answer = await _connection.ExecuteAsync(sql, request.Answersingleanswercategories);
-                                }
-                            }
-                        }
-
-                        if (data > 0 && answer > 0)
+                        if (data > 0 && answer.Data > 0)
                         {
                             return new ServiceResponse<string>(true, "Operation Successful", "Question Added Successfully", 200);
                         }
@@ -853,6 +515,206 @@ namespace Schools_API.Repository.Implementations
                         return new ServiceResponse<string>(false, "Some error occurred", string.Empty, 500);
                     }
 
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+            }
+        }
+        private async Task<ServiceResponse<int>> AnswerHandling(int QuestionTypeId, List<AnswerMultipleChoiceCategory>? multiAnswerRequest, int QuestionId, string QuestionCode, Answersingleanswercategory singleAnswerRequest)
+        {
+            // Handle Answer mappings
+            string getQuesType = @"SELECT * FROM tblQBQuestionType WHERE QuestionTypeID = @QuestionTypeID;";
+            var questTypedata = await _connection.QueryFirstOrDefaultAsync<QuestionTypes>(getQuesType, new { QuestionTypeID = QuestionTypeId });
+
+            int answer = 0;
+            int Answerid = 0;
+
+            // Check if the answer already exists in AnswerMaster
+            string getAnswerQuery = @"SELECT Answerid FROM tblAnswerMaster WHERE QuestionCode = @QuestionCode;";
+            Answerid = await _connection.QueryFirstOrDefaultAsync<int>(getAnswerQuery, new { QuestionCode = QuestionCode });
+
+            if (Answerid == 0)  // If no entry exists, insert a new one
+            {
+                string insertAnswerQuery = @"
+        INSERT INTO [tblAnswerMaster] (Questionid, QuestionTypeid, QuestionCode)
+        VALUES (@Questionid, @QuestionTypeid, @QuestionCode);
+        SELECT CAST(SCOPE_IDENTITY() as int);";
+
+                Answerid = await _connection.QuerySingleAsync<int>(insertAnswerQuery, new
+                {
+                    Questionid = QuestionId, // Set to 0 or remove if QuestionId is not required
+                    QuestionTypeid = questTypedata?.QuestionTypeID,
+                    QuestionCode = QuestionCode
+                });
+            }
+
+            // If the question type supports multiple-choice or similar categories
+            if (questTypedata != null)
+            {
+                if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "MF" ||
+                    questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MF2" || questTypedata.Code.Trim() == "AR" || questTypedata.Code.Trim() == "CT")
+                {
+                    if (multiAnswerRequest != null)
+                    {
+                        // First, delete existing multiple-choice entries if present
+                        string deleteMCQQuery = @"DELETE FROM tblAnswerMultipleChoiceCategory WHERE Answerid = @Answerid;";
+                        await _connection.ExecuteAsync(deleteMCQQuery, new { Answerid });
+
+                        // Insert new multiple-choice answers
+                        foreach (var item in multiAnswerRequest)
+                        {
+                            item.Answerid = Answerid;
+                        }
+                        string insertMCQQuery = @"
+                    INSERT INTO tblAnswerMultipleChoiceCategory
+                    (Answerid, Answer, Iscorrect, Matchid) 
+                    VALUES (@Answerid, @Answer, @Iscorrect, @Matchid);";
+                        answer = await _connection.ExecuteAsync(insertMCQQuery, multiAnswerRequest);
+                    }
+                }
+                else  // Handle single-answer category
+                {
+                    string sql = @"
+                INSERT INTO tblAnswersingleanswercategory (Answerid, Answer)
+                VALUES (@Answerid, @Answer);";
+
+                    if (singleAnswerRequest != null)
+                    {
+                        // First, delete existing single-answer entries if present
+                        string deleteSingleQuery = @"DELETE FROM tblAnswersingleanswercategory WHERE Answerid = @Answerid;";
+                        await _connection.ExecuteAsync(deleteSingleQuery, new { Answerid });
+
+                        // Insert new single-answer answers
+                        singleAnswerRequest.Answerid = Answerid;
+                        answer = await _connection.ExecuteAsync(sql, singleAnswerRequest);
+                    }
+                }
+            }
+            return new ServiceResponse<int>(true, string.Empty, answer, 200);
+        }
+        public async Task<ServiceResponse<string>> AddUpdateComprehensiveQuestion(ComprehensiveQuestionRequest request)
+        {
+            try
+            {
+                string query = @"
+        INSERT INTO tblQuestion 
+        (Paragraph, QuestionTypeId, Status, CategoryId, CreatedBy, CreatedOn, SubjectID, EmployeeId, ModifierId, 
+         IndexTypeId, ContentIndexId, IsRejected, IsApproved, QuestionCode, Explanation, ExtraInformation, IsActive, IsConfigure, QuestionDescription)
+        VALUES 
+        (@Paragraph, @QuestionTypeId, @Status, @CategoryId, @CreatedBy, @CreatedOn, @SubjectID, @EmployeeId, @ModifierId, 
+         @IndexTypeId, @ContentIndexId, @IsRejected, @IsApproved, @QuestionCode, @Explanation, @ExtraInformation, @IsActive, @IsConfigure, 'string');
+        SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                // Execute the insert query and return the generated QuestionId
+
+                string deactivateQuery = @"UPDATE tblQuestion SET IsActive = 0 WHERE QuestionCode = @QuestionCode AND IsActive = 1";
+                await _connection.ExecuteAsync(deactivateQuery, new { request.QuestionCode });
+                // Retrieve the QuestionCode after insertion
+
+                var insertedQuestionId = await _connection.QuerySingleOrDefaultAsync<int>(query, request);
+                string code = string.Empty;
+                if (string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string")
+                {
+                    code = GenerateQuestionCode(request.IndexTypeId, request.ContentIndexId, insertedQuestionId);
+
+                    string questionCodeQuery = @"
+                UPDATE tblQuestion
+                SET QuestionCode = @QuestionCode
+                WHERE QuestionId = @QuestionId AND IsActive = 1";
+
+                    await _connection.ExecuteAsync(questionCodeQuery, new { QuestionCode = code, QuestionId = insertedQuestionId });
+                }
+                string insertedQuestionCode = string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string" ? code : request.QuestionCode;
+
+                if (!string.IsNullOrEmpty(insertedQuestionCode))
+                {
+                    // Handle QIDCourses mapping
+                    var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
+                    foreach (var record in request.Questions)
+                    {
+                        record.ParentQCode = insertedQuestionCode;
+                        record.ParentQId = insertedQuestionId;
+                        string insertQuery1 = @"
+              INSERT INTO tblQuestion (
+                  QuestionDescription,
+                  QuestionTypeId,
+                  Status,
+                  CreatedBy,
+                  CreatedOn,
+                  subjectID,
+                  EmployeeId,
+                  IndexTypeId,
+                  ContentIndexId,
+                  IsRejected,
+                  IsApproved,
+                  QuestionCode,
+                  Explanation,
+                  ExtraInformation,
+                  IsActive,
+                  IsConfigure,
+                  CategoryId,
+                  ParentQId, ParentQCode
+              ) VALUES (
+                  @QuestionDescription,
+                  @QuestionTypeId,
+                  @Status,
+                  @CreatedBy,
+                  @CreatedOn,
+                  @subjectID,
+                  @EmployeeId,
+                  @IndexTypeId,
+                  @ContentIndexId,
+                  @IsRejected,
+                  @IsApproved,
+                  @QuestionCode,
+                  @Explanation,
+                  @ExtraInformation,
+                  @IsActive, @IsConfigure, @CategoryId, @ParentQId, @ParentQCode
+              );
+
+              -- Fetch the QuestionId of the newly inserted row
+              SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                        string deactivateQuery1 = @"UPDATE tblQuestion SET IsActive = 0 WHERE QuestionCode = @QuestionCode AND IsActive = 1";
+                        await _connection.ExecuteAsync(deactivateQuery1, new { request.QuestionCode });
+                        // Retrieve the QuestionCode after insertion
+                        // var insertedQuestionCode = await _connection.QuerySingleOrDefaultAsync<string>(insertQuery, question);
+                        var insertedQuestionId1 = await _connection.QuerySingleOrDefaultAsync<int>(insertQuery1, record);
+                        string code1 = string.Empty;
+                        if (string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string")
+                        {
+                            code = GenerateQuestionCode(request.IndexTypeId, request.ContentIndexId, insertedQuestionId1);
+
+                            string questionCodeQuery = @"
+                            UPDATE tblQuestion
+                            SET QuestionCode = @QuestionCode
+                            WHERE QuestionId = @QuestionId AND IsActive = 1";
+
+                            await _connection.ExecuteAsync(questionCodeQuery, new { QuestionCode = code, QuestionId = insertedQuestionId1 });
+                        }
+                        string insertedQuestionCode1 = string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string" ? code : request.QuestionCode;
+
+                        if (!string.IsNullOrEmpty(insertedQuestionCode1))
+                        {
+                            var answer = await AnswerHandling(record.QuestionTypeId, record.AnswerMultipleChoiceCategories, insertedQuestionId, insertedQuestionCode, record.Answersingleanswercategories);
+                        }
+                        else
+                        {
+                            return new ServiceResponse<string>(false, "Some error occurred", string.Empty, 500);
+                        }
+                    }
+                    if (data > 0)
+                    {
+                        return new ServiceResponse<string>(true, "Operation Successful", "Question Added Successfully", 200);
+                    }
+                    else
+                    {
+                        return new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
+                    }
+                }
+                else
+                {
+                    return new ServiceResponse<string>(false, "Some error occurred", string.Empty, 500);
                 }
             }
             catch (Exception ex)
@@ -2469,15 +2331,17 @@ namespace Schools_API.Repository.Implementations
                     worksheet.Cells[1, 1].Value = "CategoryId";
                     worksheet.Cells[1, 2].Value = "SubjectId";
                     worksheet.Cells[1, 3].Value = "Chapter/Concept/Sub-ConceptId";
-                    worksheet.Cells[1, 4].Value = "QuestionTypeId"; 
-                    worksheet.Cells[1, 5].Value = "Question"; 
-                    worksheet.Cells[1, 6].Value = "Answer";
+                    worksheet.Cells[1, 4].Value = "QuestionTypeId";
+                    worksheet.Cells[1, 5].Value = "ParagraphId";
+                    worksheet.Cells[1, 6].Value = "ParagraphQuestionTypeId";
+                    worksheet.Cells[1, 7].Value = "Question"; 
+                    worksheet.Cells[1, 8].Value = "Answer";
 
                     worksheet.Cells[2, 1].Value = request.CategoryId;
                     worksheet.Cells[2, 2].Value = subjectId; // Fetched subjectId
                     worksheet.Cells[2, 3].Value = contentCode;
                     // Add dynamic columns for options starting from column 6
-                    int optionStartIndex = 7;
+                    int optionStartIndex = 9;
                     for (int i = 0; i < optionsToAdd; i++)
                     {
                         worksheet.Cells[1, optionStartIndex + i].Value = $"Option{i + 1}";
@@ -2539,7 +2403,7 @@ namespace Schools_API.Repository.Implementations
             var questionTypeWorksheet = package.Workbook.Worksheets.Add("Question Types");
             var coursesWorksheet = package.Workbook.Worksheets.Add("Courses");
             var categoryWorksheet = package.Workbook.Worksheets.Add("Category");
-
+            var paragraphWorksheet = package.Workbook.Worksheets.Add("Paragraph");
 
             categoryWorksheet.Cells[1, 1].Value = "CategoryId";
             categoryWorksheet.Cells[1, 2].Value = "Category";
@@ -2644,6 +2508,19 @@ namespace Schools_API.Repository.Implementations
                 coursesWorksheet.Cells[courseRow, 2].Value = course.CourseCode;
                 courseRow++;
             }
+
+
+            paragraphWorksheet.Cells[1, 1].Value = "ParagraphId";
+            paragraphWorksheet.Cells[1, 2].Value = "Paragraph";
+
+            int courseColumnStartIndex = 3; // Start after ParagraphId and Paragraph
+
+            foreach (var course in courses)
+            {
+                paragraphWorksheet.Cells[1, courseColumnStartIndex].Value = course.CourseName;
+                courseColumnStartIndex++;
+            }
+
             // AutoFit columns
             subjectWorksheet.Cells[subjectWorksheet.Dimension.Address].AutoFitColumns();
             contentWorksheet.Cells[contentWorksheet.Dimension.Address].AutoFitColumns();
@@ -2651,6 +2528,7 @@ namespace Schools_API.Repository.Implementations
             questionTypeWorksheet.Cells[questionTypeWorksheet.Dimension.Address].AutoFitColumns();
             coursesWorksheet.Cells[coursesWorksheet.Dimension.Address].AutoFitColumns();
             categoryWorksheet.Cells[categoryWorksheet.Dimension.Address].AutoFitColumns();
+            paragraphWorksheet.Cells[paragraphWorksheet.Dimension.Address].AutoFitColumns();
         }
         private IEnumerable<Subject> GetSubjects(int subjectId)
         {
@@ -2699,6 +2577,7 @@ namespace Schools_API.Repository.Implementations
         {
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
             var questions = new List<QuestionDTO>();
+            List<ComprehensiveQuestionRequest> comprehensiveQuestions = new List<ComprehensiveQuestionRequest>();
             Dictionary<string, int> courseCodeDictionary = new Dictionary<string, int>();
             Dictionary<string, int> subjectDictionary = new Dictionary<string, int>();
 
@@ -2719,146 +2598,447 @@ namespace Schools_API.Repository.Implementations
 
                     for (int row = 2; row <= rowCount; row++) // Skip header row
                     {
-                        int courseStartCol = 0;
-                        for (int col = 1; col <= worksheet.Dimension.Columns; col++)
+
+                        int questionTypeId = Convert.ToInt32(worksheet.Cells[row, 4].Text);
+
+                        if (questionTypeId == 12) // Handle paragraph type
                         {
-                            if (worksheet.Cells[1, col].Text.Equals("Extra Information", StringComparison.OrdinalIgnoreCase))
+
+                            var paragraphIdPrevious = (row > 2) ? Convert.ToInt32(worksheet.Cells[row - 1, 5].Text) : 0;
+
+                            var paragraphId = Convert.ToInt32(worksheet.Cells[row, 5].Text); // Assuming ParagraphId is in column 6
+
+                            if (paragraphId != paragraphIdPrevious)
                             {
-                                courseStartCol = col + 1; // Start right after "Extra Information"
-                                break;
+                                var paragraphSheet = package.Workbook.Worksheets["Paragraph"];
+                                var paragraph = GetParagraphById(paragraphSheet, paragraphId);
+
+                                if (string.IsNullOrEmpty(paragraph))
+                                {
+                                    return new ServiceResponse<string>(false, $"Paragraph not found for ParagraphId {paragraphId} at row {row}.", string.Empty, 400);
+                                }
+
+                                // Fetch chapter, topic, and subtopic names
+                                string contentCode = worksheet.Cells[row, 3].Text;  // Fetch Content Code from the sheet
+                                int indexTypeId = 0;
+                                int contentIndexId = 0;
+
+                                // Determine the type of content based on the structure of ContentCode
+                                if (!string.IsNullOrEmpty(contentCode) && contentCode.Contains("C") && !contentCode.Contains("T"))
+                                {
+                                    // It's a Chapter Code
+                                    indexTypeId = 1;
+                                    contentIndexId = await GetChapterIdByCode(contentCode);
+                                }
+                                else if (!string.IsNullOrEmpty(contentCode) && contentCode.Contains("T") && !contentCode.Contains("ST"))
+                                {
+                                    // It's a Concept/Topic Code
+                                    indexTypeId = 2;
+                                    contentIndexId = await GetTopicIdByCode(contentCode);
+                                }
+                                else if (!string.IsNullOrEmpty(contentCode) && contentCode.Contains("ST"))
+                                {
+                                    // It's a Sub-Concept Code
+                                    indexTypeId = 3;
+                                    contentIndexId = await GetSubTopicIdByCode(contentCode);
+                                }
+                                else
+                                {
+                                    return new ServiceResponse<string>(false, $"Invalid data at row {row}: Must have at least a chapter name.", string.Empty, 400);
+                                }
+
+                                if (contentIndexId == 0)
+                                {
+                                    return new ServiceResponse<string>(false, $"Content index not found for the specified names at row {row}.", string.Empty, 400);
+                                }
+                                // Fetch the SubjectID from the row
+                                int subjectIDFromRow = Convert.ToInt32(worksheet.Cells[row, 2].Text);
+                                int validSubjectId = subjectDictionary.ContainsValue(subjectIDFromRow) ? subjectIDFromRow : 0;
+                                // Subject ID validation - if it doesn't match, skip this record
+                                if (subjectIDFromRow != validSubjectId)
+                                {
+                                    // Log the skipped question if needed
+                                    Console.WriteLine($"Skipped question at row {row}: Subject ID {subjectIDFromRow} does not match {validSubjectId}.");
+                                    continue; // Skip to the next question
+                                }
+                                var comprehensiveQuestionRequest = new ComprehensiveQuestionRequest
+                                {
+                                    Paragraph = paragraph,
+                                    QuestionTypeId = questionTypeId,
+                                    Status = true, // Set as required
+                                    CategoryId = Convert.ToInt32(worksheet.Cells[row, 1].Text),
+                                    CreatedBy = "YourUsername",
+                                    CreatedOn = DateTime.UtcNow,
+                                    subjectID = Convert.ToInt32(worksheet.Cells[row, 2].Text),
+                                    EmployeeId = EmployeeId,
+                                    IndexTypeId = indexTypeId, // Populate as required
+                                    ContentIndexId = contentIndexId, // Populate as required
+                                    IsRejected = false,
+                                    IsApproved = false,
+                                    QuestionCode = "string", // Generate or populate as required
+                                    IsActive = true,
+                                    IsConfigure = true,
+                                    QIDCourses = ExtractQIDCourses(paragraphSheet, courseCodeDictionary, 2), // Populate from the row
+                                    Questions = GetChildQuestions(worksheet, rowCount, courseCodeDictionary, subjectDictionary, EmployeeId), // Populate child questions as needed
+                                };
+
+                                var comprehensiveResponse = await AddUpdateComprehensiveQuestion(comprehensiveQuestionRequest);
+                                // Update the previousParagraphId to the current one after processing
+                                paragraphIdPrevious = paragraphId;
+                                if (!comprehensiveResponse.Success)
+                                {
+                                    return new ServiceResponse<string>(false, $"Failed to add/update comprehensive question at row {row}: {comprehensiveResponse.Message}", string.Empty, 500);
+                                }
                             }
-                        }
-
-                        if (courseStartCol == 0)
-                        {
-                            return new ServiceResponse<string>(false, "Extra Information column not found.", string.Empty, 400);
-                        }
-
-                        var qidCourses = new List<QIDCourse>();
-
-                        for (int col = courseStartCol; col <= courseStartCol + courseCodeDictionary.Count; col++)
-                        {
-                            var courseName = worksheet.Cells[1, col].Text; // Assuming course names are in the first row (header row)
-
-                            if (string.IsNullOrEmpty(courseName)) continue; // Skip if the course name is empty
-
-                            int courseId = courseCodeDictionary.ContainsKey(courseName) ? courseCodeDictionary[courseName] : 0;
-                            if (courseId == 0)
+                            else
                             {
-                                return new ServiceResponse<string>(false, $"Course name '{courseName}' not found in the header at column {col}.", string.Empty, 400);
+                                // Skip processing, as it's the same paragraph as the previous question
+                                continue;
                             }
-
-                            // Get the difficulty level ID from the current cell
-                            string difficultyCellText = worksheet.Cells[row, col].Text;
-                            if (string.IsNullOrEmpty(difficultyCellText)) continue; // If the cell is empty, skip this course mapping
-
-                            int diffiId = int.Parse(difficultyCellText); // Convert difficulty level to int (or handle parsing errors as needed)
-
-                            // Create and add the QIDCourse entry
-                            qidCourses.Add(new QIDCourse
-                            {
-                                QIDCourseID = 0, // Assuming you want to set this later or handle it in the AddUpdateQuestion method
-                                QID = 0, // Populate this as needed
-                                QuestionCode = "string",//string.IsNullOrEmpty(worksheet.Cells[row, 27].Text) ? null : worksheet.Cells[row, 27].Text, // Assuming QuestionCode is in column 27
-                                CourseID = courseId,
-                                LevelId = diffiId, // Difficulty level ID fetched from the current cell
-                                Status = true, // Set as needed
-                                CreatedBy = "YourUsername", // Set the creator's username or similar info
-                                CreatedDate = DateTime.UtcNow, // Use the current date and time
-                                ModifiedBy = "YourUsername", // Set as needed
-                                ModifiedDate = DateTime.UtcNow // Set as needed
-                            });
-                        }
-
-                        // Fetch chapter, topic, and subtopic names
-                        string contentCode = worksheet.Cells[row, 3].Text;  // Fetch Content Code from the sheet
-                        int indexTypeId = 0;
-                        int contentIndexId = 0;
-
-                        // Determine the type of content based on the structure of ContentCode
-                        if (!string.IsNullOrEmpty(contentCode) && contentCode.Contains("C") && !contentCode.Contains("T"))
-                        {
-                            // It's a Chapter Code
-                            indexTypeId = 1;
-                            contentIndexId = await GetChapterIdByCode(contentCode);
-                        }
-                        else if (!string.IsNullOrEmpty(contentCode) && contentCode.Contains("T") && !contentCode.Contains("ST"))
-                        {
-                            // It's a Concept/Topic Code
-                            indexTypeId = 2;
-                            contentIndexId = await GetTopicIdByCode(contentCode);
-                        }
-                        else if (!string.IsNullOrEmpty(contentCode) && contentCode.Contains("ST"))
-                        {
-                            // It's a Sub-Concept Code
-                            indexTypeId = 3;
-                            contentIndexId = await GetSubTopicIdByCode(contentCode);
                         }
                         else
                         {
-                            return new ServiceResponse<string>(false, $"Invalid data at row {row}: Must have at least a chapter name.", string.Empty, 400);
-                        }
-
-                        if (contentIndexId == 0)
-                        {
-                            return new ServiceResponse<string>(false, $"Content index not found for the specified names at row {row}.", string.Empty, 400);
-                        }
-                        string extraInfo = worksheet.Cells[row, courseStartCol - 1].Text; // Assuming extra info column is just before courses
-                        int explanationCol = 0;
-                        for (int col = 1; col <= worksheet.Dimension.Columns; col++)
-                        {
-                            if (worksheet.Cells[1, col].Text.Equals("Explanation", StringComparison.OrdinalIgnoreCase))
+                            int courseStartCol = 0;
+                            for (int col = 1; col <= worksheet.Dimension.Columns; col++)
                             {
-                                explanationCol = col;
-                                break;
+                                if (worksheet.Cells[1, col].Text.Equals("Extra Information", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    courseStartCol = col + 1; // Start right after "Extra Information"
+                                    break;
+                                }
                             }
-                        }
 
-                        string explanation = explanationCol > 0 ? worksheet.Cells[row, explanationCol].Text : null;
-                        // Fetch the SubjectID from the row
-                        int subjectIDFromRow = Convert.ToInt32(worksheet.Cells[row, 2].Text);
-                        int validSubjectId = subjectDictionary.ContainsValue(subjectIDFromRow) ? subjectIDFromRow : 0;
-                        // Subject ID validation - if it doesn't match, skip this record
-                        if (subjectIDFromRow != validSubjectId)
-                        {
-                            // Log the skipped question if needed
-                            Console.WriteLine($"Skipped question at row {row}: Subject ID {subjectIDFromRow} does not match {validSubjectId}.");
-                            continue; // Skip to the next question
-                        }
-                        // Create the question DTO
-                        var question = new QuestionDTO
-                        {
-                            QuestionDescription = worksheet.Cells[row, 5].Text,
-                            QuestionTypeId = Convert.ToInt32(worksheet.Cells[row, 4].Text),
-                            subjectID = Convert.ToInt32(worksheet.Cells[row, 2].Text),
-                            IndexTypeId = indexTypeId,
-                            Explanation = explanation,
-                            QuestionCode = "string",//string.IsNullOrEmpty(worksheet.Cells[row, 27].Text) ? null : worksheet.Cells[row, 27].Text,
-                            ContentIndexId = contentIndexId,
-                            AnswerMultipleChoiceCategories = GetAnswerMultipleChoiceCategories(worksheet, row),
-                            Answersingleanswercategories = GetAnswerSingleAnswerCategories(worksheet, row, Convert.ToInt32(worksheet.Cells[row, 4].Text)),
-                            QIDCourses = qidCourses,
-                            IsActive = true,
-                            IsConfigure = true,
-                            EmployeeId = EmployeeId,
-                            CategoryId = Convert.ToInt32(worksheet.Cells[row, 1].Text),
-                            ExtraInformation = extraInfo
-                        };
+                            if (courseStartCol == 0)
+                            {
+                                return new ServiceResponse<string>(false, "Extra Information column not found.", string.Empty, 400);
+                            }
 
-                        // Add question to the list for bulk processing
-                        questions.Add(question);
+                            var qidCourses = new List<QIDCourse>();
 
-                        // Call AddUpdateQuestion for each question
-                        var response = await AddUpdateQuestion(question);
-                        if (!response.Success)
-                        {
-                            return new ServiceResponse<string>(false, $"Failed to add/update question at row {row}: {response.Message}", string.Empty, 500);
+                            for (int col = courseStartCol; col <= courseStartCol + courseCodeDictionary.Count; col++)
+                            {
+                                var courseName = worksheet.Cells[1, col].Text; // Assuming course names are in the first row (header row)
+
+                                if (string.IsNullOrEmpty(courseName)) continue; // Skip if the course name is empty
+
+                                int courseId = courseCodeDictionary.ContainsKey(courseName) ? courseCodeDictionary[courseName] : 0;
+                                if (courseId == 0)
+                                {
+                                    return new ServiceResponse<string>(false, $"Course name '{courseName}' not found in the header at column {col}.", string.Empty, 400);
+                                }
+
+                                // Get the difficulty level ID from the current cell
+                                string difficultyCellText = worksheet.Cells[row, col].Text;
+                                if (string.IsNullOrEmpty(difficultyCellText)) continue; // If the cell is empty, skip this course mapping
+
+                                int diffiId = int.Parse(difficultyCellText); // Convert difficulty level to int (or handle parsing errors as needed)
+
+                                // Create and add the QIDCourse entry
+                                qidCourses.Add(new QIDCourse
+                                {
+                                    QIDCourseID = 0, // Assuming you want to set this later or handle it in the AddUpdateQuestion method
+                                    QID = 0, // Populate this as needed
+                                    QuestionCode = "string",//string.IsNullOrEmpty(worksheet.Cells[row, 27].Text) ? null : worksheet.Cells[row, 27].Text, // Assuming QuestionCode is in column 27
+                                    CourseID = courseId,
+                                    LevelId = diffiId, // Difficulty level ID fetched from the current cell
+                                    Status = true, // Set as needed
+                                    CreatedBy = "YourUsername", // Set the creator's username or similar info
+                                    CreatedDate = DateTime.UtcNow, // Use the current date and time
+                                    ModifiedBy = "YourUsername", // Set as needed
+                                    ModifiedDate = DateTime.UtcNow // Set as needed
+                                });
+                            }
+
+                            // Fetch chapter, topic, and subtopic names
+                            string contentCode = worksheet.Cells[row, 3].Text;  // Fetch Content Code from the sheet
+                            int indexTypeId = 0;
+                            int contentIndexId = 0;
+
+                            // Determine the type of content based on the structure of ContentCode
+                            if (!string.IsNullOrEmpty(contentCode) && contentCode.Contains("C") && !contentCode.Contains("T"))
+                            {
+                                // It's a Chapter Code
+                                indexTypeId = 1;
+                                contentIndexId = await GetChapterIdByCode(contentCode);
+                            }
+                            else if (!string.IsNullOrEmpty(contentCode) && contentCode.Contains("T") && !contentCode.Contains("ST"))
+                            {
+                                // It's a Concept/Topic Code
+                                indexTypeId = 2;
+                                contentIndexId = await GetTopicIdByCode(contentCode);
+                            }
+                            else if (!string.IsNullOrEmpty(contentCode) && contentCode.Contains("ST"))
+                            {
+                                // It's a Sub-Concept Code
+                                indexTypeId = 3;
+                                contentIndexId = await GetSubTopicIdByCode(contentCode);
+                            }
+                            else
+                            {
+                                return new ServiceResponse<string>(false, $"Invalid data at row {row}: Must have at least a chapter name.", string.Empty, 400);
+                            }
+
+                            if (contentIndexId == 0)
+                            {
+                                return new ServiceResponse<string>(false, $"Content index not found for the specified names at row {row}.", string.Empty, 400);
+                            }
+                            string extraInfo = worksheet.Cells[row, courseStartCol - 1].Text; // Assuming extra info column is just before courses
+                            int explanationCol = 0;
+                            for (int col = 1; col <= worksheet.Dimension.Columns; col++)
+                            {
+                                if (worksheet.Cells[1, col].Text.Equals("Explanation", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    explanationCol = col;
+                                    break;
+                                }
+                            }
+
+                            string explanation = explanationCol > 0 ? worksheet.Cells[row, explanationCol].Text : null;
+                            // Fetch the SubjectID from the row
+                            int subjectIDFromRow = Convert.ToInt32(worksheet.Cells[row, 2].Text);
+                            int validSubjectId = subjectDictionary.ContainsValue(subjectIDFromRow) ? subjectIDFromRow : 0;
+                            // Subject ID validation - if it doesn't match, skip this record
+                            if (subjectIDFromRow != validSubjectId)
+                            {
+                                // Log the skipped question if needed
+                                Console.WriteLine($"Skipped question at row {row}: Subject ID {subjectIDFromRow} does not match {validSubjectId}.");
+                                continue; // Skip to the next question
+                            }
+                            // Create the question DTO
+                            var question = new QuestionDTO
+                            {
+                                QuestionDescription = worksheet.Cells[row, 7].Text,
+                                QuestionTypeId = Convert.ToInt32(worksheet.Cells[row, 4].Text),
+                                subjectID = Convert.ToInt32(worksheet.Cells[row, 2].Text),
+                                IndexTypeId = indexTypeId,
+                                Explanation = explanation,
+                                QuestionCode = "string",//string.IsNullOrEmpty(worksheet.Cells[row, 27].Text) ? null : worksheet.Cells[row, 27].Text,
+                                ContentIndexId = contentIndexId,
+                                AnswerMultipleChoiceCategories = GetAnswerMultipleChoiceCategories(worksheet, row),
+                                Answersingleanswercategories = GetAnswerSingleAnswerCategories(worksheet, row, Convert.ToInt32(worksheet.Cells[row, 4].Text)),
+                                QIDCourses = qidCourses,
+                                IsActive = true,
+                                IsConfigure = true,
+                                EmployeeId = EmployeeId,
+                                CategoryId = Convert.ToInt32(worksheet.Cells[row, 1].Text),
+                                ExtraInformation = extraInfo
+                            };
+
+                            // Add question to the list for bulk processing
+                            questions.Add(question);
+
+                            // Call AddUpdateQuestion for each question
+                            var response = await AddUpdateQuestion(question);
+                            if (!response.Success)
+                            {
+                                return new ServiceResponse<string>(false, $"Failed to add/update question at row {row}: {response.Message}", string.Empty, 500);
+                            }
                         }
                     }
                 }
             }
-
             return new ServiceResponse<string>(true, "All questions uploaded successfully.", "Data uploaded successfully.", 200);
+        }
+        private List<QIDCourse> ExtractQIDCourses(
+    ExcelWorksheet paragraphSheet,
+    Dictionary<string, int> courseCodeDictionary,
+    int paragraphRow)
+        {
+       
+            // Step 2: Identify the starting column for dynamic course data
+            int courseStartCol = 3;
+            // Step 3: Extract QIDCourse mappings for the given paragraph
+            var qidCourses = new List<QIDCourse>();
+            for (int col = courseStartCol; col <= paragraphSheet.Dimension.Columns; col++)
+            {
+                string courseName = paragraphSheet.Cells[1, col].Text; // Course name in header row
+                if (string.IsNullOrEmpty(courseName)) continue; // Skip empty columns
+
+                if (!courseCodeDictionary.TryGetValue(courseName, out int courseId)) continue; // Skip if course is not mapped
+
+                string difficultyText = paragraphSheet.Cells[paragraphRow, col].Text; // Difficulty ID for the paragraph
+                if (string.IsNullOrEmpty(difficultyText)) continue;
+
+                if (!int.TryParse(difficultyText, out int difficultyId)) continue; // Skip non-numeric difficulty levels
+
+                // Create QIDCourse entry
+                qidCourses.Add(new QIDCourse
+                {
+                    QIDCourseID = 0, // To be set later, if needed
+                    QID = 0, // To be set later, if needed
+                    QuestionCode = "string", // Modify based on your requirements
+                    CourseID = courseId,
+                    LevelId = difficultyId,
+                    Status = true,
+                    CreatedBy = "YourUsername", // Replace with actual creator
+                    CreatedDate = DateTime.UtcNow,
+                    ModifiedBy = "YourUsername", // Replace with actual modifier
+                    ModifiedDate = DateTime.UtcNow
+                });
+            }
+
+            return qidCourses;
+        }
+
+        private string GetParagraphById(ExcelWorksheet paragraphSheet, int paragraphId)
+        {
+            if (paragraphSheet == null) return null;
+
+            var rowCount = paragraphSheet.Dimension.Rows;
+            for (int row = 2; row <= rowCount; row++) // Assuming the header is in row 1
+            {
+                if (Convert.ToInt32(paragraphSheet.Cells[row, 1].Text) == paragraphId) // Assuming ParagraphId is in column 1
+                {
+                    return paragraphSheet.Cells[row, 2].Text; // Assuming Paragraph text is in column 2
+                }
+            }
+
+            return null; // Return null if no matching ParagraphId is found
+        }
+        private List<ParagraphQuestionDTO> GetChildQuestions(ExcelWorksheet worksheet, int rowCount, 
+        Dictionary<string, int> courseCodeDictionary,
+        Dictionary<string, int> subjectDictionary, int EmployeeId)
+        {
+            var questions = new List<ParagraphQuestionDTO>();
+            for (int row = 2; row <= rowCount; row++) // Skip header row
+            {
+                int questionTypeId = Convert.ToInt32(worksheet.Cells[row, 4].Text);
+                int courseStartCol = 0;
+                for (int col = 1; col <= worksheet.Dimension.Columns; col++)
+                {
+                    if (worksheet.Cells[1, col].Text.Equals("Extra Information", StringComparison.OrdinalIgnoreCase))
+                    {
+                        courseStartCol = col + 1; // Start right after "Extra Information"
+                        break;
+                    }
+                }
+
+                if (courseStartCol == 0)
+                {
+                    return [];
+                }
+
+                var qidCourses = new List<QIDCourse>();
+
+                for (int col = courseStartCol; col <= courseStartCol + courseCodeDictionary.Count; col++)
+                {
+                    var courseName = worksheet.Cells[1, col].Text; // Assuming course names are in the first row (header row)
+
+                    if (string.IsNullOrEmpty(courseName)) continue; // Skip if the course name is empty
+
+                    int courseId = courseCodeDictionary.ContainsKey(courseName) ? courseCodeDictionary[courseName] : 0;
+                    if (courseId == 0)
+                    {
+                        return [];
+                    }
+
+                    // Get the difficulty level ID from the current cell
+                    string difficultyCellText = worksheet.Cells[row, col].Text;
+                    if (string.IsNullOrEmpty(difficultyCellText)) continue; // If the cell is empty, skip this course mapping
+
+                    int diffiId = int.Parse(difficultyCellText); // Convert difficulty level to int (or handle parsing errors as needed)
+
+                    // Create and add the QIDCourse entry
+                    qidCourses.Add(new QIDCourse
+                    {
+                        QIDCourseID = 0, // Assuming you want to set this later or handle it in the AddUpdateQuestion method
+                        QID = 0, // Populate this as needed
+                        QuestionCode = "string",//string.IsNullOrEmpty(worksheet.Cells[row, 27].Text) ? null : worksheet.Cells[row, 27].Text, // Assuming QuestionCode is in column 27
+                        CourseID = courseId,
+                        LevelId = diffiId, // Difficulty level ID fetched from the current cell
+                        Status = true, // Set as needed
+                        CreatedBy = "YourUsername", // Set the creator's username or similar info
+                        CreatedDate = DateTime.UtcNow, // Use the current date and time
+                        ModifiedBy = "YourUsername", // Set as needed
+                        ModifiedDate = DateTime.UtcNow // Set as needed
+                    });
+                }
+
+                // Fetch chapter, topic, and subtopic names
+                string contentCode = worksheet.Cells[row, 3].Text;  // Fetch Content Code from the sheet
+                int indexTypeId = 0;
+                int contentIndexId = 0;
+
+                // Determine the type of content based on the structure of ContentCode
+                if (!string.IsNullOrEmpty(contentCode) && contentCode.Contains("C") && !contentCode.Contains("T"))
+                {
+                    // It's a Chapter Code
+                    indexTypeId = 1;
+                    contentIndexId = _connection.QueryFirstOrDefault<int>(@"SELECT TOP 1 ContentIndexId FROM tblContentIndexChapters WHERE ChapterCode = @ChapterCode AND IsActive = 1",
+                        new { ChapterCode = contentCode });
+                     
+                }
+                else if (!string.IsNullOrEmpty(contentCode) && contentCode.Contains("T") && !contentCode.Contains("ST"))
+                {
+                    // It's a Concept/Topic Code
+                    indexTypeId = 2;
+                    contentIndexId = _connection.QueryFirstOrDefault<int>(@"SELECT TOP 1 ContentIndexId FROM tblContentIndexTopics WHERE TopicCode = @TopicCode AND IsActive = 1", 
+                        new { TopicCode = contentCode });
+                }
+                else if (!string.IsNullOrEmpty(contentCode) && contentCode.Contains("ST"))
+                {
+                    // It's a Sub-Concept Code
+                    indexTypeId = 3;
+                    contentIndexId =  _connection.QueryFirstOrDefault<int>(@"SELECT TOP 1 ContInIdSubTopic FROM tblContentIndexSubTopics WHERE SubTopicCode = @SubTopicCode AND IsActive = 1",
+                        new { SubTopicCode = contentCode });
+                }
+                else
+                {
+                    return [];
+                }
+
+                if (contentIndexId == 0)
+                {
+                    return [];
+                }
+                string extraInfo = worksheet.Cells[row, courseStartCol - 1].Text; // Assuming extra info column is just before courses
+                int explanationCol = 0;
+                for (int col = 1; col <= worksheet.Dimension.Columns; col++)
+                {
+                    if (worksheet.Cells[1, col].Text.Equals("Explanation", StringComparison.OrdinalIgnoreCase))
+                    {
+                        explanationCol = col;
+                        break;
+                    }
+                }
+
+                string explanation = explanationCol > 0 ? worksheet.Cells[row, explanationCol].Text : null;
+                // Fetch the SubjectID from the row
+                int subjectIDFromRow = Convert.ToInt32(worksheet.Cells[row, 2].Text);
+                int validSubjectId = subjectDictionary.ContainsValue(subjectIDFromRow) ? subjectIDFromRow : 0;
+                // Subject ID validation - if it doesn't match, skip this record
+                if (subjectIDFromRow != validSubjectId)
+                {
+                    // Log the skipped question if needed
+                    Console.WriteLine($"Skipped question at row {row}: Subject ID {subjectIDFromRow} does not match {validSubjectId}.");
+                    continue; // Skip to the next question
+                }
+                // Create the question DTO
+                var question = new ParagraphQuestionDTO
+                {
+                    QuestionDescription = worksheet.Cells[row, 7].Text,
+                    QuestionTypeId = Convert.ToInt32(worksheet.Cells[row, 4].Text),
+                    subjectID = Convert.ToInt32(worksheet.Cells[row, 2].Text),
+                    IndexTypeId = indexTypeId,
+                    Explanation = explanation,
+                    QuestionCode = "string",//string.IsNullOrEmpty(worksheet.Cells[row, 27].Text) ? null : worksheet.Cells[row, 27].Text,
+                    ContentIndexId = contentIndexId,
+                    AnswerMultipleChoiceCategories = GetAnswerMultipleChoiceCategories(worksheet, row),
+                    Answersingleanswercategories = GetAnswerSingleAnswerCategories(worksheet, row, Convert.ToInt32(worksheet.Cells[row, 4].Text)),
+                    IsActive = true,
+                    IsConfigure = true,
+                    EmployeeId = EmployeeId,
+                    CategoryId = Convert.ToInt32(worksheet.Cells[row, 1].Text),
+                    ExtraInformation = extraInfo,
+                    Status = true,
+                    CreatedOn = DateTime.UtcNow,
+                    CreatedBy = ""
+                };
+
+                // Add question to the list for bulk processing
+                questions.Add(question);
+            }
+            return questions;
         }
         private async Task<int> GetChapterIdByCode(string chapterCode)
         {
@@ -2912,9 +3092,9 @@ namespace Schools_API.Repository.Implementations
             var categories = new List<AnswerMultipleChoiceCategory>();
 
             // Get the correct answers from cell 5 (comma-separated for multiple answers)
-            var correctAnswers = worksheet.Cells[row, 6].Text.Split(',').Select(a => a.Trim()).ToList();
+            var correctAnswers = worksheet.Cells[row, 8].Text.Split(',').Select(a => a.Trim()).ToList();
 
-            int optionColumn = 7; // Start from column 6 where the options begin
+            int optionColumn = 9; // Start from column 6 where the options begin
 
             // Loop through the columns until the Explanation column is found
             while (true)

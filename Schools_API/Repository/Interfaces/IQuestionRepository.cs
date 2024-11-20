@@ -24,5 +24,6 @@ namespace Schools_API.Repository.Interfaces
         Task<ServiceResponse<List<ContentIndexResponses>>> GetSyllabusDetailsBySubject(SyllabusDetailsRequest request);
         Task<ServiceResponse<byte[]>> GenerateExcelFile(DownExcelRequest request);
         Task<ServiceResponse<string>> UploadQuestionsFromExcel(IFormFile file, int EmployeeId);
+        Task<ServiceResponse<string>> AddUpdateComprehensiveQuestion(ComprehensiveQuestionRequest request);
     }
 }

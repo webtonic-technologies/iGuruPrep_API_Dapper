@@ -15,6 +15,12 @@ namespace Schools_API.Services.Implementations
         {
             _questionRepository = questionRepository;
         }
+
+        public async Task<ServiceResponse<string>> AddUpdateComprehensiveQuestion(ComprehensiveQuestionRequest request)
+        {
+            return await _questionRepository.AddUpdateComprehensiveQuestion(request);
+        }
+
         public async Task<ServiceResponse<string>> AddUpdateQuestion(QuestionDTO request)
         {
             try

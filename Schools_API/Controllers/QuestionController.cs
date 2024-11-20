@@ -172,6 +172,25 @@ namespace Schools_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
+        [HttpPost("AddUpdateComprehensiveQuestion")]
+        public async Task<IActionResult> AddUpdateComprehensiveQuestion(ComprehensiveQuestionRequest request)
+        {
+            try
+            {
+                var data = await _questionServices.AddUpdateComprehensiveQuestion(request);
+
+                if (data == null)
+                {
+                    return StatusCode(500, "A problem happened while handling your request.");
+                }
+
+                return Ok(data);
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
         //[HttpGet("GetAssignedQuestionsList/{EmployeeId}")]
         //public async Task<IActionResult> GetAssignedQuestionsList(int EmployeeId)
         //{
