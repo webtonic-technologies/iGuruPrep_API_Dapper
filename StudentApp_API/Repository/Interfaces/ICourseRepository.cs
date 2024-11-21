@@ -8,5 +8,7 @@ namespace StudentApp_API.Repository.Interfaces
     public interface ICourseRepository
     {
         Task<ServiceResponse<List<GetCourseResponse>>> GetAllCoursesAsync();
+        Task<ServiceResponse<List<GetClassesResponse>>> GetClassesAsync();
+        Task<ServiceResponse<List<GetBoardsResponse>>> GetBoardsAsync();
     }
 }

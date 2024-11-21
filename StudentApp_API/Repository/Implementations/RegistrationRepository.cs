@@ -2,21 +2,20 @@
 using StudentApp_API.DTOs.Requests;
 using StudentApp_API.DTOs.Responses;
 using StudentApp_API.DTOs.ServiceResponse;
-using StudentApp_API.Models;
 using StudentApp_API.Repository.Interfaces;
-using System;
 using System.Data;
-using System.Threading.Tasks;
 
 namespace StudentApp_API.Repository.Implementations
 {
     public class RegistrationRepository : IRegistrationRepository
     {
         private readonly IDbConnection _connection;
+        private readonly IWebHostEnvironment _hostingEnvironment;
 
-        public RegistrationRepository(IDbConnection connection)
+        public RegistrationRepository(IDbConnection connection, IWebHostEnvironment hostingEnvironment)
         {
             _connection = connection;
+            _hostingEnvironment = hostingEnvironment;
         }
 
         public async Task<ServiceResponse<int>> AddRegistrationAsync(RegistrationRequest request)
@@ -31,7 +30,8 @@ namespace StudentApp_API.Repository.Implementations
                     (@FirstName, @LastName, @CountryCodeID, @MobileNumber, @EmailID, @Password, @CountryID, @Location, 
                      @ReferralCode, @SchoolCode, GETDATE(), 1, @IsTermsAgreed, @Photo);
                     SELECT CAST(SCOPE_IDENTITY() as int)";
-
+                request.Password = EncryptionHelper.EncryptString(request.Password);
+                request.Photo = ImageUpload(request.Photo);
                 var registrationId = await _connection.ExecuteScalarAsync<int>(query, request);
 
                 // Use the parameterized constructor correctly
@@ -43,7 +43,6 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<int>(false, ex.Message, 0, 500);
             }
         }
-
         public async Task<ServiceResponse<SendOTPResponse>> SendOTPAsync(SendOTPRequest request)
         {
             try
@@ -78,7 +77,6 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<SendOTPResponse>(false, ex.Message, null, 500);
             }
         }
-
         public async Task<ServiceResponse<VerifyOTPResponse>> VerifyOTPAsync(VerifyOTPRequest request)
         {
             try
@@ -121,27 +119,50 @@ namespace StudentApp_API.Repository.Implementations
         {
             try
             {
-                // Query to verify email and password
-                string query = @"SELECT RegistrationID, FirstName, LastName, EmailID, MobileNumber, Location
-                                 FROM tblRegistration 
-                                 WHERE EmailID = @EmailID AND Password = @Password AND IsActive = 1";
+                // Query to fetch encrypted password and other user details
+                string query = @"SELECT RegistrationID, FirstName, LastName, EmailID, MobileNumber, Location, Password 
+                         FROM tblRegistration 
+                         WHERE EmailID = @EmailID AND IsActive = 1";
 
-                var user = await _connection.QueryFirstOrDefaultAsync<LoginResponse>(query, new { request.EmailID, request.Password });
+                // Fetch the user details including the encrypted password
+                var userWithPassword = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new { request.EmailID });
 
-                if (user != null)
+                if (userWithPassword != null)
                 {
-                    user.IsLoginSuccessful = true;
-                    return new ServiceResponse<LoginResponse>(true, "Login successful.", user, 200);
+                    // Extract encrypted password from the result
+                    string encryptedPassword = userWithPassword.Password;
+
+                    // Decrypt the password from the database
+                    string decryptedPassword = EncryptionHelper.DecryptString(encryptedPassword);
+
+                    // Compare the decrypted password with the input password
+                    if (decryptedPassword == request.Password)
+                    {
+                        // Create a response object without the password
+                        var loginResponse = new LoginResponse
+                        {
+                            RegistrationID = userWithPassword.RegistrationID,
+                            FirstName = userWithPassword.FirstName,
+                            LastName = userWithPassword.LastName,
+                            EmailID = userWithPassword.EmailID,
+                            MobileNumber = userWithPassword.MobileNumber,
+                            Location = userWithPassword.Location,
+                            IsLoginSuccessful = true
+                        };
+
+                        return new ServiceResponse<LoginResponse>(true, "Login successful.", loginResponse, 200);
+                    }
+
+                    return new ServiceResponse<LoginResponse>(false, "Invalid email or password.", null, 401);
                 }
 
-                return new ServiceResponse<LoginResponse>(false, "Invalid email or password.", null, 401);
+                return new ServiceResponse<LoginResponse>(false, "User not found.", null, 404);
             }
             catch (Exception ex)
             {
                 return new ServiceResponse<LoginResponse>(false, ex.Message, null, 500);
             }
         }
-
         public async Task<ServiceResponse<AssignCourseResponse>> AssignCourseAsync(AssignCourseRequest request)
         {
             try
@@ -177,7 +198,6 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<AssignCourseResponse>(false, ex.Message, null, 500);
             }
         }
-
         public async Task<ServiceResponse<AssignClassResponse>> AssignClassAsync(AssignClassRequest request)
         {
             try
@@ -316,7 +336,7 @@ namespace StudentApp_API.Repository.Implementations
             {
                 // Fetch registration details
                 var registration = await _connection.QueryFirstOrDefaultAsync<RegistrationDTO>(queryRegistration, new { RegistrationID = registrationId });
-
+                registration.Photo = GetImageFileById(registration.Photo);
                 if (registration == null)
                 {
                     return new ServiceResponse<RegistrationDTO>(false, "Registration not found.", null, 404);
@@ -333,6 +353,58 @@ namespace StudentApp_API.Repository.Implementations
             {
                 return new ServiceResponse<RegistrationDTO>(false, ex.Message, null, 500);
             }
+        }
+        private string ImageUpload(string image)
+        {
+            if (string.IsNullOrEmpty(image) || image == "string")
+            {
+                return string.Empty;
+            }
+            byte[] imageData = Convert.FromBase64String(image);
+            string directoryPath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "Registration");
+
+            if (!Directory.Exists(directoryPath))
+            {
+                Directory.CreateDirectory(directoryPath);
+            }
+            string fileExtension = IsJpeg(imageData) == true ? ".jpg" : IsPng(imageData) == true ? ".png" : IsGif(imageData) == true ? ".gif" : string.Empty;
+            string fileName = Guid.NewGuid().ToString() + fileExtension;
+            string filePath = Path.Combine(directoryPath, fileName);
+            if (string.IsNullOrEmpty(fileExtension))
+            {
+                throw new InvalidOperationException("Incorrect file uploaded");
+            }
+            // Write the byte array to the image file
+            File.WriteAllBytes(filePath, imageData);
+            return filePath;
+        }
+        private string GetImageFileById(string Filename)
+        {
+            var filePath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "Registration", Filename);
+
+            if (!File.Exists(filePath))
+            {
+                return string.Empty;
+            }
+            byte[] fileBytes = File.ReadAllBytes(filePath);
+            string base64String = Convert.ToBase64String(fileBytes);
+            return base64String;
+        }
+        private bool IsJpeg(byte[] bytes)
+        {
+            // JPEG magic number: 0xFF, 0xD8
+            return bytes.Length > 1 && bytes[0] == 0xFF && bytes[1] == 0xD8;
+        }
+        private bool IsPng(byte[] bytes)
+        {
+            // PNG magic number: 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A
+            return bytes.Length > 7 && bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47
+                && bytes[4] == 0x0D && bytes[5] == 0x0A && bytes[6] == 0x1A && bytes[7] == 0x0A;
+        }
+        private bool IsGif(byte[] bytes)
+        {
+            // GIF magic number: "GIF"
+            return bytes.Length > 2 && bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46;
         }
     }
 }

@@ -26,7 +26,7 @@
         public bool IsActive { get; set; }
         public bool IsTermsAgreed { get; set; }
         public string Photo { get; set; }
-        public string OTP { get; set; }
+      //  public string OTP { get; set; }
         public List<ParentDTO> Parents { get; set; }
     }
 

@@ -696,7 +696,7 @@ namespace Schools_API.Repository.Implementations
 
                         if (!string.IsNullOrEmpty(insertedQuestionCode1))
                         {
-                            var answer = await AnswerHandling(record.QuestionTypeId, record.AnswerMultipleChoiceCategories, insertedQuestionId, insertedQuestionCode, record.Answersingleanswercategories);
+                            var answer = await AnswerHandling(record.QuestionTypeId, record.AnswerMultipleChoiceCategories, insertedQuestionId1, insertedQuestionCode1, record.Answersingleanswercategories);
                         }
                         else
                         {
@@ -999,36 +999,70 @@ namespace Schools_API.Repository.Implementations
                 if (data != null)
                 {
                     // Convert the data to a list of DTOs
-                    var response = data.Select(item => new QuestionResponseDTO
+                    var response = data.Select(item =>
                     {
-                        QuestionId = item.QuestionId,
-                        QuestionDescription = item.QuestionDescription,
-                        QuestionTypeId = item.QuestionTypeId,
-                        Status = item.Status,
-                        CreatedBy = item.CreatedBy,
-                        CreatedOn = item.CreatedOn,
-                        ModifiedBy = item.ModifiedBy,
-                        ModifiedOn = item.ModifiedOn,
-                        subjectID = item.subjectID,
-                        SubjectName = item.SubjectName,
-                        EmployeeId = item.EmployeeId,
-                        EmployeeName = item.EmpFirstName,
-                        IndexTypeId = item.IndexTypeId,
-                        IndexTypeName = item.IndexTypeName,
-                        ContentIndexId = item.ContentIndexId,
-                        ContentIndexName = item.ContentIndexName,
-                        IsRejected = item.IsRejected,
-                        IsApproved = item.IsApproved,
-                        QuestionTypeName = item.QuestionTypeName,
-                        QuestionCode = item.QuestionCode,
-                        Explanation = item.Explanation,
-                        ExtraInformation = item.ExtraInformation,
-                        IsActive = item.IsActive,
-                        QIDCourses = GetListOfQIDCourse(item.QuestionCode),
-                        //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
-                        Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
-                        AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
-                    }).ToList();
+                        if (item.QuestionTypeId == 12)
+                        {
+                            return new QuestionResponseDTO
+                            {
+                                QuestionId = item.QuestionId,
+                                Paragraph = item.Paragraph,
+                                SubjectName = item.SubjectName,
+                                EmployeeName = item.EmpFirstName,
+                                IndexTypeName = item.IndexTypeName,
+                                ContentIndexName = item.ContentIndexName,
+                                QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+                                ContentIndexId = item.ContentIndexId,
+                                CreatedBy = item.CreatedBy,
+                                CreatedOn = item.CreatedOn,
+                                EmployeeId = item.EmployeeId,
+                                IndexTypeId = item.IndexTypeId,
+                                subjectID = item.subjectID,
+                                ModifiedOn = item.ModifiedOn,
+                                QuestionTypeId = item.QuestionTypeId,
+                                QuestionTypeName = item.QuestionTypeName,
+                                QuestionCode = item.QuestionCode,
+                                Explanation = item.Explanation,
+                                ExtraInformation = item.ExtraInformation,
+                                IsActive = item.IsActive,
+                                ComprehensiveChildQuestions = GetChildQuestions(item.QuestionCode)
+                            };
+                        }
+                        else
+                        {
+                           return new QuestionResponseDTO
+                            {
+                                QuestionId = item.QuestionId,
+                                QuestionDescription = item.QuestionDescription,
+                                QuestionTypeId = item.QuestionTypeId,
+                                Status = item.Status,
+                                CreatedBy = item.CreatedBy,
+                                CreatedOn = item.CreatedOn,
+                                ModifiedBy = item.ModifiedBy,
+                                ModifiedOn = item.ModifiedOn,
+                                subjectID = item.subjectID,
+                                SubjectName = item.SubjectName,
+                                EmployeeId = item.EmployeeId,
+                                EmployeeName = item.EmpFirstName,
+                                IndexTypeId = item.IndexTypeId,
+                                IndexTypeName = item.IndexTypeName,
+                                ContentIndexId = item.ContentIndexId,
+                                ContentIndexName = item.ContentIndexName,
+                                IsRejected = item.IsRejected,
+                                IsApproved = item.IsApproved,
+                                QuestionTypeName = item.QuestionTypeName,
+                                QuestionCode = item.QuestionCode,
+                                Explanation = item.Explanation,
+                                ExtraInformation = item.ExtraInformation,
+                                IsActive = item.IsActive,
+                                QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+                                //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
+                                Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
+                                AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
+                            };
+                        }
+                    }
+                    ).ToList();
 
                     // Step 3: Filter out questions assigned to other employees
                     var questionCodesCreatedByEmployee = response.Where(r => r.EmployeeId == request.EmployeeId).Select(r => r.QuestionCode).ToList();
@@ -1198,35 +1232,102 @@ namespace Schools_API.Repository.Implementations
 
                 if (data != null)
                 {
-                    var response = data.Select(item => new QuestionResponseDTO
+
+                    // Convert the data to a list of DTOs
+                    var response = data.Select(item =>
                     {
-                        QuestionId = item.QuestionId,
-                        QuestionDescription = item.QuestionDescription,
-                        QuestionTypeId = item.QuestionTypeId,
-                        Status = item.Status,
-                        CreatedBy = item.CreatedBy,
-                        CreatedOn = item.CreatedOn,
-                        ModifiedBy = item.ModifiedBy,
-                        ModifiedOn = item.ModifiedOn,
-                        subjectID = item.subjectID,
-                        SubjectName = item.SubjectName,
-                        EmployeeId = item.EmployeeId,
-                        EmployeeName = item.EmpFirstName,
-                        IndexTypeId = item.IndexTypeId,
-                        IndexTypeName = item.IndexTypeName,
-                        ContentIndexId = item.ContentIndexId,
-                        ContentIndexName = item.ContentIndexName,
-                        QIDCourses = GetListOfQIDCourse(item.QuestionCode),
-                        Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
-                        AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode),
-                        IsApproved = item.IsApproved,
-                        IsRejected = item.IsRejected,
-                        QuestionTypeName = item.QuestionTypeName,
-                        QuestionCode = item.QuestionCode,
-                        Explanation = item.Explanation,
-                        ExtraInformation = item.ExtraInformation,
-                        IsActive = item.IsActive
-                    }).ToList();
+                        if (item.QuestionTypeId == 12)
+                        {
+                            return new QuestionResponseDTO
+                            {
+                                QuestionId = item.QuestionId,
+                                Paragraph = item.Paragraph,
+                                SubjectName = item.SubjectName,
+                                EmployeeName = item.EmpFirstName,
+                                IndexTypeName = item.IndexTypeName,
+                                ContentIndexName = item.ContentIndexName,
+                                QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+                                ContentIndexId = item.ContentIndexId,
+                                CreatedBy = item.CreatedBy,
+                                CreatedOn = item.CreatedOn,
+                                EmployeeId = item.EmployeeId,
+                                IndexTypeId = item.IndexTypeId,
+                                subjectID = item.subjectID,
+                                ModifiedOn = item.ModifiedOn,
+                                QuestionTypeId = item.QuestionTypeId,
+                                QuestionTypeName = item.QuestionTypeName,
+                                QuestionCode = item.QuestionCode,
+                                Explanation = item.Explanation,
+                                ExtraInformation = item.ExtraInformation,
+                                IsActive = item.IsActive,
+                                ComprehensiveChildQuestions = GetChildQuestions(item.QuestionCode)
+                            };
+                        }
+                        else
+                        {
+                            return new QuestionResponseDTO
+                            {
+                                QuestionId = item.QuestionId,
+                                QuestionDescription = item.QuestionDescription,
+                                QuestionTypeId = item.QuestionTypeId,
+                                Status = item.Status,
+                                CreatedBy = item.CreatedBy,
+                                CreatedOn = item.CreatedOn,
+                                ModifiedBy = item.ModifiedBy,
+                                ModifiedOn = item.ModifiedOn,
+                                subjectID = item.subjectID,
+                                SubjectName = item.SubjectName,
+                                EmployeeId = item.EmployeeId,
+                                EmployeeName = item.EmpFirstName,
+                                IndexTypeId = item.IndexTypeId,
+                                IndexTypeName = item.IndexTypeName,
+                                ContentIndexId = item.ContentIndexId,
+                                ContentIndexName = item.ContentIndexName,
+                                IsRejected = item.IsRejected,
+                                IsApproved = item.IsApproved,
+                                QuestionTypeName = item.QuestionTypeName,
+                                QuestionCode = item.QuestionCode,
+                                Explanation = item.Explanation,
+                                ExtraInformation = item.ExtraInformation,
+                                IsActive = item.IsActive,
+                                QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+                                //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
+                                Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
+                                AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
+                            };
+                        }
+                    }
+                    ).ToList();
+
+                    //var response = data.Select(item => new QuestionResponseDTO
+                    //{
+                    //    QuestionId = item.QuestionId,
+                    //    QuestionDescription = item.QuestionDescription,
+                    //    QuestionTypeId = item.QuestionTypeId,
+                    //    Status = item.Status,
+                    //    CreatedBy = item.CreatedBy,
+                    //    CreatedOn = item.CreatedOn,
+                    //    ModifiedBy = item.ModifiedBy,
+                    //    ModifiedOn = item.ModifiedOn,
+                    //    subjectID = item.subjectID,
+                    //    SubjectName = item.SubjectName,
+                    //    EmployeeId = item.EmployeeId,
+                    //    EmployeeName = item.EmpFirstName,
+                    //    IndexTypeId = item.IndexTypeId,
+                    //    IndexTypeName = item.IndexTypeName,
+                    //    ContentIndexId = item.ContentIndexId,
+                    //    ContentIndexName = item.ContentIndexName,
+                    //    QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+                    //    Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
+                    //    AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode),
+                    //    IsApproved = item.IsApproved,
+                    //    IsRejected = item.IsRejected,
+                    //    QuestionTypeName = item.QuestionTypeName,
+                    //    QuestionCode = item.QuestionCode,
+                    //    Explanation = item.Explanation,
+                    //    ExtraInformation = item.ExtraInformation,
+                    //    IsActive = item.IsActive
+                    //}).ToList();
 
                     var paginatedList = response.Skip((request.PageNumber - 1) * request.PageSize)
                                                 .Take(request.PageSize)
@@ -1363,36 +1464,102 @@ namespace Schools_API.Repository.Implementations
 
                 if (data != null)
                 {
-                    var response = data.Select(item => new QuestionResponseDTO
+                    //var response = data.Select(item => new QuestionResponseDTO
+                    //{
+                    //    QuestionId = item.QuestionId,
+                    //    QuestionDescription = item.QuestionDescription,
+                    //    QuestionTypeId = item.QuestionTypeId,
+                    //    Status = item.Status,
+                    //    CreatedBy = item.CreatedBy,
+                    //    CreatedOn = item.CreatedOn,
+                    //    ModifiedBy = item.ModifiedBy,
+                    //    ModifiedOn = item.ModifiedOn,
+                    //    subjectID = item.subjectID,
+                    //    SubjectName = item.SubjectName,
+                    //    EmployeeId = item.EmployeeId,
+                    //    EmployeeName = item.EmpFirstName,
+                    //    IndexTypeId = item.IndexTypeId,
+                    //    IndexTypeName = item.IndexTypeName,
+                    //    ContentIndexId = item.ContentIndexId,
+                    //    ContentIndexName = item.ContentIndexName,
+                    //    QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+                    //    //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
+                    //    Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
+                    //    AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode),
+                    //    IsApproved = item.IsApproved,
+                    //    IsRejected = item.IsRejected,
+                    //    QuestionTypeName = item.QuestionTypeName,
+                    //    QuestionCode = item.QuestionCode,
+                    //    Explanation = item.Explanation,
+                    //    ExtraInformation = item.ExtraInformation,
+                    //    IsActive = item.IsActive
+                    //}).ToList();
+
+                    // Convert the data to a list of DTOs
+                    var response = data.Select(item =>
                     {
-                        QuestionId = item.QuestionId,
-                        QuestionDescription = item.QuestionDescription,
-                        QuestionTypeId = item.QuestionTypeId,
-                        Status = item.Status,
-                        CreatedBy = item.CreatedBy,
-                        CreatedOn = item.CreatedOn,
-                        ModifiedBy = item.ModifiedBy,
-                        ModifiedOn = item.ModifiedOn,
-                        subjectID = item.subjectID,
-                        SubjectName = item.SubjectName,
-                        EmployeeId = item.EmployeeId,
-                        EmployeeName = item.EmpFirstName,
-                        IndexTypeId = item.IndexTypeId,
-                        IndexTypeName = item.IndexTypeName,
-                        ContentIndexId = item.ContentIndexId,
-                        ContentIndexName = item.ContentIndexName,
-                        QIDCourses = GetListOfQIDCourse(item.QuestionCode),
-                        //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
-                        Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
-                        AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode),
-                        IsApproved = item.IsApproved,
-                        IsRejected = item.IsRejected,
-                        QuestionTypeName = item.QuestionTypeName,
-                        QuestionCode = item.QuestionCode,
-                        Explanation = item.Explanation,
-                        ExtraInformation = item.ExtraInformation,
-                        IsActive = item.IsActive
-                    }).ToList();
+                        if (item.QuestionTypeId == 12)
+                        {
+                            return new QuestionResponseDTO
+                            {
+                                QuestionId = item.QuestionId,
+                                Paragraph = item.Paragraph,
+                                SubjectName = item.SubjectName,
+                                EmployeeName = item.EmpFirstName,
+                                IndexTypeName = item.IndexTypeName,
+                                ContentIndexName = item.ContentIndexName,
+                                QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+                                ContentIndexId = item.ContentIndexId,
+                                CreatedBy = item.CreatedBy,
+                                CreatedOn = item.CreatedOn,
+                                EmployeeId = item.EmployeeId,
+                                IndexTypeId = item.IndexTypeId,
+                                subjectID = item.subjectID,
+                                ModifiedOn = item.ModifiedOn,
+                                QuestionTypeId = item.QuestionTypeId,
+                                QuestionTypeName = item.QuestionTypeName,
+                                QuestionCode = item.QuestionCode,
+                                Explanation = item.Explanation,
+                                ExtraInformation = item.ExtraInformation,
+                                IsActive = item.IsActive,
+                                ComprehensiveChildQuestions = GetChildQuestions(item.QuestionCode)
+                            };
+                        }
+                        else
+                        {
+                            return new QuestionResponseDTO
+                            {
+                                QuestionId = item.QuestionId,
+                                QuestionDescription = item.QuestionDescription,
+                                QuestionTypeId = item.QuestionTypeId,
+                                Status = item.Status,
+                                CreatedBy = item.CreatedBy,
+                                CreatedOn = item.CreatedOn,
+                                ModifiedBy = item.ModifiedBy,
+                                ModifiedOn = item.ModifiedOn,
+                                subjectID = item.subjectID,
+                                SubjectName = item.SubjectName,
+                                EmployeeId = item.EmployeeId,
+                                EmployeeName = item.EmpFirstName,
+                                IndexTypeId = item.IndexTypeId,
+                                IndexTypeName = item.IndexTypeName,
+                                ContentIndexId = item.ContentIndexId,
+                                ContentIndexName = item.ContentIndexName,
+                                IsRejected = item.IsRejected,
+                                IsApproved = item.IsApproved,
+                                QuestionTypeName = item.QuestionTypeName,
+                                QuestionCode = item.QuestionCode,
+                                Explanation = item.Explanation,
+                                ExtraInformation = item.ExtraInformation,
+                                IsActive = item.IsActive,
+                                QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+                                //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
+                                Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
+                                AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
+                            };
+                        }
+                    }
+                    ).ToList();
 
                     var paginatedList = response.Skip((request.PageNumber - 1) * request.PageSize)
                                                 .Take(request.PageSize)
@@ -1456,34 +1623,68 @@ namespace Schools_API.Repository.Implementations
 
                 if (item != null)
                 {
-                    var questionResponse = new QuestionResponseDTO
+                    if (item.QuestionTypeId == 12)
                     {
-                        QuestionId = item.QuestionId,
-                        QuestionDescription = item.QuestionDescription,
-                        SubjectName = item.SubjectName,
-                        EmployeeName = item.EmpFirstName,
-                        IndexTypeName = item.IndexTypeName,
-                        ContentIndexName = item.ContentIndexName,
-                        QIDCourses = GetListOfQIDCourse(item.QuestionCode),
-                        //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
-                        Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
-                        AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode),
-                        ContentIndexId = item.ContentIndexId,
-                        CreatedBy = item.CreatedBy,
-                        CreatedOn = item.CreatedOn,
-                        EmployeeId = item.EmployeeId,
-                        IndexTypeId = item.IndexTypeId,
-                        subjectID = item.subjectID,
-                        ModifiedOn = item.ModifiedOn,
-                        QuestionTypeId = item.QuestionTypeId,
-                        QuestionTypeName = item.QuestionTypeName,
-                        QuestionCode = item.QuestionCode,
-                        Explanation = item.Explanation,
-                        ExtraInformation = item.ExtraInformation,
-                        IsActive = item.IsActive
-                    };
-
-                    return new ServiceResponse<QuestionResponseDTO>(true, "Operation Successful", questionResponse, 200);
+                        var questionResponse = new QuestionResponseDTO
+                        {
+                            QuestionId = item.QuestionId,
+                            Paragraph = item.Paragraph,
+                            SubjectName = item.SubjectName,
+                            EmployeeName = item.EmpFirstName,
+                            IndexTypeName = item.IndexTypeName,
+                            ContentIndexName = item.ContentIndexName,
+                            QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+                            //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
+                            //Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
+                            //AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode),
+                            ContentIndexId = item.ContentIndexId,
+                            CreatedBy = item.CreatedBy,
+                            CreatedOn = item.CreatedOn,
+                            EmployeeId = item.EmployeeId,
+                            IndexTypeId = item.IndexTypeId,
+                            subjectID = item.subjectID,
+                            ModifiedOn = item.ModifiedOn,
+                            QuestionTypeId = item.QuestionTypeId,
+                            QuestionTypeName = item.QuestionTypeName,
+                            QuestionCode = item.QuestionCode,
+                            Explanation = item.Explanation,
+                            ExtraInformation = item.ExtraInformation,
+                            IsActive = item.IsActive,
+                            ComprehensiveChildQuestions = GetChildQuestions(item.QuestionCode)
+                        };
+                        return new ServiceResponse<QuestionResponseDTO>(true, "Operation Successful", questionResponse, 200);
+                    }
+                    else
+                    {
+                        var questionResponse = new QuestionResponseDTO
+                        {
+                            QuestionId = item.QuestionId,
+                            QuestionDescription = item.QuestionDescription,
+                            SubjectName = item.SubjectName,
+                            EmployeeName = item.EmpFirstName,
+                            IndexTypeName = item.IndexTypeName,
+                            ContentIndexName = item.ContentIndexName,
+                            QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+                            //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
+                            Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
+                            AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode),
+                            ContentIndexId = item.ContentIndexId,
+                            CreatedBy = item.CreatedBy,
+                            CreatedOn = item.CreatedOn,
+                            EmployeeId = item.EmployeeId,
+                            IndexTypeId = item.IndexTypeId,
+                            subjectID = item.subjectID,
+                            ModifiedOn = item.ModifiedOn,
+                            QuestionTypeId = item.QuestionTypeId,
+                            QuestionTypeName = item.QuestionTypeName,
+                            QuestionCode = item.QuestionCode,
+                            Explanation = item.Explanation,
+                            ExtraInformation = item.ExtraInformation,
+                            IsActive = item.IsActive
+                        };
+                        return new ServiceResponse<QuestionResponseDTO>(true, "Operation Successful", questionResponse, 200);
+                    }
+                   
                 }
                 else
                 {
@@ -1494,6 +1695,68 @@ namespace Schools_API.Repository.Implementations
             {
                 return new ServiceResponse<QuestionResponseDTO>(false, ex.Message, new QuestionResponseDTO(), 500);
             }
+        }
+        private List<ParagraphQuestions> GetChildQuestions(string QuestionCode)
+        {
+            string sql = @"
+                SELECT q.*, 
+                       c.CourseName, 
+                       b.BoardName, 
+                       cl.ClassName, 
+                       s.SubjectName,
+                       et.ExamTypeName,
+                       e.EmpFirstName,
+                       qt.QuestionType as QuestionTypeName,
+                       it.IndexType as IndexTypeName,
+                       CASE 
+                           WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
+                           WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
+                           WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+                       END AS ContentIndexName
+                FROM tblQuestion q
+                LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
+                LEFT JOIN tblCourse c ON q.courseid = c.CourseID
+                LEFT JOIN tblBoard b ON q.boardid = b.BoardID
+                LEFT JOIN tblClass cl ON q.classid = cl.ClassID
+                LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
+                LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
+                LEFT JOIN tblEmployee e ON q.EmployeeId = e.EmployeeId
+                LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
+                LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
+                LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
+                LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
+                WHERE q.ParentQCode = @QuestionCode AND q.IsActive = 1 AND IsLive = 0 AND q.IsConfigure = 1";
+            var parameters = new { QuestionCode = QuestionCode };
+            var item = _connection.Query<dynamic>(sql, parameters);
+            var response = item.Select(m => new ParagraphQuestions
+            {
+                QuestionId = m.QuestionId,
+                QuestionDescription = m.QuestionDescription,
+                ParentQId = m.ParentQId,
+                ParentQCode = m.ParentQCode,
+                QuestionTypeId = m.QuestionTypeId,
+                Status = m.Status,
+                CategoryId = m.CategoryId,
+                CreatedBy = m.CreatedBy,
+                CreatedOn = m.CreatedOn,
+                ModifiedBy = m.ModifiedBy,
+                ModifiedOn = m.ModifiedOn,
+                subjectID = m.SubjectID,
+                EmployeeId = m.EmployeeId,
+                ModifierId = m.ModifierId,
+                IndexTypeId = m.IndexTypeId,
+                ContentIndexId = m.ContentIndexId,
+                IsRejected = m.IsRejected,
+                IsApproved = m.IsApproved,
+                QuestionCode = m.QuestionCode,
+                Explanation = m.Explanation,
+                ExtraInformation = m.ExtraInformation,
+                IsActive = m.IsActive,
+                IsConfigure = m.IsConfigure,
+                AnswerMultipleChoiceCategories = GetMultipleAnswers(m.QuestionCode),
+                Answersingleanswercategories = GetSingleAnswer(m.QuestionCode)
+            }).ToList();
+            return response;
         }
         public async Task<ServiceResponse<List<QuestionComparisonDTO>>> CompareQuestionAsync(QuestionCompareRequest newQuestion)
         {
@@ -1883,79 +2146,6 @@ namespace Schools_API.Repository.Implementations
                 _connection.Close();
             }
         }
-        //public async Task<ServiceResponse<string>> AssignQuestionToProfiler(QuestionProfilerRequest request)
-        //{
-        //    try
-        //    {
-        //        if (_connection.State != ConnectionState.Open)
-        //        {
-        //            _connection.Open();
-        //        }
-
-        //        using (var transaction = _connection.BeginTransaction())
-        //        {
-        //            // Check if the question is already assigned to a profiler with active status based on QuestionCode
-        //            string checkSql = @"
-        //        SELECT QPID
-        //        FROM tblQuestionProfiler
-        //        WHERE QuestionCode = @QuestionCode AND Status = 1";
-
-        //            var existingProfiler = await _connection.QueryFirstOrDefaultAsync<int?>(checkSql, new { request.QuestionCode }, transaction);
-
-        //            // If the question is already assigned, update the status of the current profiler to false
-        //            if (existingProfiler.HasValue)
-        //            {
-        //                string updateSql = @"
-        //            UPDATE tblQuestionProfiler
-        //            SET Status = 0
-        //            WHERE QPID = @QPID";
-
-        //                await _connection.ExecuteAsync(updateSql, new { QPID = existingProfiler.Value }, transaction);
-        //            }
-
-        //            // Fetch the QuestionId from the main table using QuestionCode and IsActive = 1
-        //            string fetchQuestionIdSql = @"
-        //        SELECT QuestionId
-        //        FROM tblQuestion
-        //        WHERE QuestionCode = @QuestionCode AND IsActive = 1";
-
-        //            var questionId = await _connection.QueryFirstOrDefaultAsync<int?>(fetchQuestionIdSql, new { request.QuestionCode }, transaction);
-
-        //            if (!questionId.HasValue)
-        //            {
-        //                return new ServiceResponse<string>(false, "Question not found or inactive", string.Empty, 404);
-        //            }
-
-        //            // Update the tblQuestion to set IsRejected and IsApproved to 0
-        //            string updateQuestionSql = @"
-        //        UPDATE tblQuestion
-        //        SET IsRejected = 0, IsApproved = 0
-        //        WHERE QuestionId = @QuestionId";
-
-        //            await _connection.ExecuteAsync(updateQuestionSql, new { QuestionId = questionId.Value }, transaction);
-
-        //            // Insert a new record for the new profiler with ApprovedStatus = false and Status = true
-        //            string insertSql = @"
-        //        INSERT INTO tblQuestionProfiler (Questionid, QuestionCode, EmpId, RejectedStatus, ApprovedStatus, Status, AssignedDate)
-        //        VALUES (@Questionid, @QuestionCode, @EmpId, 0, 0, 1, @AssignedDate)";
-
-        //            await _connection.ExecuteAsync(insertSql, new { Questionid = questionId.Value, request.QuestionCode, request.EmpId, AssignedDate = DateTime.Now }, transaction);
-
-        //            // Commit the transaction
-        //            transaction.Commit();
-        //        }
-
-        //        return new ServiceResponse<string>(true, "Question successfully assigned to profiler", string.Empty, 200);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
-        //    }
-        //    finally
-        //    {
-        //        _connection.Close();
-        //    }
-        //}
         public async Task<ServiceResponse<List<ContentIndexResponses>>> GetSyllabusDetailsBySubject(SyllabusDetailsRequest request)
         {
             try

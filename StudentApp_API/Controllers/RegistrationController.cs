@@ -1,28 +1,32 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using StudentApp_API.DTOs.Requests;
 using StudentApp_API.Services.Interfaces;
+using System.Net;
 using System.Threading.Tasks;
 
 namespace StudentApp_API.Controllers
 {
     [Route("iGuru/StudentApp/Registration")]
     [ApiController]
+    [Authorize]
     public class RegistrationController : ControllerBase
     {
         private readonly IRegistrationService _registrationService;
         private readonly ICourseService _courseService;
         private readonly IClassCourseService _classCourseService; // Define the class course service
-
+        private readonly IConfiguration _config;
         public RegistrationController(
             IRegistrationService registrationService,
             ICourseService courseService,
-            IClassCourseService classCourseService) // Inject the class course service
+            IClassCourseService classCourseService, IConfiguration configuration) // Inject the class course service
         {
             _registrationService = registrationService;
             _courseService = courseService;
+            _config = configuration;
             _classCourseService = classCourseService; // Assign the class course service
         }
-
+        [AllowAnonymous]
         [HttpPost("Registration")]
         public async Task<IActionResult> RegisterStudent([FromBody] RegistrationRequest request)
         {
@@ -45,18 +49,72 @@ namespace StudentApp_API.Controllers
 
             return BadRequest(response);
         }
-        [HttpPost("GetCourse")]
+        [HttpGet("GetCourse")]
         public async Task<IActionResult> GetCourses()
         {
-            var response = await _courseService.GetCoursesAsync();
-            if (response.Success)
+
+            try
             {
-                return Ok(response);
+                var IsLoginSuccessful = User.Claims.FirstOrDefault(c => c.Type == "IsLoginSuccessful")?.Value;
+                if (IsLoginSuccessful == null || !bool.Parse(IsLoginSuccessful))
+                {
+                    return Forbid(); // or return Unauthorized();
+                }
+
+                return new OkObjectResult(await _courseService.GetCoursesAsync());
             }
-
-            return BadRequest(response);
+            catch (Exception ex)
+            {
+                return new JsonResult(ex.Message)
+                {
+                    StatusCode = (int)HttpStatusCode.NotFound
+                };
+            }
         }
+        [HttpGet("GetClass")]
+        public async Task<IActionResult> GetClasses()
+        {
 
+            try
+            {
+                var IsLoginSuccessful = User.Claims.FirstOrDefault(c => c.Type == "IsLoginSuccessful")?.Value;
+                if (IsLoginSuccessful == null || !bool.Parse(IsLoginSuccessful))
+                {
+                    return Forbid(); // or return Unauthorized();
+                }
+
+                return new OkObjectResult(await _courseService.GetClassesAsync());
+            }
+            catch (Exception ex)
+            {
+                return new JsonResult(ex.Message)
+                {
+                    StatusCode = (int)HttpStatusCode.NotFound
+                };
+            }
+        }
+        [HttpGet("GetBoard")]
+        public async Task<IActionResult> GetBoards()
+        {
+
+            try
+            {
+                var IsLoginSuccessful = User.Claims.FirstOrDefault(c => c.Type == "IsLoginSuccessful")?.Value;
+                if (IsLoginSuccessful == null || !bool.Parse(IsLoginSuccessful))
+                {
+                    return Forbid(); // or return Unauthorized();
+                }
+
+                return new OkObjectResult(await _courseService.GetBoardsAsync());
+            }
+            catch (Exception ex)
+            {
+                return new JsonResult(ex.Message)
+                {
+                    StatusCode = (int)HttpStatusCode.NotFound
+                };
+            }
+        }
         [HttpGet("GetClassCourseID/{courseId}")]
         public async Task<IActionResult> GetClassesByCourseId(int courseId)
         {
@@ -81,6 +139,7 @@ namespace StudentApp_API.Controllers
         }
 
         [HttpPost("SendOTP")]
+        [AllowAnonymous]
         public async Task<IActionResult> SendOTP([FromBody] SendOTPRequest request)
         {
             var response = await _registrationService.SendOTPAsync(request);
@@ -93,6 +152,7 @@ namespace StudentApp_API.Controllers
         }
 
         [HttpPost("VerifyOTP")]
+        [AllowAnonymous]
         public async Task<IActionResult> VerifyOTP([FromBody] VerifyOTPRequest request)
         {
             var response = await _registrationService.VerifyOTPAsync(request);
@@ -105,15 +165,35 @@ namespace StudentApp_API.Controllers
         }
 
         [HttpPost("Login")]
+        [AllowAnonymous]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
-            var response = await _registrationService.LoginAsync(request);
-            if (response.Success)
+            try
             {
-                return Ok(response);
+                var jwtToken = new JwtHelper(_config);
+                var result = await _registrationService.LoginAsync(request);
+                if (result.Data != null)
+                {
+                    var status = true;
+                    var message = "Login successful";
+                    var token = jwtToken.GenerateJwtToken(result.Data.RegistrationID, result.Data.IsLoginSuccessful);
+                    var data = result;
+                    return this.Ok(new { status, message, data, token });
+                }
+                else
+                {
+                    var status = false;
+                    var message = "Invalid Username or Password";
+                    return this.BadRequest(new { status, message });
+                }
             }
-
-            return BadRequest(response);
+            catch (Exception ex)
+            {
+                return new JsonResult(ex.Message)
+                {
+                    StatusCode = (int)HttpStatusCode.NotFound
+                };
+            }
         }
 
         [HttpPost("AssignCourse")]

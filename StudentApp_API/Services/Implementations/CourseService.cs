@@ -2,8 +2,6 @@
 using StudentApp_API.DTOs.ServiceResponse;
 using StudentApp_API.Repository.Interfaces;
 using StudentApp_API.Services.Interfaces;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace StudentApp_API.Services.Implementations
 {
@@ -14,6 +12,16 @@ namespace StudentApp_API.Services.Implementations
         public CourseService(ICourseRepository courseRepository)
         {
             _courseRepository = courseRepository;
+        }
+
+        public async Task<ServiceResponse<List<GetBoardsResponse>>> GetBoardsAsync()
+        {
+            return await _courseRepository.GetBoardsAsync();
+        }
+
+        public async Task<ServiceResponse<List<GetClassesResponse>>> GetClassesAsync()
+        {
+            return await _courseRepository.GetClassesAsync();
         }
 
         public async Task<ServiceResponse<List<GetCourseResponse>>> GetCoursesAsync()

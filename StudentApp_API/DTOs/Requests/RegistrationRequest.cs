@@ -1,15 +1,28 @@
-﻿using StudentApp_API.Models;
-
+﻿using System.ComponentModel.DataAnnotations;
 namespace StudentApp_API.DTOs.Requests
 {
     public class RegistrationRequest
     {
+        [Required(ErrorMessage = "First name is required.")]
         public string FirstName { get; set; }
+
+        [Required(ErrorMessage = "Last name is required.")]
         public string LastName { get; set; }
+
+        [Required(ErrorMessage = "Country code is required.")]
         public string CountryCodeID { get; set; }
+
+        [Required(ErrorMessage = "Mobile number is required.")]
         public string MobileNumber { get; set; }
+
+        [Required(ErrorMessage = "Email ID is required.")]
+        [EmailAddress(ErrorMessage = "Invalid email address.")]
         public string EmailID { get; set; }
+
+        [Required(ErrorMessage = "Password is required.")]
+        [MinLength(6, ErrorMessage = "Password must be at least 6 characters long.")]
         public string Password { get; set; }
+
         public int CountryID { get; set; }
         public string Location { get; set; }
         public string ReferralCode { get; set; }
@@ -17,6 +30,7 @@ namespace StudentApp_API.DTOs.Requests
         public bool IsTermsAgreed { get; set; }
         public string Photo { get; set; }
     }
+
     public class UpdateProfileRequest
     {
         public int RegistrationID { get; set; }
