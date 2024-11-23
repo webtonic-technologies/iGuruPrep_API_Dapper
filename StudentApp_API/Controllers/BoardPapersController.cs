@@ -27,10 +27,10 @@ namespace StudentApp_API.Controllers
 
             return BadRequest(response);
         }
-        [HttpGet("GetTestSeriesBySubjectId/{subjectId}")]
-        public async Task<IActionResult> GetTestSeriesBySubjectId(int subjectId)
+        [HttpPost("GetTestSeriesBySubjectId")]
+        public async Task<IActionResult> GetTestSeriesBySubjectId(GetTestseriesSubjects request)
         {
-            var response = await _boardPapersServices.GetTestSeriesBySubjectId(subjectId);
+            var response = await _boardPapersServices.GetTestSeriesBySubjectId(request);
             if (response.Success)
             {
                 return Ok(response);

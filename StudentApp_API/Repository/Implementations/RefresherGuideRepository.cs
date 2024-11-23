@@ -1,4 +1,5 @@
 ﻿using Dapper;
+using Microsoft.AspNetCore.Server.HttpSys;
 using StudentApp_API.DTOs.Requests;
 using StudentApp_API.DTOs.Response;
 using StudentApp_API.DTOs.ServiceResponse;
@@ -11,10 +12,11 @@ namespace StudentApp_API.Repository.Implementations
     public class RefresherGuideRepository: IRefresherGuideRepository
     {
         private readonly IDbConnection _connection;
-
-        public RefresherGuideRepository(IDbConnection connection)
+        private readonly IWebHostEnvironment _hostingEnvironment;
+        public RefresherGuideRepository(IDbConnection connection, IWebHostEnvironment hostingEnvironment)
         {
             _connection = connection;
+            _hostingEnvironment = hostingEnvironment;
         }
         public async Task<ServiceResponse<List<RefresherGuideSubjectsResposne>>> GetSyllabusSubjects(RefresherGuideRequest request)
         {
@@ -44,7 +46,8 @@ namespace StudentApp_API.Repository.Implementations
                 {
                     SubjectId = m.SubjectId,
                     SubjectName = m.SubjectName,
-                    SyllabusId = m.SyllabusId
+                    SyllabusId = m.SyllabusId,
+                    RegistrationId = request.RegistrationId
                 }).ToList();
                 // Check if any subjects were found
                 if (subjects != null && subjects.Count != 0)
@@ -71,7 +74,8 @@ namespace StudentApp_API.Repository.Implementations
             sd.ContentIndexId AS ContentId,
             sd.SubjectId,
             sd.IndexTypeId,
-            sd.SyllabusID
+            sd.SyllabusID,
+            sd.Synopsis,
         FROM tblSyllabusDetails sd
         WHERE sd.SyllabusID = @SyllabusId AND sd.SubjectId = @SubjectId";
 
@@ -90,9 +94,14 @@ namespace StudentApp_API.Repository.Implementations
                         SubjectId = detail.SubjectId,
                         SyllabusId = detail.SyllabusID,
                         IndexTypeId = detail.IndexTypeId,
+                        RegistrationId = request.RegistrationId,
+                        Synopsis = GetPDF(detail.Synopsis),
                         ContentName = GetContentName(detail.IndexTypeId, detail.ContentId)
                     };
-                    contentResponseList.Add(contentResponse);
+                    if (detail.IndexTypeId == 1)
+                    {
+                        contentResponseList.Add(contentResponse);
+                    }
                 }
 
                 // Return the service response with the mapped list
@@ -195,11 +204,14 @@ namespace StudentApp_API.Repository.Implementations
                     splitOn: "AnswerId", // Dapper will split at AnswerId to map the second object
                     param: new { request.SubjectId, request.IndexTypeId, request.ContentIndexId }
                 );
-
+                var response  = questionList
+                  .Skip((request.PageNumber - 1) * request.PageSize)
+                  .Take(request.PageSize)
+                  .ToList();
                 // Check if any questions were found
                 if (questionList != null && questionList.Any())
                 {
-                    return new ServiceResponse<List<QuestionResponse>>(true, "Questions retrieved successfully.", questionList.ToList(), 200);
+                    return new ServiceResponse<List<QuestionResponse>>(true, "Questions retrieved successfully.", response, 200);
                 }
                 else
                 {
@@ -222,16 +234,16 @@ namespace StudentApp_API.Repository.Implementations
                     @"SELECT RFQSID 
               FROM tblRefresherGuideQuestionSave 
               WHERE StudentID = @StudentId AND QuestionID = @QuestionId",
-                      new { request.StudentId, request.QuestionId });
+                      new { request.RegistrationId, request.QuestionId });
 
                 if (existingRecord != null)
                 {
                     // If record exists, delete it
                     var deleteQuery = @"DELETE FROM tblRefresherGuideQuestionSave 
-                                WHERE StudentID = @StudentId AND QuestionID = @QuestionId";
+                                WHERE StudentID = @RegistrationId AND QuestionID = @QuestionId";
                     var rowsDeleted = await _connection.ExecuteAsync(deleteQuery, new
                     {
-                        request.StudentId,
+                        request.RegistrationId,
                         request.QuestionId
                     });
 
@@ -250,11 +262,11 @@ namespace StudentApp_API.Repository.Implementations
                 {
                     // If no record exists, insert a new saved question record
                     var insertQuery = @"INSERT INTO tblRefresherGuideQuestionSave (StudentID, QuestionID, QuestionCode) 
-                                VALUES (@StudentId, @QuestionId, @QuestionCode)";
+                                VALUES (@RegistrationId, @QuestionId, @QuestionCode)";
 
                     var rowsInserted = await _connection.ExecuteAsync(insertQuery, new
                     {
-                        request.StudentId,
+                        request.RegistrationId,
                         request.QuestionId,
                         request.QuestionCode
                     });
@@ -290,17 +302,17 @@ namespace StudentApp_API.Repository.Implementations
                 var existingRecord = await _connection.QueryFirstOrDefaultAsync<int?>(
                     @"SELECT RGQRID 
               FROM tblRefresherGuideQuestionRead 
-              WHERE StudentID = @StudentId AND QuestionID = @QuestionId",
-                      new { request.StudentId, request.QuestionId });
+              WHERE StudentID = @RegistrationId AND QuestionID = @QuestionId",
+                      new { request.RegistrationId, request.QuestionId });
 
                 if (existingRecord != null)
                 {
                     // If record exists, delete it (unmark as read)
                     var deleteQuery = @"DELETE FROM tblRefresherGuideQuestionRead 
-                                WHERE StudentID = @StudentId AND QuestionID = @QuestionId";
+                                WHERE StudentID = @RegistrationId AND QuestionID = @QuestionId";
                     var rowsDeleted = await _connection.ExecuteAsync(deleteQuery, new
                     {
-                        request.StudentId,
+                        request.RegistrationId,
                         request.QuestionId
                     });
 
@@ -319,11 +331,11 @@ namespace StudentApp_API.Repository.Implementations
                 {
                     // If no record exists, insert a new read question record
                     var insertQuery = @"INSERT INTO tblRefresherGuideQuestionRead (StudentID, QuestionID, QuestionCode) 
-                                VALUES (@StudentId, @QuestionId, @QuestionCode)";
+                                VALUES (@RegistrationId, @QuestionId, @QuestionCode)";
 
                     var rowsInserted = await _connection.ExecuteAsync(insertQuery, new
                     {
-                        request.StudentId,
+                        request.RegistrationId,
                         request.QuestionId,
                         request.QuestionCode
                     });
@@ -403,13 +415,28 @@ namespace StudentApp_API.Repository.Implementations
                         ContentIndexId = request.ContentIndexId
                     })).ToList();
                 }
-
+                foreach(var data in contentResponse)
+                {
+                    data.RegistrationId = request.RegistrationId;
+                }
                 return new ServiceResponse<List<RefresherGuideContentResponse>>(true, "Success", contentResponse, 200);
             }
             catch (Exception ex)
             {
                 return new ServiceResponse<List<RefresherGuideContentResponse>>(false, ex.Message, null, 500);
             }
+        }
+        private string GetPDF(string Filename)
+        {
+            var filePath = Path.Combine(_hostingEnvironment.ContentRootPath, "Assets", "Syllabus", Filename);
+
+            if (!File.Exists(filePath))
+            {
+                return string.Empty;
+            }
+            byte[] fileBytes = File.ReadAllBytes(filePath);
+            string base64String = Convert.ToBase64String(fileBytes);
+            return base64String;
         }
     }
 }

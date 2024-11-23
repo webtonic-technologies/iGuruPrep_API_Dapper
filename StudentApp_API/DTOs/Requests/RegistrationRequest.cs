@@ -14,6 +14,7 @@ namespace StudentApp_API.DTOs.Requests
 
         [Required(ErrorMessage = "Mobile number is required.")]
         public string MobileNumber { get; set; }
+        public int StateId {  get; set; }
 
         [Required(ErrorMessage = "Email ID is required.")]
         [EmailAddress(ErrorMessage = "Invalid email address.")]

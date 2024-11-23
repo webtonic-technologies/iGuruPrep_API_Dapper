@@ -1,5 +1,6 @@
 ﻿using Dapper;
 using OfficeOpenXml;
+using OfficeOpenXml.Export.HtmlExport.StyleCollectors.StyleContracts;
 using OfficeOpenXml.Style;
 using Schools_API.DTOs.Requests;
 using Schools_API.DTOs.Response;
@@ -199,6 +200,10 @@ namespace Schools_API.Repository.Implementations
                         if (!string.IsNullOrEmpty(insertedQuestionCode))
                         {
                             // Handle QIDCourses mapping
+                            foreach (var record in request.QIDCourses)
+                            {
+                                record.QIDCourseID = 0;
+                            }
                             var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
 
                             var answer = await AnswerHandling(request.QuestionTypeId, request.AnswerMultipleChoiceCategories, insertedQuestionId, insertedQuestionCode, request.Answersingleanswercategories);
@@ -315,6 +320,10 @@ namespace Schools_API.Repository.Implementations
                         if (!string.IsNullOrEmpty(insertedQuestionCode))
                         {
                             // Handle QIDCourses mapping
+                            foreach (var record in request.QIDCourses)
+                            {
+                                record.QIDCourseID = 0;
+                            }
                             var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
 
                             var answer = await AnswerHandling(request.QuestionTypeId, request.AnswerMultipleChoiceCategories, insertedQuestionId, insertedQuestionCode, request.Answersingleanswercategories);
@@ -497,6 +506,10 @@ namespace Schools_API.Repository.Implementations
                     if (!string.IsNullOrEmpty(insertedQuestionCode))
                     {
                         // Handle QIDCourses mapping
+                        foreach (var record in request.QIDCourses)
+                        {
+                            record.QIDCourseID = 0;
+                        }
                         var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
 
                         var answer = await AnswerHandling(request.QuestionTypeId, request.AnswerMultipleChoiceCategories, insertedQuestionId, insertedQuestionCode, request.Answersingleanswercategories);
@@ -514,7 +527,6 @@ namespace Schools_API.Repository.Implementations
                     {
                         return new ServiceResponse<string>(false, "Some error occurred", string.Empty, 500);
                     }
-
                 }
             }
             catch (Exception ex)
@@ -532,8 +544,8 @@ namespace Schools_API.Repository.Implementations
             int Answerid = 0;
 
             // Check if the answer already exists in AnswerMaster
-            string getAnswerQuery = @"SELECT Answerid FROM tblAnswerMaster WHERE QuestionCode = @QuestionCode;";
-            Answerid = await _connection.QueryFirstOrDefaultAsync<int>(getAnswerQuery, new { QuestionCode = QuestionCode });
+            string getAnswerQuery = @"SELECT Answerid FROM tblAnswerMaster WHERE QuestionCode = @QuestionCode AND QuestionId = @QuestionId;";
+            Answerid = await _connection.QueryFirstOrDefaultAsync<int>(getAnswerQuery, new { QuestionCode = QuestionCode, QuestionId = QuestionId });
 
             if (Answerid == 0)  // If no entry exists, insert a new one
             {
@@ -822,11 +834,23 @@ namespace Schools_API.Repository.Implementations
         {
             try
             {
+                // Check if the question is already marked live
+                string checkLiveSql = @"
+        SELECT COUNT(*)
+        FROM [tblQuestion]
+        WHERE QuestionCode = @QuestionCode AND IsApproved = 1 AND IsRejected = 0 AND IsActive = 1 AND IsConfigure = 1 And IsLive = 1";
+
+                var liveexists = await _connection.ExecuteScalarAsync<int>(checkLiveSql, new { QuestionCode = questionCode });
+
+                if (liveexists > 0)
+                {
+                    return new ServiceResponse<string>(false, "Question already marked as live ", string.Empty, 500);
+                }
                 // Check if the question is approved and not rejected
                 string checkSql = @"
-            SELECT COUNT(*)
-            FROM [tblQuestion]
-            WHERE QuestionCode = @QuestionCode AND IsApproved = 1 AND IsRejected = 0 AND IsActive = 1 AND IsConfigure = 1";
+        SELECT COUNT(*)
+        FROM [tblQuestion]
+        WHERE QuestionCode = @QuestionCode AND IsApproved = 1 AND IsRejected = 0 AND IsActive = 1 AND IsConfigure = 1";
 
                 var exists = await _connection.ExecuteScalarAsync<int>(checkSql, new { QuestionCode = questionCode });
 
@@ -834,13 +858,247 @@ namespace Schools_API.Repository.Implementations
                 {
                     // Update the question to mark it as live
                     string updateSql = @"
-                UPDATE [tblQuestion]
-                SET IsLive = 1
-                WHERE QuestionCode = @QuestionCode";
+            UPDATE [tblQuestion]
+            SET IsLive = 1
+            WHERE QuestionCode = @QuestionCode";
 
+                    // Ensure ExecuteAsync is called on an IDbConnection instance
                     await _connection.ExecuteAsync(updateSql, new { QuestionCode = questionCode });
-          
-                    return new ServiceResponse<string>(true, "Question marked as live successfully", string.Empty, 200);
+
+                    // Fetch IDs of older versions (IsActive = 0) for the given QuestionCode
+                    string fetchOlderVersionsSql = @"
+            SELECT QuestionId
+            FROM [tblQuestion]
+            WHERE QuestionCode = @QuestionCode AND IsActive = 0";
+
+                    var olderVersionIds = (await _connection.QueryAsync<int>(fetchOlderVersionsSql, new { QuestionCode = questionCode })).ToList();
+
+                    foreach (var questionId in olderVersionIds)
+                    {
+                        // Transfer data from tblQuestion
+                        string fetchQuestionSql = @"
+                SELECT *
+                FROM tblQuestion
+                WHERE QuestionId = @QuestionId";
+
+                        var questionData = await _connection.QuerySingleAsync(fetchQuestionSql, new { QuestionId = questionId });
+
+                        string transferQuestionSql = @"
+                INSERT INTO tbl_QuestionVersion
+                (
+                    QuestionId, QuestionDescription, QuestionImage, DifficultyLevelId, 
+                    QuestionTypeId, Status, CreatedBy, CreatedOn, ModifiedBy, ModifiedOn,
+                    SubjectID, IndexTypeId, ContentIndexId, EmployeeId, ExamTypeId,
+                    IsRejected, IsApproved, QuestionCode, Explanation, ExtraInformation,
+                    IsActive, IsLive, IsConfigure, ModifierId, CategoryId, Paragraph, 
+                    ParentQId, ParentQCode
+                )
+                VALUES
+                (
+                    @QuestionId, @QuestionDescription, @DifficultyLevelId, @QuestionImage,
+                    @QuestionTypeId, @Status, @CreatedBy, @CreatedOn, @ModifiedBy, @ModifiedOn,
+                    @SubjectID, @IndexTypeId, @ContentIndexId, @EmployeeId, @ExamTypeId,
+                    @IsRejected, @IsApproved, @QuestionCode, @Explanation, @ExtraInformation,
+                    @IsActive, @IsLive, @IsConfigure, @ModifierId, @CategoryId, @Paragraph, 
+                    @ParentQId, @ParentQCode
+                )";
+                        var parameters = new Question
+                        {
+                            QuestionId = questionData.QuestionId,
+                            QuestionDescription = questionData.QuestionDescription,
+                            QuestionImage = questionData.QuestionImage,
+                            DifficultyLevelId = questionData.DifficultyLevelId,
+                            QuestionTypeId = questionData.QuestionTypeId,
+                            Status = questionData.Status,
+                            CreatedBy = questionData.CreatedBy,
+                            CreatedOn = questionData.CreatedOn,
+                            ModifiedBy = questionData.ModifiedBy,
+                            ModifiedOn = questionData.ModifiedOn,
+                            subjectID = questionData.SubjectID,
+                            IndexTypeId = questionData.IndexTypeId,
+                            ContentIndexId = questionData.ContentIndexId,
+                            EmployeeId = questionData.EmployeeId,
+                            ExamTypeId = questionData.ExamTypeId,
+                            IsRejected = questionData.IsRejected,
+                            IsApproved = questionData.IsApproved,
+                            QuestionCode = questionData.QuestionCode,
+                            Explanation = questionData.Explanation,
+                            ExtraInformation = questionData.ExtraInformation,
+                            IsActive = questionData.IsActive,
+                            IsLive = questionData.IsLive,
+                            IsConfigure = questionData.IsConfigure,
+                            ModifierId = questionData.ModifierId,
+                            CategoryId = questionData.CategoryId,
+                            Paragraph = questionData.Paragraph,
+                            ParentQId = questionData.ParentQId,
+                            ParentQCode = questionData.ParentQCode
+                        };
+
+                        // Execute the SQL with parameter mapping
+                        await _connection.ExecuteAsync(transferQuestionSql, parameters);
+
+
+                        // Transfer data from tblQIDCourse
+                        string fetchQIDCourseSql = @"
+                SELECT *
+                FROM tblQIDCourse
+                WHERE QID = @QuestionId";
+
+                        var qidCourseData = await _connection.QueryAsync(fetchQIDCourseSql, new { QuestionId = questionId });
+
+                        foreach (var course in qidCourseData)
+                        {
+                            string transferQIDCourseSql = @"
+                    INSERT INTO tbl_QIdCoursesVersion
+                    (
+                        QIDCourseId, QId, QuestionCode, CourseId, LevelId,
+                        CreatedBy, CreatedOn, ModifiedBy, ModifiedOn
+                    )
+                    VALUES
+                    (
+                        @QIDCourseId, @QId, @QuestionCode, @CourseId, @LevelId,
+                        @CreatedBy, @CreatedOn, @ModifiedBy, @ModifiedOn
+                    )";
+
+                            var parameters1 = new
+                            {
+                                QIDCourseId = course.QIDCourseID,
+                                QId = course.QID,
+                                QuestionCode = course.QuestionCode,
+                                CourseId = course.CourseID,
+                                LevelId = course.LevelId,
+                                CreatedBy = course.CreatedBy,
+                                CreatedOn = course.CreatedDate,
+                                ModifiedBy = course.ModifiedBy,
+                                ModifiedOn = course.ModifiedDate
+                            };
+
+                            await _connection.ExecuteAsync(transferQIDCourseSql, parameters1);
+                        }
+
+                        // Transfer data from tblAnswerMaster
+                        string fetchAnswerMasterSql = @"
+                SELECT *
+                FROM tblAnswerMaster
+                WHERE QuestionId = @QuestionId";
+
+                        var answerMasterData = await _connection.QueryAsync(fetchAnswerMasterSql, new { QuestionId = questionId });
+                        foreach (var answer in answerMasterData)
+                        {
+                            // Insert into tbl_AnswerMasterVersion
+                            string transferAnswerMasterSql = @"
+    INSERT INTO tbl_AnswerMasterVersion
+    (
+        AnswerId, QuestionId, QuestionTypeId, QuestionCode
+    )
+    VALUES
+    (
+        @AnswerId, @QuestionId, @QuestionTypeId, @QuestionCode
+    )";
+
+                            var answerMasterParams = new
+                            {
+                                answer.Answerid,
+                                answer.Questionid,
+                                answer.QuestionTypeid,
+                                answer.QuestionCode
+                            };
+
+                            await _connection.ExecuteAsync(transferAnswerMasterSql, answerMasterParams);
+
+                            // Fetch data from tblAnswerMultipleChoiceCategory
+                            string fetchAnswerMultipleSql = @"
+                            SELECT *
+                            FROM tblAnswerMultipleChoiceCategory
+                            WHERE AnswerId = @AnswerId";
+
+                            var answerMultipleData = await _connection.QueryAsync(
+                                fetchAnswerMultipleSql,
+                                new { AnswerId = answer.Answerid }
+                            );
+
+                            foreach (var multiAnswer in answerMultipleData)
+                            {
+                                // Insert into tbl_AnswerMultipleVersion
+                                string transferAnswerMultipleSql = @"
+        INSERT INTO tbl_AnswerMultipleVersion
+        (
+            AnsMultiChoiceId, AnswerId, Answer, IsCorrect, MatchId
+        )
+        VALUES
+        (
+            @AnsMultiChoiceId, @AnswerId, @Answer, @IsCorrect, @MatchId
+        )";
+
+                                var multiAnswerParams = new
+                                {
+                                    AnsMultiChoiceId = multiAnswer.Answermultiplechoicecategoryid,
+                                    AnswerId = multiAnswer.Answerid,
+                                    Answer = multiAnswer.Answer,
+                                    IsCorrect = multiAnswer.Iscorrect,
+                                    MatchId = multiAnswer.Matchid
+                                };
+
+                                await _connection.ExecuteAsync(transferAnswerMultipleSql, multiAnswerParams);
+                            }
+
+                            // Fetch data from tblAnswersingleanswercategory
+                            string fetchAnswerSingleSql = @"
+    SELECT *
+    FROM tblAnswersingleanswercategory
+    WHERE AnswerId = @AnswerId";
+
+                            var answerSingleData = await _connection.QueryAsync(
+                                fetchAnswerSingleSql,
+                                new { answer.Answerid }
+                            );
+
+                            foreach (var singleAnswer in answerSingleData)
+                            {
+                                // Insert into tbl_AnswerSingleVersion
+                                string transferAnswerSingleSql = @"
+        INSERT INTO tbl_AnswerSingleVersion
+        (
+            AnswerSingleId, AnswerId, Answer
+        )
+        VALUES
+        (
+            @AnswerSingleId, @AnswerId, @Answer
+        )";
+
+                                var singleAnswerParams = new
+                                {
+                                    AnswerSingleId = singleAnswer.Answersingleanswercategoryid,
+                                    AnswerId = singleAnswer.Answerid,
+                                    Answer = singleAnswer.Answer
+                                };
+
+                                await _connection.ExecuteAsync(transferAnswerSingleSql, singleAnswerParams);
+                            }
+                        }
+
+                        string deleteQuestionSql = "DELETE FROM tblQuestion WHERE QuestionId = @QuestionId";
+                        await _connection.ExecuteAsync(deleteQuestionSql, new { QuestionId = questionId });
+
+                        string deleteQIDCourseSql = "DELETE FROM tblQIDCourse WHERE QID = @QuestionId";
+                        await _connection.ExecuteAsync(deleteQIDCourseSql, new { QuestionId = questionId });
+
+                        string deleteAnswerMasterSql = "DELETE FROM tblAnswerMaster WHERE QuestionId = @QuestionId";
+                        await _connection.ExecuteAsync(deleteAnswerMasterSql, new { QuestionId = questionId });
+
+                        string deleteAnswerMultipleSql = @"
+                DELETE tblAnswerMultipleChoiceCategory 
+                WHERE Answerid IN (SELECT Answerid FROM tblAnswerMaster WHERE QuestionId = @QuestionId)";
+                        await _connection.ExecuteAsync(deleteAnswerMultipleSql, new { QuestionId = questionId });
+
+                        string deleteAnswerSingleSql = @"
+                DELETE tblAnswersingleanswercategory 
+                WHERE AnswerId IN (SELECT Answerid FROM tblAnswerMaster WHERE QuestionId = @QuestionId)";
+                        await _connection.ExecuteAsync(deleteAnswerSingleSql, new { QuestionId = questionId });
+
+                    }
+
+                    return new ServiceResponse<string>(true, "Question marked as live successfully and old versions archived", string.Empty, 200);
                 }
                 else
                 {
@@ -3630,9 +3888,9 @@ namespace Schools_API.Repository.Implementations
             }
         }
         private List<AnswerMultipleChoiceCategory> GetMultipleAnswers(string QuestionCode)
-        {
+        {   
             var answerMaster = _connection.QueryFirstOrDefault<AnswerMaster>(@"
-        SELECT * FROM tblAnswerMaster WHERE QuestionCode = @QuestionCode", new { QuestionCode });
+         SELECT TOP 1 * FROM tblAnswerMaster WHERE QuestionCode = @QuestionCode ORDER BY AnswerId DESC", new { QuestionCode });
 
             if (answerMaster != null)
             {

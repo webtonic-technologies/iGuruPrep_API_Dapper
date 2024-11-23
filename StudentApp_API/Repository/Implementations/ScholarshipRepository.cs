@@ -1,12 +1,9 @@
 ﻿using Dapper;
-using Microsoft.AspNetCore.Mvc;
 using StudentApp_API.DTOs.Requests;
 using StudentApp_API.DTOs.Responses;
 using StudentApp_API.DTOs.ServiceResponse;
-using StudentApp_API.Models;
 using StudentApp_API.Repository.Interfaces;
 using System.Data;
-using System.Data.Common;
 
 namespace StudentApp_API.Repository.Implementations
 {
@@ -18,7 +15,6 @@ namespace StudentApp_API.Repository.Implementations
         {
             _connection = connection;
         }
-
         public async Task<ServiceResponse<bool>> AssignScholarshipAsync(AssignScholarshipRequest request)
         {
             try
@@ -50,7 +46,6 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<bool>(false, ex.Message, false, 500);
             }
         }
-
         public async Task<ServiceResponse<GetScholarshipTestResponseWrapper>> GetScholarshipTestAsync(GetScholarshipTestRequest request)
         {
             try
@@ -59,9 +54,9 @@ namespace StudentApp_API.Repository.Implementations
                 string subjectQuery = @"SELECT DISTINCT SS.SubjectID, S.SubjectName
                                         FROM tblStudentScholarship SS
                                         JOIN tblSubject S ON SS.SubjectID = S.SubjectID
-                                        WHERE SS.StudentID = @StudentID AND SS.ScholarshipID = @ScholarshipID";
+                                        WHERE SS.StudentID = @RegistrationId AND SS.ScholarshipID = @ScholarshipID";
 
-                var subjects = await _connection.QueryAsync(subjectQuery, new { request.StudentID, request.ScholarshipID });
+                var subjects = await _connection.QueryAsync(subjectQuery, new { request.RegistrationId, request.ScholarshipID });
 
                 if (subjects == null || !subjects.Any())
                 {
@@ -82,9 +77,9 @@ namespace StudentApp_API.Repository.Implementations
                     string questionQuery = @"SELECT SS.QuestionID, Q.QuestionDescription
                                              FROM tblStudentScholarship SS
                                              JOIN tblQuestion Q ON SS.QuestionID = Q.QuestionID
-                                             WHERE SS.StudentID = @StudentID AND SS.ScholarshipID = @ScholarshipID AND SS.SubjectID = @SubjectID";
+                                             WHERE SS.StudentID = @RegistrationId AND SS.ScholarshipID = @ScholarshipID AND SS.SubjectID = @SubjectID";
 
-                    var questions = await _connection.QueryAsync(questionQuery, new { request.StudentID, request.ScholarshipID, SubjectID = subject.SubjectID });
+                    var questions = await _connection.QueryAsync(questionQuery, new { request.RegistrationId, request.ScholarshipID, SubjectID = subject.SubjectID });
 
                     foreach (var question in questions)
                     {
@@ -131,13 +126,12 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<GetScholarshipTestResponseWrapper>(false, ex.Message, null, 500);
             }
         }
-
         public async Task<ServiceResponse<UpdateQuestionNavigationResponse>> UpdateQuestionNavigationAsync(UpdateQuestionNavigationRequest request)
         {
             try
             {
                 string query = @"INSERT INTO tblQuestionNavigation (QuestionID, StartTime, EndTime, ScholarshipID, StudentID)
-                                 VALUES (@QuestionID, @StartTime, @EndTime, @ScholarshipID, @StudentID);
+                                 VALUES (@QuestionID, @StartTime, @EndTime, @ScholarshipID, @RegistrationId);
                                  SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
                 var navigationId = await _connection.ExecuteScalarAsync<int>(query, new
@@ -146,14 +140,14 @@ namespace StudentApp_API.Repository.Implementations
                     StartTime = request.StartTime,
                     EndTime = request.EndTime,
                     request.ScholarshipID,
-                    request.StudentID
+                    request.RegistrationId
                 });
 
                 var response = new UpdateQuestionNavigationResponse
                 {
                     NavigationID = navigationId,
                     ScholarshipID = request.ScholarshipID,
-                    StudentID = request.StudentID,
+                    StudentID = request.RegistrationId,
                     QuestionID = request.QuestionID,
                     StartTime = request.StartTime,
                     EndTime = request.EndTime,
@@ -167,7 +161,6 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<UpdateQuestionNavigationResponse>(false, ex.Message, null, 500);
             }
         }
-
         public async Task<ServiceResponse<ScholarshipTestResponse>> GetScholarshipTestByRegistrationId(int registrationId)
         {
             var response = new ServiceResponse<ScholarshipTestResponse>(true,string.Empty,null,200);
@@ -512,11 +505,11 @@ OFFSET 0 ROWS FETCH NEXT @TotalNumberOfQuestions ROWS ONLY";
                 var existingRecordQuery = @"
         SELECT COUNT(*) 
         FROM tblStudentScholarshipAnswerSubmission
-        WHERE StudentID = @StudentID AND QuestionID = @QuestionID AND ScholarshipID = @ScholarshipID";
+        WHERE StudentID = @RegistrationId AND QuestionID = @QuestionID AND ScholarshipID = @ScholarshipID";
 
                 var existingRecordCount = await _connection.ExecuteScalarAsync<int>(existingRecordQuery, new
                 {
-                    request.StudentID,
+                    request.RegistrationId,
                     request.QuestionID,
                     request.ScholarshipID
                 });
@@ -526,11 +519,11 @@ OFFSET 0 ROWS FETCH NEXT @TotalNumberOfQuestions ROWS ONLY";
                 {
                     var deleteQuery = @"
             DELETE FROM tblStudentScholarshipAnswerSubmission
-            WHERE StudentID = @StudentID AND QuestionID = @QuestionID AND ScholarshipID = @ScholarshipID";
+            WHERE StudentID = @RegistrationId AND QuestionID = @QuestionID AND ScholarshipID = @ScholarshipID";
 
                     await _connection.ExecuteAsync(deleteQuery, new
                     {
-                        request.StudentID,
+                        request.RegistrationId,
                         request.QuestionID,
                         request.ScholarshipID
                     });
@@ -541,12 +534,12 @@ OFFSET 0 ROWS FETCH NEXT @TotalNumberOfQuestions ROWS ONLY";
         INSERT INTO tblStudentScholarshipAnswerSubmission 
             (ScholarshipID, StudentID, QuestionID, SubjectID, QuestionTypeID, AnswerID, AnswerStatus, Marks)
         VALUES 
-            (@ScholarshipID, @StudentID, @QuestionID, @SubjectID, @QuestionTypeID, @AnswerID, @AnswerStatus, @Marks)";
+            (@ScholarshipID, @RegistrationId, @QuestionID, @SubjectID, @QuestionTypeID, @AnswerID, @AnswerStatus, @Marks)";
 
                 await _connection.ExecuteAsync(insertQuery, new
                 {
                     request.ScholarshipID,
-                    request.StudentID,
+                    request.RegistrationId,
                     request.QuestionID,
                     request.SubjectID,
                     request.QuestionTypeID,
@@ -566,23 +559,6 @@ OFFSET 0 ROWS FETCH NEXT @TotalNumberOfQuestions ROWS ONLY";
         {
             // Assuming the following are single answer type IDs based on your data
             return questionTypeId == 3 || questionTypeId == 7 || questionTypeId == 8 || questionTypeId == 10 || questionTypeId == 11;
-        }
-        public class AnswerSubmissionRequest
-        {
-            public int ScholarshipID { get; set; }
-            public int StudentID { get; set; }
-            public int QuestionID { get; set; }
-            public int SubjectID { get; set; }
-            public int QuestionTypeID { get; set; }
-            public int AnswerID { get; set; }
-        }
-        public class QuestionAnswerData
-        {
-            public int QuestionId { get; set; }
-            public int QuestionTypeId { get; set; }
-            public int CorrectAnswerId { get; set; }
-            public decimal MarksPerQuestion { get; set; }
-            public decimal NegativeMarks { get; set; }
         }
     }
 }

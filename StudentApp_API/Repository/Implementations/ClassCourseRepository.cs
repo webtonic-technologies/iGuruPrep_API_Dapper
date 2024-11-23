@@ -22,9 +22,21 @@ namespace StudentApp_API.Repository.Implementations
             try
             {
                 string query = @"
-                    SELECT CourseClassMappingID, CourseID, ClassID, ClassName, CourseName
-                    FROM tblClassCourses
-                    WHERE CourseID = @CourseID AND Status = 1";
+                   SELECT 
+    cc.CourseClassMappingID,
+    cc.CourseID,
+    c.CourseName,
+    cc.ClassID,
+    cl.ClassName
+FROM 
+    tblClassCourses AS cc
+INNER JOIN 
+    tblClass AS cl ON cc.ClassID = cl.ClassId
+INNER JOIN 
+    tblCourse AS c ON cc.CourseID = c.CourseId
+WHERE 
+    cc.CourseID = @CourseID 
+    AND cc.Status = 1;";
 
                 var classes = await _connection.QueryAsync<GetClassCourseResponse>(query, new { CourseID = courseId });
 

@@ -83,7 +83,7 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<List<TestSeriesSubjectsResponse>>(false, ex.Message, null, 500);
             }
         }
-        public async Task<ServiceResponse<List<TestSeriesResponse>>> GetTestSeriesBySubjectId(int subjectId)
+        public async Task<ServiceResponse<List<TestSeriesResponse>>> GetTestSeriesBySubjectId(GetTestseriesSubjects request)
         {
             List<TestSeriesResponse> response = new List<TestSeriesResponse>();
 
@@ -100,7 +100,7 @@ namespace StudentApp_API.Repository.Implementations
             FROM [tblTestSeriesSubjects] tsm
             WHERE tsm.SubjectId = @SubjectId";
 
-                var testSeriesIds = (await _connection.QueryAsync<int>(queryTestSeriesIds, new { SubjectId = subjectId })).ToList();
+                var testSeriesIds = (await _connection.QueryAsync<int>(queryTestSeriesIds, new { SubjectId = request.SubjectId })).ToList();
 
                 if (!testSeriesIds.Any())
                 {
@@ -117,8 +117,11 @@ namespace StudentApp_API.Repository.Implementations
                 {
                     TestSeriesIds = testSeriesIds
                 })).ToList();
-
-                return new ServiceResponse<List<TestSeriesResponse>>(true, "Success", response, 200);
+                var paginatedList = response
+                  .Skip((request.PageNumber - 1) * request.PageSize)
+                  .Take(request.PageSize)
+                  .ToList();
+                return new ServiceResponse<List<TestSeriesResponse>>(true, "Success", paginatedList, 200);
             }
             catch (Exception ex)
             {
@@ -182,8 +185,11 @@ namespace StudentApp_API.Repository.Implementations
 
                     question.Answers = answers.ToList();
                 }
-
-                return new ServiceResponse<List<TestSeriesQuestionResponse>>(true, "Success", questions, 200);
+                var paginatedList = questions
+                 .Skip((request.PageNumber - 1) * request.PageSize)
+                 .Take(request.PageSize)
+                 .ToList();
+                return new ServiceResponse<List<TestSeriesQuestionResponse>>(true, "Success", paginatedList, 200);
             }
             catch (Exception ex)
             {
@@ -198,13 +204,13 @@ namespace StudentApp_API.Repository.Implementations
                 string checkQuery = @"
             SELECT COUNT(1)
             FROM tblBoardPaperQuestionRead
-            WHERE StudentID = @StudentId
+            WHERE StudentID = @RegistrationId
               AND QuestionID = @QuestionId
               AND QuestionCode = @QuestionCode";
 
                 int recordExists = await _connection.ExecuteScalarAsync<int>(checkQuery, new
                 {
-                    request.StudentId,
+                    request.RegistrationId,
                     request.QuestionId,
                     request.QuestionCode
                 });
@@ -214,13 +220,13 @@ namespace StudentApp_API.Repository.Implementations
                     // If record exists, delete it
                     string deleteQuery = @"
                 DELETE FROM tblBoardPaperQuestionRead
-                WHERE StudentID = @StudentId
+                WHERE StudentID = @RegistrationId
                   AND QuestionID = @QuestionId
                   AND QuestionCode = @QuestionCode";
 
                     await _connection.ExecuteAsync(deleteQuery, new
                     {
-                        request.StudentId,
+                        request.RegistrationId,
                         request.QuestionId,
                         request.QuestionCode
                     });
@@ -232,11 +238,11 @@ namespace StudentApp_API.Repository.Implementations
                     // If record does not exist, insert it
                     string insertQuery = @"
                 INSERT INTO tblBoardPaperQuestionRead (StudentID, QuestionID, QuestionCode)
-                VALUES (@StudentId, @QuestionId, @QuestionCode)";
+                VALUES (@RegistrationId, @QuestionId, @QuestionCode)";
 
                     await _connection.ExecuteAsync(insertQuery, new
                     {
-                        request.StudentId,
+                        request.RegistrationId,
                         request.QuestionId,
                         request.QuestionCode
                     });
@@ -257,13 +263,13 @@ namespace StudentApp_API.Repository.Implementations
                 string checkQuery = @"
             SELECT COUNT(1)
             FROM tblBoardPaperQuestionSave
-            WHERE StudentID = @StudentId
+            WHERE StudentID = @RegistrationId
               AND QuestionID = @QuestionId
               AND QuestionCode = @QuestionCode";
 
                 int recordExists = await _connection.ExecuteScalarAsync<int>(checkQuery, new
                 {
-                    request.StudentId,
+                    request.RegistrationId,
                     request.QuestionId,
                     request.QuestionCode
                 });
@@ -273,13 +279,13 @@ namespace StudentApp_API.Repository.Implementations
                     // If record exists, delete it
                     string deleteQuery = @"
                 DELETE FROM tblBoardPaperQuestionSave
-                WHERE StudentID = @StudentId
+                WHERE StudentID = @RegistrationId
                   AND QuestionID = @QuestionId
                   AND QuestionCode = @QuestionCode";
 
                     await _connection.ExecuteAsync(deleteQuery, new
                     {
-                        request.StudentId,
+                        request.RegistrationId,
                         request.QuestionId,
                         request.QuestionCode
                     });
@@ -291,11 +297,11 @@ namespace StudentApp_API.Repository.Implementations
                     // If record does not exist, insert it
                     string insertQuery = @"
                 INSERT INTO tblBoardPaperQuestionSave (StudentID, QuestionID, QuestionCode)
-                VALUES (@StudentId, @QuestionId, @QuestionCode)";
+                VALUES (@RegistrationId, @QuestionId, @QuestionCode)";
 
                     await _connection.ExecuteAsync(insertQuery, new
                     {
-                        request.StudentId,
+                        request.RegistrationId,
                         request.QuestionId,
                         request.QuestionCode
                     });

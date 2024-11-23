@@ -24,11 +24,11 @@ namespace StudentApp_API.Repository.Implementations
             {
                 string query = @"
                     INSERT INTO tblRegistration 
-                    (FirstName, LastName, CountryCodeID, MobileNumber, EmailID, Password, CountryID, Location, ReferralCode, 
+                    (FirstName, LastName, CountryCodeID, MobileNumber, EmailID, Password, CountryID, Location, ReferralCode, StateId
                      SchoolCode, RegistrationDate, IsActive, IsTermsAgreed, Photo) 
                     VALUES 
                     (@FirstName, @LastName, @CountryCodeID, @MobileNumber, @EmailID, @Password, @CountryID, @Location, 
-                     @ReferralCode, @SchoolCode, GETDATE(), 1, @IsTermsAgreed, @Photo);
+                     @ReferralCode, @StateId, @SchoolCode, GETDATE(), 1, @IsTermsAgreed, @Photo);
                     SELECT CAST(SCOPE_IDENTITY() as int)";
                 request.Password = EncryptionHelper.EncryptString(request.Password);
                 request.Photo = ImageUpload(request.Photo);
@@ -317,7 +317,7 @@ namespace StudentApp_API.Repository.Implementations
         {
             var queryRegistration = @"
         SELECT RegistrationID, FirstName, LastName, CountryCodeID, MobileNumber, EmailID, Password, 
-               CountryID, StatusID, Location, ReferralCode, SchoolCode, RegistrationDate, IsActive, 
+               CountryID, StatusID, Location, ReferralCode, SchoolCode, RegistrationDate, IsActive, StateId
                IsTermsAgreed, Photo, OTP
         FROM tblRegistration
         WHERE RegistrationID = @RegistrationID";
