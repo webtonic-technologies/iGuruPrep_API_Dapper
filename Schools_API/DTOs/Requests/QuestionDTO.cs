@@ -81,8 +81,8 @@ namespace Schools_API.DTOs.Requests
         public string? ModifiedBy { get; set; }
         public DateTime? ModifiedOn { get; set; }
         public int subjectID { get; set; }
-        public int EmployeeId { get; set; }
-        public int ModifierId { get; set; }
+       // public int EmployeeId { get; set; }
+       // public int ModifierId { get; set; }
         public int IndexTypeId { get; set; }
         public int ContentIndexId { get; set; }
         public bool? IsRejected { get; set; } = false;

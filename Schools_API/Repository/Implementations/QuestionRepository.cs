@@ -610,7 +610,120 @@ namespace Schools_API.Repository.Implementations
         {
             try
             {
-                string query = @"
+                if (request.EmployeeId != request.ModifierId && request.QuestionCode != "string" && request.QuestionCode != null)
+                {
+                    int QuestionModifier = await _connection.QueryFirstOrDefaultAsync<int>(@"select ModifierId from tblQuestion where QuestionCode = @QuestionCode
+                     and IsActive = 1", new { QuestionCode = request.QuestionCode });
+                    if (QuestionModifier == request.ModifierId)
+                    {
+                        string query = @"UPDATE tblQuestion
+                        SET 
+                            Paragraph = @Paragraph,
+                            QuestionTypeId = @QuestionTypeId,
+                            Status = @Status,
+                            CategoryId = @CategoryId,
+                            CreatedBy = @CreatedBy,
+                            CreatedOn = @CreatedOn,
+                            SubjectID = @SubjectID,
+                            EmployeeId = @EmployeeId,
+                            ModifierId = @ModifierId,
+                            IndexTypeId = @IndexTypeId,
+                            ContentIndexId = @ContentIndexId,
+                            IsRejected = @IsRejected,
+                            IsApproved = @IsApproved,
+                            Explanation = @Explanation,
+                            ExtraInformation = @ExtraInformation,
+                            IsActive = @IsActive,
+                            IsConfigure = @IsConfigure,
+                            QuestionDescription = @QuestionDescription
+                        WHERE QuestionCode = @QuestionCode";
+                        var parameters = new
+                        {
+                            // QuestionId = request.QuestionId,
+                            Paragraph = request.Paragraph,
+                            QuestionTypeId = request.QuestionTypeId,
+                            Status = request.Status,
+                            CreatedBy = request.CreatedBy,
+                            CreatedOn = request.CreatedOn,
+                            ModifiedBy = request.ModifiedBy,
+                            ModifiedOn = request.ModifiedOn,
+                            SubjectID = request.subjectID,
+                            EmployeeId = request.EmployeeId,
+                            ModifierId = request.ModifierId,
+                            IndexTypeId = request.IndexTypeId,
+                            ContentIndexId = request.ContentIndexId,
+                            IsRejected = request.IsRejected,
+                            IsApproved = request.IsApproved,
+                            QuestionCode = request.QuestionCode,
+                            Explanation = request.Explanation,
+                            ExtraInformation = request.ExtraInformation,
+                            IsActive = request.IsActive,
+                            IsConfigure = request.IsConfigure,
+                            CategoryId = request.CategoryId,
+                            QuestionDescription = "string"
+                        };
+                        int rowsAffected = _connection.Execute(query, parameters);
+                        var insertedQuestionCode = request.QuestionCode;
+                        var insertedQuestionId = request.QuestionId;
+                        if (!string.IsNullOrEmpty(insertedQuestionCode))
+                        {
+                            // Handle QIDCourses mapping
+                            var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
+                            foreach (var record in request.Questions)
+                            {
+                                record.ParentQCode = insertedQuestionCode;
+                                record.ParentQId = insertedQuestionId;
+                                string updateQuery1 = @"UPDATE tblQuestion
+                                SET 
+                                    QuestionDescription = @QuestionDescription,
+                                    QuestionTypeId = @QuestionTypeId,
+                                    Status = @Status,
+                                    CreatedBy = @CreatedBy,
+                                    CreatedOn = @CreatedOn,
+                                    SubjectID = @SubjectID,
+                                    IndexTypeId = @IndexTypeId,
+                                    ContentIndexId = @ContentIndexId,
+                                    IsRejected = @IsRejected,
+                                    IsApproved = @IsApproved,
+                                    Explanation = @Explanation,
+                                    ExtraInformation = @ExtraInformation,
+                                    IsActive = @IsActive,
+                                    IsConfigure = @IsConfigure,
+                                    CategoryId = @CategoryId,
+                                    ParentQId = @ParentQId,
+                                    ParentQCode = @ParentQCode
+                                WHERE QuestionCode = @QuestionCode";
+                                var updatedQuestionId1 = await _connection.QuerySingleOrDefaultAsync<int>(updateQuery1, record);
+                                var answer = await AnswerHandling(record.QuestionTypeId, record.AnswerMultipleChoiceCategories, record.QuestionId, record.QuestionCode, record.Answersingleanswercategories);
+                            }
+                            if (data > 0)
+                            {
+                                return new ServiceResponse<string>(true, "Operation Successful", "Question Updated Successfully", 200);
+                            }
+                            else
+                            {
+                                return new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
+                            }
+                        }
+                        else
+                        {
+                            return new ServiceResponse<string>(false, "Some error occurred", string.Empty, 500);
+                        }
+                    }
+                    else
+                    {
+                        int count = await _connection.QueryFirstOrDefaultAsync<int>(@"select count(*) from tblQuestionProfilerRejections where QuestionCode = @QuestionCode", new { QuestionCode = request.QuestionCode });
+                        bool isRejectedQuestion = await _connection.QueryFirstOrDefaultAsync<bool>(@"select IsRejected from tblQuestion where QuestionCode = @QuestionCode and IsActive = 1", new { QuestionCode = request.QuestionCode });
+                        bool isRejected = false;
+                        if (count == 0 || !isRejectedQuestion)
+                        {
+                            isRejected = false;
+                        }
+                        else
+                        {
+                            isRejected = true;
+                        }
+                        string query = @"
         INSERT INTO tblQuestion 
         (Paragraph, QuestionTypeId, Status, CategoryId, CreatedBy, CreatedOn, SubjectID, EmployeeId, ModifierId, 
          IndexTypeId, ContentIndexId, IsRejected, IsApproved, QuestionCode, Explanation, ExtraInformation, IsActive, IsConfigure, QuestionDescription)
@@ -618,36 +731,40 @@ namespace Schools_API.Repository.Implementations
         (@Paragraph, @QuestionTypeId, @Status, @CategoryId, @CreatedBy, @CreatedOn, @SubjectID, @EmployeeId, @ModifierId, 
          @IndexTypeId, @ContentIndexId, @IsRejected, @IsApproved, @QuestionCode, @Explanation, @ExtraInformation, @IsActive, @IsConfigure, 'string');
         SELECT CAST(SCOPE_IDENTITY() AS INT);";
-                // Execute the insert query and return the generated QuestionId
+                        // Execute the insert query and return the generated QuestionId
 
-                string deactivateQuery = @"UPDATE tblQuestion SET IsActive = 0 WHERE QuestionCode = @QuestionCode AND IsActive = 1";
-                await _connection.ExecuteAsync(deactivateQuery, new { request.QuestionCode });
-                // Retrieve the QuestionCode after insertion
+                        string deactivateQuery = @"UPDATE tblQuestion SET IsActive = 0 WHERE QuestionCode = @QuestionCode AND IsActive = 1";
+                        await _connection.ExecuteAsync(deactivateQuery, new { request.QuestionCode });
+                        // Retrieve the QuestionCode after insertion
 
-                var insertedQuestionId = await _connection.QuerySingleOrDefaultAsync<int>(query, request);
-                string code = string.Empty;
-                if (string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string")
-                {
-                    code = GenerateQuestionCode(request.IndexTypeId, request.ContentIndexId, insertedQuestionId);
+                        var insertedQuestionId = await _connection.QuerySingleOrDefaultAsync<int>(query, request);
+                        string code = string.Empty;
+                        if (string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string")
+                        {
+                            code = GenerateQuestionCode(request.IndexTypeId, request.ContentIndexId, insertedQuestionId);
 
-                    string questionCodeQuery = @"
+                            string questionCodeQuery = @"
                 UPDATE tblQuestion
                 SET QuestionCode = @QuestionCode
                 WHERE QuestionId = @QuestionId AND IsActive = 1";
 
-                    await _connection.ExecuteAsync(questionCodeQuery, new { QuestionCode = code, QuestionId = insertedQuestionId });
-                }
-                string insertedQuestionCode = string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string" ? code : request.QuestionCode;
-
-                if (!string.IsNullOrEmpty(insertedQuestionCode))
-                {
-                    // Handle QIDCourses mapping
-                    var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
-                    foreach (var record in request.Questions)
-                    {
-                        record.ParentQCode = insertedQuestionCode;
-                        record.ParentQId = insertedQuestionId;
-                        string insertQuery1 = @"
+                            await _connection.ExecuteAsync(questionCodeQuery, new { QuestionCode = code, QuestionId = insertedQuestionId });
+                        }
+                        string insertedQuestionCode = string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string" ? code : request.QuestionCode;
+                        if (!string.IsNullOrEmpty(insertedQuestionCode))
+                        {
+                            // Handle QIDCourses mapping
+                            // Handle QIDCourses mapping
+                            foreach (var record in request.QIDCourses)
+                            {
+                                record.QIDCourseID = 0;
+                            }
+                            var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
+                            foreach (var record in request.Questions)
+                            {
+                                record.ParentQCode = insertedQuestionCode;
+                                record.ParentQId = insertedQuestionId;
+                                string insertQuery1 = @"
               INSERT INTO tblQuestion (
                   QuestionDescription,
                   QuestionTypeId,
@@ -655,7 +772,6 @@ namespace Schools_API.Repository.Implementations
                   CreatedBy,
                   CreatedOn,
                   subjectID,
-                  EmployeeId,
                   IndexTypeId,
                   ContentIndexId,
                   IsRejected,
@@ -674,7 +790,6 @@ namespace Schools_API.Repository.Implementations
                   @CreatedBy,
                   @CreatedOn,
                   @subjectID,
-                  @EmployeeId,
                   @IndexTypeId,
                   @ContentIndexId,
                   @IsRejected,
@@ -687,46 +802,407 @@ namespace Schools_API.Repository.Implementations
 
               -- Fetch the QuestionId of the newly inserted row
               SELECT CAST(SCOPE_IDENTITY() AS INT);";
-                        string deactivateQuery1 = @"UPDATE tblQuestion SET IsActive = 0 WHERE QuestionCode = @QuestionCode AND IsActive = 1";
-                        await _connection.ExecuteAsync(deactivateQuery1, new { request.QuestionCode });
-                        // Retrieve the QuestionCode after insertion
-                        // var insertedQuestionCode = await _connection.QuerySingleOrDefaultAsync<string>(insertQuery, question);
-                        var insertedQuestionId1 = await _connection.QuerySingleOrDefaultAsync<int>(insertQuery1, record);
-                        string code1 = string.Empty;
-                        if (string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string")
-                        {
-                            code = GenerateQuestionCode(request.IndexTypeId, request.ContentIndexId, insertedQuestionId1);
+                                string deactivateQuery1 = @"UPDATE tblQuestion SET IsActive = 0 WHERE QuestionCode = @QuestionCode AND IsActive = 1";
+                                await _connection.ExecuteAsync(deactivateQuery1, new { record.QuestionCode });
+                                // Retrieve the QuestionCode after insertion
+                                // var insertedQuestionCode = await _connection.QuerySingleOrDefaultAsync<string>(insertQuery, question);
+                                var insertedQuestionId1 = await _connection.QuerySingleOrDefaultAsync<int>(insertQuery1, record);
+                                string code1 = string.Empty;
+                                if (string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string")
+                                {
+                                    code = GenerateQuestionCode(request.IndexTypeId, request.ContentIndexId, insertedQuestionId1);
 
-                            string questionCodeQuery = @"
+                                    string questionCodeQuery = @"
                             UPDATE tblQuestion
                             SET QuestionCode = @QuestionCode
                             WHERE QuestionId = @QuestionId AND IsActive = 1";
 
-                            await _connection.ExecuteAsync(questionCodeQuery, new { QuestionCode = code, QuestionId = insertedQuestionId1 });
-                        }
-                        string insertedQuestionCode1 = string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string" ? code : request.QuestionCode;
+                                    await _connection.ExecuteAsync(questionCodeQuery, new { QuestionCode = code, QuestionId = insertedQuestionId1 });
+                                }
+                                string insertedQuestionCode1 = string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string" ? code : request.QuestionCode;
 
-                        if (!string.IsNullOrEmpty(insertedQuestionCode1))
-                        {
-                            var answer = await AnswerHandling(record.QuestionTypeId, record.AnswerMultipleChoiceCategories, insertedQuestionId1, insertedQuestionCode1, record.Answersingleanswercategories);
+                                if (!string.IsNullOrEmpty(insertedQuestionCode1))
+                                {
+                                    var answer = await AnswerHandling(record.QuestionTypeId, record.AnswerMultipleChoiceCategories, insertedQuestionId1, insertedQuestionCode1, record.Answersingleanswercategories);
+                                }
+                                else
+                                {
+                                    return new ServiceResponse<string>(false, "Some error occurred", string.Empty, 500);
+                                }
+                            }
+                            if (data > 0)
+                            {
+                                return new ServiceResponse<string>(true, "Operation Successful", "Question Added Successfully", 200);
+                            }
+                            else
+                            {
+                                return new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
+                            }
                         }
                         else
                         {
                             return new ServiceResponse<string>(false, "Some error occurred", string.Empty, 500);
                         }
                     }
-                    if (data > 0)
+                }
+                else if (request.EmployeeId == request.ModifierId && request.ModifierId > 0)
+                {
+                    var count1 = _connection.QueryFirstOrDefault<int>(@"select * from tblQuestionProfiler where QuestionCode = @QuestionCode "
+                              , new { QuestionCode = request.QuestionCode, EmpId = request.ModifierId });
+                    if (count1 > 0)
                     {
-                        return new ServiceResponse<string>(true, "Operation Successful", "Question Added Successfully", 200);
+                        int count = await _connection.QueryFirstOrDefaultAsync<int>(@"select count(*) from tblQuestionProfilerRejections where QuestionCode = @QuestionCode", new { QuestionCode = request.QuestionCode });
+                        bool isRejected = false;
+                        if (count > 0)
+                        {
+                            isRejected = true;
+                        }
+                        string query = @"
+        INSERT INTO tblQuestion 
+        (Paragraph, QuestionTypeId, Status, CategoryId, CreatedBy, CreatedOn, SubjectID, EmployeeId, ModifierId, 
+         IndexTypeId, ContentIndexId, IsRejected, IsApproved, QuestionCode, Explanation, ExtraInformation, IsActive, IsConfigure, QuestionDescription)
+        VALUES 
+        (@Paragraph, @QuestionTypeId, @Status, @CategoryId, @CreatedBy, @CreatedOn, @SubjectID, @EmployeeId, @ModifierId, 
+         @IndexTypeId, @ContentIndexId, @IsRejected, @IsApproved, @QuestionCode, @Explanation, @ExtraInformation, @IsActive, @IsConfigure, 'string');
+        SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                        // Execute the insert query and return the generated QuestionId
+
+                        string deactivateQuery = @"UPDATE tblQuestion SET IsActive = 0 WHERE QuestionCode = @QuestionCode AND IsActive = 1";
+                        await _connection.ExecuteAsync(deactivateQuery, new { request.QuestionCode });
+                        // Retrieve the QuestionCode after insertion
+
+                        var insertedQuestionId = await _connection.QuerySingleOrDefaultAsync<int>(query, request);
+                        string code = string.Empty;
+                        if (string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string")
+                        {
+                            code = GenerateQuestionCode(request.IndexTypeId, request.ContentIndexId, insertedQuestionId);
+
+                            string questionCodeQuery = @"
+                UPDATE tblQuestion
+                SET QuestionCode = @QuestionCode
+                WHERE QuestionId = @QuestionId AND IsActive = 1";
+
+                            await _connection.ExecuteAsync(questionCodeQuery, new { QuestionCode = code, QuestionId = insertedQuestionId });
+                        }
+                        string insertedQuestionCode = string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string" ? code : request.QuestionCode;
+
+                        if (!string.IsNullOrEmpty(insertedQuestionCode))
+                        {
+                            // Handle QIDCourses mapping
+                            // Handle QIDCourses mapping
+                            foreach (var record in request.QIDCourses)
+                            {
+                                record.QIDCourseID = 0;
+                            }
+                            var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
+                            foreach (var record in request.Questions)
+                            {
+                                record.ParentQCode = insertedQuestionCode;
+                                record.ParentQId = insertedQuestionId;
+                                string insertQuery1 = @"
+              INSERT INTO tblQuestion (
+                  QuestionDescription,
+                  QuestionTypeId,
+                  Status,
+                  CreatedBy,
+                  CreatedOn,
+                  subjectID,
+                  IndexTypeId,
+                  ContentIndexId,
+                  IsRejected,
+                  IsApproved,
+                  QuestionCode,
+                  Explanation,
+                  ExtraInformation,
+                  IsActive,
+                  IsConfigure,
+                  CategoryId,
+                  ParentQId, ParentQCode
+              ) VALUES (
+                  @QuestionDescription,
+                  @QuestionTypeId,
+                  @Status,
+                  @CreatedBy,
+                  @CreatedOn,
+                  @subjectID,
+                  @IndexTypeId,
+                  @ContentIndexId,
+                  @IsRejected,
+                  @IsApproved,
+                  @QuestionCode,
+                  @Explanation,
+                  @ExtraInformation,
+                  @IsActive, @IsConfigure, @CategoryId, @ParentQId, @ParentQCode
+              );
+
+              -- Fetch the QuestionId of the newly inserted row
+              SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                                string deactivateQuery1 = @"UPDATE tblQuestion SET IsActive = 0 WHERE QuestionCode = @QuestionCode AND IsActive = 1";
+                                await _connection.ExecuteAsync(deactivateQuery1, new { record.QuestionCode });
+                                // Retrieve the QuestionCode after insertion
+                                // var insertedQuestionCode = await _connection.QuerySingleOrDefaultAsync<string>(insertQuery, question);
+                                var insertedQuestionId1 = await _connection.QuerySingleOrDefaultAsync<int>(insertQuery1, record);
+                                string code1 = string.Empty;
+                                if (string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string")
+                                {
+                                    code = GenerateQuestionCode(request.IndexTypeId, request.ContentIndexId, insertedQuestionId1);
+
+                                    string questionCodeQuery = @"
+                            UPDATE tblQuestion
+                            SET QuestionCode = @QuestionCode
+                            WHERE QuestionId = @QuestionId AND IsActive = 1";
+
+                                    await _connection.ExecuteAsync(questionCodeQuery, new { QuestionCode = code, QuestionId = insertedQuestionId1 });
+                                }
+                                string insertedQuestionCode1 = string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string" ? code : request.QuestionCode;
+
+                                if (!string.IsNullOrEmpty(insertedQuestionCode1))
+                                {
+                                    var answer = await AnswerHandling(record.QuestionTypeId, record.AnswerMultipleChoiceCategories, insertedQuestionId1, insertedQuestionCode1, record.Answersingleanswercategories);
+                                }
+                                else
+                                {
+                                    return new ServiceResponse<string>(false, "Some error occurred", string.Empty, 500);
+                                }
+                            }
+                            if (data > 0)
+                            {
+                                return new ServiceResponse<string>(true, "Operation Successful", "Question Added Successfully", 200);
+                            }
+                            else
+                            {
+                                return new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
+                            }
+                        }
+                        else
+                        {
+                            return new ServiceResponse<string>(false, "Some error occurred", string.Empty, 500);
+                        }
                     }
                     else
                     {
-                        return new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
+                        string query = @"UPDATE tblQuestion
+                        SET 
+                            Paragraph = @Paragraph,
+                            QuestionTypeId = @QuestionTypeId,
+                            Status = @Status,
+                            CategoryId = @CategoryId,
+                            CreatedBy = @CreatedBy,
+                            CreatedOn = @CreatedOn,
+                            SubjectID = @SubjectID,
+                            EmployeeId = @EmployeeId,
+                            ModifierId = @ModifierId,
+                            IndexTypeId = @IndexTypeId,
+                            ContentIndexId = @ContentIndexId,
+                            IsRejected = @IsRejected,
+                            IsApproved = @IsApproved,
+                            Explanation = @Explanation,
+                            ExtraInformation = @ExtraInformation,
+                            IsActive = @IsActive,
+                            IsConfigure = @IsConfigure,
+                            QuestionDescription = @QuestionDescription
+                        WHERE QuestionCode = @QuestionCode";
+                        var parameters = new
+                        {
+                            // QuestionId = request.QuestionId,
+                            Paragraph = request.Paragraph,
+                            QuestionTypeId = request.QuestionTypeId,
+                            Status = request.Status,
+                            CreatedBy = request.CreatedBy,
+                            CreatedOn = request.CreatedOn,
+                            ModifiedBy = request.ModifiedBy,
+                            ModifiedOn = request.ModifiedOn,
+                            SubjectID = request.subjectID,
+                            EmployeeId = request.EmployeeId,
+                            ModifierId = request.ModifierId,
+                            IndexTypeId = request.IndexTypeId,
+                            ContentIndexId = request.ContentIndexId,
+                            IsRejected = request.IsRejected,
+                            IsApproved = request.IsApproved,
+                            QuestionCode = request.QuestionCode,
+                            Explanation = request.Explanation,
+                            ExtraInformation = request.ExtraInformation,
+                            IsActive = request.IsActive,
+                            IsConfigure = request.IsConfigure,
+                            CategoryId = request.CategoryId,
+                            QuestionDescription = "string"
+                        };
+                        int rowsAffected = _connection.Execute(query, parameters);
+                        var insertedQuestionCode = request.QuestionCode;
+                        var insertedQuestionId = request.QuestionId;
+                        if (!string.IsNullOrEmpty(insertedQuestionCode))
+                        {
+                            // Handle QIDCourses mapping
+                            var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
+                            foreach (var record in request.Questions)
+                            {
+                                record.ParentQCode = insertedQuestionCode;
+                                record.ParentQId = insertedQuestionId;
+                                string updateQuery1 = @"UPDATE tblQuestion
+                                SET 
+                                    QuestionDescription = @QuestionDescription,
+                                    QuestionTypeId = @QuestionTypeId,
+                                    Status = @Status,
+                                    CreatedBy = @CreatedBy,
+                                    CreatedOn = @CreatedOn,
+                                    SubjectID = @SubjectID,
+                                    IndexTypeId = @IndexTypeId,
+                                    ContentIndexId = @ContentIndexId,
+                                    IsRejected = @IsRejected,
+                                    IsApproved = @IsApproved,
+                                    Explanation = @Explanation,
+                                    ExtraInformation = @ExtraInformation,
+                                    IsActive = @IsActive,
+                                    IsConfigure = @IsConfigure,
+                                    CategoryId = @CategoryId,
+                                    ParentQId = @ParentQId,
+                                    ParentQCode = @ParentQCode
+                                WHERE QuestionCode = @QuestionCode";
+                                var updatedQuestionId1 = await _connection.QuerySingleOrDefaultAsync<int>(updateQuery1, record);
+                                var answer = await AnswerHandling(record.QuestionTypeId, record.AnswerMultipleChoiceCategories, record.QuestionId, record.QuestionCode, record.Answersingleanswercategories);
+                            }
+                            if (data > 0)
+                            {
+                                return new ServiceResponse<string>(true, "Operation Successful", "Question Updated Successfully", 200);
+                            }
+                            else
+                            {
+                                return new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
+                            }
+                        }
+                        else
+                        {
+                            return new ServiceResponse<string>(false, "Some error occurred", string.Empty, 500);
+                        }
                     }
+                }
+                else if (request.QuestionCode != null && request.QuestionCode != "string")
+                {
+                    return new ServiceResponse<string>(true, "Operation Successful", string.Empty, 200);
                 }
                 else
                 {
-                    return new ServiceResponse<string>(false, "Some error occurred", string.Empty, 500);
+                    string query = @"
+        INSERT INTO tblQuestion 
+        (Paragraph, QuestionTypeId, Status, CategoryId, CreatedBy, CreatedOn, SubjectID, EmployeeId, ModifierId, 
+         IndexTypeId, ContentIndexId, IsRejected, IsApproved, QuestionCode, Explanation, ExtraInformation, IsActive, IsConfigure, QuestionDescription)
+        VALUES 
+        (@Paragraph, @QuestionTypeId, @Status, @CategoryId, @CreatedBy, @CreatedOn, @SubjectID, @EmployeeId, @ModifierId, 
+         @IndexTypeId, @ContentIndexId, @IsRejected, @IsApproved, @QuestionCode, @Explanation, @ExtraInformation, @IsActive, @IsConfigure, 'string');
+        SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                    // Execute the insert query and return the generated QuestionId
+
+                    string deactivateQuery = @"UPDATE tblQuestion SET IsActive = 0 WHERE QuestionCode = @QuestionCode AND IsActive = 1";
+                    await _connection.ExecuteAsync(deactivateQuery, new { request.QuestionCode });
+                    // Retrieve the QuestionCode after insertion
+
+                    var insertedQuestionId = await _connection.QuerySingleOrDefaultAsync<int>(query, request);
+                    string code = string.Empty;
+                    if (string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string")
+                    {
+                        code = GenerateQuestionCode(request.IndexTypeId, request.ContentIndexId, insertedQuestionId);
+
+                        string questionCodeQuery = @"
+                UPDATE tblQuestion
+                SET QuestionCode = @QuestionCode
+                WHERE QuestionId = @QuestionId AND IsActive = 1";
+
+                        await _connection.ExecuteAsync(questionCodeQuery, new { QuestionCode = code, QuestionId = insertedQuestionId });
+                    }
+                    string insertedQuestionCode = string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string" ? code : request.QuestionCode;
+
+                    if (!string.IsNullOrEmpty(insertedQuestionCode))
+                    {
+                        // Handle QIDCourses mapping
+                        // Handle QIDCourses mapping
+                        foreach (var record in request.QIDCourses)
+                        {
+                            record.QIDCourseID = 0;
+                        }
+                        var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
+                        foreach (var record in request.Questions)
+                        {
+                            record.ParentQCode = insertedQuestionCode;
+                            record.ParentQId = insertedQuestionId;
+                            string insertQuery1 = @"
+              INSERT INTO tblQuestion (
+                  QuestionDescription,
+                  QuestionTypeId,
+                  Status,
+                  CreatedBy,
+                  CreatedOn,
+                  subjectID,
+                  IndexTypeId,
+                  ContentIndexId,
+                  IsRejected,
+                  IsApproved,
+                  QuestionCode,
+                  Explanation,
+                  ExtraInformation,
+                  IsActive,
+                  IsConfigure,
+                  CategoryId,
+                  ParentQId, ParentQCode
+              ) VALUES (
+                  @QuestionDescription,
+                  @QuestionTypeId,
+                  @Status,
+                  @CreatedBy,
+                  @CreatedOn,
+                  @subjectID,
+                  @IndexTypeId,
+                  @ContentIndexId,
+                  @IsRejected,
+                  @IsApproved,
+                  @QuestionCode,
+                  @Explanation,
+                  @ExtraInformation,
+                  @IsActive, @IsConfigure, @CategoryId, @ParentQId, @ParentQCode
+              );
+
+              -- Fetch the QuestionId of the newly inserted row
+              SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                            string deactivateQuery1 = @"UPDATE tblQuestion SET IsActive = 0 WHERE QuestionCode = @QuestionCode AND IsActive = 1";
+                            await _connection.ExecuteAsync(deactivateQuery1, new { record.QuestionCode });
+                            // Retrieve the QuestionCode after insertion
+                            // var insertedQuestionCode = await _connection.QuerySingleOrDefaultAsync<string>(insertQuery, question);
+                            var insertedQuestionId1 = await _connection.QuerySingleOrDefaultAsync<int>(insertQuery1, record);
+                            string code1 = string.Empty;
+                            if (string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string")
+                            {
+                                code = GenerateQuestionCode(request.IndexTypeId, request.ContentIndexId, insertedQuestionId1);
+
+                                string questionCodeQuery = @"
+                            UPDATE tblQuestion
+                            SET QuestionCode = @QuestionCode
+                            WHERE QuestionId = @QuestionId AND IsActive = 1";
+
+                                await _connection.ExecuteAsync(questionCodeQuery, new { QuestionCode = code, QuestionId = insertedQuestionId1 });
+                            }
+                            string insertedQuestionCode1 = string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string" ? code : request.QuestionCode;
+
+                            if (!string.IsNullOrEmpty(insertedQuestionCode1))
+                            {
+                                var answer = await AnswerHandling(record.QuestionTypeId, record.AnswerMultipleChoiceCategories, insertedQuestionId1, insertedQuestionCode1, record.Answersingleanswercategories);
+                            }
+                            else
+                            {
+                                return new ServiceResponse<string>(false, "Some error occurred", string.Empty, 500);
+                            }
+                        }
+                        if (data > 0)
+                        {
+                            return new ServiceResponse<string>(true, "Operation Successful", "Question Added Successfully", 200);
+                        }
+                        else
+                        {
+                            return new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
+                        }
+                    }
+                    else
+                    {
+                        return new ServiceResponse<string>(false, "Some error occurred", string.Empty, 500);
+                    }
                 }
             }
             catch (Exception ex)
@@ -1259,7 +1735,7 @@ namespace Schools_API.Repository.Implementations
                     // Convert the data to a list of DTOs
                     var response = data.Select(item =>
                     {
-                        if (item.QuestionTypeId == 12)
+                        if (item.QuestionTypeId == 11)
                         {
                             return new QuestionResponseDTO
                             {
@@ -1494,7 +1970,7 @@ namespace Schools_API.Repository.Implementations
                     // Convert the data to a list of DTOs
                     var response = data.Select(item =>
                     {
-                        if (item.QuestionTypeId == 12)
+                        if (item.QuestionTypeId == 11)
                         {
                             return new QuestionResponseDTO
                             {
@@ -1756,7 +2232,7 @@ namespace Schools_API.Repository.Implementations
                     // Convert the data to a list of DTOs
                     var response = data.Select(item =>
                     {
-                        if (item.QuestionTypeId == 12)
+                        if (item.QuestionTypeId == 11)
                         {
                             return new QuestionResponseDTO
                             {
@@ -1881,7 +2357,7 @@ namespace Schools_API.Repository.Implementations
 
                 if (item != null)
                 {
-                    if (item.QuestionTypeId == 12)
+                    if (item.QuestionTypeId == 11)
                     {
                         var questionResponse = new QuestionResponseDTO
                         {
@@ -2280,29 +2756,29 @@ namespace Schools_API.Repository.Implementations
                     _connection.Open();
                 }
 
-              
-                    // Check if the question is already assigned to a profiler with active status based on QuestionCode
-                    string checkSql = @"
+
+                // Check if the question is already assigned to a profiler with active status based on QuestionCode
+                string checkSql = @"
             SELECT QPID, EmpId
             FROM tblQuestionProfiler
             WHERE QuestionCode = @QuestionCode AND Status = 1";
 
-                    var existingProfiler = await _connection.QueryFirstOrDefaultAsync<(int? QPID, int EmpId)>(checkSql, new { request.QuestionCode });
+                var existingProfiler = await _connection.QueryFirstOrDefaultAsync<(int? QPID, int EmpId)>(checkSql, new { request.QuestionCode });
 
-                    // If the question is already assigned, update the status of the current profiler to inactive
-                    if (existingProfiler.QPID.HasValue)
-                    {
-                        // Check the role of the current employee (SME or Proofer)
-                        string fetchRoleCodeSql = @"
+                // If the question is already assigned, update the status of the current profiler to inactive
+                if (existingProfiler.QPID.HasValue)
+                {
+                    // Check the role of the current employee (SME or Proofer)
+                    string fetchRoleCodeSql = @"
                         SELECT r.RoleCode
                         FROM tblEmployee e
                         JOIN tblRole r ON e.RoleID = r.RoleID
                         WHERE e.Employeeid = @EmpId";
 
-                        var currentRoleCode = await _connection.QueryFirstOrDefaultAsync<string>(fetchRoleCodeSql, new { EmpId = existingProfiler.EmpId });
+                    var currentRoleCode = await _connection.QueryFirstOrDefaultAsync<string>(fetchRoleCodeSql, new { EmpId = existingProfiler.EmpId });
 
-                        // Fetch the role of the new employee (to whom the question is being assigned)
-                        var newRoleCode = await _connection.QueryFirstOrDefaultAsync<string>(fetchRoleCodeSql, new { EmpId = request.EmpId });
+                    // Fetch the role of the new employee (to whom the question is being assigned)
+                    var newRoleCode = await _connection.QueryFirstOrDefaultAsync<string>(fetchRoleCodeSql, new { EmpId = request.EmpId });
 
                     // If current role is SME and the new role is Proofer, approve the question
                     if (currentRoleCode == "SE" && newRoleCode == "PR") // RoleCode 3 = SME, 4 = Proofer
@@ -2344,54 +2820,53 @@ namespace Schools_API.Repository.Implementations
 
                     }
 
-                        // Update the status of the current profiler to inactive
-                        string updateSql = @"
+                    // Update the status of the current profiler to inactive
+                    string updateSql = @"
                 UPDATE tblQuestionProfiler
                 SET Status = 0
                 WHERE QPID = @QPID";
 
-                        await _connection.ExecuteAsync(updateSql, new { QPID = existingProfiler.QPID });
-                    }
+                    await _connection.ExecuteAsync(updateSql, new { QPID = existingProfiler.QPID });
+                }
 
-                    // Fetch the QuestionId from the main table using QuestionCode and IsActive = 1
-                    string fetchQuestionIdSql = @"
+                // Fetch the QuestionId from the main table using QuestionCode and IsActive = 1
+                string fetchQuestionIdSql = @"
             SELECT QuestionId
             FROM tblQuestion
             WHERE QuestionCode = @QuestionCode AND IsActive = 1";
 
-                    var questionId = await _connection.QueryFirstOrDefaultAsync<int?>(fetchQuestionIdSql, new { request.QuestionCode });
+                var questionId = await _connection.QueryFirstOrDefaultAsync<int?>(fetchQuestionIdSql, new { request.QuestionCode });
 
-                    if (!questionId.HasValue)
-                    {
-                        return new ServiceResponse<string>(false, "Question not found or inactive", string.Empty, 404);
-                    }
-                    string roleQuery = @"select r.RoleCode from  [tblEmployee] e 
+                if (!questionId.HasValue)
+                {
+                    return new ServiceResponse<string>(false, "Question not found or inactive", string.Empty, 404);
+                }
+                string roleQuery = @"select r.RoleCode from  [tblEmployee] e 
                                                  LEFT JOIN [tblRole] r ON e.RoleID = r.RoleID
                                                  WHERE e.Employeeid = @EmployeeId";
-                    string GetRoleName = await _connection.QueryFirstOrDefaultAsync<string>(roleQuery, new { EmployeeId = request.EmpId });
-                    if (GetRoleName == "SE")
-                    {
-                        // Update the tblQuestion to set IsRejected and IsApproved to 0
-                        string updateQuestionSql = @"
+                string GetRoleName = await _connection.QueryFirstOrDefaultAsync<string>(roleQuery, new { EmployeeId = request.EmpId });
+                if (GetRoleName == "SE")
+                {
+                    // Update the tblQuestion to set IsRejected and IsApproved to 0
+                    string updateQuestionSql = @"
             UPDATE tblQuestion
             SET IsRejected = 0, IsApproved = 0
             WHERE QuestionId = @QuestionId";
 
-                        await _connection.ExecuteAsync(updateQuestionSql, new { QuestionId = questionId.Value });
-                    }
-                    // Insert a new record for the new profiler with ApprovedStatus = false and Status = true
-                    string insertSql = @"
+                    await _connection.ExecuteAsync(updateQuestionSql, new { QuestionId = questionId.Value });
+                }
+                // Insert a new record for the new profiler with ApprovedStatus = false and Status = true
+                string insertSql = @"
             INSERT INTO tblQuestionProfiler (Questionid, QuestionCode, EmpId, RejectedStatus, ApprovedStatus, Status, AssignedDate)
             VALUES (@Questionid, @QuestionCode, @EmpId, 0, 0, 1, @AssignedDate)";
 
-                    await _connection.ExecuteAsync(insertSql, new
-                    {
-                        Questionid = questionId.Value,
-                        request.QuestionCode,
-                        request.EmpId,
-                        AssignedDate = DateTime.Now
-                    });
-                
+                await _connection.ExecuteAsync(insertSql, new
+                {
+                    Questionid = questionId.Value,
+                    request.QuestionCode,
+                    request.EmpId,
+                    AssignedDate = DateTime.Now
+                });
 
                 return new ServiceResponse<string>(true, "Question successfully assigned to profiler", string.Empty, 200);
             }
@@ -3049,7 +3524,7 @@ namespace Schools_API.Repository.Implementations
 
                         int questionTypeId = Convert.ToInt32(worksheet.Cells[row, 4].Text);
 
-                        if (questionTypeId == 12) // Handle paragraph type
+                        if (questionTypeId == 11) // Handle paragraph type
                         {
 
                             var paragraphIdPrevious = (row > 2) ? Convert.ToInt32(worksheet.Cells[row - 1, 5].Text) : 0;
@@ -3483,7 +3958,7 @@ namespace Schools_API.Repository.Implementations
                     Answersingleanswercategories = GetAnswerSingleAnswerCategories(worksheet, row, Convert.ToInt32(worksheet.Cells[row, 4].Text)),
                     IsActive = true,
                     IsConfigure = true,
-                    EmployeeId = EmployeeId,
+                    //EmployeeId = EmployeeId,
                     CategoryId = Convert.ToInt32(worksheet.Cells[row, 1].Text),
                     ExtraInformation = extraInfo,
                     Status = true,

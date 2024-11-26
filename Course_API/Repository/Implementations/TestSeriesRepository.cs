@@ -2465,7 +2465,7 @@ WHERE TestSeriesId != @TestSeriesId
                     {
 
                         int questionTypeId = Convert.ToInt32(worksheet.Cells[row, 3].Text);
-                        if (questionTypeId == 12) // Handle paragraph type
+                        if (questionTypeId == 11) // Handle paragraph type
                         {
                             var paragraphIdPrevious = (row > 2) ? Convert.ToInt32(worksheet.Cells[row - 1, 6].Text) : 0;
 
