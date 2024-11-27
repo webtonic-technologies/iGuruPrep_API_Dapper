@@ -8,6 +8,7 @@ using OfficeOpenXml;
 using OfficeOpenXml.Style;
 using System.Data;
 using System.Drawing;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Course_API.Repository.Implementations
 {
@@ -986,12 +987,13 @@ WHERE TestSeriesId != @TestSeriesId
             INSERT INTO tbltestseriesQuestionSection 
             (TestSeriesid, DisplayOrder, SectionName, Status, QuestionTypeID, EntermarksperCorrectAnswer, EnterNegativeMarks, TotalNoofQuestions, NoofQuestionsforChoice, SubjectId)
             VALUES 
-            (@TestSeriesid, @DisplayOrder, @SectionName, @Status, @QuestionTypeID, @EntermarksperCorrectAnswer, @EnterNegativeMarks, @TotalNoofQuestions, @NoofQuestionsforChoice, @SubjectId);";
+            (@TestSeriesid, @DisplayOrder, @SectionName, @Status, @QuestionTypeID, @EntermarksperCorrectAnswer, @EnterNegativeMarks, @TotalNoofQuestions, @NoofQuestionsforChoice, @SubjectId);
+              SELECT CAST(SCOPE_IDENTITY() as int);";
 
                 foreach (var section in request)
                 {
                     // Check if the record exists
-                    int recordExists = await _connection.ExecuteScalarAsync<int>(checkExistenceQuery, section.testseriesQuestionSectionid);
+                    int recordExists = await _connection.ExecuteScalarAsync<int>(checkExistenceQuery, new { testseriesQuestionSectionid = section.testseriesQuestionSectionid });
 
                     if (recordExists > 0)
                     {
@@ -1001,9 +1003,12 @@ WHERE TestSeriesId != @TestSeriesId
                     else
                     {
                         // Insert new record
-                        await _connection.ExecuteAsync(insertQuery, section);
+                       section.testseriesQuestionSectionid = await _connection.QuerySingleAsync<int>(insertQuery, section);
                     }
-
+                    foreach (var record in section.TestSeriesQuestionDifficulties)
+                    {
+                        record.QuestionSectionId = section.testseriesQuestionSectionid;
+                    }
                     // Handle difficulties for the section
                     await AddUpdateTestSeriesQuestionDifficultyAsync(section.TestSeriesQuestionDifficulties);
                 }
@@ -1408,6 +1413,39 @@ WHERE TestSeriesId != @TestSeriesId
         //        return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, new List<QuestionResponseDTO>(), 500);
         //    }
         //}
+        private List<QIDCourseResponse> GetListOfQIDCourse(string QuestionCode)
+        {
+            // Get active question IDs
+            var activeQuestionIds = GetActiveQuestionIds(QuestionCode);
+
+            // If no active question IDs found, return an empty list
+            if (!activeQuestionIds.Any())
+            {
+                return new List<QIDCourseResponse>();
+            }
+
+            var query = @"
+    SELECT qc.*, c.CourseName, l.LevelName
+    FROM [tblQIDCourse] qc
+    LEFT JOIN tblCourse c ON qc.CourseID = c.CourseID
+    LEFT JOIN tbldifficultylevel l ON qc.LevelId = l.LevelId
+    WHERE qc.QuestionCode = @QuestionCode
+      AND qc.QID IN @ActiveQuestionIds";
+
+            var data = _connection.Query<QIDCourseResponse>(query, new { QuestionCode, ActiveQuestionIds = activeQuestionIds });
+            return data.ToList();
+        }
+        private List<int> GetActiveQuestionIds(string QuestionCode)
+        {
+            var query = @"
+            SELECT q.QuestionId
+            FROM tblQuestion q
+            WHERE q.QuestionCode = @QuestionCode
+              AND q.IsActive = 1 AND q.IsConfigure = 1";
+
+            var questionIds = _connection.Query<int>(query, new { QuestionCode });
+            return questionIds.ToList();
+        }
         public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetQuestionsList(GetAllQuestionListRequest request)
         {
             try
@@ -1420,24 +1458,24 @@ WHERE TestSeriesId != @TestSeriesId
 
                 int totalQuestionsAllowed = await _connection.QueryFirstOrDefaultAsync<int>(queryForTotalQuestions, new { SectionId = request.SectionId });
 
-                if (totalQuestionsAllowed == 0)
-                {
-                    return new ServiceResponse<List<QuestionResponseDTO>>(false, "Section not found or invalid", new List<QuestionResponseDTO>(), 404);
-                }
+                //    if (totalQuestionsAllowed == 0)
+                //    {
+                //        return new ServiceResponse<List<QuestionResponseDTO>>(false, "Section not found or invalid", new List<QuestionResponseDTO>(), 404);
+                //    }
 
-                // Fetch question limits for each difficulty level
-                string queryForDifficultyLimits = @"
-            SELECT DifficultyLevelId, QuesPerDiffiLevel
-            FROM tblTestSeriesQuestionDifficulty
-            WHERE QuestionSectionId = @SectionId";
+                //    // Fetch question limits for each difficulty level
+                //    string queryForDifficultyLimits = @"
+                //SELECT DifficultyLevelId, QuesPerDiffiLevel
+                //FROM tblTestSeriesQuestionDifficulty
+                //WHERE QuestionSectionId = @SectionId";
 
-                var difficultyLimits = (await _connection.QueryAsync(queryForDifficultyLimits, new { SectionId = request.SectionId }))
-                    .ToDictionary(row => (int)row.DifficultyLevelId, row => (int)row.QuesPerDiffiLevel);
+                //    var difficultyLimits = (await _connection.QueryAsync(queryForDifficultyLimits, new { SectionId = request.SectionId }))
+                //        .ToDictionary(row => (int)row.DifficultyLevelId, row => (int)row.QuesPerDiffiLevel);
 
-                if (!difficultyLimits.Any())
-                {
-                    return new ServiceResponse<List<QuestionResponseDTO>>(false, "No difficulty levels found for this section", new List<QuestionResponseDTO>(), 404);
-                }
+                //    if (!difficultyLimits.Any())
+                //    {
+                //        return new ServiceResponse<List<QuestionResponseDTO>>(false, "No difficulty levels found for this section", new List<QuestionResponseDTO>(), 404);
+                //    }
 
                 // Create a list to store all selected questions
                 var selectedQuestions = new List<QuestionResponseDTO>();
@@ -1445,11 +1483,10 @@ WHERE TestSeriesId != @TestSeriesId
                 // Query to fetch questions based on the parameters
                 string sql = @"
             SELECT 
-                q.QuestionCode, q.QuestionDescription, q.QuestionFormula, q.IsLive, q.QuestionTypeId, q.ApprovedStatus, 
-                q.ApprovedBy, q.ReasonNote, q.Status, q.CreatedBy, q.CreatedOn, q.ModifiedBy, q.ModifiedOn, 
-                q.Verified, q.courseid, c.CourseName, q.boardid, b.BoardName, q.classid, cl.ClassName, 
+                q.QuestionId,q.QuestionCode, q.QuestionDescription, q.QuestionFormula, q.IsLive, q.QuestionTypeId 
+                , q.Status, q.CreatedBy, q.CreatedOn, q.ModifiedBy, q.ModifiedOn, 
                 q.subjectID, s.SubjectName, q.ExamTypeId, e.ExamTypeName, q.EmployeeId, emp.EmpFirstName as EmployeeName, 
-                q.Rejectedby, q.RejectedReason, q.IndexTypeId, it.IndexType as IndexTypeName, q.ContentIndexId,
+                 q.IndexTypeId, it.IndexType as IndexTypeName, q.ContentIndexId,
                 CASE 
                     WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
                     WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
@@ -1471,14 +1508,13 @@ WHERE TestSeriesId != @TestSeriesId
               AND (@ContentId = 0 OR q.ContentIndexId = @ContentId)
               AND (@QuestionTypeId = 0 OR q.QuestionTypeId = @QuestionTypeId)
               AND EXISTS (SELECT 1 FROM tblQIDCourse qc WHERE qc.QuestionCode = q.QuestionCode AND qc.LevelId = @DifficultyLevelId)
-              AND q.IsLive = 1
-            ORDER BY NEWID()"; // Randomly select questions
+              AND q.IsLive = 1"; // Randomly select questions
 
                 // Fetch questions for each difficulty level dynamically
-                foreach (var difficultyLimit in difficultyLimits)
-                {
-                    int difficultyLevelId = difficultyLimit.Key;
-                    int questionsToFetch = difficultyLimit.Value;
+                //foreach (var difficultyLimit in difficultyLimits)
+                //{
+                //    int difficultyLevelId = difficultyLimit.Key;
+                //    int questionsToFetch = difficultyLimit.Value;
 
                     var difficultyQuestions = (await _connection.QueryAsync<QuestionResponseDTO>(sql, new
                     {
@@ -1486,20 +1522,79 @@ WHERE TestSeriesId != @TestSeriesId
                         IndexTypeId = request.IndexTypeId,
                         ContentId = request.ContentId,
                         QuestionTypeId = request.QuestionTypeId,
-                        DifficultyLevelId = difficultyLevelId
-                    })).Take(questionsToFetch).ToList();
+                        DifficultyLevelId = request.DifficultyLevelId
+                    })).Take(totalQuestionsAllowed).ToList();
 
                     selectedQuestions.AddRange(difficultyQuestions);
-                }
+               // }
 
-                // Ensure the total selected questions do not exceed the allowed limit
-                if (selectedQuestions.Count > totalQuestionsAllowed)
+                
+                var response = selectedQuestions.Select(item =>
                 {
-                    return new ServiceResponse<List<QuestionResponseDTO>>(false, "Selected questions exceed the allowed limit", new List<QuestionResponseDTO>(), 400);
+                    if (item.QuestionTypeId == 11)
+                    {
+                        return new QuestionResponseDTO
+                        {
+                            QuestionId = item.QuestionId,
+                            Paragraph = item.Paragraph,
+                            SubjectName = item.SubjectName,
+                            EmployeeName = item.EmployeeName,
+                            IndexTypeName = item.IndexTypeName,
+                            ContentIndexName = item.ContentIndexName,
+                            QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+                            ContentIndexId = item.ContentIndexId,
+                            CreatedBy = item.CreatedBy,
+                            CreatedOn = item.CreatedOn,
+                            EmployeeId = item.EmployeeId,
+                            IndexTypeId = item.IndexTypeId,
+                            subjectID = item.subjectID,
+                            ModifiedOn = item.ModifiedOn,
+                            QuestionTypeId = item.QuestionTypeId,
+                            QuestionTypeName = item.QuestionTypeName,
+                            QuestionCode = item.QuestionCode,
+                            Explanation = item.Explanation,
+                            ExtraInformation = item.ExtraInformation,
+                            IsActive = item.IsActive,
+                            ComprehensiveChildQuestions = GetChildQuestions(item.QuestionCode)
+                        };
+                    }
+                    else
+                    {
+                        return new QuestionResponseDTO
+                        {
+                            QuestionId = item.QuestionId,
+                            QuestionDescription = item.QuestionDescription,
+                            QuestionTypeId = item.QuestionTypeId,
+                            Status = item.Status,
+                            CreatedBy = item.CreatedBy,
+                            CreatedOn = item.CreatedOn,
+                            ModifiedBy = item.ModifiedBy,
+                            ModifiedOn = item.ModifiedOn,
+                            subjectID = item.subjectID,
+                            SubjectName = item.SubjectName,
+                            EmployeeId = item.EmployeeId,
+                            EmployeeName = item.EmployeeName,
+                            IndexTypeId = item.IndexTypeId,
+                            IndexTypeName = item.IndexTypeName,
+                            ContentIndexId = item.ContentIndexId,
+                            ContentIndexName = item.ContentIndexName,
+                            IsRejected = item.IsRejected,
+                            IsApproved = item.IsApproved,
+                            QuestionTypeName = item.QuestionTypeName,
+                            QuestionCode = item.QuestionCode,
+                            Explanation = item.Explanation,
+                            ExtraInformation = item.ExtraInformation,
+                            IsActive = item.IsActive,
+                            QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+                            //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
+                            Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
+                            AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
+                        };
+                    }
                 }
-
+                  ).ToList();
                 // Paginate the results
-                var paginatedResponse = selectedQuestions
+                var paginatedResponse = response
                     .Skip((request.PageNumber - 1) * request.PageSize)
                     .Take(request.PageSize)
                     .ToList();
@@ -1510,6 +1605,86 @@ WHERE TestSeriesId != @TestSeriesId
             {
                 return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, new List<QuestionResponseDTO>(), 500);
             }
+        }
+        private List<DTOs.Response.AnswerMultipleChoiceCategory> GetMultipleAnswers(string QuestionCode)
+        {
+            var answerMaster = _connection.QueryFirstOrDefault<AnswerMaster>(@"
+         SELECT TOP 1 * FROM tblAnswerMaster WHERE QuestionCode = @QuestionCode ORDER BY AnswerId DESC", new { QuestionCode });
+
+            if (answerMaster != null)
+            {
+                string getQuery = @"
+            SELECT * FROM [tblAnswerMultipleChoiceCategory] WHERE [Answerid] = @Answerid";
+
+                var response = _connection.Query<DTOs.Response.AnswerMultipleChoiceCategory>(getQuery, new { answerMaster.Answerid });
+                return response.AsList() ?? new List<DTOs.Response.AnswerMultipleChoiceCategory>();
+            }
+            else
+            {
+                return new List<DTOs.Response.AnswerMultipleChoiceCategory>();
+            }
+        }
+        private List<ParagraphQuestions> GetChildQuestions(string QuestionCode)
+        {
+            string sql = @"
+                SELECT q.*, 
+                       c.CourseName, 
+                       b.BoardName, 
+                       cl.ClassName, 
+                       s.SubjectName,
+                       et.ExamTypeName,
+                       e.EmpFirstName,
+                       qt.QuestionType as QuestionTypeName,
+                       it.IndexType as IndexTypeName,
+                       CASE 
+                           WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
+                           WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
+                           WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+                       END AS ContentIndexName
+                FROM tblQuestion q
+                LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
+                LEFT JOIN tblCourse c ON q.courseid = c.CourseID
+                LEFT JOIN tblBoard b ON q.boardid = b.BoardID
+                LEFT JOIN tblClass cl ON q.classid = cl.ClassID
+                LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
+                LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
+                LEFT JOIN tblEmployee e ON q.EmployeeId = e.EmployeeId
+                LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
+                LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
+                LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
+                LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
+                WHERE q.ParentQCode = @QuestionCode AND q.IsActive = 1 AND IsLive = 0 AND q.IsConfigure = 1";
+            var parameters = new { QuestionCode = QuestionCode };
+            var item = _connection.Query<dynamic>(sql, parameters);
+            var response = item.Select(m => new ParagraphQuestions
+            {
+                QuestionId = m.QuestionId,
+                QuestionDescription = m.QuestionDescription,
+                ParentQId = m.ParentQId,
+                ParentQCode = m.ParentQCode,
+                QuestionTypeId = m.QuestionTypeId,
+                Status = m.Status,
+                CategoryId = m.CategoryId,
+                CreatedBy = m.CreatedBy,
+                CreatedOn = m.CreatedOn,
+                ModifiedBy = m.ModifiedBy,
+                ModifiedOn = m.ModifiedOn,
+                subjectID = m.SubjectID,
+                EmployeeId = m.EmployeeId,
+                ModifierId = m.ModifierId,
+                IndexTypeId = m.IndexTypeId,
+                ContentIndexId = m.ContentIndexId,
+                IsRejected = m.IsRejected,
+                IsApproved = m.IsApproved,
+                QuestionCode = m.QuestionCode,
+                Explanation = m.Explanation,
+                ExtraInformation = m.ExtraInformation,
+                IsActive = m.IsActive,
+                IsConfigure = m.IsConfigure,
+                AnswerMultipleChoiceCategories = GetMultipleAnswers(m.QuestionCode),
+                Answersingleanswercategories = GetSingleAnswer(m.QuestionCode)
+            }).ToList();
+            return response;
         }
         public async Task<ServiceResponse<List<ContentIndexResponses>>> GetSyllabusDetailsBySubject(SyllabusDetailsRequest request)
         {
@@ -1721,7 +1896,7 @@ WHERE TestSeriesId != @TestSeriesId
         {
             try
             {
-                // Fetch content indices mapped to the given SubjectId and TestSeriesId
+                // Step 1: Fetch content indices mapped to the given SubjectId and TestSeriesId
                 string contentIndexQuery = @"
             SELECT ContentIndexId, IndexTypeId
             FROM tblTestSeriesContentIndex
@@ -1734,123 +1909,168 @@ WHERE TestSeriesId != @TestSeriesId
                 });
 
                 var contentIndexIds = contentIndices.Select(ci => ci.ContentIndexId).ToList();
+                var indexTypeIds = contentIndices.Select(ci => ci.IndexTypeId).Distinct().ToList();
 
-                if (contentIndexIds.Count == 0)
+                if (!contentIndexIds.Any())
                 {
                     return new ServiceResponse<List<QuestionResponseDTO>>(false, "No content indices found.", new List<QuestionResponseDTO>(), 404);
                 }
 
-                // Fetch the section for the provided SectionId
+                // Step 2: Fetch the section details for the provided SectionId
                 string sectionQuery = @"
-            SELECT * 
+            SELECT TotalNoofQuestions, QuestionTypeID
             FROM tblTestSeriesQuestionSection 
             WHERE TestSeriesQuestionSectionId = @SectionId";
 
-                var selectedSection = await _connection.QuerySingleOrDefaultAsync<dynamic>(sectionQuery, new
+                var totalQuestionsAllowed = await _connection.QuerySingleOrDefaultAsync<dynamic>(sectionQuery, new
                 {
                     SectionId = request.SectionId
                 });
 
-                if (selectedSection == null)
+                if (totalQuestionsAllowed == null)
                 {
-                    return new ServiceResponse<List<QuestionResponseDTO>>(false, "No sections found for the test series.", new List<QuestionResponseDTO>(), 404);
+                    return new ServiceResponse<List<QuestionResponseDTO>>(false, "No valid sections found.", new List<QuestionResponseDTO>(), 404);
                 }
 
-                // Fetch the limits for each difficulty level
+                // Step 3: Fetch difficulty level limits
                 string difficultyQuery = @"
-            SELECT DifficultyLevelId, QuesPerDiffiLevel 
+            SELECT DifficultyLevelId, QuesPerDiffiLevel
             FROM tblTestSeriesQuestionDifficulty
             WHERE QuestionSectionId = @SectionId";
 
-                var difficultyLimits = await _connection.QueryAsync<dynamic>(difficultyQuery, new
-                {
-                    SectionId = request.SectionId
-                });
+                var difficultyLimits = (await _connection.QueryAsync<dynamic>(difficultyQuery, new { SectionId = request.SectionId }))
+                    .ToDictionary(dl => (int)dl.DifficultyLevelId, dl => (int)dl.QuesPerDiffiLevel);
 
-                var difficultyLimitsDict = difficultyLimits.ToDictionary(
-                    dl => (int)dl.DifficultyLevelId,
-                    dl => (int)dl.QuesPerDiffiLevel
-                );
-
-                if (!difficultyLimitsDict.Any())
+                if (!difficultyLimits.Any())
                 {
-                    return new ServiceResponse<List<QuestionResponseDTO>>(false, "No difficulty limits found for the test series section.", new List<QuestionResponseDTO>(), 404);
+                    return new ServiceResponse<List<QuestionResponseDTO>>(false, "No difficulty level limits found.", new List<QuestionResponseDTO>(), 404);
                 }
 
-                // Fetch questions based on the chapters, topics, and subtopics with difficulty levels
-                string questionQuery = @"
+                // Step 4: Query to fetch questions
+                string sql = @"
             SELECT 
-                q.QuestionCode,
-                q.QuestionDescription,
-                q.QuestionFormula,
-                q.QuestionTypeId,
-                q.ApprovedStatus,
-                q.ApprovedBy,
-                q.ReasonNote,
-                q.Status,
-                q.CreatedBy,
-                q.CreatedOn,
-                q.ModifiedBy,
-                q.ModifiedOn,
-                q.Verified,
-                q.courseid,
-                q.boardid,
-                q.classid,
-                q.subjectID,
-                q.Rejectedby,
-                q.RejectedReason,
-                q.IndexTypeId,
-                q.ContentIndexId,
-                q.IsLive,
-                q.EmployeeId,
-                q.ExamTypeId,
-                q.IsActive,
-                qc.LevelId
-            FROM 
-                tblQuestion q
-            INNER JOIN 
-                tblQIDCourse qc ON q.QuestionCode = qc.QuestionCode
-            WHERE 
-                q.ContentIndexId IN @ContentIndexIds
-                AND q.IsActive = 1
-                AND q.IsRejected = 0
-                AND q.IsLive = 1";
+                q.QuestionId, q.QuestionCode, q.QuestionDescription, q.QuestionFormula, q.IsLive, q.QuestionTypeId,
+                q.Status, q.CreatedBy, q.CreatedOn, q.ModifiedBy, q.ModifiedOn, q.SubjectID, s.SubjectName, 
+                q.ExamTypeId, e.ExamTypeName, q.EmployeeId, emp.EmpFirstName as EmployeeName,
+                q.IndexTypeId, it.IndexType as IndexTypeName, q.ContentIndexId,
+                CASE 
+                    WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
+                    WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
+                    WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+                END AS ContentIndexName
+            FROM tblQuestion q
+            LEFT JOIN tblCourse c ON q.CourseId = c.CourseId
+            LEFT JOIN tblBoard b ON q.BoardId = b.BoardId
+            LEFT JOIN tblClass cl ON q.ClassId = cl.ClassId
+            LEFT JOIN tblSubject s ON q.SubjectID = s.SubjectId
+            LEFT JOIN tblExamType e ON q.ExamTypeId = e.ExamTypeId
+            LEFT JOIN tblEmployee emp ON q.EmployeeId = emp.EmployeeId
+            LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
+            LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
+            LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
+            LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
+            WHERE q.SubjectID = @SubjectId
+              AND q.IndexTypeId IN @IndexTypeIds
+              AND q.ContentIndexId IN @ContentIndexIds
+              AND (@QuestionTypeId = 0 OR q.QuestionTypeId = @QuestionTypeId)
+              AND EXISTS (
+                  SELECT 1 
+                  FROM tblQIDCourse qc 
+                  WHERE qc.QuestionCode = q.QuestionCode 
+                    AND qc.LevelId = @DifficultyLevelId
+              )
+              AND q.IsLive = 1";
 
-                var questions = await _connection.QueryAsync<QuestionResponseDTO>(questionQuery, new
-                {
-                    ContentIndexIds = contentIndexIds
-                });
-
-                if (!questions.Any())
-                {
-                    return new ServiceResponse<List<QuestionResponseDTO>>(false, "No questions found.", new List<QuestionResponseDTO>(), 404);
-                }
-
-                // Create a dictionary to track the selected question counts for each difficulty level
-                var selectedQuestionCounts = difficultyLimitsDict.ToDictionary(kvp => kvp.Key, kvp => 0);
-
-                // Create a list to hold selected questions
+                // Step 5: Fetch questions based on difficulty levels and limits
                 var selectedQuestions = new List<QuestionResponseDTO>();
-
-                // Select questions dynamically based on difficulty level limits
-                foreach (var question in questions)
+                foreach (var difficultyLimit in difficultyLimits)
                 {
-                    if (difficultyLimitsDict.ContainsKey(question.LevelId) &&
-                        selectedQuestionCounts[question.LevelId] < difficultyLimitsDict[question.LevelId])
-                    {
-                        selectedQuestions.Add(question);
-                        selectedQuestionCounts[question.LevelId]++;
+                    int difficultyLevelId = difficultyLimit.Key;
+                    int questionsToFetch = difficultyLimit.Value;
 
-                        // Break if the total number of selected questions matches the section's total question limit
-                        if (selectedQuestions.Count >= selectedSection.TotalNoofQuestions)
-                        {
-                            break;
-                        }
-                    }
+                    var difficultyQuestions = (await _connection.QueryAsync<QuestionResponseDTO>(sql, new
+                    {
+                        SubjectId = request.SubjectId,
+                        IndexTypeIds = indexTypeIds,
+                        ContentIndexIds = contentIndexIds,
+                        QuestionTypeId = totalQuestionsAllowed.QuestionTypeID,
+                        DifficultyLevelId = difficultyLevelId
+                    })).Take(questionsToFetch).ToList();
+
+                    selectedQuestions.AddRange(difficultyQuestions);
                 }
 
-                // Return the selected questions
-                return new ServiceResponse<List<QuestionResponseDTO>>(true, "Questions fetched successfully.", selectedQuestions, 200);
+                if (!selectedQuestions.Any())
+                {
+                    return new ServiceResponse<List<QuestionResponseDTO>>(false, "No questions available.", new List<QuestionResponseDTO>(), 404);
+                }
+
+                // Step 6: Map responses
+                var response = selectedQuestions.Select(item =>
+                {
+                    if (item.QuestionTypeId == 11)
+                    {
+                        return new QuestionResponseDTO
+                        {
+                            QuestionId = item.QuestionId,
+                            Paragraph = item.Paragraph,
+                            SubjectName = item.SubjectName,
+                            EmployeeName = item.EmployeeName,
+                            IndexTypeName = item.IndexTypeName,
+                            ContentIndexName = item.ContentIndexName,
+                            QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+                            ContentIndexId = item.ContentIndexId,
+                            CreatedBy = item.CreatedBy,
+                            CreatedOn = item.CreatedOn,
+                            EmployeeId = item.EmployeeId,
+                            IndexTypeId = item.IndexTypeId,
+                            subjectID = item.subjectID,
+                            ModifiedOn = item.ModifiedOn,
+                            QuestionTypeId = item.QuestionTypeId,
+                            QuestionTypeName = item.QuestionTypeName,
+                            QuestionCode = item.QuestionCode,
+                            Explanation = item.Explanation,
+                            ExtraInformation = item.ExtraInformation,
+                            IsActive = item.IsActive,
+                            ComprehensiveChildQuestions = GetChildQuestions(item.QuestionCode)
+                        };
+                    }
+                    else
+                    {
+                        return new QuestionResponseDTO
+                        {
+                            QuestionId = item.QuestionId,
+                            QuestionDescription = item.QuestionDescription,
+                            QuestionTypeId = item.QuestionTypeId,
+                            Status = item.Status,
+                            CreatedBy = item.CreatedBy,
+                            CreatedOn = item.CreatedOn,
+                            ModifiedBy = item.ModifiedBy,
+                            ModifiedOn = item.ModifiedOn,
+                            subjectID = item.subjectID,
+                            SubjectName = item.SubjectName,
+                            EmployeeId = item.EmployeeId,
+                            EmployeeName = item.EmployeeName,
+                            IndexTypeId = item.IndexTypeId,
+                            IndexTypeName = item.IndexTypeName,
+                            ContentIndexId = item.ContentIndexId,
+                            ContentIndexName = item.ContentIndexName,
+                            IsRejected = item.IsRejected,
+                            IsApproved = item.IsApproved,
+                            QuestionTypeName = item.QuestionTypeName,
+                            QuestionCode = item.QuestionCode,
+                            Explanation = item.Explanation,
+                            ExtraInformation = item.ExtraInformation,
+                            IsActive = item.IsActive,
+                            QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+                            Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
+                            AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
+                        };
+                    }
+                }).ToList();
+
+                // Return the response
+                return new ServiceResponse<List<QuestionResponseDTO>>(true, "Questions retrieved successfully.", response, 200);
             }
             catch (Exception ex)
             {
@@ -2409,6 +2629,12 @@ WHERE TestSeriesId != @TestSeriesId
                 // Create an ExcelPackage
                 using (var package = new ExcelPackage())
                 {
+                    var testSeriesContentQuery = @"
+                                SELECT distinct SubjectId 
+                                FROM [tblTestSeriesSubjects] 
+                                WHERE TestSeriesID = @TestSeriesId";
+
+                    var testSeriesContent = await _connection.QueryAsync<int>(testSeriesContentQuery, new { TestSeriesId = request.TestSeriesId });
                     // Fetch sections for the provided TestSeriesId
                     var sectionQuery = @"
             SELECT 
@@ -2433,7 +2659,8 @@ WHERE TestSeriesId != @TestSeriesId
                     {
                         return new ServiceResponse<byte[]>(false, "No sections found for the given TestSeriesId", new byte[] { }, 500);
                     }
-
+                    var LevelIds = new List<int>();
+                    var questionTypes = new List<int>();
                     // Fetch difficulty levels and questions per difficulty for each section
                     var difficultyQuery = @"
             SELECT 
@@ -2506,6 +2733,11 @@ WHERE TestSeriesId != @TestSeriesId
                                 worksheet.Cells[row, 14].Value = "Explanation"; // Dummy explanation
                                 worksheet.Cells[row, 15].Value = "Extra Info"; // Dummy extra information
 
+                                if (difficulty.DifficultyLevelId != null && !LevelIds.Contains(difficulty.DifficultyLevelId))
+                                    LevelIds.Add(difficulty.DifficultyLevelId);
+
+                                if (section.QuestionTypeID != null && !questionTypes.Contains(section.QuestionTypeID))
+                                    questionTypes.Add(section.QuestionTypeID);
                                 row++; // Move to next row
                             }
                         }
@@ -2522,8 +2754,12 @@ WHERE TestSeriesId != @TestSeriesId
                         worksheet.Column(col).Style.Locked = false;
                     }
 
+                    AddMasterDataSheets(package, testSeriesContent.ToList(), LevelIds, questionTypes);
                     // Return the file as a response
                     var fileBytes = package.GetAsByteArray();
+                    string updateDownloadstatus = @"update tblTestSeries set DownloadStatusId = 2 where TestSeriesId = @TestSeriesId";
+                    await _connection.ExecuteAsync(updateDownloadstatus, new { TestSeriesId = request.TestSeriesId });
+                    // Return the file as a response
                     return new ServiceResponse<byte[]>(true, "Excel file generated successfully", fileBytes, 200);
                 }
             }
@@ -2751,15 +2987,15 @@ WHERE TestSeriesId != @TestSeriesId
                 case 5: // Matching (4 columns)
                 case 6: // Multiple answers (4 columns)
                 case 9: // Matching 2 (4 columns)
-                    worksheet.Cells[row, 8].Value = "A"; // Option 1
-                    worksheet.Cells[row, 9].Value = "B"; // Option 2
-                    worksheet.Cells[row, 10].Value = "C"; // Option 3
-                    worksheet.Cells[row, 11].Value = "D"; // Option 4
+                    worksheet.Cells[row, 10].Value = "A"; // Option 1
+                    worksheet.Cells[row, 11].Value = "B"; // Option 2
+                    worksheet.Cells[row, 12].Value = "C"; // Option 3
+                    worksheet.Cells[row, 13].Value = "D"; // Option 4
                     break;
 
                 case 2: // True/False (2 columns)
-                    worksheet.Cells[row, 8].Value = "A";  // Option 1
-                    worksheet.Cells[row, 9].Value = "B"; // Option 2
+                    worksheet.Cells[row, 10].Value = "A";  // Option 1
+                    worksheet.Cells[row, 11].Value = "B"; // Option 2
                     break;
 
                 case 3: // Short Answer (1 column)
@@ -2768,15 +3004,15 @@ WHERE TestSeriesId != @TestSeriesId
                 case 10: // Assertion and Reason (1 column)
                 case 11: // Numerical (1 column)
                 case 12: // Comprehensive (1 column)
-                    worksheet.Cells[row, 8].Value = "A"; // Option 1 only
+                    worksheet.Cells[row, 10].Value = "A"; // Option 1 only
                     break;
 
                 default:
                     // Default case if there is an unexpected question type.
-                    worksheet.Cells[row, 8].Value = "A"; // Option 1
-                    worksheet.Cells[row, 9].Value = "B"; // Option 2
-                    worksheet.Cells[row, 10].Value = "C"; // Option 3
-                    worksheet.Cells[row, 11].Value = "D"; // Option 4
+                    worksheet.Cells[row, 10].Value = "A"; // Option 1
+                    worksheet.Cells[row, 11].Value = "B"; // Option 2
+                    worksheet.Cells[row, 12].Value = "C"; // Option 3
+                    worksheet.Cells[row, 13].Value = "D"; // Option 4
                     break;
             }
         }
@@ -3912,10 +4148,55 @@ WHERE TestSeriesId != @TestSeriesId
         }
         private List<TestSeriesQuestionSection> GetTestSeriesQuestionSection(int TestSeriesId)
         {
-            string query = "SELECT * FROM tbltestseriesQuestionSection WHERE [TestSeriesid] = @TestSeriesID";
+            string query = @"
+        SELECT 
+            tsqs.testseriesQuestionSectionid,
+            tsqs.TestSeriesid,
+            tsqs.DisplayOrder,
+            tsqs.SectionName,
+            tsqs.Status,
+            tsqs.QuestionTypeID,
+            tsqs.EntermarksperCorrectAnswer,
+            tsqs.EnterNegativeMarks,
+            tsqs.TotalNoofQuestions,
+            tsqs.NoofQuestionsforChoice,
+            tsqs.SubjectId,
+            tsqd.Id AS DifficultyId,
+            tsqd.Id,
+            tsqd.QuestionSectionId,
+            tsqd.DifficultyLevelId,
+            tsqd.QuesPerDiffiLevel
+        FROM tbltestseriesQuestionSection tsqs
+        LEFT JOIN tblTestSeriesQuestionDifficulty tsqd
+            ON tsqs.testseriesQuestionSectionid = tsqd.QuestionSectionId
+        WHERE tsqs.TestSeriesid = @TestSeriesID";
 
-            var data = _connection.Query<TestSeriesQuestionSection>(query, new { TestSeriesID = TestSeriesId });
-            return data.AsList() ?? [];
+            var sectionDictionary = new Dictionary<int, TestSeriesQuestionSection>();
+
+            var data = _connection.Query<TestSeriesQuestionSection, TestSeriesQuestionDifficulty, TestSeriesQuestionSection>(
+                query,
+                (section, difficulty) =>
+                {
+                    // Check if the section already exists in the dictionary
+                    if (!sectionDictionary.TryGetValue(section.testseriesQuestionSectionid, out var currentSection))
+                    {
+                        currentSection = section;
+                        currentSection.TestSeriesQuestionDifficulties = new List<TestSeriesQuestionDifficulty>();
+                        sectionDictionary.Add(currentSection.testseriesQuestionSectionid, currentSection);
+                    }
+
+                    // Add difficulty level only if it exists
+                    if (difficulty != null && difficulty.Id != 0)
+                    {
+                        currentSection.TestSeriesQuestionDifficulties.Add(difficulty);
+                    }
+
+                    return currentSection;
+                },
+                new { TestSeriesID = TestSeriesId },
+                splitOn: "DifficultyId");
+
+            return sectionDictionary.Values.ToList();
         }
         private TestSeriesInstructions GetListOfTestSeriesInstructions(int TestSeriesId)
         {
