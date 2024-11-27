@@ -71,4 +71,19 @@
         public int EmployeeID { get; set; }
         public int TypeOfOption { get; set; }
     }
+    public class TestSeriesSection
+    {
+        public int testseriesQuestionSectionid { get; set; }
+        public int TestSeriesid { get; set; }
+        public int DisplayOrder { get; set; }
+        public string SectionName { get; set; }
+        public string Status { get; set; }
+        public int QuestionTypeID { get; set; }
+        public decimal EntermarksperCorrectAnswer { get; set; }
+        public decimal EnterNegativeMarks { get; set; }
+        public int TotalNoofQuestions { get; set; }
+        public int NoofQuestionsforChoice { get; set; }
+        public int SubjectId { get; set; }
+    }
+
 }

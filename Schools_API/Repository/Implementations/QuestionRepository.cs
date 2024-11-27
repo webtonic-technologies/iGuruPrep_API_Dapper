@@ -52,7 +52,6 @@ namespace Schools_API.Repository.Implementations
                         QuestionCode = @QuestionCode,
                         Explanation = @Explanation,
                         ExtraInformation = @ExtraInformation,
-                        IsActive = @IsActive,
                         IsConfigure = @IsConfigure,
                         CategoryId = @CategoryId
                         
@@ -364,7 +363,6 @@ namespace Schools_API.Repository.Implementations
                         QuestionCode = @QuestionCode,
                         Explanation = @Explanation,
                         ExtraInformation = @ExtraInformation,
-                        IsActive = @IsActive,
                         IsConfigure = @IsConfigure,
                         CategoryId = @CategoryId
                     WHERE 
@@ -633,7 +631,6 @@ namespace Schools_API.Repository.Implementations
                             IsApproved = @IsApproved,
                             Explanation = @Explanation,
                             ExtraInformation = @ExtraInformation,
-                            IsActive = @IsActive,
                             IsConfigure = @IsConfigure,
                             QuestionDescription = @QuestionDescription
                         WHERE QuestionCode = @QuestionCode";
@@ -687,7 +684,6 @@ namespace Schools_API.Repository.Implementations
                                     IsApproved = @IsApproved,
                                     Explanation = @Explanation,
                                     ExtraInformation = @ExtraInformation,
-                                    IsActive = @IsActive,
                                     IsConfigure = @IsConfigure,
                                     CategoryId = @CategoryId,
                                     ParentQId = @ParentQId,
@@ -723,6 +719,7 @@ namespace Schools_API.Repository.Implementations
                         {
                             isRejected = true;
                         }
+                        request.IsRejected = isRejected;
                         string query = @"
         INSERT INTO tblQuestion 
         (Paragraph, QuestionTypeId, Status, CategoryId, CreatedBy, CreatedOn, SubjectID, EmployeeId, ModifierId, 
@@ -866,7 +863,7 @@ namespace Schools_API.Repository.Implementations
          @IndexTypeId, @ContentIndexId, @IsRejected, @IsApproved, @QuestionCode, @Explanation, @ExtraInformation, @IsActive, @IsConfigure, 'string');
         SELECT CAST(SCOPE_IDENTITY() AS INT);";
                         // Execute the insert query and return the generated QuestionId
-
+                        request.IsRejected = isRejected;
                         string deactivateQuery = @"UPDATE tblQuestion SET IsActive = 0 WHERE QuestionCode = @QuestionCode AND IsActive = 1";
                         await _connection.ExecuteAsync(deactivateQuery, new { request.QuestionCode });
                         // Retrieve the QuestionCode after insertion
@@ -998,7 +995,6 @@ namespace Schools_API.Repository.Implementations
                             IsApproved = @IsApproved,
                             Explanation = @Explanation,
                             ExtraInformation = @ExtraInformation,
-                            IsActive = @IsActive,
                             IsConfigure = @IsConfigure,
                             QuestionDescription = @QuestionDescription
                         WHERE QuestionCode = @QuestionCode";
@@ -1052,7 +1048,6 @@ namespace Schools_API.Repository.Implementations
                                     IsApproved = @IsApproved,
                                     Explanation = @Explanation,
                                     ExtraInformation = @ExtraInformation,
-                                    IsActive = @IsActive,
                                     IsConfigure = @IsConfigure,
                                     CategoryId = @CategoryId,
                                     ParentQId = @ParentQId,
