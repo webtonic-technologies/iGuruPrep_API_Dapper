@@ -288,76 +288,40 @@ namespace StudentApp_API.Repository.Implementations
                 {
                     // Determine if the question type is single or multiple answer
                     var isSingleAnswer = section.QuestionTypeId == 3 || section.QuestionTypeId == 7 ||
-                                         section.QuestionTypeId == 8 || section.QuestionTypeId == 10 ||
-                                         section.QuestionTypeId == 11;
+                                         section.QuestionTypeId == 8 || section.QuestionTypeId == 10;
                     string questionQuery = @"
-SELECT q.*, 
-       c.CourseName, 
-       b.BoardName, 
-       cl.ClassName, 
-       s.SubjectName,
-       et.ExamTypeName,
-       e.EmpFirstName,
-       qt.QuestionType as QuestionTypeName,
-       it.IndexType as IndexTypeName,
-       CASE 
-           WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
-           WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
-           WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
-       END AS ContentIndexName
-FROM tblQuestion q
-LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
-LEFT JOIN tblCourse c ON q.courseid = c.CourseID
-LEFT JOIN tblBoard b ON q.boardid = b.BoardID
-LEFT JOIN tblClass cl ON q.classid = cl.ClassID
-LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
-LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
-LEFT JOIN tblEmployee e ON q.EmployeeId = e.EmployeeId
-LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
-LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
-LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
-LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
-WHERE q.IsActive = 1 
-  AND q.SubjectID = @SubjectId 
-  AND q.QuestionTypeId = @QuestionTypeId 
-  AND q.IsConfigure = 1
-ORDER BY q.CreatedOn
-OFFSET 0 ROWS FETCH NEXT @TotalNumberOfQuestions ROWS ONLY";
-
-                    //    // Query to fetch questions that match the section settings and are configured
-                    //    string questionQuery = @"
-                    //SELECT 
-                    //    q.QuestionId, 
-                    //    q.QuestionDescription, 
-                    //    q.QuestionTypeId, 
-                    //    q.Status, 
-                    //    q.CreatedBy, 
-                    //    q.CreatedOn, 
-                    //    q.ModifiedBy, 
-                    //    q.ModifiedOn, 
-                    //    q.SubjectID, 
-                    //    s.SubjectName, 
-                    //    q.EmployeeId, 
-                    //    e.EmpFirstName AS EmployeeName, 
-                    //    q.IndexTypeId, 
-                    //    i.IndexTypeName, 
-                    //    q.ContentIndexId, 
-                    //    ci.ContentIndexName, 
-                    //    q.IsRejected, 
-                    //    q.IsApproved, 
-                    //    q.QuestionCode, 
-                    //    q.Explanation, 
-                    //    q.ExtraInformation, 
-                    //    q.IsActive, 
-                    //    q.IsConfigure 
-                    //FROM tblQuestion q
-                    //INNER JOIN tblSubject s ON q.SubjectID = s.SubjectId
-                    //INNER JOIN tblEmployee e ON q.EmployeeId = e.EmployeeID
-                    //INNER JOIN [tblQBIndexType] i ON q.IndexTypeId = i.IndexTypeId
-                    //INNER JOIN tblContentIndex ci ON q.ContentIndexId = ci.ContentIndexId
-                    //WHERE q.SubjectID = @SubjectId AND q.QuestionTypeId = @QuestionTypeId AND q.IsConfigure = 1
-                    //ORDER BY q.CreatedOn
-                    //OFFSET 0 ROWS FETCH NEXT @TotalNumberOfQuestions ROWS ONLY";
+                    SELECT q.*, 
+                           c.CourseName, 
+                           b.BoardName, 
+                           cl.ClassName, 
+                           s.SubjectName,
+                           et.ExamTypeName,
+                           e.EmpFirstName,
+                           qt.QuestionType as QuestionTypeName,
+                           it.IndexType as IndexTypeName,
+                           CASE 
+                               WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
+                               WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
+                               WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+                           END AS ContentIndexName
+                    FROM tblQuestion q
+                    LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
+                    LEFT JOIN tblCourse c ON q.courseid = c.CourseID
+                    LEFT JOIN tblBoard b ON q.boardid = b.BoardID
+                    LEFT JOIN tblClass cl ON q.classid = cl.ClassID
+                    LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
+                    LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
+                    LEFT JOIN tblEmployee e ON q.EmployeeId = e.EmployeeId
+                    LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
+                    LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
+                    LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
+                    LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
+                    WHERE q.IsActive = 1 
+                      AND q.SubjectID = @SubjectId 
+                      AND q.QuestionTypeId = @QuestionTypeId 
+                      AND q.IsConfigure = 1
+                    ORDER BY q.CreatedOn
+                    OFFSET 0 ROWS FETCH NEXT @TotalNumberOfQuestions ROWS ONLY";
 
                     var questions = await _connection.QueryAsync<QuestionResponseDTO>(questionQuery,
                         new { SubjectId = section.SubjectId, QuestionTypeId = section.QuestionTypeId, TotalNumberOfQuestions = section.TotalNumberOfQuestions });

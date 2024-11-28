@@ -196,10 +196,10 @@ namespace StudentApp_API.Controllers
             }
         }
 
-        [HttpPost("AssignCourse")]
-        public async Task<IActionResult> AssignCourse([FromBody] AssignCourseRequest request)
+        [HttpPost("AssignStudentClassCourseBoardMapping")]
+        public async Task<IActionResult> AssignStudentClassCourseBoardMapping(AssignStudentMappingRequest request)
         {
-            var response = await _registrationService.AssignCourseAsync(request);
+            var response = await _registrationService.AssignStudentClassCourseBoardMapping(request);
             if (response.Success)
             {
                 return Ok(response);
@@ -208,10 +208,23 @@ namespace StudentApp_API.Controllers
             return BadRequest(response);
         }
 
-        [HttpPost("AssignClass")]
-        public async Task<IActionResult> AssignClass([FromBody] AssignClassRequest request)
+        [HttpPost("DeviceCapture")]
+        [AllowAnonymous]
+        public async Task<IActionResult> DeviceCapture(DeviceCaptureRequest request)
         {
-            var response = await _registrationService.AssignClassAsync(request);
+            var response = await _registrationService.DeviceCapture(request);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+
+            return BadRequest(response);
+        }
+        [HttpPost("GetAllClassCoursesMappings")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetAllClassCoursesMappings(GetAllClassCourseRequest request)
+        {
+            var response = await _registrationService.GetAllClassCoursesMappings(request);
             if (response.Success)
             {
                 return Ok(response);

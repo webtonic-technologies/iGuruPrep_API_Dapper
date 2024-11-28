@@ -11,7 +11,6 @@ namespace StudentApp_API.Repository.Implementations
     {
         private readonly IDbConnection _connection;
         private readonly IWebHostEnvironment _hostingEnvironment;
-
         public RegistrationRepository(IDbConnection connection, IWebHostEnvironment hostingEnvironment)
         {
             _connection = connection;
@@ -115,39 +114,138 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<VerifyOTPResponse>(false, ex.Message, null, 500);
             }
         }
+        public async Task<ServiceResponse<string>> DeviceCapture(DeviceCaptureRequest request)
+        {
+            try
+            {
+                // Define the SQL insert query
+                string query = @"
+            INSERT INTO [tblDeviceCapture] (
+                RegistrationId,
+                device,
+                fingerprint,
+                model,
+                serialNumber,
+                type,
+                version_sdkInt,
+                version_securityPatch,
+                id_buildId,
+                isPhysicalDevice,
+                systemName,
+                systemVersion,
+                utsname_version,
+                name,
+                browserName,
+                appName,
+                appVersion,
+                deviceMemory,
+                Platform,
+                kernelVersion,
+                computerName,
+                systemGUID
+            ) VALUES (
+                @RegistrationId,
+                @device,
+                @fingerprint,
+                @model,
+                @serialNumber,
+                @type,
+                @version_sdkInt,
+                @version_securityPatch,
+                @id_buildId,
+                @isPhysicalDevice,
+                @systemName,
+                @systemVersion,
+                @utsname_version,
+                @name,
+                @browserName,
+                @appName,
+                @appVersion,
+                @deviceMemory,
+                @Platform,
+                @kernelVersion,
+                @computerName,
+                @systemGUID);";
+
+                // Execute the insert query
+                var result = await _connection.ExecuteAsync(query, new
+                {
+                    request.RegistrationId,
+                    request.device,
+                    request.fingerprint,
+                    request.model,
+                    request.serialNumber,
+                    request.type,
+                    request.version_sdkInt,
+                    request.version_securityPatch,
+                    request.id_buildId,
+                    request.isPhysicalDevice,
+                    request.systemName,
+                    request.systemVersion,
+                    request.utsname_version,
+                    request.name,
+                    request.browserName,
+                    request.appName,
+                    request.appVersion,
+                    request.deviceMemory,
+                    request.Platform,
+                    request.kernelVersion,
+                    request.computerName,
+                    request.systemGUID
+                });
+
+                // Check if the insert was successful
+                if (result > 0)
+                {
+                    return new ServiceResponse<string>(true, "Device capture recorded successfully", string.Empty, StatusCodes.Status201Created);
+                }
+                else
+                {
+                    return new ServiceResponse<string>(false, "Failed to record device capture", string.Empty, StatusCodes.Status500InternalServerError);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, StatusCodes.Status500InternalServerError);
+            }
+        }
         public async Task<ServiceResponse<LoginResponse>> LoginAsync(LoginRequest request)
         {
             try
             {
-                // Query to fetch encrypted password and other user details
-                string query = @"SELECT RegistrationID, FirstName, LastName, EmailID, MobileNumber, Location, Password 
-                         FROM tblRegistration 
-                         WHERE EmailID = @EmailID AND IsActive = 1";
+                // Query to fetch user details
+                string userQuery = @"
+        SELECT RegistrationID, FirstName, LastName, EmailID, MobileNumber, Location, Password, CountryCodeID, StateId , CountryID
+        FROM tblRegistration 
+        WHERE EmailID = @EmailID AND IsActive = 1";
 
-                // Fetch the user details including the encrypted password
-                var userWithPassword = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new { request.EmailID });
+                var userWithPassword = await _connection.QueryFirstOrDefaultAsync<RegistrationRequest>(userQuery, new { request.EmailID });
 
                 if (userWithPassword != null)
                 {
-                    // Extract encrypted password from the result
+                    // Extract encrypted password
                     string encryptedPassword = userWithPassword.Password;
 
-                    // Decrypt the password from the database
+                    // Decrypt password
                     string decryptedPassword = EncryptionHelper.DecryptString(encryptedPassword);
 
-                    // Compare the decrypted password with the input password
+                    // Compare passwords
                     if (decryptedPassword == request.Password)
                     {
-                        // Create a response object without the password
+                        // Calculate profile percentage
+                        decimal profilePercentage = await CalculateProfilePercentageAsync(userWithPassword.RegistrationId, userWithPassword);
+
+                        // Create response object
                         var loginResponse = new LoginResponse
                         {
-                            RegistrationID = userWithPassword.RegistrationID,
+                            RegistrationID = userWithPassword.RegistrationId,
                             FirstName = userWithPassword.FirstName,
                             LastName = userWithPassword.LastName,
                             EmailID = userWithPassword.EmailID,
                             MobileNumber = userWithPassword.MobileNumber,
                             Location = userWithPassword.Location,
-                            IsLoginSuccessful = true
+                            IsLoginSuccessful = true,
+                            ProfilePercentage = $"{profilePercentage}%"
                         };
 
                         return new ServiceResponse<LoginResponse>(true, "Login successful.", loginResponse, 200);
@@ -163,76 +261,196 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<LoginResponse>(false, ex.Message, null, 500);
             }
         }
-        public async Task<ServiceResponse<AssignCourseResponse>> AssignCourseAsync(AssignCourseRequest request)
+        private async Task<decimal> CalculateProfilePercentageAsync(int registrationId, RegistrationRequest userWithPassword)
+        {
+            // Determine the country type
+            bool isIndian = userWithPassword.CountryCodeID == "India"; // Assuming 1 is for India
+
+            // Query to fetch parent info
+            string parentQuery = @"
+    SELECT ParentType, MobileNo, ParentEmailID
+    FROM tblParentsInfo 
+    WHERE RegistrationID = @RegistrationID";
+
+            var parents = (await _connection.QueryAsync<ParentsInfo>(parentQuery, new { RegistrationID = registrationId })).ToList();
+
+            // Separate parents by type
+            var father = parents.FirstOrDefault(p => string.Equals(p.ParentType, "Father", StringComparison.OrdinalIgnoreCase));
+            var mother = parents.FirstOrDefault(p => string.Equals(p.ParentType, "Mother", StringComparison.OrdinalIgnoreCase));
+
+            // Initialize total and completed weights
+            int totalWeight = 100; // The total weight is 100
+            int completedWeight = 0;
+
+            // Loop through the fields and check if they are valid for the user or the parent
+            if (IsFieldValid(userWithPassword, "FirstName")) completedWeight += 10;
+            if (IsFieldValid(userWithPassword, "LastName")) completedWeight += 10;
+            if (IsFieldValid(userWithPassword, "MobileNumber")) completedWeight += 10;
+            if (IsFieldValid(userWithPassword, "EmailID")) completedWeight += 10;
+            if (IsFieldValid(userWithPassword, "Password")) completedWeight += 10;
+            if (IsFieldValid(userWithPassword, "CountryID")) completedWeight += 10;
+            if (IsFieldValid(userWithPassword, "StateId")) completedWeight += 5;
+            if (IsFieldValid(userWithPassword, "Location")) completedWeight += 5;
+
+            // Parent-related fields
+            if (father != null)
+            {
+                if (IsFieldValid(father, "ParentType")) completedWeight += 5;
+                if (IsFieldValid(father, "MobileNo")) completedWeight += 5;
+                if (IsFieldValid(father, "ParentEmailID")) completedWeight += 5;
+            }
+
+            if (mother != null)
+            {
+                if (IsFieldValid(mother, "ParentType")) completedWeight += 5;
+                if (IsFieldValid(mother, "MobileNo")) completedWeight += 5;
+                if (IsFieldValid(mother, "ParentEmailID")) completedWeight += 5;
+            }
+
+            // Calculate and return the percentage
+            return Math.Round((decimal)completedWeight / totalWeight * 100, 2);
+        }
+
+        private bool IsFieldValid(object parent, string fieldName)
+        {
+            // This is just a placeholder. You need to implement the actual validation logic
+            // based on how the fields are structured (e.g., checking if the field is not null or empty).
+            var propertyValue = parent.GetType().GetProperty(fieldName)?.GetValue(parent);
+            return propertyValue != null && !string.IsNullOrEmpty(propertyValue.ToString());
+        }
+
+        public async Task<ServiceResponse<List<ClassCourseMappingResponse>>> GetAllClassCoursesMappings(GetAllClassCourseRequest request)
         {
             try
             {
-                // Insert the mapping into tblStudentClassCourseMapping without associating a ClassID (initially NULL)
-                string insertQuery = @"INSERT INTO tblStudentClassCourseMapping (RegistrationID, CourseID, ClassID) 
-                               VALUES (@RegistrationID, @CourseID, NULL);
-                               SELECT CAST(SCOPE_IDENTITY() as int);";
+                string query = @"
+        SELECT 
+            cc.CourseClassMappingID,
+            cc.CourseID,
+            cc.ClassID,
+            cc.Status,
+            cc.createdon,
+            cc.EmployeeID,
+            e.EmpFirstName AS EmpFirstName,
+            cc.modifiedon,
+            cc.modifiedby,
+            cl.classname,
+            c.coursename
+        FROM 
+            tblClassCourses cc
+        INNER JOIN tblClass cl ON cc.ClassID = cl.ClassID
+        INNER JOIN tblCourse c ON cc.CourseID = c.CourseID
+        LEFT JOIN tblEmployee e ON cc.EmployeeID = e.Employeeid";
 
-                var sccmId = await _connection.ExecuteScalarAsync<int>(insertQuery, new
+                var classCourseMappings = await _connection.QueryAsync<dynamic>(query);
+
+                var groupedMappings = classCourseMappings
+                    .GroupBy(m => m.ClassID)
+                    .Select(g => new ClassCourseMappingResponse
+                    {
+                        ClassID = g.Key,
+                        Status = g.First().Status,
+                        createdon = g.First().createdon,
+                        EmployeeID = g.First().EmployeeID,
+                        EmpFirstName = g.First().EmpFirstName,
+                        modifiedon = g.First().modifiedon,
+                        modifiedby = g.First().modifiedby,
+                        classname = g.First().classname,
+                        Courses = g.Select(m => new CourseData
+                        {
+                            CourseClassMappingID = m.CourseClassMappingID,
+                            CourseID = m.CourseID,
+                            Coursename = m.coursename,
+
+                        }).ToList()
+                    }).ToList();
+
+                var paginatedList = groupedMappings
+                    .Skip((request.PageNumber - 1) * request.PageSize)
+                    .Take(request.PageSize)
+                    .ToList();
+
+                if (paginatedList.Count != 0)
+                {
+                    return new ServiceResponse<List<ClassCourseMappingResponse>>(true, "Records Found", paginatedList, 200, groupedMappings.Count);
+                }
+                else
+                {
+                    return new ServiceResponse<List<ClassCourseMappingResponse>>(false, "Records Not Found", [], 204);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<ClassCourseMappingResponse>>(false, ex.Message, [], 500);
+            }
+        }
+        public async Task<ServiceResponse<AssignStudentMappingResponse>> AssignStudentClassCourseBoardMapping(AssignStudentMappingRequest request)
+        {
+            try
+            {
+                // Step 1: Validate that the combination doesn't already exist
+                string validationQuery = @"
+            SELECT COUNT(1)
+            FROM tblStudentClassCourseMapping
+            WHERE RegistrationID = @RegistrationID 
+              AND CourseID = @CourseID
+              AND ClassID = @ClassID
+              AND BoardID = @BoardID";
+
+                var existingCount = await _connection.ExecuteScalarAsync<int>(validationQuery, new
                 {
                     request.RegistrationID,
-                    request.CourseID
+                    request.CourseID,
+                    request.ClassID,
+                    request.BoardID
+                });
+
+                if (existingCount > 0)
+                {
+                    return new ServiceResponse<AssignStudentMappingResponse>(false, "This combination of Board, Class, and Course is already assigned to the student.", null, 400);
+                }
+
+                // Step 2: Insert or Update the mapping
+                string upsertQuery = @"
+            MERGE tblStudentClassCourseMapping AS target
+            USING (SELECT @RegistrationID AS RegistrationID, @CourseID AS CourseID, @ClassID AS ClassID, @BoardID AS BoardID) AS source
+            ON target.RegistrationID = source.RegistrationID 
+               AND target.CourseID = source.CourseID
+            WHEN MATCHED THEN
+                UPDATE SET ClassID = source.ClassID, BoardID = source.BoardID
+            WHEN NOT MATCHED THEN
+                INSERT (RegistrationID, CourseID, ClassID, BoardID)
+                VALUES (source.RegistrationID, source.CourseID, source.ClassID, source.BoardID)
+            OUTPUT INSERTED.SCCMID;";
+
+                var sccmId = await _connection.ExecuteScalarAsync<int>(upsertQuery, new
+                {
+                    request.RegistrationID,
+                    request.CourseID,
+                    request.ClassID,
+                    request.BoardID
                 });
 
                 if (sccmId > 0)
                 {
-                    var response = new AssignCourseResponse
-                    {
-                        RegistrationID = request.RegistrationID,
-                        CourseID = request.CourseID,
-                        IsAssigned = true,
-                        Message = "Course assigned successfully."
-                    };
-
-                    return new ServiceResponse<AssignCourseResponse>(true, "Course assigned successfully.", response, 200);
-                }
-
-                return new ServiceResponse<AssignCourseResponse>(false, "Failed to assign course.", null, 400);
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<AssignCourseResponse>(false, ex.Message, null, 500);
-            }
-        }
-        public async Task<ServiceResponse<AssignClassResponse>> AssignClassAsync(AssignClassRequest request)
-        {
-            try
-            {
-                // Update the ClassID based on the RegistrationID and CourseID
-                string updateQuery = @"UPDATE tblStudentClassCourseMapping
-                                       SET ClassID = @ClassID
-                                       WHERE RegistrationID = @RegistrationID AND CourseID = @CourseID";
-
-                var rowsAffected = await _connection.ExecuteAsync(updateQuery, new
-                {
-                    request.RegistrationID,
-                    request.CourseID,
-                    request.ClassID
-                });
-
-                if (rowsAffected > 0)
-                {
-                    var response = new AssignClassResponse
+                    var response = new AssignStudentMappingResponse
                     {
                         RegistrationID = request.RegistrationID,
                         CourseID = request.CourseID,
                         ClassID = request.ClassID,
-                        IsClassAssigned = true,
-                        Message = "Class assigned successfully."
+                        BoardID = request.BoardID,
+                        IsAssigned = true,
+                        Message = "Mapping assigned successfully."
                     };
 
-                    return new ServiceResponse<AssignClassResponse>(true, "Class assigned successfully.", response, 200);
+                    return new ServiceResponse<AssignStudentMappingResponse>(true, "Mapping assigned successfully.", response, 200);
                 }
 
-                return new ServiceResponse<AssignClassResponse>(false, "No record found to update.", null, 404);
+                return new ServiceResponse<AssignStudentMappingResponse>(false, "Failed to assign mapping.", null, 400);
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<AssignClassResponse>(false, ex.Message, null, 500);
+                return new ServiceResponse<AssignStudentMappingResponse>(false, ex.Message, null, 500);
             }
         }
         public async Task<ServiceResponse<int>> AddUpdateProfile(UpdateProfileRequest request)
@@ -254,11 +472,18 @@ namespace StudentApp_API.Repository.Implementations
                     {
                         foreach (var parent in request.ParentRequests)
                         {
+                            // Ensure both parent contact numbers are not the same
+                            if (request.ParentRequests.Count > 1 &&
+                                request.ParentRequests.Any(p => p.MobileNo == parent.MobileNo && p != parent))
+                            {
+                                throw new ArgumentException("Parent contact numbers must be unique.");
+                            }
+
                             // Check if parent info already exists for the given RegistrationID
                             string checkParentQuery = @"
-                        SELECT COUNT(1) 
-                        FROM tblParentsInfo 
-                        WHERE ParentID = @ParentID AND RegistrationID = @RegistrationID";
+    SELECT COUNT(1) 
+    FROM tblParentsInfo 
+    WHERE ParentID = @ParentID AND RegistrationID = @RegistrationID";
 
                             var parentExists = await _connection.ExecuteScalarAsync<int>(checkParentQuery, new
                             {
@@ -270,11 +495,11 @@ namespace StudentApp_API.Repository.Implementations
                             {
                                 // Update parent information if record exists
                                 string updateParentQuery = @"
-                        UPDATE tblParentsInfo
-                        SET ParentType = @ParentType,
-                            MobileNo = @MobileNo,
-                            EmailID = @EmailID
-                        WHERE ParentID = @ParentID AND RegistrationID = @RegistrationID";
+        UPDATE tblParentsInfo
+        SET ParentType = @ParentType,
+            MobileNo = @MobileNo,
+            ParentEmailID = @EmailID
+        WHERE ParentID = @ParentID AND RegistrationID = @RegistrationID";
 
                                 await _connection.ExecuteAsync(updateParentQuery, new
                                 {
@@ -289,8 +514,8 @@ namespace StudentApp_API.Repository.Implementations
                             {
                                 // Insert new parent information if record doesn't exist
                                 string insertParentQuery = @"
-                        INSERT INTO tblParentsInfo (ParentType, MobileNo, EmailID, RegistrationID)
-                        VALUES (@ParentType, @MobileNo, @EmailID, @RegistrationID)";
+        INSERT INTO tblParentsInfo (ParentType, MobileNo, ParentEmailID, RegistrationID)
+        VALUES (@ParentType, @MobileNo, @EmailID, @RegistrationID)";
 
                                 await _connection.ExecuteAsync(insertParentQuery, new
                                 {
@@ -323,7 +548,7 @@ namespace StudentApp_API.Repository.Implementations
         WHERE RegistrationID = @RegistrationID";
 
             var queryParents = @"
-        SELECT ParentID, ParentType, MobileNo, EmailID, RegistrationID
+        SELECT ParentID, ParentType, MobileNo, ParentEmailID as EmailID, RegistrationID
         FROM tblParentsInfo
         WHERE RegistrationID = @RegistrationID";
 

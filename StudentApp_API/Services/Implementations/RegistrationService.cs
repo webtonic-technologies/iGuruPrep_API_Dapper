@@ -35,16 +35,7 @@ namespace StudentApp_API.Services.Implementations
         {
             return await _registrationRepository.LoginAsync(request);
         }
-         
-        public async Task<ServiceResponse<AssignCourseResponse>> AssignCourseAsync(AssignCourseRequest request)
-        {
-            return await _registrationRepository.AssignCourseAsync(request);
-        }
-        public async Task<ServiceResponse<AssignClassResponse>> AssignClassAsync(AssignClassRequest request)
-        {
-            return await _registrationRepository.AssignClassAsync(request);
-        }
-
+ 
         public async Task<ServiceResponse<int>> AddUpdateProfile(UpdateProfileRequest request)
         {
             return await _registrationRepository.AddUpdateProfile(request);
@@ -53,6 +44,21 @@ namespace StudentApp_API.Services.Implementations
         public async Task<ServiceResponse<RegistrationDTO>> GetRegistrationByIdAsync(int registrationId)
         {
             return await _registrationRepository.GetRegistrationByIdAsync(registrationId);
+        }
+
+        public async Task<ServiceResponse<string>> DeviceCapture(DeviceCaptureRequest request)
+        {
+            return await _registrationRepository.DeviceCapture(request);
+        }
+
+        public async Task<ServiceResponse<List<ClassCourseMappingResponse>>> GetAllClassCoursesMappings(GetAllClassCourseRequest request)
+        {
+            return await _registrationRepository.GetAllClassCoursesMappings(request);
+        }
+
+        public async Task<ServiceResponse<AssignStudentMappingResponse>> AssignStudentClassCourseBoardMapping(AssignStudentMappingRequest request)
+        {
+            return await _registrationRepository.AssignStudentClassCourseBoardMapping(request);
         }
     }
 }

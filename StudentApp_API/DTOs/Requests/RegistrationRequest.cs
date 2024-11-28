@@ -3,6 +3,7 @@ namespace StudentApp_API.DTOs.Requests
 {
     public class RegistrationRequest
     {
+        public int RegistrationId {  get; set; }
         [Required(ErrorMessage = "First name is required.")]
         public string FirstName { get; set; }
 
@@ -43,5 +44,11 @@ namespace StudentApp_API.DTOs.Requests
         public string ParentType { get; set; }
         public string MobileNo { get; set; }
         public string EmailID { get; set; }
+    }
+    public class ParentsInfo
+    {
+        public string ParentType { get; set; }
+        public string MobileNo { get; set; }
+        public string ParentEmailID { get; set; }
     }
 }
