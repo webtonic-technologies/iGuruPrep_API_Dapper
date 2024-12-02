@@ -12,7 +12,7 @@
         public int QuestionID { get; set; }
         public int SubjectID { get; set; }
         public int QuestionTypeID { get; set; }
-        public int AnswerID { get; set; }
+        public List<int> AnswerID { get; set; }
     }
     public class QuestionAnswerData
     {

@@ -17,6 +17,8 @@ namespace Config_API.DTOs.Response
         public decimal MarksPerQuestion { get; set; }
         public int NoOfCorrectOptions { get; set; }
         public int NoOfOptionsSelected { get; set; }
-        public int SuccessRate { get; set; }
+        public decimal? SuccessRate { get; set; }
+        public decimal? AcquiredMarks {  get; set; }
+        public bool IsNegative {  get; set; }
     }
 }

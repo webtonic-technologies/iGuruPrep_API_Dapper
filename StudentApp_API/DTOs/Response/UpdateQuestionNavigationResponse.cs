@@ -106,5 +106,11 @@
         public int TotalNumberOfQuestions { get; set; }
         public int SubjectId { get; set; }
     }
-
+    public class MarksAcquiredAfterAnswerSubmission
+    {
+        public int RegistrationId { get; set; }
+        public int ScholarshipId {  get; set; }
+        public int QuestionId {  get; set; }
+        public decimal MarksAcquired {  get; set; }
+    }
 }

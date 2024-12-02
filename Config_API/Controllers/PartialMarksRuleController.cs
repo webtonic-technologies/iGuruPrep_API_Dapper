@@ -33,7 +33,7 @@ namespace Config_API.Controllers
             }
 
         }
-        [HttpPost("GetAllPartialMarksRule")]
+        [HttpGet("GetAllPartialMarksRule")]
         public async Task<IActionResult> GetAllPartialMarksRules()
         {
             try
@@ -54,7 +54,28 @@ namespace Config_API.Controllers
             {
                 return this.BadRequest(e.Message);
             }
+        }
+        [HttpPost("GetAllPartialMarksRulesList")]
+        public async Task<IActionResult> GetAllPartialMarksRulesList(GetListRequest request)
+        {
+            try
+            {
+                var data = await _partialMarksRuleServices.GetAllPartialMarksRulesList(request);
+                if (data != null)
+                {
+                    return Ok(data);
 
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
         }
         [HttpGet("GetPartialMarksRuleyId/{RuleId}")]
         public async Task<IActionResult> GetPartialMarksRuleyId(int RuleId)
@@ -101,5 +122,21 @@ namespace Config_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
+        [HttpGet("download-partial-marks/{ruleId}")]
+        public async Task<IActionResult> DownloadPartialMarksExcel(int ruleId)
+        {
+            try
+            {
+                var fileContent = await _partialMarksRuleServices.DownloadPartialMarksExcelSheet(ruleId);
+
+                // Return the Excel file as a downloadable response
+                return File(fileContent, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "PartialMarksData.xlsx");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
+        }
+
     }
 }

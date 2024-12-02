@@ -87,7 +87,7 @@ namespace StudentApp_API.Controllers
             return BadRequest(response);
         }
         [HttpPost("SubmitAnswer")]
-        public async Task<IActionResult> SubmitAnswer(AnswerSubmissionRequest request)
+        public async Task<IActionResult> SubmitAnswer(List<AnswerSubmissionRequest> request)
         {
             var response = await _scholarshipService.SubmitAnswer(request);
             if (response.Success)

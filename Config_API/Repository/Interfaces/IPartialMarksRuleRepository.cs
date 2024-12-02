@@ -10,5 +10,7 @@ namespace Config_API.Repository.Interfaces
         Task<ServiceResponse<byte[]>> AddPartialMarksRule(PartialMarksRequest request);
         Task<ServiceResponse<List<PartialMarksResponse>>> GetAllPartialMarksRules();
         Task<ServiceResponse<string>> UploadPartialMarksSheet(IFormFile file, int RuleId);
+        Task<byte[]> DownloadPartialMarksExcelSheet(int RuleId);
+        Task<ServiceResponse<List<PartialMarksResponse>>> GetAllPartialMarksRulesList(GetListRequest request);
     }
 }

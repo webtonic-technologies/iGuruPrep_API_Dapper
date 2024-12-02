@@ -41,7 +41,7 @@ namespace StudentApp_API.Services.Implementations
             return await _scholarshipRepository.GetScholarshipTestByRegistrationId(registrationId);
         }
 
-        public async Task<ServiceResponse<string>> SubmitAnswer(AnswerSubmissionRequest request)
+        public async Task<ServiceResponse<List<MarksAcquiredAfterAnswerSubmission>>> SubmitAnswer(List<AnswerSubmissionRequest> request)
         {
             return await _scholarshipRepository.SubmitAnswer(request);
         }

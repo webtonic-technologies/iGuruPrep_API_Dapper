@@ -377,147 +377,186 @@ namespace StudentApp_API.Repository.Implementations
 
             return response;
         }
-        public async Task<ServiceResponse<string>> SubmitAnswer(AnswerSubmissionRequest request)
+        public async Task<ServiceResponse<List<MarksAcquiredAfterAnswerSubmission>>> SubmitAnswer(List<AnswerSubmissionRequest> request)
         {
             try
             {
-                // Fetch section ID based on the subject ID from tblSSQuestionSection
-                var sectionQuery = @"
-        SELECT SSTSectionId
-        FROM tblSSQuestionSection
-        WHERE SubjectId = @SubjectID";
+                // Validate the request
+                if (request == null || !request.Any())
+                {
+                    return new ServiceResponse<List<MarksAcquiredAfterAnswerSubmission>>(false, "Request is empty or invalid.", null, 400);
+                }
 
-                var sectionId = await _connection.QueryFirstOrDefaultAsync<int>(sectionQuery, new { request.SubjectID });
+                // Fetch section ID based on the subject ID
+                var sectionQuery = @"
+            SELECT SSTSectionId
+            FROM tblSSQuestionSection
+            WHERE SubjectId = @SubjectID";
+
+                var sectionId = await _connection.QueryFirstOrDefaultAsync<int>(sectionQuery, new { SubjectID = request.FirstOrDefault()?.SubjectID });
 
                 if (sectionId == 0)
-                    return new ServiceResponse<string>(false, "Section not found for the given subject.", string.Empty, 500);
-
-                // Fetch correct answer and question details from tblQuestion and tblSSQuestionSection using section ID
-                var query = @"
-        SELECT q.QuestionId, 
-               q.QuestionTypeId, 
-               a.Answerid AS CorrectAnswerId, 
-               s.MarksPerQuestion, 
-               s.NegativeMarks
-        FROM tblQuestion q
-        LEFT JOIN tblAnswerMaster a ON q.QuestionId = a.Questionid
-        LEFT JOIN tblSSQuestionSection s ON s.SSTSectionId = @SectionID
-        WHERE q.QuestionId = @QuestionID";
-
-                var questionData = await _connection.QueryFirstOrDefaultAsync<QuestionAnswerData>(query, new
                 {
-                    request.QuestionID,
-                    SectionID = sectionId
-                });
-
-                if (questionData == null)
-                    return new ServiceResponse<string>(false, "Question not found.", string.Empty, 500);
-
-                decimal marksAwarded = 0;
-                string answerStatus = "Incorrect";
-
-                // Logic to handle single answer questions (MCQ, True/False, etc.)
-                // Check if the question is a single-answer type (MCQ, True/False, etc.)
-                if (IsSingleAnswerType(questionData.QuestionTypeId))
-                {
-                    // Fetch correct answer for single-answer type from tblAnswersingleanswercategory
-                    var singleAnswerQuery = @"
-    SELECT sac.Answerid
-    FROM tblAnswersingleanswercategory sac
-    INNER JOIN tblAnswerMaster am ON sac.Answerid = am.Answerid
-    WHERE am.Questionid = @QuestionID";
-
-                    var correctAnswerId = await _connection.QueryFirstOrDefaultAsync<int>(singleAnswerQuery, new { request.QuestionID });
-
-                    // Compare the submitted answer with the correct answer
-                    if (correctAnswerId == request.AnswerID)
-                    {
-                        marksAwarded = questionData.MarksPerQuestion;
-                        answerStatus = "Correct";
-                    }
-                    else
-                    {
-                        marksAwarded = -questionData.NegativeMarks;
-                    }
-                }
-                // Logic to handle multiple choice answers (MAQ)
-                else
-                {
-                    // Fetch all correct answers for multiple-choice type from tblAnswerMultipleChoiceCategory
-                    var multipleAnswersQuery = @"
-    SELECT amc.Answermultiplechoicecategoryid
-    FROM tblAnswerMultipleChoiceCategory amc
-    INNER JOIN tblAnswerMaster am ON amc.Answerid = am.Answerid
-    WHERE am.Questionid = @QuestionID AND amc.IsCorrect = 1";
-
-                    var correctAnswers = await _connection.QueryAsync<int>(multipleAnswersQuery, new { request.QuestionID });
-
-                    // Check if the submitted answer is one of the correct answers
-                    if (correctAnswers.Contains(request.AnswerID))
-                    {
-                        // Partial marks for a correct answer (proportional to total correct answers)
-                        marksAwarded = questionData.MarksPerQuestion / correctAnswers.Count();
-                        answerStatus = "PartialCorrect";
-                    }
-                    else
-                    {
-                        marksAwarded = -questionData.NegativeMarks;
-                    }
+                    return new ServiceResponse<List<MarksAcquiredAfterAnswerSubmission>>(false, "Section not found for the given subject.", null, 404);
                 }
 
-                // Check if the student has already submitted an answer for this question
-                var existingRecordQuery = @"
-        SELECT COUNT(*) 
-        FROM tblStudentScholarshipAnswerSubmission
-        WHERE StudentID = @RegistrationId AND QuestionID = @QuestionID AND ScholarshipID = @ScholarshipID";
+                // Prepare the response list
+                var responses = new List<MarksAcquiredAfterAnswerSubmission>();
 
-                var existingRecordCount = await _connection.ExecuteScalarAsync<int>(existingRecordQuery, new
+                foreach (var answer in request)
                 {
-                    request.RegistrationId,
-                    request.QuestionID,
-                    request.ScholarshipID
-                });
+                    // Fetch question and answer details
+                    var query = @"
+                SELECT q.QuestionId, 
+                       q.QuestionTypeId, 
+                       a.Answerid AS CorrectAnswerId, 
+                       s.MarksPerQuestion, 
+                       s.NegativeMarks
+                FROM tblQuestion q
+                LEFT JOIN tblAnswerMaster a ON q.QuestionId = a.Questionid
+                LEFT JOIN tblSSQuestionSection s ON s.SSTSectionId = @SectionID
+                WHERE q.QuestionId = @QuestionID";
 
-                // If a record exists, delete the existing answer submission
-                if (existingRecordCount > 0)
-                {
-                    var deleteQuery = @"
-            DELETE FROM tblStudentScholarshipAnswerSubmission
-            WHERE StudentID = @RegistrationId AND QuestionID = @QuestionID AND ScholarshipID = @ScholarshipID";
-
-                    await _connection.ExecuteAsync(deleteQuery, new
+                    var questionData = await _connection.QueryFirstOrDefaultAsync<QuestionAnswerData>(query, new
                     {
-                        request.RegistrationId,
-                        request.QuestionID,
-                        request.ScholarshipID
+                        QuestionID = answer.QuestionID,
+                        SectionID = sectionId
+                    });
+
+                    if (questionData == null)
+                        continue;
+
+                    decimal marksAwarded = 0;
+                    string answerStatus = "Incorrect";
+
+                    // Handle single answer types
+                    if (IsSingleAnswerType(questionData.QuestionTypeId))
+                    {
+                        var singleAnswerQuery = @"
+                    SELECT sac.Answerid
+                    FROM tblAnswersingleanswercategory sac
+                    INNER JOIN tblAnswerMaster am ON sac.Answerid = am.Answerid
+                    WHERE am.Questionid = @QuestionID";
+
+                        var correctAnswerId = await _connection.QueryFirstOrDefaultAsync<int>(singleAnswerQuery, new { QuestionID = answer.QuestionID });
+
+                        if (correctAnswerId == answer.AnswerID.FirstOrDefault())
+                        {
+                            marksAwarded = questionData.MarksPerQuestion;
+                            answerStatus = "Correct";
+                        }
+                        else
+                        {
+                            marksAwarded = -questionData.NegativeMarks;
+                        }
+                    }
+                    // Handle multiple-answer types
+                    else
+                    {
+                        var multipleAnswersQuery = @"
+                    SELECT amc.Answermultiplechoicecategoryid
+                    FROM tblAnswerMultipleChoiceCategory amc
+                    INNER JOIN tblAnswerMaster am ON amc.Answerid = am.Answerid
+                    WHERE am.Questionid = @QuestionID AND amc.IsCorrect = 1";
+
+                        var correctAnswers = await _connection.QueryAsync<int>(multipleAnswersQuery, new { QuestionID = answer.QuestionID });
+
+                        var actualCorrectCount = correctAnswers.Count();
+                        var studentCorrectCount = answer.AnswerID.Intersect(correctAnswers).Count();
+
+                        var (partialMarks, successRate) = await CalculatePartialMarksAsync(
+                            actualCorrectCount,
+                            studentCorrectCount,
+                            questionData.NegativeMarks > 0);
+
+                        marksAwarded = partialMarks;
+                        answerStatus = successRate == 1 ? "Correct" : successRate > 0 ? "PartialCorrect" : "Incorrect";
+                    }
+
+                    // Check for existing submission and remove it
+                    var existingRecordQuery = @"
+                SELECT COUNT(*) 
+                FROM tblStudentScholarshipAnswerSubmission
+                WHERE StudentID = @RegistrationId AND QuestionID = @QuestionID AND ScholarshipID = @ScholarshipID";
+
+                    var existingRecordCount = await _connection.ExecuteScalarAsync<int>(existingRecordQuery, new
+                    {
+                        RegistrationId = answer.RegistrationId,
+                        QuestionID = answer.QuestionID,
+                        ScholarshipID = answer.ScholarshipID
+                    });
+
+                    if (existingRecordCount > 0)
+                    {
+                        var deleteQuery = @"
+                    DELETE FROM tblStudentScholarshipAnswerSubmission
+                    WHERE StudentID = @RegistrationId AND QuestionID = @QuestionID AND ScholarshipID = @ScholarshipID";
+
+                        await _connection.ExecuteAsync(deleteQuery, new
+                        {
+                            RegistrationId = answer.RegistrationId,
+                            QuestionID = answer.QuestionID,
+                            ScholarshipID = answer.ScholarshipID
+                        });
+                    }
+
+                    // Insert the new submission
+                    var insertQuery = @"
+                INSERT INTO tblStudentScholarshipAnswerSubmission 
+                    (ScholarshipID, StudentID, QuestionID, SubjectID, QuestionTypeID, AnswerID, AnswerStatus, Marks)
+                VALUES 
+                    (@ScholarshipID, @RegistrationId, @QuestionID, @SubjectID, @QuestionTypeID, @AnswerID, @AnswerStatus, @Marks)";
+
+                    await _connection.ExecuteAsync(insertQuery, new
+                    {
+                        ScholarshipID = answer.ScholarshipID,
+                        RegistrationId = answer.RegistrationId,
+                        QuestionID = answer.QuestionID,
+                        SubjectID = answer.SubjectID,
+                        QuestionTypeID = answer.QuestionTypeID,
+                        AnswerID = string.Join(",", answer.AnswerID),
+                        AnswerStatus = answerStatus,
+                        Marks = marksAwarded
+                    });
+
+                    // Add to the response list
+                    responses.Add(new MarksAcquiredAfterAnswerSubmission
+                    {
+                        RegistrationId = answer.RegistrationId,
+                        ScholarshipId = answer.ScholarshipID,
+                        QuestionId = answer.QuestionID,
+                        MarksAcquired = marksAwarded
                     });
                 }
 
-                // Insert the new submission
-                var insertQuery = @"
-        INSERT INTO tblStudentScholarshipAnswerSubmission 
-            (ScholarshipID, StudentID, QuestionID, SubjectID, QuestionTypeID, AnswerID, AnswerStatus, Marks)
-        VALUES 
-            (@ScholarshipID, @RegistrationId, @QuestionID, @SubjectID, @QuestionTypeID, @AnswerID, @AnswerStatus, @Marks)";
-
-                await _connection.ExecuteAsync(insertQuery, new
-                {
-                    request.ScholarshipID,
-                    request.RegistrationId,
-                    request.QuestionID,
-                    request.SubjectID,
-                    request.QuestionTypeID,
-                    request.AnswerID,
-                    AnswerStatus = answerStatus,
-                    Marks = marksAwarded
-                });
-
-                return new ServiceResponse<string>(true, "operation successful", "Answer marked successfully", 200);
+                return new ServiceResponse<List<MarksAcquiredAfterAnswerSubmission>>(true, "Operation successful", responses, 200);
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+                return new ServiceResponse<List<MarksAcquiredAfterAnswerSubmission>>(false, ex.Message, null, 500);
             }
+        }
+
+        private async Task<(decimal acquiredMarks, decimal successRate)> CalculatePartialMarksAsync(
+            int actualCorrectCount,
+            int studentCorrectCount,
+            bool isNegative)
+        {
+            var query = @"
+        SELECT TOP 1 AcquiredMarks, SuccessRate
+        FROM tbl_PartialMarksMapping
+        WHERE NoOfCorrectOptions = @ActualCorrectCount
+          AND NoOfOptionsSelected = @StudentCorrectCount
+          AND IsNegative = @IsNegative";
+
+            var result = await _connection.QueryFirstOrDefaultAsync<(decimal AcquiredMarks, decimal SuccessRate)>(query, new
+            {
+                ActualCorrectCount = actualCorrectCount,
+                StudentCorrectCount = studentCorrectCount,
+                IsNegative = isNegative
+            });
+
+            return result == default ? (0, 0) : result;
         }
         private bool IsSingleAnswerType(int questionTypeId)
         {

@@ -2,11 +2,9 @@
 using Config_API.DTOs.Response;
 using Config_API.DTOs.ServiceResponse;
 using Config_API.Repository.Interfaces;
+using Dapper;
 using OfficeOpenXml;
 using System.Data;
-using Dapper;
-using System.Data.SqlClient;
-using Config_API.Models;
 
 namespace Config_API.Repository.Implementations
 {
@@ -55,6 +53,7 @@ namespace Config_API.Repository.Implementations
                 worksheet.Cells[1, 5].Value = "NoOfCorrectOptions";
                 worksheet.Cells[1, 6].Value = "NumberOfOptionsSelected";
                 worksheet.Cells[1, 7].Value = "SuccessRate";
+                worksheet.Cells[1, 8].Value = "Acquired Marks";
 
                 // Pre-fill the second row with new rule data
                 worksheet.Cells[2, 1].Value = ruleId;
@@ -64,7 +63,7 @@ namespace Config_API.Repository.Implementations
                 worksheet.Cells[2, 5].Value = 0; // Default NoOfCorrectOptions
                 worksheet.Cells[2, 6].Value = 0; // Default NumberOfOptionsSelected
                 worksheet.Cells[2, 7].Value = 0; // Default SuccessRate
-
+                worksheet.Cells[2, 8].Value = 0;
                 // Convert Excel to byte array
                 var fileContent = package.GetAsByteArray();
 
@@ -86,12 +85,14 @@ namespace Config_API.Repository.Implementations
             pmm.MarksPerQuestion,
             pmm.NoOfCorrectOptions,
             pmm.NoOfOptionsSelected,
-            pmm.SuccessRate
+            pmm.SuccessRate,
+            pmm.AcquiredMarks,
+            pmm.IsNegative
         FROM tbl_PartialMarksRules pmr
         INNER JOIN tblQBQuestionType qt
         ON pmr.QuestionTypeId = qt.QuestionTypeID
         LEFT JOIN tbl_PartialMarksMapping pmm
-        ON pmr.PartialMarksId = pmm.PartialMarksId";
+        ON pmr.PartialMarksId = pmm.PartialMarksId where pmr.[IsUploaded] = 1";
 
                 var partialMarksDictionary = new Dictionary<int, PartialMarksResponse>();
 
@@ -135,6 +136,75 @@ namespace Config_API.Repository.Implementations
                 );
             }
         }
+        public async Task<ServiceResponse<List<PartialMarksResponse>>> GetAllPartialMarksRulesList(GetListRequest request)
+        {
+            try
+            {
+                // Query to join tbl_PartialMarksRules, tblQBQuestionType, and tbl_PartialMarksMapping
+                var query = @"
+        SELECT 
+            pmr.PartialMarksId AS RuleId,
+            pmr.QuestionTypeId,
+            qt.QuestionType AS QuestionTypeName,
+            pmr.RuleName,
+            pmm.MappingId,
+            pmm.MarksPerQuestion,
+            pmm.NoOfCorrectOptions,
+            pmm.NoOfOptionsSelected,
+             pmm.SuccessRate,
+            pmm.AcquiredMarks,
+            pmm.IsNegative
+        FROM tbl_PartialMarksRules pmr
+        INNER JOIN tblQBQuestionType qt
+        ON pmr.QuestionTypeId = qt.QuestionTypeID
+        LEFT JOIN tbl_PartialMarksMapping pmm
+        ON pmr.PartialMarksId = pmm.PartialMarksId";
+
+                var partialMarksDictionary = new Dictionary<int, PartialMarksResponse>();
+
+                // Query execution with mapping for nested objects
+                await _connection.QueryAsync<PartialMarksResponse, PartialMarksMappings, PartialMarksResponse>(
+                    query,
+                    (rule, mapping) =>
+                    {
+                        if (!partialMarksDictionary.TryGetValue(rule.RuleId, out var partialMarksResponse))
+                        {
+                            partialMarksResponse = rule;
+                            partialMarksResponse.PartialMarks = new List<PartialMarksMappings>();
+                            partialMarksDictionary.Add(rule.RuleId, partialMarksResponse);
+                        }
+
+                        if (mapping != null)
+                        {
+                            partialMarksResponse.PartialMarks.Add(mapping);
+                        }
+
+                        return partialMarksResponse;
+                    },
+                    splitOn: "MappingId"
+                );
+                var paginatedList = partialMarksDictionary.Values
+                 .Skip((request.PageNumber - 1) * request.PageSize)
+                 .Take(request.PageSize)
+                 .ToList();
+                return new ServiceResponse<List<PartialMarksResponse>>(
+                    true,
+                    "Records found",
+                   paginatedList,
+                    200
+                );
+            }
+            catch (Exception ex)
+            {
+                // Handle any exceptions
+                return new ServiceResponse<List<PartialMarksResponse>>(
+                    false,
+                    ex.Message,
+                    new List<PartialMarksResponse>(),
+                    500
+                );
+            }
+        }
         public async Task<ServiceResponse<PartialMarksResponse>> GetPartialMarksRuleyId(int RuleId)
         {
             try
@@ -151,7 +221,9 @@ namespace Config_API.Repository.Implementations
             pmm.MarksPerQuestion,
             pmm.NoOfCorrectOptions,
             pmm.NoOfOptionsSelected,
-            pmm.SuccessRate
+            pmm.SuccessRate,
+            pmm.AcquiredMarks,
+            pmm.IsNegative
         FROM tbl_PartialMarksRules pmr
         INNER JOIN tblQBQuestionType qt
         ON pmr.QuestionTypeId = qt.QuestionTypeID
@@ -205,6 +277,7 @@ namespace Config_API.Repository.Implementations
 
             try
             {
+                ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
                 using (var stream = new MemoryStream())
                 {
                     await file.CopyToAsync(stream);
@@ -237,15 +310,46 @@ namespace Config_API.Repository.Implementations
 
                         var partialMarksMappings = new List<PartialMarksMappings>();
                         var errors = new List<string>();
+
                         for (int row = 2; row <= worksheet.Dimension.End.Row; row++)
                         {
                             try
                             {
-                                var rowRuleId = Convert.ToInt32(worksheet.Cells[row, 1]?.Value);
-                                var rowQuestionTypeId = Convert.ToInt32(worksheet.Cells[row, 2]?.Value);
-                                var rowQuestionTypeName = worksheet.Cells[row, 3]?.Value?.ToString();
+                                // Get the RuleId value
+                                var ruleIdCellValue = worksheet.Cells[row, 1]?.Value?.ToString();
+                                if (string.IsNullOrWhiteSpace(ruleIdCellValue) || !int.TryParse(ruleIdCellValue, out var rowRuleId))
+                                {
+                                    break;
+                                }
 
-                                // Validate RuleId
+                                // Handle RuleId = 0 or inconsistent RuleId
+                                if (rowRuleId == 0)
+                                {
+                                    // Check if there are more rows with non-zero RuleId
+                                    bool hasMoreRecords = false;
+                                    for (int nextRow = row + 1; nextRow <= worksheet.Dimension.End.Row; nextRow++)
+                                    {
+                                        var nextRuleIdCell = worksheet.Cells[nextRow, 1]?.Value?.ToString();
+                                        if (!string.IsNullOrWhiteSpace(nextRuleIdCell) && int.TryParse(nextRuleIdCell, out var nextRuleId) && nextRuleId != 0)
+                                        {
+                                            hasMoreRecords = true;
+                                            break;
+                                        }
+                                    }
+
+                                    if (hasMoreRecords)
+                                    {
+                                        errors.Add($"Row {row}: RuleId is zero, but more records exist. Validation continues.");
+                                        continue; // Continue to the next row
+                                    }
+                                    else
+                                    {
+                                        errors.Add($"Row {row}: RuleId is zero. No further records found. Stopping validation.");
+                                        break; // Stop processing
+                                    }
+                                }
+
+                                // Validate RuleId consistency
                                 if (rowRuleId != RuleId)
                                 {
                                     errors.Add($"Row {row}: RuleId is inconsistent. Expected: {RuleId}, Found: {rowRuleId}");
@@ -253,32 +357,41 @@ namespace Config_API.Repository.Implementations
                                 }
 
                                 // Validate QuestionTypeId and QuestionTypeName
+                                var rowQuestionTypeId = Convert.ToInt32(worksheet.Cells[row, 2]?.Value);
+                                var rowQuestionTypeName = worksheet.Cells[row, 3]?.Value?.ToString();
+
                                 if (rowQuestionTypeId != questionTypeId || rowQuestionTypeName != questionTypeName)
                                 {
                                     errors.Add($"Row {row}: QuestionTypeId or QuestionTypeName is inconsistent. Expected: {questionTypeId} - {questionTypeName}, Found: {rowQuestionTypeId} - {rowQuestionTypeName}");
                                     continue;
                                 }
 
-                                // Further validation and data extraction
+                                // Extract data
                                 var marksPerQuestion = Convert.ToDecimal(worksheet.Cells[row, 4]?.Value ?? 0);
                                 var noOfCorrectOptions = Convert.ToInt32(worksheet.Cells[row, 5]?.Value ?? 0);
                                 var noOfOptionsSelected = Convert.ToInt32(worksheet.Cells[row, 6]?.Value ?? 0);
                                 var successRate = Convert.ToInt32(worksheet.Cells[row, 7]?.Value ?? 0);
+                                var acquiredMarks = Convert.ToDecimal(worksheet.Cells[row, 8]?.Value ?? 0);
 
-                                if (marksPerQuestion <= 0 || noOfCorrectOptions <= 0 || noOfOptionsSelected <= 0 || successRate < 0)
+                                if (marksPerQuestion <= 0 || noOfCorrectOptions <= 0 || noOfOptionsSelected == 0)
                                 {
                                     errors.Add($"Row {row}: Invalid data values.");
                                     continue;
                                 }
 
-                                // Add to the list if valid
+                                // Determine if success rate is negative
+                                bool isNegative = successRate < 0;
+
+                                // Add valid data to the list
                                 partialMarksMappings.Add(new PartialMarksMappings
                                 {
                                     PartialMarksId = RuleId,
                                     MarksPerQuestion = marksPerQuestion,
                                     NoOfCorrectOptions = noOfCorrectOptions,
                                     NoOfOptionsSelected = noOfOptionsSelected,
-                                    SuccessRate = successRate
+                                    SuccessRate = successRate,
+                                    IsNegative = isNegative,
+                                    AcquiredMarks = acquiredMarks
                                 });
                             }
                             catch (Exception ex)
@@ -286,62 +399,27 @@ namespace Config_API.Repository.Implementations
                                 errors.Add($"Row {row}: Error processing row data - {ex.Message}");
                             }
                         }
-                        //for (int row = 2; row <= worksheet.Dimension.End.Row; row++)
-                        //{
-                        //    try
-                        //    {
-                        //        // Extract and validate data
-                        //        var rowQuestionTypeId = Convert.ToInt32(worksheet.Cells[row, 2]?.Value);
-                        //        var rowQuestionTypeName = worksheet.Cells[row, 3]?.Value?.ToString();
 
-                        //        if (rowQuestionTypeId != questionTypeId || rowQuestionTypeName != questionTypeName)
-                        //        {
-                        //            errors.Add($"Row {row}: QuestionTypeId or QuestionTypeName is inconsistent.");
-                        //            continue;
-                        //        }
-
-                        //        var marksPerQuestion = Convert.ToDecimal(worksheet.Cells[row, 4]?.Value ?? 0);
-                        //        var noOfCorrectOptions = Convert.ToInt32(worksheet.Cells[row, 5]?.Value ?? 0);
-                        //        var noOfOptionsSelected = Convert.ToInt32(worksheet.Cells[row, 6]?.Value ?? 0);
-                        //        var successRate = Convert.ToInt32(worksheet.Cells[row, 7]?.Value ?? 0);
-
-                        //        if (marksPerQuestion <= 0 || noOfCorrectOptions <= 0 || noOfOptionsSelected <= 0 || successRate < 0)
-                        //        {
-                        //            errors.Add($"Row {row}: Invalid data values.");
-                        //            continue;
-                        //        }
-
-                        //        partialMarksMappings.Add(new PartialMarksMappings
-                        //        {
-                        //            PartialMarksId = RuleId,
-                        //            MarksPerQuestion = marksPerQuestion,
-                        //            NoOfCorrectOptions = noOfCorrectOptions,
-                        //            NoOfOptionsSelected = noOfOptionsSelected,
-                        //            SuccessRate = successRate
-                        //        });
-                        //    }
-                        //    catch (Exception ex)
-                        //    {
-                        //        errors.Add($"Row {row}: Error processing row data - {ex.Message}");
-                        //    }
-                        //}
-
+                        // If errors exist, do not insert any data into the database
                         if (errors.Any())
                         {
                             return new ServiceResponse<string>(false, string.Join("\n", errors), string.Empty, 400);
                         }
 
-                        //// Delete existing mappings for the RuleId
-                        //var deleteQuery = "DELETE FROM tbl_PartialMarksMapping WHERE PartialMarksId = @RuleId";
-                        //await _connection.ExecuteAsync(deleteQuery, new { RuleId });
+                        // Insert collected data into the database
+                        if (partialMarksMappings.Any())
+                        {
+                            var insertQuery = @"
+                        INSERT INTO tbl_PartialMarksMapping 
+                        (PartialMarksId, MarksPerQuestion, NoOfCorrectOptions, NoOfOptionsSelected, SuccessRate, AcquiredMarks, IsNegative)
+                        VALUES (@PartialMarksId, @MarksPerQuestion, @NoOfCorrectOptions, @NoOfOptionsSelected, @SuccessRate, @AcquiredMarks, @IsNegative)";
+                            await _connection.ExecuteAsync(insertQuery, partialMarksMappings);
 
-                        // Insert new mappings
-                        var insertQuery = @"
-                INSERT INTO tbl_PartialMarksMapping 
-                (PartialMarksId, MarksPerQuestion, NoOfCorrectOptions, NoOfOptionsSelected, SuccessRate)
-                VALUES (@PartialMarksId, @MarksPerQuestion, @NoOfCorrectOptions, @NoOfOptionsSelected, @SuccessRate)";
-                        await _connection.ExecuteAsync(insertQuery, partialMarksMappings);
+                            // Mark the rule as uploaded
+                            await _connection.ExecuteAsync(@"UPDATE tbl_PartialMarksRules SET IsUploaded = 1 WHERE PartialMarksId = @RuleId", new { RuleId });
+                        }
 
+                        // Success response
                         return new ServiceResponse<string>(true, "Partial marks mappings uploaded successfully.", string.Empty, 200);
                     }
                 }
@@ -351,5 +429,94 @@ namespace Config_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
+        public async Task<byte[]> DownloadPartialMarksExcelSheet(int RuleId)
+        {
+            try
+            {
+                // Query to fetch data
+                var query = @"
+        SELECT 
+            pmr.PartialMarksId AS RuleId,
+            pmr.QuestionTypeId,
+            qt.QuestionType AS QuestionTypeName,
+            pmm.MarksPerQuestion,
+            pmm.NoOfCorrectOptions,
+            pmm.NoOfOptionsSelected AS NumberOfOptionsSelected,
+            pmm.SuccessRate,
+            pmm.AcquiredMarks
+        FROM tbl_PartialMarksRules pmr
+        INNER JOIN tblQBQuestionType qt
+        ON pmr.QuestionTypeId = qt.QuestionTypeID
+        LEFT JOIN tbl_PartialMarksMapping pmm
+        ON pmr.PartialMarksId = pmm.PartialMarksId
+        WHERE pmr.PartialMarksId = @RuleId";
+
+                // Fetch data from the database
+                var data = await _connection.QueryAsync<PartialMarksExcelData>(query, new { RuleId });
+
+                // Check if data exists
+                if (!data.Any())
+                {
+                    throw new Exception("No records found for the specified Rule ID.");
+                }
+
+                // Generate Excel file using EPPlus
+                using (var package = new ExcelPackage())
+                {
+                    // Create a worksheet
+                    var worksheet = package.Workbook.Worksheets.Add("Partial Marks Data");
+
+                    // Add headers
+                    var headers = new[]
+                    {
+                "RuleId", "QuestionTypeId", "QuestionTypeName", "MarksPerQuestion", "NoOfCorrectOptions",
+                "NumberOfOptionsSelected", "SuccessRate", "Acquired Marks"
+            };
+
+                    for (int i = 0; i < headers.Length; i++)
+                    {
+                        worksheet.Cells[1, i + 1].Value = headers[i];
+                        worksheet.Cells[1, i + 1].Style.Font.Bold = true;
+                    }
+
+                    // Add data to the worksheet
+                    int row = 2;
+                    foreach (var record in data)
+                    {
+                        worksheet.Cells[row, 1].Value = record.RuleId;
+                        worksheet.Cells[row, 2].Value = record.QuestionTypeId;
+                        worksheet.Cells[row, 3].Value = record.QuestionTypeName;
+                        worksheet.Cells[row, 4].Value = record.MarksPerQuestion;
+                        worksheet.Cells[row, 5].Value = record.NoOfCorrectOptions;
+                        worksheet.Cells[row, 6].Value = record.NumberOfOptionsSelected;
+                        worksheet.Cells[row, 7].Value = record.SuccessRate;
+                        worksheet.Cells[row, 8].Value = record.AcquiredMarks;
+                        row++;
+                    }
+
+                    // Auto-fit columns for better readability
+                    worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
+
+                    // Return the Excel file as a byte array
+                    return package.GetAsByteArray();
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error while generating Excel sheet: {ex.Message}");
+            }
+        }
     }
+    public class PartialMarksExcelData
+    {
+        public int RuleId { get; set; }
+        public int QuestionTypeId { get; set; }
+        public string QuestionTypeName { get; set; }
+        public decimal MarksPerQuestion { get; set; }
+        public int NoOfCorrectOptions { get; set; }
+        public int NumberOfOptionsSelected { get; set; }
+        public decimal SuccessRate { get; set; }
+        public decimal AcquiredMarks { get; set; }
+    }
+
 }
