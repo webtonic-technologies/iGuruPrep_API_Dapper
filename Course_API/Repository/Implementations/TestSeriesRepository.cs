@@ -2472,81 +2472,10 @@ WHERE TestSeriesId != @TestSeriesId
                 if (!string.IsNullOrEmpty(insertedQuestionCode))
                 {
                     // Handle QIDCourses mapping
-                    if (request.QIDCourses != null)
-                    {
-                        var data = await AddUpdateQIDCourses(request.QIDCourses, request.QuestionId);
-                    }
-                 
-                    // Handle Answer mappings
-                    string getQuesType = @"SELECT * FROM tblQBQuestionType WHERE QuestionTypeID = @QuestionTypeID;";
-                    var questTypedata = await _connection.QueryFirstOrDefaultAsync<QuestionTypes>(getQuesType, new { QuestionTypeID = request.QuestionTypeId });
+                    var data = await AddUpdateQIDCourses(request.QIDCourses, request.QuestionId);
+                    var answer = await AnswerHandling(request.QuestionTypeId, request.AnswerMultipleChoiceCategories, insertedQuestionId, insertedQuestionCode, request.Answersingleanswercategories);
 
-                    int answer = 0;
-                    int Answerid = 0;
-
-                    // Check if the answer already exists in AnswerMaster
-                    string getAnswerQuery = @"SELECT Answerid FROM tblAnswerMaster WHERE Questionid = @Questionid;";
-                    Answerid = await _connection.QueryFirstOrDefaultAsync<int>(getAnswerQuery, new { Questionid = insertedQuestionId });
-
-                    if (Answerid == 0)  // If no entry exists, insert a new one
-                    {
-                        string insertAnswerQuery = @"
-        INSERT INTO [tblAnswerMaster] (Questionid, QuestionTypeid, QuestionCode)
-        VALUES (@Questionid, @QuestionTypeid, @QuestionCode);
-        SELECT CAST(SCOPE_IDENTITY() as int);";
-
-                        Answerid = await _connection.QuerySingleAsync<int>(insertAnswerQuery, new
-                        {
-                            Questionid = 0, // Set to 0 or remove if QuestionId is not required
-                            QuestionTypeid = questTypedata?.QuestionTypeID,
-                            QuestionCode = insertedQuestionCode
-                        });
-                    }
-
-                    // If the question type supports multiple-choice or similar categories
-                    if (questTypedata != null)
-                    {
-                        if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "MF" ||
-                            questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MF2" || questTypedata.Code.Trim() == "AR" || questTypedata.Code.Trim() == "CT")
-                        {
-                            if (request.AnswerMultipleChoiceCategories != null)
-                            {
-                                // First, delete existing multiple-choice entries if present
-                                string deleteMCQQuery = @"DELETE FROM tblAnswerMultipleChoiceCategory WHERE Answerid = @Answerid;";
-                                await _connection.ExecuteAsync(deleteMCQQuery, new { Answerid });
-
-                                // Insert new multiple-choice answers
-                                foreach (var item in request.AnswerMultipleChoiceCategories)
-                                {
-                                    item.Answerid = Answerid;
-                                }
-                                string insertMCQQuery = @"
-                    INSERT INTO tblAnswerMultipleChoiceCategory
-                    (Answerid, Answer, Iscorrect, Matchid) 
-                    VALUES (@Answerid, @Answer, @Iscorrect, @Matchid);";
-                                answer = await _connection.ExecuteAsync(insertMCQQuery, request.AnswerMultipleChoiceCategories);
-                            }
-                        }
-                        else  // Handle single-answer category
-                        {
-                            string sql = @"
-                INSERT INTO tblAnswersingleanswercategory (Answerid, Answer)
-                VALUES (@Answerid, @Answer);";
-
-                            if (request.Answersingleanswercategories != null)
-                            {
-                                // First, delete existing single-answer entries if present
-                                string deleteSingleQuery = @"DELETE FROM tblAnswersingleanswercategory WHERE Answerid = @Answerid;";
-                                await _connection.ExecuteAsync(deleteSingleQuery, new { Answerid });
-
-                                // Insert new single-answer answers
-                                request.Answersingleanswercategories.Answerid = Answerid;
-                                answer = await _connection.ExecuteAsync(sql, request.Answersingleanswercategories);
-                            }
-                        }
-                    }
-
-                    if ( answer > 0)
+                    if (answer.Data > 0)
                     {
                         return new ServiceResponse<string>(true, "Operation Successful", "Question Added Successfully", 200);
                     }
@@ -3501,77 +3430,9 @@ WHERE TestSeriesId != @TestSeriesId
                 {
                     // Handle QIDCourses mapping
                     var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionId);
+                    var answer = await AnswerHandling(request.QuestionTypeId, request.AnswerMultipleChoiceCategories, insertedQuestionId, insertedQuestionCode, request.Answersingleanswercategories);
 
-                    // Handle Answer mappings
-                    string getQuesType = @"SELECT * FROM tblQBQuestionType WHERE QuestionTypeID = @QuestionTypeID;";
-                    var questTypedata = await _connection.QueryFirstOrDefaultAsync<QuestionTypes>(getQuesType, new { QuestionTypeID = request.QuestionTypeId });
-
-                    int answer = 0;
-                    int Answerid = 0;
-
-                    // Check if the answer already exists in AnswerMaster
-                    string getAnswerQuery = @"SELECT Answerid FROM tblAnswerMaster WHERE Questionid = @Questionid;";
-                    Answerid = await _connection.QueryFirstOrDefaultAsync<int>(getAnswerQuery, new { Questionid = insertedQuestionId });
-
-                    if (Answerid == 0)  // If no entry exists, insert a new one
-                    {
-                        string insertAnswerQuery = @"
-        INSERT INTO [tblAnswerMaster] (Questionid, QuestionTypeid, QuestionCode)
-        VALUES (@Questionid, @QuestionTypeid, @QuestionCode);
-        SELECT CAST(SCOPE_IDENTITY() as int);";
-
-                        Answerid = await _connection.QuerySingleAsync<int>(insertAnswerQuery, new
-                        {
-                            Questionid = insertedQuestionId, // Set to 0 or remove if QuestionId is not required
-                            QuestionTypeid = questTypedata?.QuestionTypeID,
-                            QuestionCode = insertedQuestionCode
-                        });
-                    }
-
-                    // If the question type supports multiple-choice or similar categories
-                    if (questTypedata != null)
-                    {
-                        if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "FB" || questTypedata.Code.Trim() == "MF" ||
-                            questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MF2" || questTypedata.Code.Trim() == "AR" || questTypedata.Code.Trim() == "CT")
-                        {
-                            if (request.AnswerMultipleChoiceCategories != null)
-                            {
-                                // First, delete existing multiple-choice entries if present
-                                string deleteMCQQuery = @"DELETE FROM tblAnswerMultipleChoiceCategory WHERE Answerid = @Answerid;";
-                                await _connection.ExecuteAsync(deleteMCQQuery, new { Answerid });
-
-                                // Insert new multiple-choice answers
-                                foreach (var item in request.AnswerMultipleChoiceCategories)
-                                {
-                                    item.Answerid = Answerid;
-                                }
-                                string insertMCQQuery = @"
-                    INSERT INTO tblAnswerMultipleChoiceCategory
-                    (Answerid, Answer, Iscorrect, Matchid) 
-                    VALUES (@Answerid, @Answer, @Iscorrect, @Matchid);";
-                                answer = await _connection.ExecuteAsync(insertMCQQuery, request.AnswerMultipleChoiceCategories);
-                            }
-                        }
-                        else  // Handle single-answer category
-                        {
-                            string sql = @"
-                INSERT INTO tblAnswersingleanswercategory (Answerid, Answer)
-                VALUES (@Answerid, @Answer);";
-
-                            if (request.Answersingleanswercategories != null)
-                            {
-                                // First, delete existing single-answer entries if present
-                                string deleteSingleQuery = @"DELETE FROM tblAnswersingleanswercategory WHERE Answerid = @Answerid;";
-                                await _connection.ExecuteAsync(deleteSingleQuery, new { Answerid });
-
-                                // Insert new single-answer answers
-                                request.Answersingleanswercategories.Answerid = Answerid;
-                                answer = await _connection.ExecuteAsync(sql, request.Answersingleanswercategories);
-                            }
-                        }
-                    }
-
-                    if (data > 0 && answer > 0)
+                    if (data > 0 && answer.Data > 0)
                     {
                         return new ServiceResponse<int>(true, "Operation Successful", insertedQuestionId, 200);
                     }
@@ -3626,38 +3487,76 @@ WHERE TestSeriesId != @TestSeriesId
                 {
                     if (multiAnswerRequest != null)
                     {
-                        // First, delete existing multiple-choice entries if present
-                        string deleteMCQQuery = @"DELETE FROM tblAnswerMultipleChoiceCategory WHERE Answerid = @Answerid;";
-                        await _connection.ExecuteAsync(deleteMCQQuery, new { Answerid });
-
-                        // Insert new multiple-choice answers
                         foreach (var item in multiAnswerRequest)
                         {
                             item.Answerid = Answerid;
+
+                            // Check if the answer already exists
+                            string checkExistingMCQQuery = @"
+                        SELECT COUNT(*) FROM tblAnswerMultipleChoiceCategory
+                        WHERE Answerid = @Answerid;";
+
+                            int existingCount = await _connection.QueryFirstOrDefaultAsync<int>(checkExistingMCQQuery, new { item.Answerid, item.Answer });
+
+                            if (item.Answermultiplechoicecategoryid > 0)
+                            {
+                                // Update existing record
+                                string updateMCQQuery = @"
+                            UPDATE tblAnswerMultipleChoiceCategory
+                            SET Iscorrect = @Iscorrect, Matchid = @Matchid, Answer = @Answer
+                            WHERE Answerid = @Answerid and Answermultiplechoicecategoryid = @Answermultiplechoicecategoryid;";
+
+                                await _connection.ExecuteAsync(updateMCQQuery, item);
+                            }
+                            else
+                            {
+                                // Insert new record
+                                string insertMCQQuery = @"
+                            INSERT INTO tblAnswerMultipleChoiceCategory
+                            (Answerid, Answer, Iscorrect, Matchid)
+                            VALUES (@Answerid, @Answer, @Iscorrect, @Matchid);";
+
+                                await _connection.ExecuteAsync(insertMCQQuery, item);
+                            }
                         }
-                        string insertMCQQuery = @"
-                    INSERT INTO tblAnswerMultipleChoiceCategory
-                    (Answerid, Answer, Iscorrect, Matchid) 
-                    VALUES (@Answerid, @Answer, @Iscorrect, @Matchid);";
-                        answer = await _connection.ExecuteAsync(insertMCQQuery, multiAnswerRequest);
+                        answer = multiAnswerRequest.Count; // Return the count of processed answers
                     }
                 }
                 else  // Handle single-answer category
                 {
-                    string sql = @"
-                INSERT INTO tblAnswersingleanswercategory (Answerid, Answer)
-                VALUES (@Answerid, @Answer);";
+                    singleAnswerRequest.Answerid = Answerid;
 
-                    if (singleAnswerRequest != null)
+                    // Check if the single answer already exists
+                    string checkExistingSingleQuery = @"
+                    SELECT COUNT(*) FROM tblAnswersingleanswercategory
+                    WHERE Answerid = @Answerid AND Answer = @Answer;";
+
+                    int existingCount = await _connection.QueryFirstOrDefaultAsync<int>(checkExistingSingleQuery, new
                     {
-                        // First, delete existing single-answer entries if present
-                        string deleteSingleQuery = @"DELETE FROM tblAnswersingleanswercategory WHERE Answerid = @Answerid;";
-                        await _connection.ExecuteAsync(deleteSingleQuery, new { Answerid });
+                        singleAnswerRequest.Answerid,
+                        singleAnswerRequest.Answer
+                    });
 
-                        // Insert new single-answer answers
-                        singleAnswerRequest.Answerid = Answerid;
-                        answer = await _connection.ExecuteAsync(sql, singleAnswerRequest);
+                    if (existingCount > 0)
+                    {
+                        // Update existing record
+                        string updateSingleQuery = @"
+                        UPDATE tblAnswersingleanswercategory
+                        SET Answer = @Answer
+                        WHERE Answerid = @Answerid and Answersingleanswercategoryid = @Answersingleanswercategoryid;";
+
+                        await _connection.ExecuteAsync(updateSingleQuery, singleAnswerRequest);
                     }
+                    else
+                    {
+                        // Insert new record
+                        string insertSingleQuery = @"
+                        INSERT INTO tblAnswersingleanswercategory (Answerid, Answer)
+                        VALUES (@Answerid, @Answer);";
+
+                        await _connection.ExecuteAsync(insertSingleQuery, singleAnswerRequest);
+                    }
+                    answer = 1; // Single answer processed
                 }
             }
             return new ServiceResponse<int>(true, string.Empty, answer, 200);

@@ -90,11 +90,17 @@ namespace StudentApp_API.Repository.Implementations
                             Answers = new List<AnswerDetail>()
                         };
 
-                        string answerQuery = @"SELECT AM.AnswerID, COALESCE(MC.Answer, SA.Answer) AS Answer
-                                               FROM tblAnswerMaster AM
-                                               LEFT JOIN tblAnswerMultipleChoiceCategory MC ON AM.AnswerID = MC.AnswerID
-                                               LEFT JOIN tblAnswersingleanswercategory SA ON AM.AnswerID = SA.AnswerID
-                                               WHERE AM.QuestionID = @QuestionID";
+                        string answerQuery = @"
+    SELECT 
+        AM.AnswerID, 
+        MC.Answer AS MCQAnswer, 
+        MC.Answermultiplechoicecategoryid,
+        SA.Answer AS SingleAnswer, 
+        SA.Answersingleanswercategoryid
+    FROM tblAnswerMaster AM
+    LEFT JOIN tblAnswerMultipleChoiceCategory MC ON AM.AnswerID = MC.AnswerID
+    LEFT JOIN tblAnswersingleanswercategory SA ON AM.AnswerID = SA.AnswerID
+    WHERE AM.QuestionID = @QuestionID";
 
                         var answers = await _connection.QueryAsync(answerQuery, new { QuestionID = question.QuestionID });
 
@@ -103,7 +109,9 @@ namespace StudentApp_API.Repository.Implementations
                             questionDetail.Answers.Add(new AnswerDetail
                             {
                                 AnswerID = answer.AnswerID,
-                                Answer = answer.Answer
+                                Answer = answer.MCQAnswer ?? answer.SingleAnswer, // Use MCQ answer or Single answer based on availability
+                                Answermultiplechoicecategoryid = answer.Answermultiplechoicecategoryid,
+                                Answersingleanswercategoryid = answer.Answersingleanswercategoryid
                             });
                         }
 
@@ -407,13 +415,12 @@ namespace StudentApp_API.Repository.Implementations
                 {
                     // Fetch question and answer details
                     var query = @"
-                SELECT q.QuestionId, 
-                       q.QuestionTypeId, 
-                       a.Answerid AS CorrectAnswerId, 
-                       s.MarksPerQuestion, 
-                       s.NegativeMarks
+                SELECT 
+                    q.QuestionId, 
+                    q.QuestionTypeId, 
+                    s.MarksPerQuestion, 
+                    s.NegativeMarks
                 FROM tblQuestion q
-                LEFT JOIN tblAnswerMaster a ON q.QuestionId = a.Questionid
                 LEFT JOIN tblSSQuestionSection s ON s.SSTSectionId = @SectionID
                 WHERE q.QuestionId = @QuestionID";
 
@@ -462,15 +469,49 @@ namespace StudentApp_API.Repository.Implementations
                         var correctAnswers = await _connection.QueryAsync<int>(multipleAnswersQuery, new { QuestionID = answer.QuestionID });
 
                         var actualCorrectCount = correctAnswers.Count();
-                        var studentCorrectCount = answer.AnswerID.Intersect(correctAnswers).Count();
 
-                        var (partialMarks, successRate) = await CalculatePartialMarksAsync(
-                            actualCorrectCount,
-                            studentCorrectCount,
-                            questionData.NegativeMarks > 0);
+                        // Check if any of the submitted answers are incorrect
+                        bool hasIncorrectAnswer = answer.AnswerID.Any(submittedAnswer => !correctAnswers.Contains(submittedAnswer));
 
-                        marksAwarded = partialMarks;
-                        answerStatus = successRate == 1 ? "Correct" : successRate > 0 ? "PartialCorrect" : "Incorrect";
+                        // Calculate studentCorrectCount based on the correctness of the answers
+                        int studentCorrectCount = hasIncorrectAnswer ? -1 : answer.AnswerID.Intersect(correctAnswers).Count();
+
+                        // Determine if negative marking applies
+                        bool isNegative = hasIncorrectAnswer;
+
+                        var questionTypeInSection = await _connection.QueryFirstOrDefaultAsync<dynamic>(@"
+                    SELECT PartialMarkRuleId, QuestionTypeId
+                    FROM tblSSQuestionSection 
+                    WHERE SSTSectionId = @sectionId", new { sectionId });
+
+                        int questionTypePartialMarkRule = await _connection.QueryFirstOrDefaultAsync<int>(@"
+                    SELECT QuestionTypeId 
+                    FROM tbl_PartialMarksRules
+                    WHERE PartialMarksId = @PartialMarksId", new { PartialMarksId = questionTypeInSection.PartialMarkRuleId });
+
+                        if (questionTypeInSection.QuestionTypeId == questionTypePartialMarkRule)
+                        {
+                            var (partialMarks, successRate) = await CalculatePartialMarksAsync(
+                                actualCorrectCount,
+                                studentCorrectCount,
+                                isNegative);
+
+                            marksAwarded = partialMarks;
+                            answerStatus = successRate == 1 ? "Correct" : successRate > 0 ? "PartialCorrect" : "Incorrect";
+                        }
+                        else
+                        {
+                            if (actualCorrectCount == studentCorrectCount && answer.AnswerID.All(correctAnswers.Contains))
+                            {
+                                marksAwarded = questionData.MarksPerQuestion;
+                                answerStatus = "Correct";
+                            }
+                            else
+                            {
+                                marksAwarded = -questionData.NegativeMarks;
+                                answerStatus = "Incorrect";
+                            }
+                        }
                     }
 
                     // Check for existing submission and remove it
