@@ -21,24 +21,52 @@ namespace StudentApp_API.Repository.Implementations
         {
             try
             {
-                string query = @"
-                    INSERT INTO tblRegistration 
-                    (FirstName, LastName, CountryCodeID, MobileNumber, EmailID, Password, CountryID, Location, ReferralCode, StateId
-                     SchoolCode, RegistrationDate, IsActive, IsTermsAgreed, Photo) 
-                    VALUES 
-                    (@FirstName, @LastName, @CountryCodeID, @MobileNumber, @EmailID, @Password, @CountryID, @Location, 
-                     @ReferralCode, @StateId, @SchoolCode, GETDATE(), 1, @IsTermsAgreed, @Photo);
-                    SELECT CAST(SCOPE_IDENTITY() as int)";
-                request.Password = EncryptionHelper.EncryptString(request.Password);
-                request.Photo = ImageUpload(request.Photo);
-                var registrationId = await _connection.ExecuteScalarAsync<int>(query, request);
+                // Check if terms and conditions are agreed
+                if (!request.IsTermsAgreed)
+                {
+                    return new ServiceResponse<int>(false, "Registration failed. You must agree to the terms and conditions to proceed.", 0, 400);
+                }
 
-                // Use the parameterized constructor correctly
+                // Check if the user is already registered
+                string checkQuery = @"
+            SELECT COUNT(*)
+            FROM tblRegistration
+            WHERE MobileNumber = @MobileNumber AND EmailID = @EmailID AND IsOTPVerified = 1";
+
+                var isUserRegistered = await _connection.ExecuteScalarAsync<int>(checkQuery, new
+                {
+                    MobileNumber = request.MobileNumber,
+                    EmailID = request.EmailID
+                });
+
+                if (isUserRegistered > 0)
+                {
+                    return new ServiceResponse<int>(false, "Registration failed. User already registered with the provided email and mobile number.", 0, 409);
+                }
+
+                // Insert the registration details
+                string insertQuery = @"
+            INSERT INTO tblRegistration 
+            (FirstName, LastName, CountryCodeID, MobileNumber, EmailID, Password, CountryID, Location, ReferralCode, StateId, 
+             SchoolCode, RegistrationDate, IsActive, IsTermsAgreed, Photo, IsOTPVerified, IsBoardClassCourseSelected) 
+            VALUES 
+            (@FirstName, @LastName, @CountryCodeID, @MobileNumber, @EmailID, @Password, @CountryID, @Location, @ReferralCode, 
+             @StateId, @SchoolCode, GETDATE(), 1, @IsTermsAgreed, @Photo, 0, 0);
+            SELECT CAST(SCOPE_IDENTITY() as int)";
+
+                // Encrypt the password
+                request.Password = EncryptionHelper.EncryptString(request.Password);
+
+                // Upload the photo and get the file path
+                request.Photo = ImageUpload(request.Photo);
+
+                // Execute the query
+                var registrationId = await _connection.ExecuteScalarAsync<int>(insertQuery, request);
+
                 return new ServiceResponse<int>(true, "Registration successful.", registrationId, 201);
             }
             catch (Exception ex)
             {
-                // Ensure that all parameters are passed correctly
                 return new ServiceResponse<int>(false, ex.Message, 0, 500);
             }
         }
@@ -80,20 +108,45 @@ namespace StudentApp_API.Repository.Implementations
         {
             try
             {
-                // Check if the OTP matches the one stored in the database
-                string query = @"SELECT OTP 
-                                 FROM tblRegistration 
-                                 WHERE RegistrationID = @RegistrationID";
+                // Fetch the stored OTP, email, and mobile number for the given registration ID
+                string fetchQuery = @"
+            SELECT OTP, EmailID, MobileNumber
+            FROM tblRegistration
+            WHERE RegistrationID = @RegistrationID";
 
-                var storedOTP = await _connection.QueryFirstOrDefaultAsync<string>(query, new { request.RegistrationID });
+                var record = await _connection.QueryFirstOrDefaultAsync<(string OTP, string EmailID, string MobileNumber)>(fetchQuery, new { request.RegistrationID });
 
-                if (storedOTP == null)
+                if (record == default)
                 {
                     return new ServiceResponse<VerifyOTPResponse>(false, "Registration not found.", null, 404);
                 }
 
-                if (storedOTP == request.OTP)
+                // Check if any other record exists with the same email and phone but IsOTPVerified = 0
+                string checkDuplicateQuery = @"
+            SELECT RegistrationID
+            FROM tblRegistration
+            WHERE EmailID = @EmailID AND MobileNumber = @MobileNumber AND IsOTPVerified = 0 AND RegistrationID <> @RegistrationID";
+
+                var duplicateRegistrationIDs = await _connection.QueryAsync<int>(checkDuplicateQuery, new
                 {
+                    record.EmailID,
+                    record.MobileNumber,
+                    request.RegistrationID
+                });
+
+                // Perform hard delete if duplicates are found
+                if (duplicateRegistrationIDs.Any())
+                {
+                    string deleteQuery = @"DELETE FROM tblRegistration WHERE RegistrationID IN @RegistrationIDs";
+                    await _connection.ExecuteAsync(deleteQuery, new { RegistrationIDs = duplicateRegistrationIDs });
+                }
+
+                // Verify the OTP
+                if (record.OTP == request.OTP)
+                {
+                    string updateQuery = @"UPDATE tblRegistration SET IsOTPVerified = 1 WHERE RegistrationID = @RegistrationID";
+                    await _connection.ExecuteAsync(updateQuery, new { request.RegistrationID });
+
                     return new ServiceResponse<VerifyOTPResponse>(true, "OTP verified successfully.", new VerifyOTPResponse
                     {
                         RegistrationID = request.RegistrationID,
@@ -102,6 +155,7 @@ namespace StudentApp_API.Repository.Implementations
                     }, 200);
                 }
 
+                // Return response for invalid OTP
                 return new ServiceResponse<VerifyOTPResponse>(false, "Invalid OTP.", new VerifyOTPResponse
                 {
                     RegistrationID = request.RegistrationID,
@@ -310,7 +364,6 @@ namespace StudentApp_API.Repository.Implementations
             // Calculate and return the percentage
             return Math.Round((decimal)completedWeight / totalWeight * 100, 2);
         }
-
         private bool IsFieldValid(object parent, string fieldName)
         {
             // This is just a placeholder. You need to implement the actual validation logic
@@ -318,7 +371,6 @@ namespace StudentApp_API.Repository.Implementations
             var propertyValue = parent.GetType().GetProperty(fieldName)?.GetValue(parent);
             return propertyValue != null && !string.IsNullOrEmpty(propertyValue.ToString());
         }
-
         public async Task<ServiceResponse<List<ClassCourseMappingResponse>>> GetAllClassCoursesMappings(GetAllClassCourseRequest request)
         {
             try
@@ -442,7 +494,7 @@ namespace StudentApp_API.Repository.Implementations
                         IsAssigned = true,
                         Message = "Mapping assigned successfully."
                     };
-
+                    await _connection.ExecuteAsync(@"update tblRegistration set IsBoardClassCourseSelected = 1 where RegistrationID = @RegistrationID", new { request.RegistrationID });
                     return new ServiceResponse<AssignStudentMappingResponse>(true, "Mapping assigned successfully.", response, 200);
                 }
 
@@ -464,10 +516,41 @@ namespace StudentApp_API.Repository.Implementations
             {
                 try
                 {
-                    // Skip tblRegistration update/insert logic completely
-                    int registrationId = request.RegistrationID;  // Assume RegistrationID is passed in request
+                    int registrationId = request.RegistrationID; // Assume RegistrationID is passed in the request
 
-                    // Now, handle parent information (insert or update based on ParentID)
+                    // Update `tblRegistration` for the specified fields
+                    string updateRegistrationQuery = @"
+                UPDATE tblRegistration
+                SET FirstName = @FirstName,
+                    LastName = @LastName,
+                    CountryCodeID = @CountryCodeID,
+                    MobileNumber = @MobileNumber,
+                    StateId = @StateId,
+                    EmailID = @EmailID,
+                    CountryID = @CountryID,
+                    Location = @Location,
+                    ReferralCode = @ReferralCode,
+                    SchoolCode = @SchoolCode,
+                    Photo = @Photo
+                WHERE RegistrationID = @RegistrationID";
+
+                    await _connection.ExecuteAsync(updateRegistrationQuery, new
+                    {
+                        request.FirstName,
+                        request.LastName,
+                        request.CountryCodeID,
+                        request.MobileNumber,
+                        request.StateId,
+                        request.EmailID,
+                        request.CountryID,
+                        request.Location,
+                        request.ReferralCode,
+                        request.SchoolCode,
+                        request.Photo,
+                        request.RegistrationID
+                    }, transaction);
+
+                    // Handle parent information (insert or update based on ParentID)
                     if (request.ParentRequests != null && request.ParentRequests.Count > 0)
                     {
                         foreach (var parent in request.ParentRequests)
@@ -481,9 +564,9 @@ namespace StudentApp_API.Repository.Implementations
 
                             // Check if parent info already exists for the given RegistrationID
                             string checkParentQuery = @"
-    SELECT COUNT(1) 
-    FROM tblParentsInfo 
-    WHERE ParentID = @ParentID AND RegistrationID = @RegistrationID";
+                        SELECT COUNT(1) 
+                        FROM tblParentsInfo 
+                        WHERE ParentID = @ParentID AND RegistrationID = @RegistrationID";
 
                             var parentExists = await _connection.ExecuteScalarAsync<int>(checkParentQuery, new
                             {
@@ -495,11 +578,11 @@ namespace StudentApp_API.Repository.Implementations
                             {
                                 // Update parent information if record exists
                                 string updateParentQuery = @"
-        UPDATE tblParentsInfo
-        SET ParentType = @ParentType,
-            MobileNo = @MobileNo,
-            ParentEmailID = @EmailID
-        WHERE ParentID = @ParentID AND RegistrationID = @RegistrationID";
+                            UPDATE tblParentsInfo
+                            SET ParentType = @ParentType,
+                                MobileNo = @MobileNo,
+                                ParentEmailID = @EmailID
+                            WHERE ParentID = @ParentID AND RegistrationID = @RegistrationID";
 
                                 await _connection.ExecuteAsync(updateParentQuery, new
                                 {
@@ -514,8 +597,8 @@ namespace StudentApp_API.Repository.Implementations
                             {
                                 // Insert new parent information if record doesn't exist
                                 string insertParentQuery = @"
-        INSERT INTO tblParentsInfo (ParentType, MobileNo, ParentEmailID, RegistrationID)
-        VALUES (@ParentType, @MobileNo, @EmailID, @RegistrationID)";
+                            INSERT INTO tblParentsInfo (ParentType, MobileNo, ParentEmailID, RegistrationID)
+                            VALUES (@ParentType, @MobileNo, @EmailID, @RegistrationID)";
 
                                 await _connection.ExecuteAsync(insertParentQuery, new
                                 {
@@ -528,12 +611,12 @@ namespace StudentApp_API.Repository.Implementations
                         }
                     }
 
-                    transaction.Commit();  // Commit the transaction
-                    return new ServiceResponse<int>(true, "Parent information updated successfully.", registrationId, 200);
+                    transaction.Commit(); // Commit the transaction
+                    return new ServiceResponse<int>(true, "Profile and parent information updated successfully.", registrationId, 200);
                 }
                 catch (Exception ex)
                 {
-                    transaction.Rollback();  // Rollback in case of an error
+                    transaction.Rollback(); // Rollback in case of an error
                     return new ServiceResponse<int>(false, ex.Message, 0, 500);
                 }
             }

@@ -41,6 +41,16 @@ namespace Schools_API.DTOs.Requests
     {
         public string NewQuestion { get; set; } = string.Empty;
     }
+    public class UpdateQIDCourseRequest
+    {
+        public int QID { get; set; }
+        public int CourseID { get; set; }
+        public int LevelId { get; set; }
+        public int Status { get; set; }
+        public string ModifiedBy { get; set; }
+        public string QuestionCode { get; set; }
+    }
+
     public class ComprehensiveQuestionRequest
     {
         public int QuestionId { get; set; }
@@ -88,8 +98,8 @@ namespace Schools_API.DTOs.Requests
         public bool? IsRejected { get; set; } = false;
         public bool? IsApproved { get; set; } = false;
         public string QuestionCode { get; set; } = string.Empty;
-        public string Explanation { get; set; } = string.Empty;
-        public string ExtraInformation { get; set; } = string.Empty;
+        public string? Explanation { get; set; } = string.Empty;
+        public string? ExtraInformation { get; set; } = string.Empty;
         public bool IsActive { get; set; } = true;
         public bool IsConfigure { get; set; }
         public List<AnswerMultipleChoiceCategory>? AnswerMultipleChoiceCategories { get; set; }

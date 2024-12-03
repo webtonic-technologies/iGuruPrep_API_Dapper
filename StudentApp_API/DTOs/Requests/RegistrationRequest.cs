@@ -36,6 +36,17 @@ namespace StudentApp_API.DTOs.Requests
     public class UpdateProfileRequest
     {
         public int RegistrationID { get; set; }
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public string CountryCodeID { get; set; }
+        public string MobileNumber { get; set; }
+        public int StateId { get; set; }
+        public string EmailID { get; set; }
+        public int CountryID { get; set; }
+        public string Location { get; set; }
+        public string ReferralCode { get; set; }
+        public string SchoolCode { get; set; }
+        public string Photo { get; set; }
         public List<ParentRequest>? ParentRequests { get; set; }
     }
     public class ParentRequest

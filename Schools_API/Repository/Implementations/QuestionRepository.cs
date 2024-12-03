@@ -646,6 +646,50 @@ namespace Schools_API.Repository.Implementations
             }
             return new ServiceResponse<int>(true, string.Empty, answer, 200);
         }
+        public async Task<ServiceResponse<int>> UpdateQIDCourseAsync(int qidCourseId, UpdateQIDCourseRequest request)
+        {
+            if (_connection.State != ConnectionState.Open)
+            {
+                _connection.Open();
+            }
+
+            try
+            {
+                // Update query for tblQIDCourse
+                string updateQuery = @"
+            UPDATE tblQIDCourse
+            SET QID = @QID,
+                CourseID = @CourseID,
+                LevelId = @LevelId,
+                Status = @Status,
+                ModifiedBy = @ModifiedBy,
+                ModifiedDate = GETDATE(),
+                QuestionCode = @QuestionCode
+            WHERE QIDCourseID = @QIDCourseID";
+
+                var rowsAffected = await _connection.ExecuteAsync(updateQuery, new
+                {
+                    QID = request.QID,
+                    CourseID = request.CourseID,
+                    LevelId = request.LevelId,
+                    Status = request.Status,
+                    ModifiedBy = request.ModifiedBy,
+                    QuestionCode = request.QuestionCode,
+                    QIDCourseID = qidCourseId
+                });
+
+                if (rowsAffected > 0)
+                {
+                    return new ServiceResponse<int>(true, "Record updated successfully.", qidCourseId, 200);
+                }
+
+                return new ServiceResponse<int>(false, "No record found to update.", 0, 404);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<int>(false, ex.Message, 0, 500);
+            }
+        }
         public async Task<ServiceResponse<string>> AddUpdateComprehensiveQuestion(ComprehensiveQuestionRequest request)
         {
             try

@@ -39,6 +39,31 @@ namespace Schools_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
+        [HttpPut("UpdateQIDCourseAsync/{qidCourseId}")]
+        public async Task<IActionResult> UpdateQIDCourseAsync(int qidCourseId, UpdateQIDCourseRequest request)
+        {
+            try
+            {
+
+                if (request == null)
+                {
+                    return BadRequest(" data is null.");
+                }
+
+                var data = await _questionServices.UpdateQIDCourseAsync(qidCourseId, request);
+
+                if (data == null)
+                {
+                    return StatusCode(500, "A problem happened while handling your request.");
+                }
+
+                return Ok(data);
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
         [HttpPost("GetAllQuestions")]
         public async Task<IActionResult> GetAllQuestionsList(GetAllQuestionListRequest request)
         {

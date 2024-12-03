@@ -211,6 +211,11 @@ namespace Schools_API.Services.Implementations
             }
         }
 
+        public async Task<ServiceResponse<int>> UpdateQIDCourseAsync(int qidCourseId, UpdateQIDCourseRequest request)
+        {
+            return await _questionRepository.UpdateQIDCourseAsync(qidCourseId, request);
+        }
+
         public async Task<ServiceResponse<string>> UploadQuestionsFromExcel(IFormFile file, int EmployeeId)
         {
             try
