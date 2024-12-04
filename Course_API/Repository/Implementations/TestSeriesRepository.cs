@@ -3531,13 +3531,7 @@ WHERE TestSeriesId != @TestSeriesId
                     SELECT COUNT(*) FROM tblAnswersingleanswercategory
                     WHERE Answerid = @Answerid AND Answer = @Answer;";
 
-                    int existingCount = await _connection.QueryFirstOrDefaultAsync<int>(checkExistingSingleQuery, new
-                    {
-                        singleAnswerRequest.Answerid,
-                        singleAnswerRequest.Answer
-                    });
-
-                    if (existingCount > 0)
+                    if (singleAnswerRequest.Answersingleanswercategoryid > 0)
                     {
                         // Update existing record
                         string updateSingleQuery = @"

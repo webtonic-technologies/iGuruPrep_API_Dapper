@@ -26,10 +26,15 @@ namespace Schools_API.Repository.Implementations
         {
             try
             {
-                if (request.EmployeeId != request.ModifierId && request.QuestionCode != "string" && request.QuestionCode != null)
+                string roleQuery = @"select r.RoleCode from  [tblEmployee] e 
+                                                 LEFT JOIN [tblRole] r ON e.RoleID = r.RoleID
+                                                 WHERE e.Employeeid = @EmployeeId";
+                string GetRoleName = await _connection.QueryFirstOrDefaultAsync<string>(roleQuery, new { EmployeeId = request.ModifierId });
+
+                if (request.EmployeeId != request.ModifierId && request.QuestionCode != "string" && request.QuestionCode != null && GetRoleName != "AD")
                 {
                     int QuestionModifier = await _connection.QueryFirstOrDefaultAsync<int>(@"select ModifierId from tblQuestion where QuestionCode = @QuestionCode
-                     and IsActive = 1", new { QuestionCode  = request.QuestionCode});
+                     and IsActive = 1", new { QuestionCode = request.QuestionCode });
                     if (QuestionModifier == request.ModifierId)
                     {
                         string query = @"
@@ -204,7 +209,17 @@ namespace Schools_API.Repository.Implementations
                                 record.QIDCourseID = 0;
                             }
                             var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
-
+                            if (request.AnswerMultipleChoiceCategories != null)
+                            {
+                                foreach (var detail in request.AnswerMultipleChoiceCategories)
+                                {
+                                    detail.Answermultiplechoicecategoryid = 0;
+                                }
+                            }
+                            if (request.Answersingleanswercategories != null)
+                            {
+                                request.Answersingleanswercategories.Answersingleanswercategoryid = 0;
+                            }
                             var answer = await AnswerHandling(request.QuestionTypeId, request.AnswerMultipleChoiceCategories, insertedQuestionId, insertedQuestionCode, request.Answersingleanswercategories);
 
                             if (data > 0 && answer.Data > 0)
@@ -235,7 +250,7 @@ namespace Schools_API.Repository.Implementations
                         {
                             isRejected = true;
                         }
-                      
+
                         var question = new Question
                         {
                             QuestionDescription = request.QuestionDescription,
@@ -324,7 +339,17 @@ namespace Schools_API.Repository.Implementations
                                 record.QIDCourseID = 0;
                             }
                             var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
-
+                            if (request.AnswerMultipleChoiceCategories != null)
+                            {
+                                foreach (var detail in request.AnswerMultipleChoiceCategories)
+                                {
+                                    detail.Answermultiplechoicecategoryid = 0;
+                                }
+                            }
+                            if (request.Answersingleanswercategories != null)
+                            {
+                                request.Answersingleanswercategories.Answersingleanswercategoryid = 0;
+                            }
                             var answer = await AnswerHandling(request.QuestionTypeId, request.AnswerMultipleChoiceCategories, insertedQuestionId, insertedQuestionCode, request.Answersingleanswercategories);
 
                             if (data > 0 && answer.Data > 0)
@@ -416,9 +441,87 @@ namespace Schools_API.Repository.Implementations
                         }
                     }
                 }
-                else if (request.QuestionCode != null && request.QuestionCode != "string")
+                else if (request.QuestionCode != null && request.QuestionCode != "string" && GetRoleName != "AD")
                 {
                     return new ServiceResponse<string>(true, "Operation Successful", string.Empty, 200);
+                }
+                else if (GetRoleName == "AD")
+                {
+                    bool isLive = await _connection.QueryFirstOrDefaultAsync<bool>(@"select IsLive from tblQuestion where QuestionCode = @QuestionCode", new { QuestionCode = request.QuestionCode });
+                    if (isLive)
+                    {
+                        string query = @"
+                    UPDATE tblQuestion
+                    SET 
+                        QuestionDescription = @QuestionDescription,
+                        QuestionTypeId = @QuestionTypeId,
+                        Status = @Status,
+                        CreatedBy = @CreatedBy,
+                        CreatedOn = @CreatedOn,
+                        ModifiedBy = @ModifiedBy,
+                        ModifiedOn = @ModifiedOn,
+                        subjectID = @SubjectID,
+                        EmployeeId = @EmployeeId,
+                        ModifierId = @ModifierId,
+                        IndexTypeId = @IndexTypeId,
+                        ContentIndexId = @ContentIndexId,
+                        QuestionCode = @QuestionCode,
+                        Explanation = @Explanation,
+                        ExtraInformation = @ExtraInformation,
+                        IsConfigure = @IsConfigure,
+                        CategoryId = @CategoryId
+                    WHERE 
+                        QuestionCode = @QuestionCode and IsLIve = 1";
+                        var parameters = new
+                        {
+                            QuestionId = request.QuestionId,
+                            QuestionDescription = request.QuestionDescription,
+                            QuestionTypeId = request.QuestionTypeId,
+                            Status = request.Status,
+                            CreatedBy = request.CreatedBy,
+                            CreatedOn = request.CreatedOn,
+                            ModifiedBy = request.ModifiedBy,
+                            ModifiedOn = request.ModifiedOn,
+                            SubjectID = request.subjectID,
+                            EmployeeId = request.EmployeeId,
+                            ModifierId = request.ModifierId,
+                            IndexTypeId = request.IndexTypeId,
+                            ContentIndexId = request.ContentIndexId,
+                            QuestionCode = request.QuestionCode,
+                            Explanation = request.Explanation,
+                            ExtraInformation = request.ExtraInformation,
+                            IsActive = request.IsActive,
+                            IsConfigure = request.IsConfigure,
+                            CategoryId = request.CategoryId
+                        };
+
+                        int rowsAffected = _connection.Execute(query, parameters);
+                        var insertedQuestionCode = request.QuestionCode;
+                        if (!string.IsNullOrEmpty(insertedQuestionCode))
+                        {
+                            // Handle QIDCourses mapping
+                            var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
+
+                            var answer = await AnswerHandling(request.QuestionTypeId, request.AnswerMultipleChoiceCategories, request.QuestionId, insertedQuestionCode, request.Answersingleanswercategories);
+
+                            if (data > 0 && answer.Data > 0)
+                            {
+                                return new ServiceResponse<string>(true, "Operation Successful", "Question updated Successfully", 200);
+                            }
+                            else
+                            {
+                                return new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
+                            }
+                        }
+                        else
+                        {
+                            return new ServiceResponse<string>(false, "Some error occurred", string.Empty, 500);
+                        }
+                    }
+                    else
+                    {
+                        return new ServiceResponse<string>(false, "Cannot modify question", string.Empty, 500);
+                    }
                 }
                 else
                 {
@@ -615,13 +718,7 @@ namespace Schools_API.Repository.Implementations
                     SELECT COUNT(*) FROM tblAnswersingleanswercategory
                     WHERE Answerid = @Answerid AND Answer = @Answer;";
 
-                        int existingCount = await _connection.QueryFirstOrDefaultAsync<int>(checkExistingSingleQuery, new
-                        {
-                            singleAnswerRequest.Answerid,
-                            singleAnswerRequest.Answer
-                        });
-
-                        if (existingCount > 0)
+                        if (singleAnswerRequest.Answersingleanswercategoryid > 0)
                         {
                             // Update existing record
                             string updateSingleQuery = @"
@@ -694,7 +791,12 @@ namespace Schools_API.Repository.Implementations
         {
             try
             {
-                if (request.EmployeeId != request.ModifierId && request.QuestionCode != "string" && request.QuestionCode != null)
+                string roleQuery = @"select r.RoleCode from  [tblEmployee] e 
+                                                 LEFT JOIN [tblRole] r ON e.RoleID = r.RoleID
+                                                 WHERE e.Employeeid = @EmployeeId";
+                string GetRoleName = await _connection.QueryFirstOrDefaultAsync<string>(roleQuery, new { EmployeeId = request.ModifierId });
+
+                if (request.EmployeeId != request.ModifierId && request.QuestionCode != "string" && request.QuestionCode != null && GetRoleName != "AD")
                 {
                     int QuestionModifier = await _connection.QueryFirstOrDefaultAsync<int>(@"select ModifierId from tblQuestion where QuestionCode = @QuestionCode
                      and IsActive = 1", new { QuestionCode = request.QuestionCode });
@@ -754,8 +856,27 @@ namespace Schools_API.Repository.Implementations
                             var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
                             foreach (var record in request.Questions)
                             {
-                                record.ParentQCode = insertedQuestionCode;
-                                record.ParentQId = insertedQuestionId;
+                                var newQuestion = new
+                                {
+                                    QuestionDescription = record.QuestionDescription,
+                                    QuestionTypeId = record.QuestionTypeId,
+                                    Status = record.Status,
+                                    CreatedBy = record.CreatedBy,
+                                    CreatedOn = record.CreatedOn,
+                                    subjectID = request.subjectID,
+                                    IndexTypeId = request.IndexTypeId,
+                                    ContentIndexId = request.ContentIndexId,
+                                    IsRejected = request.IsRejected,
+                                    IsApproved = request.IsApproved,
+                                    QuestionCode = record.QuestionCode,
+                                    Explanation = record.Explanation,
+                                    ExtraInformation = record.ExtraInformation,
+                                    IsActive = request.IsActive,
+                                    IsConfigure = request.IsConfigure,
+                                    CategoryId = request.CategoryId,
+                                    ParentQId = insertedQuestionId,
+                                    ParentQCode = insertedQuestionCode
+                                };
                                 string updateQuery1 = @"UPDATE tblQuestion
                                 SET 
                                     QuestionDescription = @QuestionDescription,
@@ -775,7 +896,7 @@ namespace Schools_API.Repository.Implementations
                                     ParentQId = @ParentQId,
                                     ParentQCode = @ParentQCode
                                 WHERE QuestionCode = @QuestionCode";
-                                var updatedQuestionId1 = await _connection.QuerySingleOrDefaultAsync<int>(updateQuery1, record);
+                                var updatedQuestionId1 = await _connection.QuerySingleOrDefaultAsync<int>(updateQuery1, newQuestion);
                                 var answer = await AnswerHandling(record.QuestionTypeId, record.AnswerMultipleChoiceCategories, record.QuestionId, record.QuestionCode, record.Answersingleanswercategories);
                             }
                             if (data > 0)
@@ -845,8 +966,27 @@ namespace Schools_API.Repository.Implementations
                             var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
                             foreach (var record in request.Questions)
                             {
-                                record.ParentQCode = insertedQuestionCode;
-                                record.ParentQId = insertedQuestionId;
+                                var newQuestion = new
+                                {
+                                    QuestionDescription = record.QuestionDescription,
+                                    QuestionTypeId = record.QuestionTypeId,
+                                    Status = record.Status,
+                                    CreatedBy = record.CreatedBy,
+                                    CreatedOn = record.CreatedOn,
+                                    subjectID = request.subjectID,
+                                    IndexTypeId = request.IndexTypeId,
+                                    ContentIndexId = request.ContentIndexId,
+                                    IsRejected = request.IsRejected,
+                                    IsApproved = request.IsApproved,
+                                    QuestionCode = record.QuestionCode,
+                                    Explanation = record.Explanation,
+                                    ExtraInformation = record.ExtraInformation,
+                                    IsActive = request.IsActive,
+                                    IsConfigure = request.IsConfigure,
+                                    CategoryId = request.CategoryId,
+                                    ParentQId = insertedQuestionId,
+                                    ParentQCode = insertedQuestionCode
+                                };
                                 string insertQuery1 = @"
               INSERT INTO tblQuestion (
                   QuestionDescription,
@@ -889,7 +1029,7 @@ namespace Schools_API.Repository.Implementations
                                 await _connection.ExecuteAsync(deactivateQuery1, new { record.QuestionCode });
                                 // Retrieve the QuestionCode after insertion
                                 // var insertedQuestionCode = await _connection.QuerySingleOrDefaultAsync<string>(insertQuery, question);
-                                var insertedQuestionId1 = await _connection.QuerySingleOrDefaultAsync<int>(insertQuery1, record);
+                                var insertedQuestionId1 = await _connection.QuerySingleOrDefaultAsync<int>(insertQuery1, newQuestion);
                                 string code1 = string.Empty;
                                 if (string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string")
                                 {
@@ -902,10 +1042,21 @@ namespace Schools_API.Repository.Implementations
 
                                     await _connection.ExecuteAsync(questionCodeQuery, new { QuestionCode = code, QuestionId = insertedQuestionId1 });
                                 }
-                                string insertedQuestionCode1 = string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string" ? code : request.QuestionCode;
+                                string insertedQuestionCode1 = string.IsNullOrEmpty(record.QuestionCode) || record.QuestionCode == "string" ? code : record.QuestionCode;
 
                                 if (!string.IsNullOrEmpty(insertedQuestionCode1))
                                 {
+                                    if (record.AnswerMultipleChoiceCategories != null)
+                                    {
+                                        foreach (var detail in record.AnswerMultipleChoiceCategories)
+                                        {
+                                            detail.Answermultiplechoicecategoryid = 0;
+                                        }
+                                    }
+                                    if (record.Answersingleanswercategories != null)
+                                    {
+                                        record.Answersingleanswercategories.Answersingleanswercategoryid = 0;
+                                    }
                                     var answer = await AnswerHandling(record.QuestionTypeId, record.AnswerMultipleChoiceCategories, insertedQuestionId1, insertedQuestionCode1, record.Answersingleanswercategories);
                                 }
                                 else
@@ -972,7 +1123,6 @@ namespace Schools_API.Repository.Implementations
                         if (!string.IsNullOrEmpty(insertedQuestionCode))
                         {
                             // Handle QIDCourses mapping
-                            // Handle QIDCourses mapping
                             foreach (var record in request.QIDCourses)
                             {
                                 record.QIDCourseID = 0;
@@ -980,8 +1130,7 @@ namespace Schools_API.Repository.Implementations
                             var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
                             foreach (var record in request.Questions)
                             {
-                                record.ParentQCode = insertedQuestionCode;
-                                record.ParentQId = insertedQuestionId;
+                             
                                 string insertQuery1 = @"
               INSERT INTO tblQuestion (
                   QuestionDescription,
@@ -1020,11 +1169,32 @@ namespace Schools_API.Repository.Implementations
 
               -- Fetch the QuestionId of the newly inserted row
               SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                                var newQuestion = new
+                                {
+                                    QuestionDescription = record.QuestionDescription,
+                                    QuestionTypeId = record.QuestionTypeId,
+                                    Status = record.Status,
+                                    CreatedBy = record.CreatedBy,
+                                    CreatedOn = record.CreatedOn,
+                                    subjectID = request.subjectID,
+                                    IndexTypeId = request.IndexTypeId,
+                                    ContentIndexId = request.ContentIndexId,
+                                    IsRejected = request.IsRejected,
+                                    IsApproved = request.IsApproved,
+                                    QuestionCode = record.QuestionCode,
+                                    Explanation = record.Explanation,
+                                    ExtraInformation = record.ExtraInformation,
+                                    IsActive = request.IsActive,
+                                    IsConfigure = request.IsConfigure,
+                                    CategoryId = request.CategoryId,
+                                    ParentQId = insertedQuestionId,
+                                    ParentQCode = insertedQuestionCode
+                                };
                                 string deactivateQuery1 = @"UPDATE tblQuestion SET IsActive = 0 WHERE QuestionCode = @QuestionCode AND IsActive = 1";
                                 await _connection.ExecuteAsync(deactivateQuery1, new { record.QuestionCode });
                                 // Retrieve the QuestionCode after insertion
                                 // var insertedQuestionCode = await _connection.QuerySingleOrDefaultAsync<string>(insertQuery, question);
-                                var insertedQuestionId1 = await _connection.QuerySingleOrDefaultAsync<int>(insertQuery1, record);
+                                var insertedQuestionId1 = await _connection.QuerySingleOrDefaultAsync<int>(insertQuery1, newQuestion);
                                 string code1 = string.Empty;
                                 if (string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string")
                                 {
@@ -1037,10 +1207,21 @@ namespace Schools_API.Repository.Implementations
 
                                     await _connection.ExecuteAsync(questionCodeQuery, new { QuestionCode = code, QuestionId = insertedQuestionId1 });
                                 }
-                                string insertedQuestionCode1 = string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string" ? code : request.QuestionCode;
+                                string insertedQuestionCode1 = string.IsNullOrEmpty(record.QuestionCode) || record.QuestionCode == "string" ? code : record.QuestionCode;
 
                                 if (!string.IsNullOrEmpty(insertedQuestionCode1))
                                 {
+                                    if (record.AnswerMultipleChoiceCategories != null)
+                                    {
+                                        foreach (var detail in record.AnswerMultipleChoiceCategories)
+                                        {
+                                            detail.Answermultiplechoicecategoryid = 0;
+                                        }
+                                    }
+                                    if (record.Answersingleanswercategories != null)
+                                    {
+                                        record.Answersingleanswercategories.Answersingleanswercategoryid = 0;
+                                    }
                                     var answer = await AnswerHandling(record.QuestionTypeId, record.AnswerMultipleChoiceCategories, insertedQuestionId1, insertedQuestionCode1, record.Answersingleanswercategories);
                                 }
                                 else
@@ -1118,8 +1299,27 @@ namespace Schools_API.Repository.Implementations
                             var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
                             foreach (var record in request.Questions)
                             {
-                                record.ParentQCode = insertedQuestionCode;
-                                record.ParentQId = insertedQuestionId;
+                                var newQuestion = new
+                                {
+                                    QuestionDescription = record.QuestionDescription,
+                                    QuestionTypeId = record.QuestionTypeId,
+                                    Status = record.Status,
+                                    CreatedBy = record.CreatedBy,
+                                    CreatedOn = record.CreatedOn,
+                                    subjectID = request.subjectID,
+                                    IndexTypeId = request.IndexTypeId,
+                                    ContentIndexId = request.ContentIndexId,
+                                    IsRejected = request.IsRejected,
+                                    IsApproved = request.IsApproved,
+                                    QuestionCode = record.QuestionCode,
+                                    Explanation = record.Explanation,
+                                    ExtraInformation = record.ExtraInformation,
+                                    IsActive = request.IsActive,
+                                    IsConfigure = request.IsConfigure,
+                                    CategoryId = request.CategoryId,
+                                    ParentQId = insertedQuestionId,
+                                    ParentQCode = insertedQuestionCode
+                                };
                                 string updateQuery1 = @"UPDATE tblQuestion
                                 SET 
                                     QuestionDescription = @QuestionDescription,
@@ -1139,7 +1339,7 @@ namespace Schools_API.Repository.Implementations
                                     ParentQId = @ParentQId,
                                     ParentQCode = @ParentQCode
                                 WHERE QuestionCode = @QuestionCode";
-                                var updatedQuestionId1 = await _connection.QuerySingleOrDefaultAsync<int>(updateQuery1, record);
+                                var updatedQuestionId1 = await _connection.QuerySingleOrDefaultAsync<int>(updateQuery1, newQuestion);
                                 var answer = await AnswerHandling(record.QuestionTypeId, record.AnswerMultipleChoiceCategories, record.QuestionId, record.QuestionCode, record.Answersingleanswercategories);
                             }
                             if (data > 0)
@@ -1157,9 +1357,128 @@ namespace Schools_API.Repository.Implementations
                         }
                     }
                 }
-                else if (request.QuestionCode != null && request.QuestionCode != "string")
+                else if (request.QuestionCode != null && request.QuestionCode != "string" && GetRoleName != "AD")
                 {
                     return new ServiceResponse<string>(true, "Operation Successful", string.Empty, 200);
+                }
+                else if(GetRoleName == "AD")
+                {
+                    bool isLive = await _connection.QueryFirstOrDefaultAsync<bool>(@"select IsLive from tblQuestion where QuestionCode = @QuestionCode", new { QuestionCode = request.QuestionCode });
+                    if (isLive)
+                    {
+                        string query = @"UPDATE tblQuestion
+                        SET 
+                            Paragraph = @Paragraph,
+                            QuestionTypeId = @QuestionTypeId,
+                            Status = @Status,
+                            CategoryId = @CategoryId,
+                            CreatedBy = @CreatedBy,
+                            CreatedOn = @CreatedOn,
+                            SubjectID = @SubjectID,
+                            EmployeeId = @EmployeeId,
+                            ModifierId = @ModifierId,
+                            IndexTypeId = @IndexTypeId,
+                            ContentIndexId = @ContentIndexId,
+                            IsRejected = @IsRejected,
+                            IsApproved = @IsApproved,
+                            Explanation = @Explanation,
+                            ExtraInformation = @ExtraInformation,
+                            IsConfigure = @IsConfigure,
+                            QuestionDescription = @QuestionDescription
+                        WHERE QuestionCode = @QuestionCode";
+                        var parameters = new
+                        {
+                            // QuestionId = request.QuestionId,
+                            Paragraph = request.Paragraph,
+                            QuestionTypeId = request.QuestionTypeId,
+                            Status = request.Status,
+                            CreatedBy = request.CreatedBy,
+                            CreatedOn = request.CreatedOn,
+                            ModifiedBy = request.ModifiedBy,
+                            ModifiedOn = request.ModifiedOn,
+                            SubjectID = request.subjectID,
+                            EmployeeId = request.EmployeeId,
+                            ModifierId = request.ModifierId,
+                            IndexTypeId = request.IndexTypeId,
+                            ContentIndexId = request.ContentIndexId,
+                            IsRejected = request.IsRejected,
+                            IsApproved = request.IsApproved,
+                            QuestionCode = request.QuestionCode,
+                            Explanation = request.Explanation,
+                            ExtraInformation = request.ExtraInformation,
+                            IsActive = request.IsActive,
+                            IsConfigure = request.IsConfigure,
+                            CategoryId = request.CategoryId,
+                            QuestionDescription = "string"
+                        };
+                        int rowsAffected = _connection.Execute(query, parameters);
+                        var insertedQuestionCode = request.QuestionCode;
+                        var insertedQuestionId = request.QuestionId;
+                        if (!string.IsNullOrEmpty(insertedQuestionCode))
+                        {
+                            // Handle QIDCourses mapping
+                            var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
+                            foreach (var record in request.Questions)
+                            {
+                                var newQuestion = new
+                                {
+                                    QuestionDescription = record.QuestionDescription,
+                                    QuestionTypeId = record.QuestionTypeId,
+                                    Status = record.Status,
+                                    CreatedBy = record.CreatedBy,
+                                    CreatedOn = record.CreatedOn,
+                                    subjectID = request.subjectID,
+                                    IndexTypeId = request.IndexTypeId,
+                                    ContentIndexId = request.ContentIndexId,
+                                    IsRejected = request.IsRejected,
+                                    IsApproved = request.IsApproved,
+                                    QuestionCode = record.QuestionCode,
+                                    Explanation = record.Explanation,
+                                    ExtraInformation = record.ExtraInformation,
+                                    IsActive = request.IsActive,
+                                    IsConfigure = request.IsConfigure,
+                                    CategoryId = request.CategoryId,
+                                    ParentQId = insertedQuestionId,
+                                    ParentQCode = insertedQuestionCode
+                                };
+                                string updateQuery1 = @"UPDATE tblQuestion
+                                SET 
+                                    QuestionDescription = @QuestionDescription,
+                                    QuestionTypeId = @QuestionTypeId,
+                                    Status = @Status,
+                                    CreatedBy = @CreatedBy,
+                                    CreatedOn = @CreatedOn,
+                                    SubjectID = @SubjectID,
+                                    IndexTypeId = @IndexTypeId,
+                                    ContentIndexId = @ContentIndexId,
+                                    Explanation = @Explanation,
+                                    ExtraInformation = @ExtraInformation,
+                                    IsConfigure = @IsConfigure,
+                                    CategoryId = @CategoryId,
+                                    ParentQId = @ParentQId,
+                                    ParentQCode = @ParentQCode
+                                WHERE QuestionCode = @QuestionCode";
+                                var updatedQuestionId1 = await _connection.QuerySingleOrDefaultAsync<int>(updateQuery1, newQuestion);
+                                var answer = await AnswerHandling(record.QuestionTypeId, record.AnswerMultipleChoiceCategories, record.QuestionId, record.QuestionCode, record.Answersingleanswercategories);
+                            }
+                            if (data > 0)
+                            {
+                                return new ServiceResponse<string>(true, "Operation Successful", "Question Updated Successfully", 200);
+                            }
+                            else
+                            {
+                                return new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
+                            }
+                        }
+                        else
+                        {
+                            return new ServiceResponse<string>(false, "Some error occurred", string.Empty, 500);
+                        }
+                    }
+                    else
+                    {
+                        return new ServiceResponse<string>(false, "Cannot modify question", string.Empty, 500);
+                    }
                 }
                 else
                 {
@@ -1203,8 +1522,27 @@ namespace Schools_API.Repository.Implementations
                         var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
                         foreach (var record in request.Questions)
                         {
-                            record.ParentQCode = insertedQuestionCode;
-                            record.ParentQId = insertedQuestionId;
+                            var newQuestion = new
+                            {
+                                QuestionDescription = record.QuestionDescription,
+                                QuestionTypeId = record.QuestionTypeId,
+                                Status = record.Status,
+                                CreatedBy = record.CreatedBy,
+                                CreatedOn = record.CreatedOn,
+                                subjectID = request.subjectID,
+                                IndexTypeId = request.IndexTypeId,
+                                ContentIndexId = request.ContentIndexId,
+                                IsRejected = request.IsRejected,
+                                IsApproved = request.IsApproved,
+                                QuestionCode = record.QuestionCode,
+                                Explanation = record.Explanation,
+                                ExtraInformation = record.ExtraInformation,
+                                IsActive = request.IsActive,
+                                IsConfigure = request.IsConfigure,
+                                CategoryId = request.CategoryId,
+                                ParentQId = insertedQuestionId,
+                                ParentQCode = insertedQuestionCode
+                            };
                             string insertQuery1 = @"
               INSERT INTO tblQuestion (
                   QuestionDescription,
@@ -1247,7 +1585,7 @@ namespace Schools_API.Repository.Implementations
                             await _connection.ExecuteAsync(deactivateQuery1, new { record.QuestionCode });
                             // Retrieve the QuestionCode after insertion
                             // var insertedQuestionCode = await _connection.QuerySingleOrDefaultAsync<string>(insertQuery, question);
-                            var insertedQuestionId1 = await _connection.QuerySingleOrDefaultAsync<int>(insertQuery1, record);
+                            var insertedQuestionId1 = await _connection.QuerySingleOrDefaultAsync<int>(insertQuery1, newQuestion);
                             string code1 = string.Empty;
                             if (string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string")
                             {
@@ -1260,7 +1598,7 @@ namespace Schools_API.Repository.Implementations
 
                                 await _connection.ExecuteAsync(questionCodeQuery, new { QuestionCode = code, QuestionId = insertedQuestionId1 });
                             }
-                            string insertedQuestionCode1 = string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string" ? code : request.QuestionCode;
+                            string insertedQuestionCode1 = string.IsNullOrEmpty(record.QuestionCode) || record.QuestionCode == "string" ? code : record.QuestionCode;
 
                             if (!string.IsNullOrEmpty(insertedQuestionCode1))
                             {
@@ -1337,36 +1675,100 @@ namespace Schools_API.Repository.Implementations
 
                 if (data != null)
                 {
-                    var response = data.Select(item => new QuestionResponseDTO
+                    var response = data.Select(item =>
                     {
-                        QuestionId = item.QuestionId,
-                        QuestionDescription = item.QuestionDescription,
-                        QuestionTypeId = item.QuestionTypeId,
-                        Status = item.Status,
-                        CreatedBy = item.CreatedBy,
-                        CreatedOn = item.CreatedOn,
-                        ModifiedBy = item.ModifiedBy,
-                        ModifiedOn = item.ModifiedOn,
-                        subjectID = item.subjectID,
-                        SubjectName = item.SubjectName,
-                        EmployeeId = item.EmployeeId,
-                        EmployeeName = item.EmpFirstName,
-                        IndexTypeId = item.IndexTypeId,
-                        IndexTypeName = item.IndexTypeName,
-                        ContentIndexId = item.ContentIndexId,
-                        ContentIndexName = item.ContentIndexName,
-                        QIDCourses = GetListOfQIDCourse(item.QuestionCode),
-                        //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
-                        Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
-                        AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode),
-                        IsApproved = item.IsApproved,
-                        IsRejected = item.IsRejected,
-                        QuestionTypeName = item.QuestionTypeName,
-                        QuestionCode = item.QuestionCode,
-                        Explanation = item.Explanation,
-                        ExtraInformation = item.ExtraInformation,
-                        IsActive = item.IsActive
-                    }).ToList();
+                        if (item.QuestionTypeId == 11)
+                        {
+                            return new QuestionResponseDTO
+                            {
+                                QuestionId = item.QuestionId,
+                                Paragraph = item.Paragraph,
+                                SubjectName = item.SubjectName,
+                                EmployeeName = item.EmpFirstName,
+                                IndexTypeName = item.IndexTypeName,
+                                ContentIndexName = item.ContentIndexName,
+                                QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+                                ContentIndexId = item.ContentIndexId,
+                                CreatedBy = item.CreatedBy,
+                                CreatedOn = item.CreatedOn,
+                                EmployeeId = item.EmployeeId,
+                                IndexTypeId = item.IndexTypeId,
+                                subjectID = item.subjectID,
+                                ModifiedOn = item.ModifiedOn,
+                                QuestionTypeId = item.QuestionTypeId,
+                                QuestionTypeName = item.QuestionTypeName,
+                                QuestionCode = item.QuestionCode,
+                                Explanation = item.Explanation,
+                                ExtraInformation = item.ExtraInformation,
+                                IsActive = item.IsActive,
+                                ComprehensiveChildQuestions = GetChildQuestions(item.QuestionCode)
+                            };
+                        }
+                        else
+                        {
+                            return new QuestionResponseDTO
+                            {
+                                QuestionId = item.QuestionId,
+                                QuestionDescription = item.QuestionDescription,
+                                QuestionTypeId = item.QuestionTypeId,
+                                Status = item.Status,
+                                CreatedBy = item.CreatedBy,
+                                CreatedOn = item.CreatedOn,
+                                ModifiedBy = item.ModifiedBy,
+                                ModifiedOn = item.ModifiedOn,
+                                subjectID = item.subjectID,
+                                SubjectName = item.SubjectName,
+                                EmployeeId = item.EmployeeId,
+                                EmployeeName = item.EmpFirstName,
+                                IndexTypeId = item.IndexTypeId,
+                                IndexTypeName = item.IndexTypeName,
+                                ContentIndexId = item.ContentIndexId,
+                                ContentIndexName = item.ContentIndexName,
+                                IsRejected = item.IsRejected,
+                                IsApproved = item.IsApproved,
+                                QuestionTypeName = item.QuestionTypeName,
+                                QuestionCode = item.QuestionCode,
+                                Explanation = item.Explanation,
+                                ExtraInformation = item.ExtraInformation,
+                                IsActive = item.IsActive,
+                                QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+                                //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
+                                Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
+                                AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
+                            };
+                        }
+                    }
+                  ).ToList();
+                    //var response = data.Select(item => new QuestionResponseDTO
+                    //{
+                    //    QuestionId = item.QuestionId,
+                    //    QuestionDescription = item.QuestionDescription,
+                    //    QuestionTypeId = item.QuestionTypeId,
+                    //    Status = item.Status,
+                    //    CreatedBy = item.CreatedBy,
+                    //    CreatedOn = item.CreatedOn,
+                    //    ModifiedBy = item.ModifiedBy,
+                    //    ModifiedOn = item.ModifiedOn,
+                    //    subjectID = item.subjectID,
+                    //    SubjectName = item.SubjectName,
+                    //    EmployeeId = item.EmployeeId,
+                    //    EmployeeName = item.EmpFirstName,
+                    //    IndexTypeId = item.IndexTypeId,
+                    //    IndexTypeName = item.IndexTypeName,
+                    //    ContentIndexId = item.ContentIndexId,
+                    //    ContentIndexName = item.ContentIndexName,
+                    //    QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+                    //    //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
+                    //    Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
+                    //    AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode),
+                    //    IsApproved = item.IsApproved,
+                    //    IsRejected = item.IsRejected,
+                    //    QuestionTypeName = item.QuestionTypeName,
+                    //    QuestionCode = item.QuestionCode,
+                    //    Explanation = item.Explanation,
+                    //    ExtraInformation = item.ExtraInformation,
+                    //    IsActive = item.IsActive
+                    //}).ToList();
 
                     if (response.Count != 0)
                     {
@@ -2430,7 +2832,7 @@ namespace Schools_API.Repository.Implementations
                 LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
                 LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
                 LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
-                WHERE q.QuestionCode = @QuestionCode AND q.IsActive = 1 AND IsLive = 0 AND q.IsConfigure = 1";
+                WHERE q.QuestionCode = @QuestionCode AND q.IsActive = 1 AND q.IsConfigure = 1";
 
                 var parameters = new { QuestionCode = questionCode };
 
@@ -2722,7 +3124,7 @@ namespace Schools_API.Repository.Implementations
             {
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
-        }
+        }   
         public async Task<ServiceResponse<string>> ApproveQuestion(QuestionApprovalRequestDTO request)
         {
             try
@@ -4030,17 +4432,17 @@ namespace Schools_API.Repository.Implementations
                 {
                     QuestionDescription = worksheet.Cells[row, 7].Text,
                     QuestionTypeId = Convert.ToInt32(worksheet.Cells[row, 4].Text),
-                    subjectID = Convert.ToInt32(worksheet.Cells[row, 2].Text),
-                    IndexTypeId = indexTypeId,
+                    // subjectID = Convert.ToInt32(worksheet.Cells[row, 2].Text),
+                    // IndexTypeId = indexTypeId,
                     Explanation = explanation,
                     QuestionCode = "string",//string.IsNullOrEmpty(worksheet.Cells[row, 27].Text) ? null : worksheet.Cells[row, 27].Text,
-                    ContentIndexId = contentIndexId,
+                    // ContentIndexId = contentIndexId,
                     AnswerMultipleChoiceCategories = GetAnswerMultipleChoiceCategories(worksheet, row),
                     Answersingleanswercategories = GetAnswerSingleAnswerCategories(worksheet, row, Convert.ToInt32(worksheet.Cells[row, 4].Text)),
                     IsActive = true,
                     IsConfigure = true,
                     //EmployeeId = EmployeeId,
-                    CategoryId = Convert.ToInt32(worksheet.Cells[row, 1].Text),
+                    // CategoryId = Convert.ToInt32(worksheet.Cells[row, 1].Text),
                     ExtraInformation = extraInfo,
                     Status = true,
                     CreatedOn = DateTime.UtcNow,
@@ -4148,17 +4550,28 @@ namespace Schools_API.Repository.Implementations
             if (questionTypeId == 7 || questionTypeId == 8 || questionTypeId == 10 || questionTypeId == 11 || questionTypeId == 12)
             {
 
-                // Loop through the columns to find the "Explanation" column
+                //// Loop through the columns to find the "Explanation" column
+                //for (int col = 1; col <= worksheet.Dimension.Columns; col++)
+                //{
+                //    var headerText = worksheet.Cells[1, col].Text;
+
+                //    if (headerText.Equals("Explanation", StringComparison.OrdinalIgnoreCase))
+                //    {
+                //        answer = worksheet.Cells[row, col].Text; // Fetch the explanation text as the answer
+                //        break;
+                //    }
+                //}
+                int explanationCol = 0;
                 for (int col = 1; col <= worksheet.Dimension.Columns; col++)
                 {
-                    var headerText = worksheet.Cells[1, col].Text;
-
-                    if (headerText.Equals("Explanation", StringComparison.OrdinalIgnoreCase))
+                    if (worksheet.Cells[1, col].Text.Equals("Explanation", StringComparison.OrdinalIgnoreCase))
                     {
-                        answer = worksheet.Cells[row, col].Text; // Fetch the explanation text as the answer
+                        explanationCol = col;
                         break;
                     }
                 }
+
+                answer = explanationCol > 0 ? worksheet.Cells[row, explanationCol].Text : null;
             }
             // Return the answer for single-answer category questions
             return new Answersingleanswercategory
