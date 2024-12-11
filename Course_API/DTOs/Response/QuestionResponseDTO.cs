@@ -126,12 +126,14 @@
         public int TestSeriesQuestionSectionId { get; set; }
         public int QuestionTypeID { get; set; }
         public string QuestionType { get; set; }
+        public int TotalQuestionCount { get; set; }
     }
     public class DifficultyLevelDTO
     {
         public int LevelId { get; set; }
         public string LevelName { get; set; }
         public string LevelCode { get; set; }
+        public int TotalQuestionCount { get; set; }
     }
     public class SubConceptDTO
     {

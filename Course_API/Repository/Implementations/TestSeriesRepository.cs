@@ -953,11 +953,12 @@ WHERE TestSeriesId != @TestSeriesId
                 // Step 5: Calculate the total number of questions (existing + requested)
                 int totalAssignedQuestions = totalExistingQuestions + totalRequestedQuestions;
 
-                // Step 6: Validate that the total assigned questions do not exceed the total number of questions for the test series
-                if (totalAssignedQuestions > totalNoOfQuestionsForTestSeries)
+                // Step 6: Validate that the total assigned questions must be exactly equal to the total number of questions for the test series
+                if (totalAssignedQuestions != totalNoOfQuestionsForTestSeries)
                 {
-                    return new ServiceResponse<string>(false, $"The total number of questions assigned ({totalAssignedQuestions}) exceeds the limit of {totalNoOfQuestionsForTestSeries} for the test series.", null, StatusCodes.Status400BadRequest);
+                    return new ServiceResponse<string>(false, $"The total number of questions assigned ({totalAssignedQuestions}) must be exactly equal to the limit of {totalNoOfQuestionsForTestSeries} for the test series.", null, StatusCodes.Status400BadRequest);
                 }
+
 
                 // Step 7: Update TestSeriesId for all sections in the request
                 foreach (var section in request)
@@ -1523,7 +1524,7 @@ WHERE TestSeriesId != @TestSeriesId
                         ContentId = request.ContentId,
                         QuestionTypeId = request.QuestionTypeId,
                         DifficultyLevelId = request.DifficultyLevelId
-                    })).Take(totalQuestionsAllowed).ToList();
+                    })).ToList();
 
                     selectedQuestions.AddRange(difficultyQuestions);
                // }
@@ -1980,14 +1981,13 @@ WHERE TestSeriesId != @TestSeriesId
                     AND qc.LevelId = @DifficultyLevelId
               )
               AND q.IsLive = 1";
-
-                // Step 5: Fetch questions based on difficulty levels and limits
                 var selectedQuestions = new List<QuestionResponseDTO>();
                 foreach (var difficultyLimit in difficultyLimits)
                 {
                     int difficultyLevelId = difficultyLimit.Key;
                     int questionsToFetch = difficultyLimit.Value;
 
+                    // Fetch all questions for the given difficulty level
                     var difficultyQuestions = (await _connection.QueryAsync<QuestionResponseDTO>(sql, new
                     {
                         SubjectId = request.SubjectId,
@@ -1995,10 +1995,34 @@ WHERE TestSeriesId != @TestSeriesId
                         ContentIndexIds = contentIndexIds,
                         QuestionTypeId = totalQuestionsAllowed.QuestionTypeID,
                         DifficultyLevelId = difficultyLevelId
-                    })).Take(questionsToFetch).ToList();
+                    })).ToList();
 
-                    selectedQuestions.AddRange(difficultyQuestions);
+                    // Randomly shuffle the list of questions
+                    var randomQuestions = difficultyQuestions
+                        .OrderBy(_ => Guid.NewGuid())
+                        .Take(questionsToFetch)
+                        .ToList();
+
+                    selectedQuestions.AddRange(randomQuestions);
                 }
+                //// Step 5: Fetch questions based on difficulty levels and limits
+                //var selectedQuestions = new List<QuestionResponseDTO>();
+                //foreach (var difficultyLimit in difficultyLimits)
+                //{
+                //    int difficultyLevelId = difficultyLimit.Key;
+                //    int questionsToFetch = difficultyLimit.Value;
+
+                //    var difficultyQuestions = (await _connection.QueryAsync<QuestionResponseDTO>(sql, new
+                //    {
+                //        SubjectId = request.SubjectId,
+                //        IndexTypeIds = indexTypeIds,
+                //        ContentIndexIds = contentIndexIds,
+                //        QuestionTypeId = totalQuestionsAllowed.QuestionTypeID,
+                //        DifficultyLevelId = difficultyLevelId
+                //    })).Take(questionsToFetch).ToList();
+
+                //    selectedQuestions.AddRange(difficultyQuestions);
+                //}
 
                 if (!selectedQuestions.Any())
                 {
@@ -2247,7 +2271,7 @@ WHERE TestSeriesId != @TestSeriesId
 
                 if (!sections.Any())
                 {
-                    return new ServiceResponse<List<TestSeriesSectionDTO>>(false, "No sections found.", new List<TestSeriesSectionDTO>(), 404);
+                    return new ServiceResponse<List<TestSeriesSectionDTO>>(false, "No sections found.", new List<TestSeriesSectionDTO>(), 404, sections.Count());
                 }
 
                 return new ServiceResponse<List<TestSeriesSectionDTO>>(true, "Sections fetched successfully.", sections.ToList(), 200);
@@ -2264,7 +2288,7 @@ WHERE TestSeriesId != @TestSeriesId
                 string query = @"
         SELECT 
             tsqs.[testseriesQuestionSectionid],
-            tsqs.QuestionTypeID,
+            tsqs.QuestionTypeID, tsqs.TotalNoofQuestions as TotalQuestionCount,
             qt.QuestionType
         FROM tbltestseriesQuestionSection tsqs
         JOIN tblQBQuestionType qt ON tsqs.[QuestionTypeID] = qt.QuestionTypeID
@@ -2293,7 +2317,8 @@ WHERE TestSeriesId != @TestSeriesId
             SELECT 
                 dl.LevelId,
                 dl.LevelName,
-                dl.LevelCode
+                dl.LevelCode,
+                tsqd.QuesPerDiffiLevel as TotalQuestionCount
             FROM tblTestSeriesQuestionDifficulty tsqd
             INNER JOIN tbldifficultylevel dl ON dl.LevelId = tsqd.DifficultyLevelId
             WHERE tsqd.QuestionSectionId = @SectionId AND dl.Status = 1";  // Assuming Status 1 is active
@@ -2318,23 +2343,23 @@ WHERE TestSeriesId != @TestSeriesId
             {
                 // Query to get chapters
                 string chapterQuery = @"
-        SELECT tsci.TestSeriesContentIndexId, tsci.ContentIndexId, tsci.SubjectId, tsci.IndexTypeId, tsci.Status, ci.ContentName_Chapter
+        SELECT tsci.TestSeriesContentIndexId, tsci.ContentIndexId, tsci.SubjectId, tsci.IndexTypeId, ci.ContentName_Chapter
         FROM tblTestSeriesContentIndex tsci
         INNER JOIN tblContentIndexChapters ci ON tsci.ContentIndexId = ci.ContentIndexId
         WHERE tsci.TestSeriesID = @TestSeriesId AND tsci.IndexTypeId = 1";
 
                 // Query to get topics
                 string topicQuery = @"
-        SELECT tsci.TestSeriesContentIndexId, tsci.ContentIndexId, tsci.SubjectId, tsci.IndexTypeId, tsci.Status, ti.ContentName_Topic, ti.ContInIdTopic
+        SELECT tsci.TestSeriesContentIndexId, tsci.ContentIndexId, tsci.SubjectId, tsci.IndexTypeId, ti.ContentName_Topic, ti.ContInIdTopic
         FROM tblTestSeriesContentIndex tsci
-        INNER JOIN tblContentIndexTopics ti ON tsci.ContentIndexId = ti.ContentIndexId
+        INNER JOIN tblContentIndexTopics ti ON tsci.ContentIndexId = ti.ContInIdTopic
         WHERE tsci.TestSeriesID = @TestSeriesId AND tsci.IndexTypeId = 2";
 
                 // Query to get subtopics
                 string subTopicQuery = @"
-        SELECT tsci.TestSeriesContentIndexId, tsci.ContentIndexId, tsci.SubjectId, tsci.IndexTypeId, tsci.Status, sti.ContentName_SubTopic, sti.ContInIdSubTopic
+        SELECT tsci.TestSeriesContentIndexId, tsci.ContentIndexId, tsci.SubjectId, tsci.IndexTypeId, sti.ContentName_SubTopic, sti.ContInIdSubTopic
         FROM tblTestSeriesContentIndex tsci
-        INNER JOIN tblContentIndexSubTopics sti ON tsci.ContentIndexId = sti.ContentIndexId
+        INNER JOIN tblContentIndexSubTopics sti ON tsci.ContentIndexId = sti.ContInIdSubTopic
         WHERE tsci.TestSeriesID = @TestSeriesId AND tsci.IndexTypeId = 3";
 
                 // Fetch the data
@@ -3483,7 +3508,8 @@ WHERE TestSeriesId != @TestSeriesId
             if (questTypedata != null)
             {
                 if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "MF" ||
-                    questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MF2" || questTypedata.Code.Trim() == "AR" || questTypedata.Code.Trim() == "CT")
+                    questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MF2" || questTypedata.Code.Trim() == "AR" || questTypedata.Code.Trim() == "FB"
+                    || questTypedata.Code.Trim() == "NT" || questTypedata.Code.Trim() == "T/F")
                 {
                     if (multiAnswerRequest != null)
                     {
@@ -3560,8 +3586,12 @@ WHERE TestSeriesId != @TestSeriesId
         {
             var categories = new List<DTOs.Requests.AnswerMultipleChoiceCategory>();
 
-            // Get the correct answer from cell 9
-            var correctAnswer = worksheet.Cells[row, 9].Text; // Correct answer
+            // Get the correct answers from cell 9 (assuming this contains a comma-separated list for MAQ)
+            var correctAnswer = worksheet.Cells[row, 9].Text
+                .Split(',')
+                .Select(a => a.Trim().ToLower()) // Normalize for comparison
+                .Where(a => !string.IsNullOrWhiteSpace(a)) // Skip empty entries
+                .ToList();
 
             // Find the column with the header "Explanation" and stop before that
             int optionStartColumn = 10; // Assuming the options start from column 10
@@ -3583,8 +3613,14 @@ WHERE TestSeriesId != @TestSeriesId
             {
                 for (int i = optionStartColumn; i < explanationColumn; i++)
                 {
-                    var answer = worksheet.Cells[row, i].Text; // Answer option
-                    bool isCorrect = answer.Equals(correctAnswer, StringComparison.OrdinalIgnoreCase); // Check if the answer matches the correct answer
+                    var answer = worksheet.Cells[row, i].Text?.Trim(); // Answer option
+
+                    // Skip empty cells
+                    if (string.IsNullOrWhiteSpace(answer))
+                        continue;
+
+                    // Check if the answer matches any of the correct answers for MAQ
+                    bool isCorrect = correctAnswer.Contains(answer.ToLower());
 
                     categories.Add(new DTOs.Requests.AnswerMultipleChoiceCategory
                     {
@@ -3599,7 +3635,7 @@ WHERE TestSeriesId != @TestSeriesId
         }
         private DTOs.Requests.Answersingleanswercategory GetAnswerSingleAnswerCategories(ExcelWorksheet worksheet, int row, int questionTypeId)
         {
-            if (questionTypeId == 7 || questionTypeId == 8 || questionTypeId == 10 || questionTypeId == 11 || questionTypeId == 12)
+            if (questionTypeId == 7 || questionTypeId == 8 || questionTypeId == 3)
             {
                // var answer = worksheet.Cells[row, 9].Text; // Single answer category in column 15
                                                            // Find the column with the header "Explanation" and stop before that

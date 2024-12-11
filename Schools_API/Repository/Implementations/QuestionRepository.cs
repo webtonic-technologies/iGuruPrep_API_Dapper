@@ -670,7 +670,8 @@ namespace Schools_API.Repository.Implementations
             if (questTypedata != null)
             {
                 if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "MF" ||
-                    questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MF2" || questTypedata.Code.Trim() == "AR" || questTypedata.Code.Trim() == "CT")
+                    questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MF2" || questTypedata.Code.Trim() == "AR" || questTypedata.Code.Trim() == "FB"
+                    || questTypedata.Code.Trim() == "NT" || questTypedata.Code.Trim() == "T/F")
                 {
                     if (multiAnswerRequest != null)
                     {
@@ -6119,7 +6120,7 @@ VALUES
         {
             string answer = null;
             // Define which question types are considered descriptive
-            if (questionTypeId == 7 || questionTypeId == 8 || questionTypeId == 10 || questionTypeId == 11 || questionTypeId == 12)
+            if (questionTypeId == 7 || questionTypeId == 8 || questionTypeId == 3)
             {
 
                 //// Loop through the columns to find the "Explanation" column
