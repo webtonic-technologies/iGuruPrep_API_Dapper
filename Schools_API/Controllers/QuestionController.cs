@@ -310,5 +310,55 @@ namespace Schools_API.Controllers
             }
             return StatusCode(response.StatusCode, response.Message);
         }
+        [HttpPost("AddOrUpdateMatchThePairType2")]
+        public async Task<IActionResult> AddOrUpdateMatchThePairType2(MatchThePair2Request request)
+        {
+            try
+            {
+
+                if (request == null)
+                {
+                    return BadRequest(" data is null.");
+                }
+
+                var data = await _questionServices.AddOrUpdateMatchThePairType2(request);
+
+                if (data == null)
+                {
+                    return StatusCode(500, "A problem happened while handling your request.");
+                }
+
+                return Ok(data);
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
+        [HttpPost("AddMatchThePairQuestion")]
+        public async Task<IActionResult> AddMatchThePairQuestion(MatchThePairRequest request)
+        {
+            try
+            {
+
+                if (request == null)
+                {
+                    return BadRequest(" data is null.");
+                }
+
+                var data = await _questionServices.AddMatchThePairQuestion(request);
+
+                if (data == null)
+                {
+                    return StatusCode(500, "A problem happened while handling your request.");
+                }
+
+                return Ok(data);
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
     }
 }

@@ -1,4 +1,5 @@
-﻿using Schools_API.Models;
+﻿using Schools_API.DTOs.Requests;
+using Schools_API.Models;
 
 namespace Schools_API.DTOs.Response
 {
@@ -31,6 +32,8 @@ namespace Schools_API.DTOs.Response
         public string? Paragraph { get; set; } = string.Empty;
         public int? ParentQId { get; set; }
         public string? ParentQCode { get; set; } = string.Empty;
+        public List<MatchPair>? MatchPairs { get; set; }
+        public List<MatchThePairAnswer>? MatchThePairType2Answers { get; set; }
         public List<QIDCourseResponse>? QIDCourses { get; set; }
         //  public List<QuestionSubjectMappingResponse>? QuestionSubjectMappings { get; set; }
         public List<AnswerMultipleChoiceCategory>? AnswerMultipleChoiceCategories { get; set; }

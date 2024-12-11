@@ -16,6 +16,16 @@ namespace Schools_API.Services.Implementations
             _questionRepository = questionRepository;
         }
 
+        public async Task<ServiceResponse<string>> AddMatchThePairQuestion(MatchThePairRequest request)
+        {
+            return await _questionRepository.AddMatchThePairQuestion(request);
+        }
+
+        public async Task<ServiceResponse<string>> AddOrUpdateMatchThePairType2(MatchThePair2Request request)
+        {
+            return await _questionRepository.AddOrUpdateMatchThePairType2(request);
+        }
+
         public async Task<ServiceResponse<string>> AddUpdateComprehensiveQuestion(ComprehensiveQuestionRequest request)
         {
             return await _questionRepository.AddUpdateComprehensiveQuestion(request);

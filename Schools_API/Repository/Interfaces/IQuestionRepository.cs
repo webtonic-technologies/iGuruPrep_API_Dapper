@@ -26,5 +26,7 @@ namespace Schools_API.Repository.Interfaces
         Task<ServiceResponse<string>> UploadQuestionsFromExcel(IFormFile file, int EmployeeId);
         Task<ServiceResponse<string>> AddUpdateComprehensiveQuestion(ComprehensiveQuestionRequest request);
         Task<ServiceResponse<int>> UpdateQIDCourseAsync(int qidCourseId, UpdateQIDCourseRequest request);
+        Task<ServiceResponse<string>> AddOrUpdateMatchThePairType2(MatchThePair2Request request);
+        Task<ServiceResponse<string>> AddMatchThePairQuestion(MatchThePairRequest request);
     }
 }

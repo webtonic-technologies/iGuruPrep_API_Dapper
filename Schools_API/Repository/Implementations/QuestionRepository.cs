@@ -1,6 +1,5 @@
 ﻿using Dapper;
 using OfficeOpenXml;
-using OfficeOpenXml.Export.HtmlExport.StyleCollectors.StyleContracts;
 using OfficeOpenXml.Style;
 using Schools_API.DTOs.Requests;
 using Schools_API.DTOs.Response;
@@ -8,6 +7,7 @@ using Schools_API.DTOs.ServiceResponse;
 using Schools_API.Models;
 using Schools_API.Repository.Interfaces;
 using System.Data;
+using System.Data.SqlClient;
 using System.Drawing;
 
 namespace Schools_API.Repository.Implementations
@@ -713,11 +713,6 @@ namespace Schools_API.Repository.Implementations
                     {
                         singleAnswerRequest.Answerid = Answerid;
 
-                        // Check if the single answer already exists
-                        string checkExistingSingleQuery = @"
-                    SELECT COUNT(*) FROM tblAnswersingleanswercategory
-                    WHERE Answerid = @Answerid AND Answer = @Answer;";
-
                         if (singleAnswerRequest.Answersingleanswercategoryid > 0)
                         {
                             // Update existing record
@@ -1130,7 +1125,7 @@ namespace Schools_API.Repository.Implementations
                             var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
                             foreach (var record in request.Questions)
                             {
-                             
+
                                 string insertQuery1 = @"
               INSERT INTO tblQuestion (
                   QuestionDescription,
@@ -1361,7 +1356,7 @@ namespace Schools_API.Repository.Implementations
                 {
                     return new ServiceResponse<string>(true, "Operation Successful", string.Empty, 200);
                 }
-                else if(GetRoleName == "AD")
+                else if (GetRoleName == "AD")
                 {
                     bool isLive = await _connection.QueryFirstOrDefaultAsync<bool>(@"select IsLive from tblQuestion where QuestionCode = @QuestionCode", new { QuestionCode = request.QuestionCode });
                     if (isLive)
@@ -1733,8 +1728,12 @@ namespace Schools_API.Repository.Implementations
                                 IsActive = item.IsActive,
                                 QIDCourses = GetListOfQIDCourse(item.QuestionCode),
                                 //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
-                                Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
-                                AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
+                                //Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
+                                //AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
+                                MatchPairs = item.QuestionTypeId == 6 || item.QuestionTypeId == 12 ? GetMatchPairs(item.QuestionCode, item.QuestionId) : null,
+                                MatchThePairType2Answers = item.QuestionTypeId == 12 ? GetMatchThePairType2Answers(item.QuestionCode, item.QuestionId) : null,
+                                Answersingleanswercategories = (item.QuestionTypeId != 6 && item.QuestionTypeId != 12) ? GetSingleAnswer(item.QuestionCode) : null,
+                                AnswerMultipleChoiceCategories = (item.QuestionTypeId != 12) ? GetMultipleAnswers(item.QuestionCode) : null
                             };
                         }
                     }
@@ -2247,7 +2246,7 @@ namespace Schools_API.Repository.Implementations
                         }
                         else
                         {
-                           return new QuestionResponseDTO
+                            return new QuestionResponseDTO
                             {
                                 QuestionId = item.QuestionId,
                                 QuestionDescription = item.QuestionDescription,
@@ -2274,8 +2273,12 @@ namespace Schools_API.Repository.Implementations
                                 IsActive = item.IsActive,
                                 QIDCourses = GetListOfQIDCourse(item.QuestionCode),
                                 //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
-                                Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
-                                AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
+                                //Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
+                                //AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
+                                MatchPairs = item.QuestionTypeId == 6 || item.QuestionTypeId == 12 ? GetMatchPairs(item.QuestionCode, item.QuestionId) : null,
+                                MatchThePairType2Answers = item.QuestionTypeId == 12 ? GetMatchThePairType2Answers(item.QuestionCode, item.QuestionId) : null,
+                                Answersingleanswercategories = (item.QuestionTypeId != 6 && item.QuestionTypeId != 12) ? GetSingleAnswer(item.QuestionCode) : null,
+                                AnswerMultipleChoiceCategories = (item.QuestionTypeId != 12) ? GetMultipleAnswers(item.QuestionCode) : null
                             };
                         }
                     }
@@ -2359,7 +2362,7 @@ namespace Schools_API.Repository.Implementations
                 foreach (var question in questions)
                 {
                     question.QIDCourses = GetListOfQIDCourse(question.QuestionCode);
-                   // question.QuestionSubjectMappings = GetListOfQuestionSubjectMapping(question.QuestionCode);
+                    // question.QuestionSubjectMappings = GetListOfQuestionSubjectMapping(question.QuestionCode);
                     question.AnswerMultipleChoiceCategories = GetMultipleAnswers(question.QuestionCode);
                     question.Answersingleanswercategories = GetSingleAnswer(question.QuestionCode);
                 }
@@ -2394,7 +2397,7 @@ namespace Schools_API.Repository.Implementations
                 // Initialize a list to hold question codes that are assigned to other employees for review
                 List<string> assignedToOtherEmployeesQuestionCodes = new List<string>();
 
-               string sql = @"
+                string sql = @"
         SELECT q.*, 
                c.CourseName, 
                b.BoardName, 
@@ -2509,8 +2512,13 @@ namespace Schools_API.Repository.Implementations
                                 IsActive = item.IsActive,
                                 QIDCourses = GetListOfQIDCourse(item.QuestionCode),
                                 //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
-                                Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
-                                AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
+                                // Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
+                                // AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
+                                MatchPairs = item.QuestionTypeId == 6 || item.QuestionTypeId == 12 ? GetMatchPairs(item.QuestionCode, item.QuestionId) : null,
+                                MatchThePairType2Answers = item.QuestionTypeId == 12 ? GetMatchThePairType2Answers(item.QuestionCode, item.QuestionId) : null,
+                                Answersingleanswercategories = (item.QuestionTypeId != 6 && item.QuestionTypeId != 12) ? GetSingleAnswer(item.QuestionCode) : null,
+                                AnswerMultipleChoiceCategories = (item.QuestionTypeId != 12) ? GetMultipleAnswers(item.QuestionCode) : null
+
                             };
                         }
                     }
@@ -2771,8 +2779,13 @@ namespace Schools_API.Repository.Implementations
                                 IsActive = item.IsActive,
                                 QIDCourses = GetListOfQIDCourse(item.QuestionCode),
                                 //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
-                                Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
-                                AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
+                                // Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
+                                // AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
+                                MatchPairs = item.QuestionTypeId == 6 || item.QuestionTypeId == 12 ? GetMatchPairs(item.QuestionCode, item.QuestionId) : null,
+                                MatchThePairType2Answers = item.QuestionTypeId == 12 ? GetMatchThePairType2Answers(item.QuestionCode, item.QuestionId) : null,
+                                Answersingleanswercategories = (item.QuestionTypeId != 6 && item.QuestionTypeId != 12) ? GetSingleAnswer(item.QuestionCode) : null,
+                                AnswerMultipleChoiceCategories = (item.QuestionTypeId != 12) ? GetMultipleAnswers(item.QuestionCode) : null
+
                             };
                         }
                     }
@@ -2883,8 +2896,8 @@ namespace Schools_API.Repository.Implementations
                             ContentIndexName = item.ContentIndexName,
                             QIDCourses = GetListOfQIDCourse(item.QuestionCode),
                             //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
-                            Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
-                            AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode),
+                            //Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
+                            //AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode),
                             ContentIndexId = item.ContentIndexId,
                             CreatedBy = item.CreatedBy,
                             CreatedOn = item.CreatedOn,
@@ -2897,11 +2910,16 @@ namespace Schools_API.Repository.Implementations
                             QuestionCode = item.QuestionCode,
                             Explanation = item.Explanation,
                             ExtraInformation = item.ExtraInformation,
-                            IsActive = item.IsActive
+                            IsActive = item.IsActive,
+                            MatchPairs = item.QuestionTypeId == 6 || item.QuestionTypeId == 12 ? GetMatchPairs(item.QuestionCode, item.QuestionId) : null,
+                            MatchThePairType2Answers = item.QuestionTypeId == 12 ? GetMatchThePairType2Answers(item.QuestionCode, item.QuestionId) : null,
+                            Answersingleanswercategories = (item.QuestionTypeId != 6 && item.QuestionTypeId != 12) ? GetSingleAnswer(item.QuestionCode) : null,
+                            AnswerMultipleChoiceCategories = (item.QuestionTypeId != 12) ? GetMultipleAnswers(item.QuestionCode) : null
+
                         };
                         return new ServiceResponse<QuestionResponseDTO>(true, "Operation Successful", questionResponse, 200);
                     }
-                   
+
                 }
                 else
                 {
@@ -2912,6 +2930,40 @@ namespace Schools_API.Repository.Implementations
             {
                 return new ServiceResponse<QuestionResponseDTO>(false, ex.Message, new QuestionResponseDTO(), 500);
             }
+        }
+        private List<MatchPair> GetMatchPairs(string questionCode, int questionId)
+        {
+            const string query = @"
+        SELECT MatchThePairId, PairColumn, PairRow, PairValue
+        FROM tblQuestionMatchThePair
+        WHERE QuestionCode = @QuestionCode AND QuestionId = @QuestionId";
+
+
+            return _connection.Query<MatchPair>(query, new { QuestionCode = questionCode, QuestionId = questionId }).ToList();
+
+        }
+        private List<MatchThePairAnswer> GetMatchThePairType2Answers(string questionCode, int questionId)
+        {
+            const string getAnswerIdQuery = @"
+        SELECT AnswerId 
+        FROM tblAnswerMaster
+        WHERE QuestionCode = @QuestionCode AND QuestionId = @QuestionId";
+
+            const string getAnswersQuery = @"
+        SELECT MatchThePair2Id, PairColumn, PairRow
+        FROM tblOptionsMatchThePair2
+        WHERE AnswerId = @AnswerId";
+
+           
+                var answerId = _connection.QueryFirstOrDefault<int?>(getAnswerIdQuery, new { QuestionCode = questionCode, QuestionId = questionId });
+
+                if (answerId == null)
+                {
+                    return new List<MatchThePairAnswer>();
+                }
+
+                return _connection.Query<MatchThePairAnswer>(getAnswersQuery, new { AnswerId = answerId }).ToList();
+            
         }
         private List<ParagraphQuestions> GetChildQuestions(string QuestionCode)
         {
@@ -3124,7 +3176,7 @@ namespace Schools_API.Repository.Implementations
             {
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
-        }   
+        }
         public async Task<ServiceResponse<string>> ApproveQuestion(QuestionApprovalRequestDTO request)
         {
             try
@@ -3729,7 +3781,7 @@ namespace Schools_API.Repository.Implementations
                     int maxOptions = 0;
                     int optionsToAdd = Math.Max(4, maxOptions);
 
-                   
+
                     // Create a worksheet for Questions
                     var worksheet = package.Workbook.Worksheets.Add("Questions");
 
@@ -3740,7 +3792,7 @@ namespace Schools_API.Repository.Implementations
                     worksheet.Cells[1, 4].Value = "QuestionTypeId";
                     worksheet.Cells[1, 5].Value = "ParagraphId";
                     worksheet.Cells[1, 6].Value = "ParagraphQuestionTypeId";
-                    worksheet.Cells[1, 7].Value = "Question"; 
+                    worksheet.Cells[1, 7].Value = "Question";
                     worksheet.Cells[1, 8].Value = "Answer";
 
                     worksheet.Cells[2, 1].Value = request.CategoryId;
@@ -3800,6 +3852,1527 @@ namespace Schools_API.Repository.Implementations
                 return new ServiceResponse<byte[]>(false, ex.Message, [], 500);
             }
         }
+        public async Task<ServiceResponse<string>> AddMatchThePairQuestion(MatchThePairRequest request)
+        {
+            if (_connection.State != ConnectionState.Open)
+            {
+                _connection.Open();
+            }
+            try
+            {
+                string roleQuery = @"select r.RoleCode from  [tblEmployee] e 
+                                                 LEFT JOIN [tblRole] r ON e.RoleID = r.RoleID
+                                                 WHERE e.Employeeid = @EmployeeId";
+                string GetRoleName = await _connection.QueryFirstOrDefaultAsync<string>(roleQuery, new { EmployeeId = request.ModifierId });
+
+                if (request.EmployeeId != request.ModifierId && request.QuestionCode != "string" && request.QuestionCode != null && GetRoleName != "AD")
+                {
+
+                    int QuestionModifier = await _connection.QueryFirstOrDefaultAsync<int>(@"select ModifierId from tblQuestion where QuestionCode = @QuestionCode
+                     and IsActive = 1", new { QuestionCode = request.QuestionCode });
+                    if (QuestionModifier == request.ModifierId)
+                    {
+                        string updateQuery = @"
+                UPDATE tblQuestion 
+                SET 
+                    QuestionTypeId = @QuestionTypeId, 
+                    Status = @Status, 
+                    ModifiedBy = @ModifiedBy, 
+                    ModifiedOn = GETDATE(), 
+                    EmployeeId = @EmployeeId, 
+                    SubjectID = @SubjectID, 
+                    IndexTypeId = @IndexTypeId, 
+                    ContentIndexId = @ContentIndexId, 
+                    ExamTypeId = @ExamTypeId, 
+                    CategoryId = @CategoryId, 
+                    IsRejected = @IsRejected, 
+                    IsApproved = @IsApproved, 
+                    Explanation = @Explanation, 
+                    ExtraInformation = @ExtraInformation, 
+                    IsActive = @IsActive, 
+                    IsConfigure = @IsConfigure,
+                    ModifierId = @ModifierId
+                WHERE 
+                    QuestionCode = @QuestionCode and IsActive = 1;";
+                        var parameters = new
+                        {
+                            QuestionTypeId = request.QuestionTypeId,
+                            Status = request.Status,
+                            ModifiedBy = request.ModifiedBy,
+                            ModifiedOn = request.ModifiedOn,
+                            SubjectID = request.SubjectID,
+                            EmployeeId = request.EmployeeId,
+                            ModifierId = request.ModifierId,
+                            IndexTypeId = request.IndexTypeId,
+                            ContentIndexId = request.ContentIndexId,
+                            QuestionCode = request.QuestionCode,
+                            Explanation = request.Explanation,
+                            ExtraInformation = request.ExtraInformation,
+                            IsActive = request.IsActive,
+                            IsConfigure = request.IsConfigure,
+                            CategoryId = request.CategoryId,
+                            request.ExamTypeId,
+                            request.IsRejected,
+                            request.IsApproved
+                        };
+
+                        int rowsAffected = _connection.Execute(updateQuery, parameters);
+                        var insertedQuestionCode = request.QuestionCode;
+
+                        // Handle QIDCourses mapping
+                        var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
+
+                        var answer = await AnswerHandling(request.QuestionTypeId, request.AnswerMultipleChoiceCategories, request.QuestionId, insertedQuestionCode, null);
+                        string updateMatchPairQuery = @"
+                        UPDATE tblQuestionMatchThePair
+                        SET 
+                            PairValue = @PairValue,
+                            PairColumn = @PairColumn,
+                            PairRow = @PairRow
+                        WHERE MatchThePairId = @MatchThePairId";
+
+                        foreach (var pair in request.MatchPairs)
+                        {
+                            var rowsAffectedMatchPair = await _connection.ExecuteAsync(updateMatchPairQuery, new
+                            {
+                                MatchThePairId = pair.MatchThePairId,
+                                PairColumn = pair.PairColumn,
+                                PairRow = pair.PairRow,
+                                PairValue = pair.PairValue
+                            });
+
+                            // Optional: Check if no rows were updated and log the information
+                            if (rowsAffectedMatchPair == 0)
+                            {
+                                Console.WriteLine($"No record found for MatchThePairId: {pair.MatchThePairId}");
+                            }
+                        }
+                        if (data > 0 && answer.Data > 0)
+                        {
+                            return new ServiceResponse<string>(true, "Operation Successful", "Question updated Successfully", 200);
+                        }
+                        else
+                        {
+                            return new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
+                        }
+                    }
+                    else
+                    {
+                        int count = await _connection.QueryFirstOrDefaultAsync<int>(@"select count(*) from tblQuestionProfilerRejections where QuestionCode = @QuestionCode", new { QuestionCode = request.QuestionCode });
+                        bool isRejectedQuestion = await _connection.QueryFirstOrDefaultAsync<bool>(@"select IsRejected from tblQuestion where QuestionCode = @QuestionCode and IsActive = 1", new { QuestionCode = request.QuestionCode });
+                        bool isRejected = false;
+                        if (count == 0 || !isRejectedQuestion)
+                        {
+                            isRejected = false;
+                        }
+                        else
+                        {
+                            isRejected = true;
+                        }
+                        // Step 1: Insert question into tblQuestion
+                        string insertQuestionQuery = @"
+           INSERT INTO tblQuestion 
+(
+    QuestionTypeId, 
+    QuestionDescription,
+    Status, 
+    QuestionCode, 
+    CreatedBy, 
+    CreatedOn, 
+    EmployeeId, 
+    SubjectID, 
+    IndexTypeId, 
+    ContentIndexId, 
+    ExamTypeId, 
+    CategoryId, 
+    IsRejected, 
+    IsApproved, 
+    Explanation, 
+    ExtraInformation, 
+    IsActive, 
+    IsConfigure, ModifierId
+)
+VALUES 
+(
+    @QuestionTypeId, 
+    'string',
+    @Status, 
+    @QuestionCode, 
+    @CreatedBy, 
+    GETDATE(), 
+    @EmployeeId, 
+    @SubjectID, 
+    @IndexTypeId, 
+    @ContentIndexId, 
+    @ExamTypeId, 
+    @CategoryId, 
+    @IsRejected, 
+    @IsApproved, 
+    @Explanation, 
+    @ExtraInformation, 
+    @IsActive, 
+    @IsConfigure, @ModifierId); SELECT CAST(SCOPE_IDENTITY() AS INT)";
+                        string deactivateQuery = @"UPDATE tblQuestion SET IsActive = 0 WHERE QuestionCode = @QuestionCode AND IsActive = 1";
+                        await _connection.ExecuteAsync(deactivateQuery, new { request.QuestionCode });
+                        int insertedQuestionId = await _connection.ExecuteScalarAsync<int>(insertQuestionQuery, new
+                        {
+                            request.QuestionTypeId,
+                            request.Status,
+                            request.QuestionCode,
+                            request.CreatedBy,
+                            request.EmployeeId,
+                            request.SubjectID,
+                            request.IndexTypeId,
+                            request.ContentIndexId,
+                            request.ExamTypeId,
+                            request.CategoryId,
+                            IsRejected = isRejected,
+                            request.IsApproved,
+                            request.Explanation,
+                            request.ExtraInformation,
+                            IsActive = true,
+                            IsConfigure = true,
+                            request.ModifierId
+                        });
+
+
+                        string code = string.Empty;
+
+                        if (string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string")
+                        {
+                            code = GenerateQuestionCode(request.IndexTypeId, request.ContentIndexId, insertedQuestionId);
+
+                            string questionCodeQuery = @"
+                UPDATE tblQuestion
+                SET QuestionCode = @QuestionCode
+                WHERE QuestionId = @QuestionId AND IsActive = 1";
+
+                            await _connection.ExecuteAsync(questionCodeQuery, new { QuestionCode = code, QuestionId = insertedQuestionId });
+                        }
+
+                        string insertedQuestionCode = string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string" ? code : request.QuestionCode;
+                        // Step 2: Insert data into tblQuestionMatchThePair
+
+                        string insertMatchPairQuery = @"
+            INSERT INTO tblQuestionMatchThePair (QuestionId, QuestionCode, PairColumn, PairRow, PairValue)
+            VALUES (@QuestionId, @QuestionCode, @PairColumn, @PairRow, @PairValue)";
+
+                        foreach (var pair in request.MatchPairs)
+                        {
+                            await _connection.ExecuteAsync(insertMatchPairQuery, new
+                            {
+                                QuestionId = insertedQuestionId,
+                                QuestionCode = insertedQuestionCode,
+                                PairColumn = pair.PairColumn,
+                                PairRow = pair.PairRow,
+                                PairValue = pair.PairValue
+                            });
+                        }
+                        foreach (var data1 in request.QIDCourses)
+                        {
+                            data1.QIDCourseID = 0;
+                        }
+                        foreach (var data2 in request.AnswerMultipleChoiceCategories)
+                        {
+                            data2.Answermultiplechoicecategoryid = 0;
+                        }
+                        var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
+
+                        var answer = await AnswerHandling(request.QuestionTypeId, request.AnswerMultipleChoiceCategories, insertedQuestionId, insertedQuestionCode, null);
+                        return new ServiceResponse<string>(true, "Match the Pair question added successfully", null, 200);
+                    }
+                }
+                else if (request.EmployeeId == request.ModifierId && request.ModifierId > 0)
+                {
+                    var count1 = _connection.QueryFirstOrDefault<int>(@"select * from tblQuestionProfiler where QuestionCode = @QuestionCode "
+                               , new { QuestionCode = request.QuestionCode, EmpId = request.ModifierId });
+                    if (count1 > 0)
+                    {
+                        int count = await _connection.QueryFirstOrDefaultAsync<int>(@"select count(*) from tblQuestionProfilerRejections where QuestionCode = @QuestionCode", new { QuestionCode = request.QuestionCode });
+                        //bool isRejectedQuestion = await _connection.QueryFirstOrDefaultAsync<bool>(@"select IsRejected from tblQuestion where QuestionCode = @QuestionCode and IsActive = 1", new { QuestionCode = request.QuestionCode });
+                        bool isRejected = false;
+                        if (count > 0)
+                        {
+                            isRejected = true;
+                        }
+                        // Step 1: Insert question into tblQuestion
+                        string insertQuestionQuery = @"
+           INSERT INTO tblQuestion 
+(
+    QuestionTypeId, 
+    QuestionDescription,
+    Status, 
+    QuestionCode, 
+    CreatedBy, 
+    CreatedOn, 
+    EmployeeId, 
+    SubjectID, 
+    IndexTypeId, 
+    ContentIndexId, 
+    ExamTypeId, 
+    CategoryId, 
+    IsRejected, 
+    IsApproved, 
+    Explanation, 
+    ExtraInformation, 
+    IsActive, 
+    IsConfigure
+)
+VALUES 
+(
+    @QuestionTypeId, 
+    'string',
+    @Status, 
+    @QuestionCode, 
+    @CreatedBy, 
+    GETDATE(), 
+    @EmployeeId, 
+    @SubjectID, 
+    @IndexTypeId, 
+    @ContentIndexId, 
+    @ExamTypeId, 
+    @CategoryId, 
+    @IsRejected, 
+    @IsApproved, 
+    @Explanation, 
+    @ExtraInformation, 
+    @IsActive, 
+    @IsConfigure); SELECT CAST(SCOPE_IDENTITY() AS INT)";
+                        string deactivateQuery = @"UPDATE tblQuestion SET IsActive = 0 WHERE QuestionCode = @QuestionCode AND IsActive = 1";
+                        await _connection.ExecuteAsync(deactivateQuery, new { request.QuestionCode });
+                        int insertedQuestionId = await _connection.ExecuteScalarAsync<int>(insertQuestionQuery, new
+                        {
+                            request.QuestionTypeId,
+                            request.Status,
+                            request.QuestionCode,
+                            request.CreatedBy,
+                            request.EmployeeId,
+                            request.SubjectID,
+                            request.IndexTypeId,
+                            request.ContentIndexId,
+                            request.ExamTypeId,
+                            request.CategoryId,
+                            IsRejected = isRejected,
+                            request.IsApproved,
+                            request.Explanation,
+                            request.ExtraInformation,
+                            IsActive = true,
+                            IsConfigure = true
+                        });
+                        string code = string.Empty;
+
+                        if (string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string")
+                        {
+                            code = GenerateQuestionCode(request.IndexTypeId, request.ContentIndexId, insertedQuestionId);
+
+                            string questionCodeQuery = @"
+                UPDATE tblQuestion
+                SET QuestionCode = @QuestionCode
+                WHERE QuestionId = @QuestionId AND IsActive = 1";
+
+                            await _connection.ExecuteAsync(questionCodeQuery, new { QuestionCode = code, QuestionId = insertedQuestionId });
+                        }
+
+                        string insertedQuestionCode = string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string" ? code : request.QuestionCode;
+                        // Step 2: Insert data into tblQuestionMatchThePair
+                        string insertMatchPairQuery = @"
+            INSERT INTO tblQuestionMatchThePair (QuestionId, QuestionCode, PairColumn, PairRow, PairValue)
+            VALUES (@QuestionId, @QuestionCode, @PairColumn, @PairRow, @PairValue)";
+
+                        foreach (var pair in request.MatchPairs)
+                        {
+                            await _connection.ExecuteAsync(insertMatchPairQuery, new
+                            {
+                                QuestionId = insertedQuestionId,
+                                QuestionCode = insertedQuestionCode,
+                                PairColumn = pair.PairColumn,
+                                PairRow = pair.PairRow,
+                                PairValue = pair.PairValue
+                            });
+                        }
+                        foreach (var data1 in request.QIDCourses)
+                        {
+                            data1.QIDCourseID = 0;
+                        }
+                        foreach (var data2 in request.AnswerMultipleChoiceCategories)
+                        {
+                            data2.Answermultiplechoicecategoryid = 0;
+                        }
+                        var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
+
+                        var answer = await AnswerHandling(request.QuestionTypeId, request.AnswerMultipleChoiceCategories, insertedQuestionId, insertedQuestionCode, null);
+                        return new ServiceResponse<string>(true, "Match the Pair question added successfully", null, 200);
+                    }
+                    else
+                    {
+                        string updateQuery = @"
+                UPDATE tblQuestion 
+                SET 
+                    QuestionTypeId = @QuestionTypeId, 
+                    Status = @Status, 
+                    ModifiedBy = @ModifiedBy, 
+                    ModifiedOn = GETDATE(), 
+                    EmployeeId = @EmployeeId, 
+                    SubjectID = @SubjectID, 
+                    IndexTypeId = @IndexTypeId, 
+                    ContentIndexId = @ContentIndexId, 
+                    ExamTypeId = @ExamTypeId, 
+                    CategoryId = @CategoryId, 
+                    IsRejected = @IsRejected, 
+                    IsApproved = @IsApproved, 
+                    Explanation = @Explanation, 
+                    ExtraInformation = @ExtraInformation, 
+                    IsActive = @IsActive, 
+                    IsConfigure = @IsConfigure,
+                    ModifierId = @ModifierId
+                WHERE 
+                    QuestionCode = @QuestionCode and IsActive = 1;";
+                        var parameters = new
+                        {
+                            QuestionTypeId = request.QuestionTypeId,
+                            Status = request.Status,
+                            ModifiedBy = request.ModifiedBy,
+                            ModifiedOn = request.ModifiedOn,
+                            SubjectID = request.SubjectID,
+                            EmployeeId = request.EmployeeId,
+                            ModifierId = request.ModifierId,
+                            IndexTypeId = request.IndexTypeId,
+                            ContentIndexId = request.ContentIndexId,
+                            QuestionCode = request.QuestionCode,
+                            Explanation = request.Explanation,
+                            ExtraInformation = request.ExtraInformation,
+                            IsActive = request.IsActive,
+                            IsConfigure = request.IsConfigure,
+                            CategoryId = request.CategoryId,
+                            request.ExamTypeId,
+                            request.IsRejected,
+                            request.IsApproved
+                        };
+
+                        int rowsAffected = _connection.Execute(updateQuery, parameters);
+                        var insertedQuestionCode = request.QuestionCode;
+
+                        // Handle QIDCourses mapping
+                        var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
+
+                        var answer = await AnswerHandling(request.QuestionTypeId, request.AnswerMultipleChoiceCategories, request.QuestionId, insertedQuestionCode, null);
+                        string updateMatchPairQuery = @"
+                        UPDATE tblQuestionMatchThePair
+                        SET 
+                            PairValue = @PairValue,
+                            PairColumn = @PairColumn,
+                            PairRow = @PairRow
+                        WHERE MatchThePairId = @MatchThePairId";
+
+                        foreach (var pair in request.MatchPairs)
+                        {
+                            var rowsAffectedMatchPair = await _connection.ExecuteAsync(updateMatchPairQuery, new
+                            {
+                                MatchThePairId = pair.MatchThePairId,
+                                PairColumn = pair.PairColumn,
+                                PairRow = pair.PairRow,
+                                PairValue = pair.PairValue
+                            });
+
+                            // Optional: Check if no rows were updated and log the information
+                            if (rowsAffectedMatchPair == 0)
+                            {
+                                Console.WriteLine($"No record found for MatchThePairId: {pair.MatchThePairId}");
+                            }
+                        }
+                        if (data > 0 && answer.Data > 0)
+                        {
+                            return new ServiceResponse<string>(true, "Operation Successful", "Question updated Successfully", 200);
+                        }
+                        else
+                        {
+                            return new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
+                        }
+                    }
+                }
+                else if (request.QuestionCode != null && request.QuestionCode != "string" && GetRoleName != "AD")
+                {
+                    return new ServiceResponse<string>(true, "Operation Successful", string.Empty, 200);
+                }
+                else if (GetRoleName == "AD")
+                {
+                    bool isLive = await _connection.QueryFirstOrDefaultAsync<bool>(@"select IsLive from tblQuestion where QuestionCode = @QuestionCode", new { QuestionCode = request.QuestionCode });
+                    if (isLive)
+                    {
+                        string updateQuery = @"
+                UPDATE tblQuestion 
+                SET 
+                    QuestionTypeId = @QuestionTypeId, 
+                    Status = @Status, 
+                    ModifiedBy = @ModifiedBy, 
+                    ModifiedOn = GETDATE(), 
+                    EmployeeId = @EmployeeId, 
+                    SubjectID = @SubjectID, 
+                    IndexTypeId = @IndexTypeId, 
+                    ContentIndexId = @ContentIndexId, 
+                    ExamTypeId = @ExamTypeId, 
+                    CategoryId = @CategoryId, 
+                    IsRejected = @IsRejected, 
+                    IsApproved = @IsApproved, 
+                    Explanation = @Explanation, 
+                    ExtraInformation = @ExtraInformation, 
+                    IsActive = @IsActive, 
+                    IsConfigure = @IsConfigure,
+                    ModifierId = @ModifierId,
+                WHERE 
+                    QuestionCode = @QuestionCode;";
+                        var parameters = new
+                        {
+                            QuestionTypeId = request.QuestionTypeId,
+                            Status = request.Status,
+                            ModifiedBy = request.ModifiedBy,
+                            ModifiedOn = request.ModifiedOn,
+                            SubjectID = request.SubjectID,
+                            EmployeeId = request.EmployeeId,
+                            ModifierId = request.ModifierId,
+                            IndexTypeId = request.IndexTypeId,
+                            ContentIndexId = request.ContentIndexId,
+                            QuestionCode = request.QuestionCode,
+                            Explanation = request.Explanation,
+                            ExtraInformation = request.ExtraInformation,
+                            IsActive = request.IsActive,
+                            IsConfigure = request.IsConfigure,
+                            CategoryId = request.CategoryId
+                        };
+
+                        int rowsAffected = _connection.Execute(updateQuery, parameters);
+                        var insertedQuestionCode = request.QuestionCode;
+
+                        // Handle QIDCourses mapping
+                        var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
+
+                        var answer = await AnswerHandling(request.QuestionTypeId, request.AnswerMultipleChoiceCategories, request.QuestionId, insertedQuestionCode, null);
+                        string updateMatchPairQuery = @"
+                        UPDATE tblQuestionMatchThePair
+                        SET 
+                            PairValue = @PairValue,
+                            PairColumn = @PairColumn,
+                            PairRow = @PairRow
+                        WHERE MatchThePairId = @MatchThePairId";
+
+                        foreach (var pair in request.MatchPairs)
+                        {
+                            var rowsAffectedMatchPair = await _connection.ExecuteAsync(updateMatchPairQuery, new
+                            {
+                                MatchThePairId = pair.MatchThePairId,
+                                PairColumn = pair.PairColumn,
+                                PairRow = pair.PairRow,
+                                PairValue = pair.PairValue
+                            });
+
+                            // Optional: Check if no rows were updated and log the information
+                            if (rowsAffectedMatchPair == 0)
+                            {
+                                Console.WriteLine($"No record found for MatchThePairId: {pair.MatchThePairId}");
+                            }
+                        }
+                        if (data > 0 && answer.Data > 0)
+                        {
+                            return new ServiceResponse<string>(true, "Operation Successful", "Question updated Successfully", 200);
+                        }
+                        else
+                        {
+                            return new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
+                        }
+                    }
+                    else
+                    {
+                        return new ServiceResponse<string>(false, "Cannot modify question", string.Empty, 500);
+                    }
+                }
+                else
+                {
+                    // Step 1: Insert question into tblQuestion
+                    string insertQuestionQuery = @"
+           INSERT INTO tblQuestion 
+(
+    QuestionTypeId, 
+    QuestionDescription,
+    Status, 
+    QuestionCode, 
+    CreatedBy, 
+    CreatedOn, 
+    EmployeeId, 
+    SubjectID, 
+    IndexTypeId, 
+    ContentIndexId, 
+    ExamTypeId, 
+    CategoryId, 
+    IsRejected, 
+    IsApproved, 
+    Explanation, 
+    ExtraInformation, 
+    IsActive, 
+    IsConfigure
+)
+VALUES 
+(
+    @QuestionTypeId,
+    'string',
+    @Status, 
+    @QuestionCode, 
+    @CreatedBy, 
+    GETDATE(), 
+    @EmployeeId, 
+    @SubjectID, 
+    @IndexTypeId, 
+    @ContentIndexId, 
+    @ExamTypeId, 
+    @CategoryId, 
+    @IsRejected, 
+    @IsApproved, 
+    @Explanation, 
+    @ExtraInformation, 
+    @IsActive, 
+    @IsConfigure); SELECT CAST(SCOPE_IDENTITY() AS INT)";
+                    string deactivateQuery = @"UPDATE tblQuestion SET IsActive = 0 WHERE QuestionCode = @QuestionCode AND IsActive = 1";
+                    await _connection.ExecuteAsync(deactivateQuery, new { request.QuestionCode });
+                    int insertedQuestionId = await _connection.ExecuteScalarAsync<int>(insertQuestionQuery, new
+                    {
+                        request.QuestionTypeId,
+                        request.Status,
+                        request.QuestionCode,
+                        request.CreatedBy,
+                        request.EmployeeId,
+                        request.SubjectID,
+                        request.IndexTypeId,
+                        request.ContentIndexId,
+                        request.ExamTypeId,
+                        request.CategoryId,
+                        IsRejected = false,
+                        IsApproved = false,
+                        request.Explanation,
+                        request.ExtraInformation,
+                        request.IsActive,
+                        request.IsConfigure
+                    });
+
+                    string code = string.Empty;
+
+                    if (string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string")
+                    {
+                        code = GenerateQuestionCode(request.IndexTypeId, request.ContentIndexId, insertedQuestionId);
+
+                        string questionCodeQuery = @"
+                UPDATE tblQuestion
+                SET QuestionCode = @QuestionCode
+                WHERE QuestionId = @QuestionId AND IsActive = 1";
+
+                        await _connection.ExecuteAsync(questionCodeQuery, new { QuestionCode = code, QuestionId = insertedQuestionId });
+                    }
+
+                    string insertedQuestionCode = string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string" ? code : request.QuestionCode;
+                    // Step 2: Insert data into tblQuestionMatchThePair
+                    string insertMatchPairQuery = @"
+            INSERT INTO tblQuestionMatchThePair (QuestionId, QuestionCode, PairColumn, PairRow, PairValue)
+            VALUES (@QuestionId, @QuestionCode, @PairColumn, @PairRow, @PairValue)";
+
+                    foreach (var pair in request.MatchPairs)
+                    {
+                        await _connection.ExecuteAsync(insertMatchPairQuery, new
+                        {
+                            QuestionId = insertedQuestionId,
+                            QuestionCode = insertedQuestionCode,
+                            PairColumn = pair.PairColumn,
+                            PairRow = pair.PairRow,
+                            PairValue = pair.PairValue
+                        });
+                    }
+
+                    var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
+
+                    var answer = await AnswerHandling(request.QuestionTypeId, request.AnswerMultipleChoiceCategories, insertedQuestionId, insertedQuestionCode, null);
+                    return new ServiceResponse<string>(true, "Match the Pair question added successfully", null, 200);
+                }
+
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, "An error occurred while adding the question: " + ex.Message, null, 500);
+            }
+        }
+        public async Task<ServiceResponse<string>> AddOrUpdateMatchThePairType2(MatchThePair2Request request)
+        {
+            if (_connection.State != ConnectionState.Open)
+            {
+                _connection.Open();
+            }
+            try
+            {
+                string roleQuery = @"select r.RoleCode from  [tblEmployee] e 
+                                                 LEFT JOIN [tblRole] r ON e.RoleID = r.RoleID
+                                                 WHERE e.Employeeid = @EmployeeId";
+                string GetRoleName = await _connection.QueryFirstOrDefaultAsync<string>(roleQuery, new { EmployeeId = request.ModifierId });
+
+                if (request.EmployeeId != request.ModifierId && request.QuestionCode != "string" && request.QuestionCode != null && GetRoleName != "AD")
+                {
+                    int QuestionModifier = await _connection.QueryFirstOrDefaultAsync<int>(@"select ModifierId from tblQuestion where QuestionCode = @QuestionCode
+                     and IsActive = 1", new { QuestionCode = request.QuestionCode });
+                    if (QuestionModifier == request.ModifierId)
+                    {
+                        string updateQuery = @"
+                UPDATE tblQuestion 
+                SET 
+                    QuestionTypeId = @QuestionTypeId, 
+                    Status = @Status, 
+                    ModifiedBy = @ModifiedBy, 
+                    ModifiedOn = GETDATE(), 
+                    EmployeeId = @EmployeeId, 
+                    SubjectID = @SubjectID, 
+                    IndexTypeId = @IndexTypeId, 
+                    ContentIndexId = @ContentIndexId, 
+                    ExamTypeId = @ExamTypeId, 
+                    CategoryId = @CategoryId, 
+                    IsRejected = @IsRejected, 
+                    IsApproved = @IsApproved, 
+                    Explanation = @Explanation, 
+                    ExtraInformation = @ExtraInformation, 
+                    IsActive = @IsActive, 
+                    IsConfigure = @IsConfigure,
+                    ModifierId = @ModifierId
+                WHERE 
+                    QuestionCode = @QuestionCode and IsActive = 1;";
+                        var parameters = new
+                        {
+                            QuestionTypeId = request.QuestionTypeId,
+                            Status = request.Status,
+                            ModifiedBy = request.ModifiedBy,
+                            ModifiedOn = request.ModifiedOn,
+                            SubjectID = request.SubjectID,
+                            EmployeeId = request.EmployeeId,
+                            ModifierId = request.ModifierId,
+                            IndexTypeId = request.IndexTypeId,
+                            ContentIndexId = request.ContentIndexId,
+                            QuestionCode = request.QuestionCode,
+                            Explanation = request.Explanation,
+                            ExtraInformation = request.ExtraInformation,
+                            IsActive = request.IsActive,
+                            IsConfigure = request.IsConfigure,
+                            CategoryId = request.CategoryId,
+                            request.ExamTypeId,
+                            request.IsRejected,
+                            request.IsApproved
+                        };
+
+                        int rowsAffected = _connection.Execute(updateQuery, parameters);
+                        var insertedQuestionCode = request.QuestionCode;
+
+                        // Handle QIDCourses mapping
+                        var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
+                        string updateMatchPairQuery = @"
+                        UPDATE tblQuestionMatchThePair
+                        SET 
+                            PairValue = @PairValue,
+                            PairColumn = @PairColumn,
+                            PairRow = @PairRow
+                        WHERE MatchThePairId = @MatchThePairId";
+
+                        foreach (var pair in request.MatchPairs)
+                        {
+                            var rowsAffectedMatchPair = await _connection.ExecuteAsync(updateMatchPairQuery, new
+                            {
+                                MatchThePairId = pair.MatchThePairId,
+                                PairColumn = pair.PairColumn,
+                                PairRow = pair.PairRow,
+                                PairValue = pair.PairValue
+                            });
+
+                            // Optional: Check if no rows were updated and log the information
+                            if (rowsAffectedMatchPair == 0)
+                            {
+                                Console.WriteLine($"No record found for MatchThePairId: {pair.MatchThePairId}");
+                            }
+                        }
+
+                        string getQuesType = @"SELECT * FROM tblQBQuestionType WHERE QuestionTypeID = @QuestionTypeID;";
+                        var questTypedata = await _connection.QueryFirstOrDefaultAsync<QuestionTypes>(getQuesType, new { QuestionTypeID = request.QuestionTypeId });
+
+                        int answer = 0;
+                        int Answerid = 0;
+
+                        // Check if the answer already exists in AnswerMaster
+                        string getAnswerQuery = @"SELECT Answerid FROM tblAnswerMaster WHERE QuestionCode = @QuestionCode AND QuestionId = @QuestionId;";
+                        Answerid = await _connection.QueryFirstOrDefaultAsync<int>(getAnswerQuery, new { request.QuestionCode, request.QuestionId });
+
+                        if (Answerid == 0) // If no entry exists, insert a new one
+                        {
+                            string insertAnswerMasterQuery = @"
+            INSERT INTO [tblAnswerMaster] (Questionid, QuestionTypeid, QuestionCode)
+            VALUES (@Questionid, @QuestionTypeid, @QuestionCode);
+            SELECT CAST(SCOPE_IDENTITY() as int);";
+
+                            Answerid = await _connection.QuerySingleAsync<int>(insertAnswerMasterQuery, new
+                            {
+                                Questionid = request.QuestionId,
+                                QuestionTypeid = questTypedata?.QuestionTypeID,
+                                QuestionCode = request.QuestionCode
+                            });
+                        }
+                        string updateMatchPairQuery1 = @"
+        UPDATE tblOptionsMatchThePair2
+        SET 
+            PairColumn = @PairColumn,
+            PairRow = @PairRow
+        WHERE MatchThePair2Id = @MatchThePair2Id";
+
+                        foreach (var answerDetail in request.MatchThePairAnswers)
+                        {
+                            var rowsAffectedMatchPair = await _connection.ExecuteAsync(updateMatchPairQuery1, new
+                            {
+                                MatchThePair2Id = answerDetail.MatchThePair2Id,
+                                PairColumn = answerDetail.PairColumn,
+                                PairRow = answerDetail.PairRow
+                            });
+
+                            if (rowsAffectedMatchPair == 0)
+                            {
+                                Console.WriteLine($"No record found for MatchThePair2Id: {answerDetail.MatchThePair2Id}");
+                            }
+                        }
+                        if (data > 0)
+                        {
+                            return new ServiceResponse<string>(true, "Operation Successful", "Question updated Successfully", 200);
+                        }
+                        else
+                        {
+                            return new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
+                        }
+                    }
+                    else
+                    {
+                        int count = await _connection.QueryFirstOrDefaultAsync<int>(@"select count(*) from tblQuestionProfilerRejections where QuestionCode = @QuestionCode", new { QuestionCode = request.QuestionCode });
+                        bool isRejectedQuestion = await _connection.QueryFirstOrDefaultAsync<bool>(@"select IsRejected from tblQuestion where QuestionCode = @QuestionCode and IsActive = 1", new { QuestionCode = request.QuestionCode });
+                        bool isRejected = false;
+                        if (count == 0 || !isRejectedQuestion)
+                        {
+                            isRejected = false;
+                        }
+                        else
+                        {
+                            isRejected = true;
+                        }
+                        // Step 1: Insert question into tblQuestion
+                        string insertQuestionQuery = @"
+           INSERT INTO tblQuestion 
+(
+    QuestionTypeId, 
+    QuestionDescription,
+    Status, 
+    QuestionCode, 
+    CreatedBy, 
+    CreatedOn, 
+    EmployeeId, 
+    SubjectID, 
+    IndexTypeId, 
+    ContentIndexId, 
+    ExamTypeId, 
+    CategoryId, 
+    IsRejected, 
+    IsApproved, 
+    Explanation, 
+    ExtraInformation, 
+    IsActive, 
+    IsConfigure
+)
+VALUES 
+(
+    @QuestionTypeId,
+    'string',
+    @Status, 
+    @QuestionCode, 
+    @CreatedBy, 
+    GETDATE(), 
+    @EmployeeId, 
+    @SubjectID, 
+    @IndexTypeId, 
+    @ContentIndexId, 
+    @ExamTypeId, 
+    @CategoryId, 
+    @IsRejected, 
+    @IsApproved, 
+    @Explanation, 
+    @ExtraInformation, 
+    @IsActive, 
+    @IsConfigure)  SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                        string deactivateQuery = @"UPDATE tblQuestion SET IsActive = 0 WHERE QuestionCode = @QuestionCode AND IsActive = 1";
+                        await _connection.ExecuteAsync(deactivateQuery, new { request.QuestionCode });
+                        int insertedQuestionId = await _connection.ExecuteScalarAsync<int>(insertQuestionQuery, new
+                        {
+                            request.QuestionTypeId,
+                            request.Status,
+                            request.QuestionCode,
+                            request.CreatedBy,
+                            request.EmployeeId,
+                            request.SubjectID,
+                            request.IndexTypeId,
+                            request.ContentIndexId,
+                            request.ExamTypeId,
+                            request.CategoryId,
+                            IsRejected = isRejected,
+                            request.IsApproved,
+                            request.Explanation,
+                            request.ExtraInformation,
+                            request.IsActive,
+                            request.IsConfigure
+                        });
+
+
+                        string code = string.Empty;
+                        if (string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string")
+                        {
+                            code = GenerateQuestionCode(request.IndexTypeId, request.ContentIndexId, insertedQuestionId);
+
+                            string questionCodeQuery = @"
+                UPDATE tblQuestion
+                SET QuestionCode = @QuestionCode
+                WHERE QuestionId = @QuestionId AND IsActive = 1";
+
+                            await _connection.ExecuteAsync(questionCodeQuery, new { QuestionCode = code, QuestionId = insertedQuestionId });
+                        }
+                        string insertedQuestionCode = string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string" ? code : request.QuestionCode;
+                        // Step 2: Insert data into tblQuestionMatchThePair
+                        string insertMatchPairQuery = @"
+            INSERT INTO tblQuestionMatchThePair (QuestionId, QuestionCode, PairColumn, PairRow, PairValue)
+            VALUES (@QuestionId, @QuestionCode, @PairColumn, @PairRow, @PairValue)";
+
+                        foreach (var pair in request.MatchPairs)
+                        {
+                            await _connection.ExecuteAsync(insertMatchPairQuery, new
+                            {
+                                QuestionId = insertedQuestionId,
+                                QuestionCode = insertedQuestionCode,
+                                PairColumn = pair.PairColumn,
+                                PairRow = pair.PairRow,
+                                PairValue = pair.PairValue
+                            });
+                        }
+
+                        foreach (var record in request.QIDCourses)
+                        {
+                            record.QIDCourseID = 0;
+                        }
+                        var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
+                        string getQuesType = @"SELECT * FROM tblQBQuestionType WHERE QuestionTypeID = @QuestionTypeID;";
+                        var questTypedata = await _connection.QueryFirstOrDefaultAsync<QuestionTypes>(getQuesType, new { QuestionTypeID = request.QuestionTypeId });
+
+                        int answer = 0;
+                        int Answerid = 0;
+
+                        // Check if the answer already exists in AnswerMaster
+                        string getAnswerQuery = @"SELECT Answerid FROM tblAnswerMaster WHERE QuestionCode = @QuestionCode AND QuestionId = @QuestionId;";
+                        Answerid = await _connection.QueryFirstOrDefaultAsync<int>(getAnswerQuery, new { QuestionCode = insertedQuestionCode, QuestionId = insertedQuestionId });
+
+                        if (Answerid == 0) // If no entry exists, insert a new one
+                        {
+                            string insertAnswerMasterQuery = @"
+            INSERT INTO [tblAnswerMaster] (Questionid, QuestionTypeid, QuestionCode)
+            VALUES (@Questionid, @QuestionTypeid, @QuestionCode);
+            SELECT CAST(SCOPE_IDENTITY() as int);";
+
+                            Answerid = await _connection.QuerySingleAsync<int>(insertAnswerMasterQuery, new
+                            {
+                                Questionid = insertedQuestionId,
+                                QuestionTypeid = questTypedata?.QuestionTypeID,
+                                QuestionCode = insertedQuestionCode
+                            });
+                        }
+
+                        string insertAnswerQuery = @"
+            INSERT INTO tblOptionsMatchThePair2 (AnswerId, PairColumn, PairRow)
+            VALUES (@AnswerId, @PairColumn, @PairRow)";
+
+                        foreach (var answerdetail in request.MatchThePairAnswers)
+                        {
+                            await _connection.ExecuteAsync(insertAnswerQuery, new
+                            {
+                                AnswerId = Answerid,
+                                answerdetail.PairColumn,
+                                answerdetail.PairRow
+                            });
+                        }
+                        return new ServiceResponse<string>(true, "Match the Pair question added successfully", null, 200);
+                    }
+                }
+                else if (request.EmployeeId == request.ModifierId && request.ModifierId > 0)
+                {
+                    var count1 = _connection.QueryFirstOrDefault<int>(@"select * from tblQuestionProfiler where QuestionCode = @QuestionCode "
+                             , new { QuestionCode = request.QuestionCode, EmpId = request.ModifierId });
+                    if (count1 > 0)
+                    {
+                        int count = await _connection.QueryFirstOrDefaultAsync<int>(@"select count(*) from tblQuestionProfilerRejections where QuestionCode = @QuestionCode", new { QuestionCode = request.QuestionCode });
+                        //bool isRejectedQuestion = await _connection.QueryFirstOrDefaultAsync<bool>(@"select IsRejected from tblQuestion where QuestionCode = @QuestionCode and IsActive = 1", new { QuestionCode = request.QuestionCode });
+                        bool isRejected = false;
+                        if (count > 0)
+                        {
+                            isRejected = true;
+                        }
+                        // Step 1: Insert question into tblQuestion
+                        string insertQuestionQuery = @"
+           INSERT INTO tblQuestion 
+(
+    QuestionTypeId, 
+    QuestionDescription,
+    Status, 
+    QuestionCode, 
+    CreatedBy, 
+    CreatedOn, 
+    EmployeeId, 
+    SubjectID, 
+    IndexTypeId, 
+    ContentIndexId, 
+    ExamTypeId, 
+    CategoryId, 
+    IsRejected, 
+    IsApproved, 
+    Explanation, 
+    ExtraInformation, 
+    IsActive, 
+    IsConfigure
+)
+VALUES 
+(
+    @QuestionTypeId,
+    'string',
+    @Status, 
+    @QuestionCode, 
+    @CreatedBy, 
+    GETDATE(), 
+    @EmployeeId, 
+    @SubjectID, 
+    @IndexTypeId, 
+    @ContentIndexId, 
+    @ExamTypeId, 
+    @CategoryId, 
+    @IsRejected, 
+    @IsApproved, 
+    @Explanation, 
+    @ExtraInformation, 
+    @IsActive, 
+    @IsConfigure)  SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                        string deactivateQuery = @"UPDATE tblQuestion SET IsActive = 0 WHERE QuestionCode = @QuestionCode AND IsActive = 1";
+                        await _connection.ExecuteAsync(deactivateQuery, new { request.QuestionCode });
+                        int insertedQuestionId = await _connection.ExecuteScalarAsync<int>(insertQuestionQuery, new
+                        {
+                            request.QuestionTypeId,
+                            request.Status,
+                            request.QuestionCode,
+                            request.CreatedBy,
+                            request.EmployeeId,
+                            request.SubjectID,
+                            request.IndexTypeId,
+                            request.ContentIndexId,
+                            request.ExamTypeId,
+                            request.CategoryId,
+                            IsRejected = isRejected,
+                            request.IsApproved,
+                            request.Explanation,
+                            request.ExtraInformation,
+                            request.IsActive,
+                            request.IsConfigure
+                        });
+
+
+                        string code = string.Empty;
+                        if (string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string")
+                        {
+                            code = GenerateQuestionCode(request.IndexTypeId, request.ContentIndexId, insertedQuestionId);
+
+                            string questionCodeQuery = @"
+                UPDATE tblQuestion
+                SET QuestionCode = @QuestionCode
+                WHERE QuestionId = @QuestionId AND IsActive = 1";
+
+                            await _connection.ExecuteAsync(questionCodeQuery, new { QuestionCode = code, QuestionId = insertedQuestionId });
+                        }
+                        string insertedQuestionCode = string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string" ? code : request.QuestionCode;
+                        // Step 2: Insert data into tblQuestionMatchThePair
+                        string insertMatchPairQuery = @"
+            INSERT INTO tblQuestionMatchThePair (QuestionId, QuestionCode, PairColumn, PairRow, PairValue)
+            VALUES (@QuestionId, @QuestionCode, @PairColumn, @PairRow, @PairValue)";
+
+                        foreach (var pair in request.MatchPairs)
+                        {
+                            await _connection.ExecuteAsync(insertMatchPairQuery, new
+                            {
+                                QuestionId = insertedQuestionId,
+                                QuestionCode = insertedQuestionCode,
+                                PairColumn = pair.PairColumn,
+                                PairRow = pair.PairRow,
+                                PairValue = pair.PairValue
+                            });
+                        }
+
+                        foreach (var record in request.QIDCourses)
+                        {
+                            record.QIDCourseID = 0;
+                        }
+                        var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
+                        string getQuesType = @"SELECT * FROM tblQBQuestionType WHERE QuestionTypeID = @QuestionTypeID;";
+                        var questTypedata = await _connection.QueryFirstOrDefaultAsync<QuestionTypes>(getQuesType, new { QuestionTypeID = request.QuestionTypeId });
+
+                        int answer = 0;
+                        int Answerid = 0;
+
+                        // Check if the answer already exists in AnswerMaster
+                        string getAnswerQuery = @"SELECT Answerid FROM tblAnswerMaster WHERE QuestionCode = @QuestionCode AND QuestionId = @QuestionId;";
+                        Answerid = await _connection.QueryFirstOrDefaultAsync<int>(getAnswerQuery, new { QuestionCode = insertedQuestionCode, QuestionId = insertedQuestionId });
+
+                        if (Answerid == 0) // If no entry exists, insert a new one
+                        {
+                            string insertAnswerMasterQuery = @"
+            INSERT INTO [tblAnswerMaster] (Questionid, QuestionTypeid, QuestionCode)
+            VALUES (@Questionid, @QuestionTypeid, @QuestionCode);
+            SELECT CAST(SCOPE_IDENTITY() as int);";
+
+                            Answerid = await _connection.QuerySingleAsync<int>(insertAnswerMasterQuery, new
+                            {
+                                Questionid = insertedQuestionId,
+                                QuestionTypeid = questTypedata?.QuestionTypeID,
+                                QuestionCode = insertedQuestionCode
+                            });
+                        }
+
+                        string insertAnswerQuery = @"
+            INSERT INTO tblOptionsMatchThePair2 (AnswerId, PairColumn, PairRow)
+            VALUES (@AnswerId, @PairColumn, @PairRow)";
+
+                        foreach (var answerdetail in request.MatchThePairAnswers)
+                        {
+                            await _connection.ExecuteAsync(insertAnswerQuery, new
+                            {
+                                AnswerId = Answerid,
+                                answerdetail.PairColumn,
+                                answerdetail.PairRow
+                            });
+                        }
+                        return new ServiceResponse<string>(true, "Match the Pair question added successfully", null, 200);
+                    }
+                    else
+                    {
+                        string updateQuery = @"
+                UPDATE tblQuestion 
+                SET 
+                    QuestionTypeId = @QuestionTypeId, 
+                    Status = @Status, 
+                    ModifiedBy = @ModifiedBy, 
+                    ModifiedOn = GETDATE(), 
+                    EmployeeId = @EmployeeId, 
+                    SubjectID = @SubjectID, 
+                    IndexTypeId = @IndexTypeId, 
+                    ContentIndexId = @ContentIndexId, 
+                    ExamTypeId = @ExamTypeId, 
+                    CategoryId = @CategoryId, 
+                    IsRejected = @IsRejected, 
+                    IsApproved = @IsApproved, 
+                    Explanation = @Explanation, 
+                    ExtraInformation = @ExtraInformation, 
+                    IsActive = @IsActive, 
+                    IsConfigure = @IsConfigure,
+                    ModifierId = @ModifierId
+                WHERE 
+                    QuestionCode = @QuestionCode and IsActive = 1;";
+                        var parameters = new
+                        {
+                            QuestionTypeId = request.QuestionTypeId,
+                            Status = request.Status,
+                            ModifiedBy = request.ModifiedBy,
+                            ModifiedOn = request.ModifiedOn,
+                            SubjectID = request.SubjectID,
+                            EmployeeId = request.EmployeeId,
+                            ModifierId = request.ModifierId,
+                            IndexTypeId = request.IndexTypeId,
+                            ContentIndexId = request.ContentIndexId,
+                            QuestionCode = request.QuestionCode,
+                            Explanation = request.Explanation,
+                            ExtraInformation = request.ExtraInformation,
+                            IsActive = request.IsActive,
+                            IsConfigure = request.IsConfigure,
+                            CategoryId = request.CategoryId,
+                            request.ExamTypeId,
+                            request.IsRejected,
+                            request.IsApproved
+                        };
+
+                        int rowsAffected = _connection.Execute(updateQuery, parameters);
+                        var insertedQuestionCode = request.QuestionCode;
+
+                        // Handle QIDCourses mapping
+                        var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
+                        string updateMatchPairQuery = @"
+                        UPDATE tblQuestionMatchThePair
+                        SET 
+                            PairValue = @PairValue,
+                            PairColumn = @PairColumn,
+                            PairRow = @PairRow
+                        WHERE MatchThePairId = @MatchThePairId";
+
+                        foreach (var pair in request.MatchPairs)
+                        {
+                            var rowsAffectedMatchPair = await _connection.ExecuteAsync(updateMatchPairQuery, new
+                            {
+                                MatchThePairId = pair.MatchThePairId,
+                                PairColumn = pair.PairColumn,
+                                PairRow = pair.PairRow,
+                                PairValue = pair.PairValue
+                            });
+
+                            // Optional: Check if no rows were updated and log the information
+                            if (rowsAffectedMatchPair == 0)
+                            {
+                                Console.WriteLine($"No record found for MatchThePairId: {pair.MatchThePairId}");
+                            }
+                        }
+
+                        string getQuesType = @"SELECT * FROM tblQBQuestionType WHERE QuestionTypeID = @QuestionTypeID;";
+                        var questTypedata = await _connection.QueryFirstOrDefaultAsync<QuestionTypes>(getQuesType, new { QuestionTypeID = request.QuestionTypeId });
+
+                        int answer = 0;
+                        int Answerid = 0;
+
+                        // Check if the answer already exists in AnswerMaster
+                        string getAnswerQuery = @"SELECT Answerid FROM tblAnswerMaster WHERE QuestionCode = @QuestionCode AND QuestionId = @QuestionId;";
+                        Answerid = await _connection.QueryFirstOrDefaultAsync<int>(getAnswerQuery, new { request.QuestionCode, request.QuestionId });
+
+                        if (Answerid == 0) // If no entry exists, insert a new one
+                        {
+                            string insertAnswerMasterQuery = @"
+            INSERT INTO [tblAnswerMaster] (Questionid, QuestionTypeid, QuestionCode)
+            VALUES (@Questionid, @QuestionTypeid, @QuestionCode);
+            SELECT CAST(SCOPE_IDENTITY() as int);";
+
+                            Answerid = await _connection.QuerySingleAsync<int>(insertAnswerMasterQuery, new
+                            {
+                                Questionid = request.QuestionId,
+                                QuestionTypeid = questTypedata?.QuestionTypeID,
+                                QuestionCode = request.QuestionCode
+                            });
+                        }
+                        string updateMatchPairQuery1 = @"
+        UPDATE tblOptionsMatchThePair2
+        SET 
+            PairColumn = @PairColumn,
+            PairRow = @PairRow
+        WHERE MatchThePair2Id = @MatchThePair2Id";
+
+                        foreach (var answerDetail in request.MatchThePairAnswers)
+                        {
+                            var rowsAffectedMatchPair = await _connection.ExecuteAsync(updateMatchPairQuery1, new
+                            {
+                                MatchThePair2Id = answerDetail.MatchThePair2Id,
+                                PairColumn = answerDetail.PairColumn,
+                                PairRow = answerDetail.PairRow
+                            });
+
+                            if (rowsAffectedMatchPair == 0)
+                            {
+                                Console.WriteLine($"No record found for MatchThePair2Id: {answerDetail.MatchThePair2Id}");
+                            }
+                        }
+                        if (data > 0)
+                        {
+                            return new ServiceResponse<string>(true, "Operation Successful", "Question updated Successfully", 200);
+                        }
+                        else
+                        {
+                            return new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
+                        }
+                    }
+                }
+                else if (request.QuestionCode != null && request.QuestionCode != "string" && GetRoleName != "AD")
+                {
+                    return new ServiceResponse<string>(true, "Operation Successful", string.Empty, 200);
+                }
+                else if (GetRoleName == "AD")
+                {
+                    bool isLive = await _connection.QueryFirstOrDefaultAsync<bool>(@"select IsLive from tblQuestion where QuestionCode = @QuestionCode", new { QuestionCode = request.QuestionCode });
+                    if (isLive)
+                    {
+                        string updateQuery = @"
+                UPDATE tblQuestion 
+                SET 
+                    QuestionTypeId = @QuestionTypeId, 
+                    Status = @Status, 
+                    ModifiedBy = @ModifiedBy, 
+                    ModifiedOn = GETDATE(), 
+                    EmployeeId = @EmployeeId, 
+                    SubjectID = @SubjectID, 
+                    IndexTypeId = @IndexTypeId, 
+                    ContentIndexId = @ContentIndexId, 
+                    ExamTypeId = @ExamTypeId, 
+                    CategoryId = @CategoryId, 
+                    IsRejected = @IsRejected, 
+                    IsApproved = @IsApproved, 
+                    Explanation = @Explanation, 
+                    ExtraInformation = @ExtraInformation, 
+                    IsActive = @IsActive, 
+                    IsConfigure = @IsConfigure,
+                    ModifierId = @ModifierId
+                WHERE 
+                    QuestionCode = @QuestionCode and IsActive = 1;";
+                        var parameters = new
+                        {
+                            QuestionTypeId = request.QuestionTypeId,
+                            Status = request.Status,
+                            ModifiedBy = request.ModifiedBy,
+                            ModifiedOn = request.ModifiedOn,
+                            SubjectID = request.SubjectID,
+                            EmployeeId = request.EmployeeId,
+                            ModifierId = request.ModifierId,
+                            IndexTypeId = request.IndexTypeId,
+                            ContentIndexId = request.ContentIndexId,
+                            QuestionCode = request.QuestionCode,
+                            Explanation = request.Explanation,
+                            ExtraInformation = request.ExtraInformation,
+                            IsActive = request.IsActive,
+                            IsConfigure = request.IsConfigure,
+                            CategoryId = request.CategoryId,
+                            request.ExamTypeId,
+                            request.IsRejected,
+                            request.IsApproved
+                        };
+
+                        int rowsAffected = _connection.Execute(updateQuery, parameters);
+                        var insertedQuestionCode = request.QuestionCode;
+
+                        // Handle QIDCourses mapping
+                        var data = await AddUpdateQIDCourses(request.QIDCourses, insertedQuestionCode);
+                        string updateMatchPairQuery = @"
+                        UPDATE tblQuestionMatchThePair
+                        SET 
+                            PairValue = @PairValue,
+                            PairColumn = @PairColumn,
+                            PairRow = @PairRow
+                        WHERE MatchThePairId = @MatchThePairId";
+
+                        foreach (var pair in request.MatchPairs)
+                        {
+                            var rowsAffectedMatchPair = await _connection.ExecuteAsync(updateMatchPairQuery, new
+                            {
+                                MatchThePairId = pair.MatchThePairId,
+                                PairColumn = pair.PairColumn,
+                                PairRow = pair.PairRow,
+                                PairValue = pair.PairValue
+                            });
+
+                            // Optional: Check if no rows were updated and log the information
+                            if (rowsAffectedMatchPair == 0)
+                            {
+                                Console.WriteLine($"No record found for MatchThePairId: {pair.MatchThePairId}");
+                            }
+                        }
+
+                        string getQuesType = @"SELECT * FROM tblQBQuestionType WHERE QuestionTypeID = @QuestionTypeID;";
+                        var questTypedata = await _connection.QueryFirstOrDefaultAsync<QuestionTypes>(getQuesType, new { QuestionTypeID = request.QuestionTypeId });
+
+                        int answer = 0;
+                        int Answerid = 0;
+
+                        // Check if the answer already exists in AnswerMaster
+                        string getAnswerQuery = @"SELECT Answerid FROM tblAnswerMaster WHERE QuestionCode = @QuestionCode AND QuestionId = @QuestionId;";
+                        Answerid = await _connection.QueryFirstOrDefaultAsync<int>(getAnswerQuery, new { request.QuestionCode, request.QuestionId });
+
+                        if (Answerid == 0) // If no entry exists, insert a new one
+                        {
+                            string insertAnswerMasterQuery = @"
+            INSERT INTO [tblAnswerMaster] (Questionid, QuestionTypeid, QuestionCode)
+            VALUES (@Questionid, @QuestionTypeid, @QuestionCode);
+            SELECT CAST(SCOPE_IDENTITY() as int);";
+
+                            Answerid = await _connection.QuerySingleAsync<int>(insertAnswerMasterQuery, new
+                            {
+                                Questionid = request.QuestionId,
+                                QuestionTypeid = questTypedata?.QuestionTypeID,
+                                QuestionCode = request.QuestionCode
+                            });
+                        }
+                        string updateMatchPairQuery1 = @"
+        UPDATE tblOptionsMatchThePair2
+        SET 
+            PairColumn = @PairColumn,
+            PairRow = @PairRow
+        WHERE MatchThePair2Id = @MatchThePair2Id";
+
+                        foreach (var answerDetail in request.MatchThePairAnswers)
+                        {
+                            var rowsAffectedMatchPair = await _connection.ExecuteAsync(updateMatchPairQuery1, new
+                            {
+                                MatchThePair2Id = answerDetail.MatchThePair2Id,
+                                PairColumn = answerDetail.PairColumn,
+                                PairRow = answerDetail.PairRow
+                            });
+
+                            if (rowsAffectedMatchPair == 0)
+                            {
+                                Console.WriteLine($"No record found for MatchThePair2Id: {answerDetail.MatchThePair2Id}");
+                            }
+                        }
+                        if (data > 0)
+                        {
+                            return new ServiceResponse<string>(true, "Operation Successful", "Question updated Successfully", 200);
+                        }
+                        else
+                        {
+                            return new ServiceResponse<string>(false, "Operation Failed", string.Empty, 500);
+                        }
+                    }
+                    else
+                    {
+                        return new ServiceResponse<string>(false, "Cannot modify question", string.Empty, 500);
+                    }
+                }
+                else
+                {
+                    // Step 1: Insert question into tblQuestion
+                    string insertQuestionQuery = @"
+           INSERT INTO tblQuestion 
+(
+    QuestionTypeId, 
+    QuestionDescription,
+    Status, 
+    QuestionCode, 
+    CreatedBy, 
+    CreatedOn, 
+    EmployeeId, 
+    SubjectID, 
+    IndexTypeId, 
+    ContentIndexId, 
+    ExamTypeId, 
+    CategoryId, 
+    IsRejected, 
+    IsApproved, 
+    Explanation, 
+    ExtraInformation, 
+    IsActive, 
+    IsConfigure
+)
+VALUES 
+(
+    @QuestionTypeId, 
+    'string',
+    @Status, 
+    @QuestionCode, 
+    @CreatedBy, 
+    GETDATE(), 
+    @EmployeeId, 
+    @SubjectID, 
+    @IndexTypeId, 
+    @ContentIndexId, 
+    @ExamTypeId, 
+    @CategoryId, 
+    @IsRejected, 
+    @IsApproved, 
+    @Explanation, 
+    @ExtraInformation, 
+    @IsActive, 
+    @IsConfigure)  SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                    string deactivateQuery = @"UPDATE tblQuestion SET IsActive = 0 WHERE QuestionCode = @QuestionCode AND IsActive = 1";
+                    await _connection.ExecuteAsync(deactivateQuery, new { request.QuestionCode });
+                    int insertedQuestionId = await _connection.ExecuteScalarAsync<int>(insertQuestionQuery, new
+                    {
+                        request.QuestionTypeId,
+                        request.Status,
+                        request.QuestionCode,
+                        request.CreatedBy,
+                        request.EmployeeId,
+                        request.SubjectID,
+                        request.IndexTypeId,
+                        request.ContentIndexId,
+                        request.ExamTypeId,
+                        request.CategoryId,
+                        IsRejected = false,
+                        IsApproved = false,
+                        request.Explanation,
+                        request.ExtraInformation,
+                        request.IsActive,
+                        request.IsConfigure
+                    });
+
+                    string code = string.Empty;
+                    if (string.IsNullOrEmpty(request.QuestionCode) || request.QuestionCode == "string")
+                    {
+                        code = GenerateQuestionCode(request.IndexTypeId, request.ContentIndexId, insertedQuestionId);
+
+                        string questionCodeQuery = @"
+                UPDATE tblQuestion
+                SET QuestionCode = @QuestionCode
+                WHERE QuestionId = @QuestionId AND IsActive = 1";
+
+                        await _connection.ExecuteAsync(questionCodeQuery, new { QuestionCode = code, QuestionId = insertedQuestionId });
+                    }
+
+                    // Step 2: Insert data into tblQuestionMatchThePair
+                    string insertMatchPairQuery = @"
+            INSERT INTO tblQuestionMatchThePair (QuestionId, QuestionCode, PairColumn, PairRow, PairValue)
+            VALUES (@QuestionId, @QuestionCode, @PairColumn, @PairRow, @PairValue)";
+
+                    foreach (var pair in request.MatchPairs)
+                    {
+                        await _connection.ExecuteAsync(insertMatchPairQuery, new
+                        {
+                            QuestionId = insertedQuestionId,
+                            QuestionCode = code,
+                            PairColumn = pair.PairColumn,
+                            PairRow = pair.PairRow,
+                            PairValue = pair.PairValue
+                        });
+                    }
+
+                    foreach (var record in request.QIDCourses)
+                    {
+                        record.QIDCourseID = 0;
+                    }
+                    var data = await AddUpdateQIDCourses(request.QIDCourses, code);
+                    string getQuesType = @"SELECT * FROM tblQBQuestionType WHERE QuestionTypeID = @QuestionTypeID;";
+                    var questTypedata = await _connection.QueryFirstOrDefaultAsync<QuestionTypes>(getQuesType, new { QuestionTypeID = request.QuestionTypeId });
+
+                    int answer = 0;
+                    int Answerid = 0;
+
+                    // Check if the answer already exists in AnswerMaster
+                    string getAnswerQuery = @"SELECT Answerid FROM tblAnswerMaster WHERE QuestionCode = @QuestionCode AND QuestionId = @QuestionId;";
+                    Answerid = await _connection.QueryFirstOrDefaultAsync<int>(getAnswerQuery, new { QuestionCode = code, QuestionId = insertedQuestionId });
+
+                    if (Answerid == 0) // If no entry exists, insert a new one
+                    {
+                        string insertAnswerMasterQuery = @"
+            INSERT INTO [tblAnswerMaster] (Questionid, QuestionTypeid, QuestionCode)
+            VALUES (@Questionid, @QuestionTypeid, @QuestionCode);
+            SELECT CAST(SCOPE_IDENTITY() as int);";
+
+                        Answerid = await _connection.QuerySingleAsync<int>(insertAnswerMasterQuery, new
+                        {
+                            Questionid = insertedQuestionId,
+                            QuestionTypeid = questTypedata?.QuestionTypeID,
+                            QuestionCode = code
+                        });
+                    }
+
+                    string insertAnswerQuery = @"
+            INSERT INTO tblOptionsMatchThePair2 (AnswerId, PairColumn, PairRow)
+            VALUES (@AnswerId, @PairColumn, @PairRow)";
+
+                    foreach (var answerdetail in request.MatchThePairAnswers)
+                    {
+                        await _connection.ExecuteAsync(insertAnswerQuery, new
+                        {
+                            AnswerId = Answerid,
+                            answerdetail.PairColumn,
+                            answerdetail.PairRow
+                        });
+                    }
+                    return new ServiceResponse<string>(true, "Match the Pair question added successfully", null, 200);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, "An error occurred while saving Match the Pair Type 2.", ex.Message, 500);
+            }
+        }
         private void AddMasterDataSheets(ExcelPackage package, int subjectId)
         {
             // Create worksheets for master data
@@ -3814,7 +5387,7 @@ namespace Schools_API.Repository.Implementations
             categoryWorksheet.Cells[1, 1].Value = "CategoryId";
             categoryWorksheet.Cells[1, 2].Value = "Category";
 
-            var category =  _connection.Query<dynamic>(@"select * from tblCategory where Status = 1");
+            var category = _connection.Query<dynamic>(@"select * from tblCategory where Status = 1");
             int categoryRow = 2;
             foreach (var data in category)
             {
@@ -4250,7 +5823,7 @@ namespace Schools_API.Repository.Implementations
     Dictionary<string, int> courseCodeDictionary,
     int paragraphRow)
         {
-       
+
             // Step 2: Identify the starting column for dynamic course data
             int courseStartCol = 3;
             // Step 3: Extract QIDCourse mappings for the given paragraph
@@ -4285,7 +5858,6 @@ namespace Schools_API.Repository.Implementations
 
             return qidCourses;
         }
-
         private string GetParagraphById(ExcelWorksheet paragraphSheet, int paragraphId)
         {
             if (paragraphSheet == null) return null;
@@ -4474,7 +6046,7 @@ namespace Schools_API.Repository.Implementations
         private void LoadSubjectCodes(ExcelWorksheet sheet, Dictionary<string, int> dictionary)
         {
             int rowCount = sheet.Dimension.Rows;
-            var query = "SELECT SubjectId FROM tblSubject WHERE [SubjectName] = @subjectName"; 
+            var query = "SELECT SubjectId FROM tblSubject WHERE [SubjectName] = @subjectName";
             for (int row = 2; row <= rowCount; row++) // Assuming the first row contains headers
             {
                 var subjectName = sheet.Cells[row, 3].Text; // Assuming subject codes are in the second column
@@ -4636,9 +6208,9 @@ namespace Schools_API.Repository.Implementations
                             CourseID = data.CourseID,
                             LevelId = data.LevelId,
                             Status = true,
-                           // CreatedBy = 1,
+                            // CreatedBy = 1,
                             CreatedDate = DateTime.Now,
-                          //  ModifiedBy = 1,
+                            //  ModifiedBy = 1,
                             ModifiedDate = DateTime.Now,
                             QIDCourseID = data.QIDCourseID,
                             QuestionCode = questionCode
@@ -4857,7 +6429,7 @@ namespace Schools_API.Repository.Implementations
             }
         }
         private List<AnswerMultipleChoiceCategory> GetMultipleAnswers(string QuestionCode)
-        {   
+        {
             var answerMaster = _connection.QueryFirstOrDefault<AnswerMaster>(@"
          SELECT TOP 1 * FROM tblAnswerMaster WHERE QuestionCode = @QuestionCode ORDER BY AnswerId DESC", new { QuestionCode });
 
