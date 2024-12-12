@@ -27,5 +27,6 @@ namespace Course_API.Repository.Interfaces
         Task<ServiceResponse<string>> UploadQuestionsFromExcel(IFormFile file, int testSeriesId, int EmployeeId);
         Task<ServiceResponse<string>> TestSeriesRejectedQuestionRemarks(RejectedQuestionRemark request);
         Task<ServiceResponse<string>> ApproveRejectedQuestion(int testSeriesId, int QuestionId);
+        Task<ServiceResponse<string>> AddUpdateTestSeriesDateAndTime(TestSeriesDateAndTimeRequest request);
     }
 }

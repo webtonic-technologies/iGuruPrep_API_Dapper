@@ -354,5 +354,25 @@ namespace Course_API.Controllers
             }
             return StatusCode(response.StatusCode, response.Message);
         }
+        [HttpPut("AddUpdateTestSeriesDateAndTime")]
+        public async Task<IActionResult> AddUpdateTestSeriesDateAndTime(TestSeriesDateAndTimeRequest request)
+        {
+            try
+            {
+                var data = await _testSeriesServices.AddUpdateTestSeriesDateAndTime(request);
+                if (data != null)
+                {
+                    return Ok(data);
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
     }
 }

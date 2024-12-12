@@ -29,15 +29,7 @@ namespace Course_API.DTOs.Requests
         // public string APName { get; set; } = string.Empty;
         [Required(ErrorMessage = "Total number of questions cannot be empty")]
         public int? TotalNoOfQuestions { get; set; }
-        public bool? ManualQuestionSelect { get; set; }
-        public DateTime? StartDate { get; set; }
-        public string? StartTime { get; set; } = string.Empty;
-        public DateTime? ResultDate { get; set; }
-        public string? ResultTime { get; set; } = string.Empty;
         public int? EmployeeID { get; set; }
-        //public string EmpFirstName { get; set; } = string.Empty;
-        public string? NameOfExam { get; set; } = string.Empty;
-        public bool? RepeatedExams { get; set; }
         public int? TypeOfTestSeries { get; set; }
         public int? ExamTypeID { get; set; }
         public List<TestSeriesBoards>? TestSeriesBoard { get; set; }
@@ -49,12 +41,27 @@ namespace Course_API.DTOs.Requests
         // public List<TestSeriesQuestionType>? TestSeriesQuestionTypes { get; set; }
         // public List<TestSeriesInstructions>? TestSeriesInstruction { get; set; }
         // public List<TestSeriesQuestions>? TestSeriesQuestions { get; set; }
+     
+       // public bool IsAdmin {  get; set; }
+     
+    }
+    public class TestSeriesDateAndTimeRequest
+    {
+        public int TestSeriesId { get; set; }
+        public int APID { get; set; }
+        public string? NameOfExam { get; set; } = string.Empty;
+        public bool? ManualQuestionSelect { get; set; }
+        public bool? RepeatedExams { get; set; }
+        public DateTime? StartDate { get; set; }
+        public string? StartTime { get; set; } = string.Empty;
+        public DateTime? ResultDate { get; set; }
+        public string? ResultTime { get; set; } = string.Empty;
         public DateTime? RepeatExamStartDate { get; set; }
         public DateTime? RepeatExamEndDate { get; set; }
         public string? RepeatExamStarttime { get; set; } = string.Empty;
         public int? RepeatExamResulttimeId { get; set; }
-       // public bool IsAdmin {  get; set; }
         public bool? IsMandatory { get; set; }
+        public string? modifiedby { get; set; } = string.Empty;
     }
     public class GetAllQuestionListRequest
     {

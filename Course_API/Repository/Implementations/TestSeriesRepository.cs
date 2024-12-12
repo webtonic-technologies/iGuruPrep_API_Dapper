@@ -8,7 +8,6 @@ using OfficeOpenXml;
 using OfficeOpenXml.Style;
 using System.Data;
 using System.Drawing;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Course_API.Repository.Implementations
 {
@@ -24,139 +23,6 @@ namespace Course_API.Repository.Implementations
         {
             try
             {
-                // Fetch existing test papers for the test series (both regular and repeated exams)
-                string timeValidationQuery = @"
-SELECT StartDate, StartTime, Duration, RepeatedExams, RepeatExamStartDate, RepeatExamEndDate
-FROM tblTestSeries 
-WHERE TestSeriesId != @TestSeriesId 
-  AND APID = @APID";  // Fetch test papers for the same APID
-
-                var existingTestPapers = await _connection.QueryAsync<(DateTime StartDate, string StartTime, string Duration, bool RepeatedExams, DateTime? RepeatExamStartDate, DateTime? RepeatExamEndDate)>(timeValidationQuery,
-                    new
-                    {
-                        TestSeriesId = request.TestSeriesId,
-                        APID = request.APID
-                    });
-
-                // Check if RepeatedExams is false (Non-repeated test case)
-                if (request.RepeatedExams == false)
-                {
-                    DateTime requestedStartDateTime;
-                    if (DateTime.TryParse(request.StartTime, out DateTime parsedStartTime))
-                    {
-                        // Combine StartDate with parsed StartTime (the date part of parsedStartTime will be ignored)
-                         requestedStartDateTime = request.StartDate.Value.Add(parsedStartTime.TimeOfDay);
-
-                        // Now you can proceed with the rest of your logic using requestedStartDateTime
-                    }
-                    else
-                    {
-                        // Handle invalid time format
-                        return new ServiceResponse<int>(false, "Invalid StartTime format.", 0, 400);
-                    }
-
-                    foreach (var testPaper in existingTestPapers)
-                    {
-                        // Check for overlap with other regular tests
-                        if (!testPaper.RepeatedExams)
-                        {
-                            // Assuming testPaper.StartTime is a string in the format "HH:mm:ss"
-                            if (TimeSpan.TryParse(testPaper.StartTime, out TimeSpan startTimeSpan))
-                            {
-                                // Combine StartDate with StartTime to create the full DateTime for the test start
-                                DateTime existingStartDateTime = testPaper.StartDate.Add(startTimeSpan);
-
-                                // Extract numeric value from testPaper.Duration (e.g., "120 minutes")
-                                if (!string.IsNullOrWhiteSpace(testPaper.Duration) &&
-                                    double.TryParse(new string(testPaper.Duration.TakeWhile(char.IsDigit).ToArray()), out double durationInMinutes))
-                                {
-                                    // Calculate the end time of the existing test
-                                    DateTime existingEndDateTime = existingStartDateTime.AddMinutes(durationInMinutes);
-
-                                    // Ensure the requested test does not overlap or is less than 15 minutes apart
-                                    if (requestedStartDateTime < existingEndDateTime.AddMinutes(15))
-                                    {
-                                        return new ServiceResponse<int>(false, "Test papers cannot overlap or be less than 15 minutes apart.", 0, 400);
-                                    }
-                                }
-                                else
-                                {
-                                    // Handle invalid or missing duration
-                                    return new ServiceResponse<int>(false, "Invalid test duration.", 0, 400);
-                                }
-
-                            }
-                            else
-                            {
-                                return new ServiceResponse<int>(false, "Invalid StartTime format.", 0, 400);
-                            }
-                        }
-                        // Check for overlap with repeated exams' time window
-                        if (testPaper.RepeatedExams && testPaper.RepeatExamStartDate.HasValue && testPaper.RepeatExamEndDate.HasValue)
-                        {
-                            if (request.StartDate >= testPaper.RepeatExamStartDate && request.StartDate <= testPaper.RepeatExamEndDate)
-                            {
-                                return new ServiceResponse<int>(false, "The test cannot overlap with an existing repeated exam period.", 0, 400);
-                            }
-                        }
-                    }
-                }
-                else // Repeated exam case
-                {
-                    // Ensure no overlap with other repeated exams' time windows
-                    if (request.RepeatExamStartDate.HasValue && request.RepeatExamEndDate.HasValue)
-                    {
-                        foreach (var testPaper in existingTestPapers)
-                        {
-                            // Check for overlap with other repeated exams
-                            if (testPaper.RepeatedExams)
-                            {
-                                if ((request.RepeatExamStartDate <= testPaper.RepeatExamEndDate && request.RepeatExamStartDate >= testPaper.RepeatExamStartDate) ||
-                                    (request.RepeatExamEndDate <= testPaper.RepeatExamEndDate && request.RepeatExamEndDate >= testPaper.RepeatExamStartDate))
-                                {
-                                    return new ServiceResponse<int>(false, "Repeated exams cannot overlap with each other.", 0, 400);
-                                }
-                            }
-
-                            // Check for overlap with regular test timings during repeat exam period
-                            if (!testPaper.RepeatedExams)
-                            {
-                                // Assuming testPaper.StartTime is a string in the format "HH:mm:ss"
-                                if (TimeSpan.TryParse(testPaper.StartTime, out TimeSpan startTimeSpan))
-                                {
-                                    // Combine StartDate with StartTime to create the full DateTime for the test start
-                                    DateTime existingStartDateTime = testPaper.StartDate.Add(startTimeSpan);
-
-                                    // Convert testPaper.Duration to double if necessary
-                                    if (double.TryParse(testPaper.Duration.ToString(), out double durationInMinutes))
-                                    {
-                                        DateTime existingEndDateTime = existingStartDateTime.AddMinutes(durationInMinutes);
-
-                                        // Ensure repeated test's repeat period does not overlap with non-repeated test timings
-                                        if ((existingStartDateTime >= request.RepeatExamStartDate && existingStartDateTime <= request.RepeatExamEndDate) ||
-                                            (existingEndDateTime >= request.RepeatExamStartDate && existingEndDateTime <= request.RepeatExamEndDate))
-                                        {
-                                            return new ServiceResponse<int>(false, "Regular test timings cannot overlap with the repeated exam period.", 0, 400);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        return new ServiceResponse<int>(false, "Invalid test duration.", 0, 400);
-                                    }
-                                }
-                                else
-                                {
-                                    return new ServiceResponse<int>(false, "Invalid StartTime format.", 0, 400);
-                                }
-                            }
-                        }
-                    }
-                    else
-                    {
-                        return new ServiceResponse<int>(false, "Invalid repeat exam period provided.", 0, 400);
-                    }
-                }
-
                 // Proceed with inserting or updating the test after validation
                 if (request.TestSeriesId == 0)
                 {
@@ -175,19 +41,15 @@ WHERE TestSeriesId != @TestSeriesId
                     string insertQuery = @"
                     INSERT INTO tblTestSeries 
                     (
-                        TestPatternName, Duration, Status, APID, TotalNoOfQuestions, ExamTypeID,
-                        ManualQuestionSelect, StartDate, StartTime, ResultDate, ResultTime, 
-                        EmployeeID, NameOfExam, RepeatedExams, TypeOfTestSeries, 
-                        createdon, createdby, RepeatExamStartDate , RepeatExamEndDate ,
-                        RepeatExamStarttime , RepeatExamResulttimeId, IsAdmin, DownloadStatusId
+                        TestPatternName, Duration, Status, APID, TotalNoOfQuestions, ExamTypeID, 
+                        EmployeeID, TypeOfTestSeries, 
+                        createdon, createdby, IsAdmin, DownloadStatusId
                     ) 
                     VALUES 
                     (
                         @TestPatternName, @Duration, @Status, @APID, @TotalNoOfQuestions, @ExamTypeID,
-                        @ManualQuestionSelect, @StartDate, @StartTime, @ResultDate, @ResultTime, 
-                        @EmployeeID, @NameOfExam, @RepeatedExams, @TypeOfTestSeries, 
-                        @createdon, @createdby, @RepeatExamStartDate , @RepeatExamEndDate ,
-                        @RepeatExamStarttime , @RepeatExamResulttimeId, @IsAdmin, @DownloadStatusId
+                        @EmployeeID, @TypeOfTestSeries, 
+                        @createdon, @createdby, @IsAdmin, @DownloadStatusId
                     ); 
                     SELECT CAST(SCOPE_IDENTITY() as int);";
                     var parameters = new
@@ -197,22 +59,11 @@ WHERE TestSeriesId != @TestSeriesId
                         request.Status,
                         request.APID,
                         request.TotalNoOfQuestions,
-                        request.ManualQuestionSelect,
-                        request.StartDate,
-                        request.StartTime,
-                        request.ResultDate,
-                        request.ResultTime,
                         request.EmployeeID,
-                        request.NameOfExam,
-                        request.RepeatedExams,
                         request.TypeOfTestSeries,
                         createdon = DateTime.Now,
                         request.createdby,
                         request.ExamTypeID,
-                        request.RepeatExamEndDate,
-                        request.RepeatExamStartDate,
-                        request.RepeatExamStarttime,
-                        request.RepeatExamResulttimeId,
                         IsAdmin = IsAdmin,
                         DownloadStatusId = 1
                     };
@@ -253,22 +104,11 @@ WHERE TestSeriesId != @TestSeriesId
                         Status = @Status,
                         APID = @APID,
                         TotalNoOfQuestions = @TotalNoOfQuestions,
-                        ManualQuestionSelect = @ManualQuestionSelect,
-                        StartDate = @StartDate,
-                        StartTime = @StartTime,
-                        ResultDate = @ResultDate,
-                        ResultTime = @ResultTime,
                         EmployeeID = @EmployeeID,
-                        NameOfExam = @NameOfExam,
-                        RepeatedExams = @RepeatedExams,
                         TypeOfTestSeries = @TypeOfTestSeries,
                         modifiedon = @modifiedon,
                         modifiedby = @modifiedby,
-                        ExamTypeID = @ExamTypeID,
-                        RepeatExamEndDate = @RepeatExamEndDate,
-                        RepeatExamStartDate = @RepeatExamStartDate,
-                        RepeatExamStarttime = @RepeatExamStarttime,
-                        RepeatExamResulttimeId = @RepeatExamResulttimeId
+                        ExamTypeID = @ExamTypeID
                     WHERE TestSeriesId = @TestSeriesId;";
                     var parameters = new
                     {
@@ -277,23 +117,12 @@ WHERE TestSeriesId != @TestSeriesId
                         request.Status,
                         request.APID,
                         request.TotalNoOfQuestions,
-                        request.ManualQuestionSelect,
-                        request.StartDate,
-                        request.StartTime,
-                        request.ResultDate,
-                        request.ResultTime,
                         request.EmployeeID,
-                        request.NameOfExam,
-                        request.RepeatedExams,
                         request.TypeOfTestSeries,
                         modifiedon = DateTime.Now,
                         request.modifiedby,
                         request.TestSeriesId,
                         request.ExamTypeID,
-                        request.RepeatExamEndDate,
-                        request.RepeatExamStartDate,
-                        request.RepeatExamStarttime,
-                        request.RepeatExamResulttimeId,
                        // request.IsAdmin
                     };
                     int rowsAffected = await _connection.ExecuteAsync(updateQuery, parameters);
@@ -328,6 +157,194 @@ WHERE TestSeriesId != @TestSeriesId
             catch (Exception ex)
             {
                 return new ServiceResponse<int>(false, ex.Message, 0, 500);
+            }
+        }
+        public async Task<ServiceResponse<string>> AddUpdateTestSeriesDateAndTime(TestSeriesDateAndTimeRequest request)
+        {
+            try
+            {
+                // Fetch existing test papers for the test series (both regular and repeated exams)
+                string timeValidationQuery = @"
+SELECT StartDate, StartTime, Duration, RepeatedExams, RepeatExamStartDate, RepeatExamEndDate
+FROM tblTestSeries 
+WHERE TestSeriesId != @TestSeriesId 
+  AND APID = @APID";  // Fetch test papers for the same APID
+
+                var existingTestPapers = await _connection.QueryAsync<(DateTime StartDate, string StartTime, string Duration, bool RepeatedExams, DateTime? RepeatExamStartDate, DateTime? RepeatExamEndDate)>(timeValidationQuery,
+                    new
+                    {
+                        TestSeriesId = request.TestSeriesId,
+                        APID = request.APID
+                    });
+
+                // Check if RepeatedExams is false (Non-repeated test case)
+                if (request.RepeatedExams == false)
+                {
+                    DateTime requestedStartDateTime;
+                    if (DateTime.TryParse(request.StartTime, out DateTime parsedStartTime))
+                    {
+                        // Combine StartDate with parsed StartTime (the date part of parsedStartTime will be ignored)
+                        requestedStartDateTime = request.StartDate.Value.Add(parsedStartTime.TimeOfDay);
+
+                        // Now you can proceed with the rest of your logic using requestedStartDateTime
+                    }
+                    else
+                    {
+                        // Handle invalid time format
+                        return new ServiceResponse<string>(false, "Invalid StartTime format.", string.Empty, 400);
+                    }
+
+                    foreach (var testPaper in existingTestPapers)
+                    {
+                        // Check for overlap with other regular tests
+                        if (!testPaper.RepeatedExams)
+                        {
+                            // Assuming testPaper.StartTime is a string in the format "HH:mm:ss"
+                            if (TimeSpan.TryParse(testPaper.StartTime, out TimeSpan startTimeSpan))
+                            {
+                                // Combine StartDate with StartTime to create the full DateTime for the test start
+                                DateTime existingStartDateTime = testPaper.StartDate.Add(startTimeSpan);
+
+                                // Extract numeric value from testPaper.Duration (e.g., "120 minutes")
+                                if (!string.IsNullOrWhiteSpace(testPaper.Duration) &&
+                                    double.TryParse(new string(testPaper.Duration.TakeWhile(char.IsDigit).ToArray()), out double durationInMinutes))
+                                {
+                                    // Calculate the end time of the existing test
+                                    DateTime existingEndDateTime = existingStartDateTime.AddMinutes(durationInMinutes);
+
+                                    // Ensure the requested test does not overlap or is less than 15 minutes apart
+                                    if (requestedStartDateTime < existingEndDateTime.AddMinutes(15))
+                                    {
+                                        return new ServiceResponse<string>(false, "Test papers cannot overlap or be less than 15 minutes apart.", string.Empty, 400);
+                                    }
+                                }
+                                else
+                                {
+                                    // Handle invalid or missing duration
+                                    return new ServiceResponse<string>(false, "Invalid test duration.", string.Empty, 400);
+                                }
+
+                            }
+                            else
+                            {
+                                return new ServiceResponse<string>(false, "Invalid StartTime format.", string.Empty, 400);
+                            }
+                        }
+                        // Check for overlap with repeated exams' time window
+                        if (testPaper.RepeatedExams && testPaper.RepeatExamStartDate.HasValue && testPaper.RepeatExamEndDate.HasValue)
+                        {
+                            if (request.StartDate >= testPaper.RepeatExamStartDate && request.StartDate <= testPaper.RepeatExamEndDate)
+                            {
+                                return new ServiceResponse<string>(false, "The test cannot overlap with an existing repeated exam period.", string.Empty, 400);
+                            }
+                        }
+                    }
+                }
+                else // Repeated exam case
+                {
+                    // Ensure no overlap with other repeated exams' time windows
+                    if (request.RepeatExamStartDate.HasValue && request.RepeatExamEndDate.HasValue)
+                    {
+                        foreach (var testPaper in existingTestPapers)
+                        {
+                            // Check for overlap with other repeated exams
+                            if (testPaper.RepeatedExams)
+                            {
+                                if ((request.RepeatExamStartDate <= testPaper.RepeatExamEndDate && request.RepeatExamStartDate >= testPaper.RepeatExamStartDate) ||
+                                    (request.RepeatExamEndDate <= testPaper.RepeatExamEndDate && request.RepeatExamEndDate >= testPaper.RepeatExamStartDate))
+                                {
+                                    return new ServiceResponse<string>(false, "Repeated exams cannot overlap with each other.", string.Empty, 400);
+                                }
+                            }
+
+                            // Check for overlap with regular test timings during repeat exam period
+                            if (!testPaper.RepeatedExams)
+                            {
+                                // Assuming testPaper.StartTime is a string in the format "HH:mm:ss"
+                                if (TimeSpan.TryParse(testPaper.StartTime, out TimeSpan startTimeSpan))
+                                {
+                                    // Combine StartDate with StartTime to create the full DateTime for the test start
+                                    DateTime existingStartDateTime = testPaper.StartDate.Add(startTimeSpan);
+
+                                    // Convert testPaper.Duration to double if necessary
+                                    if (double.TryParse(testPaper.Duration.ToString(), out double durationInMinutes))
+                                    {
+                                        DateTime existingEndDateTime = existingStartDateTime.AddMinutes(durationInMinutes);
+
+                                        // Ensure repeated test's repeat period does not overlap with non-repeated test timings
+                                        if ((existingStartDateTime >= request.RepeatExamStartDate && existingStartDateTime <= request.RepeatExamEndDate) ||
+                                            (existingEndDateTime >= request.RepeatExamStartDate && existingEndDateTime <= request.RepeatExamEndDate))
+                                        {
+                                            return new ServiceResponse<string>(false, "Regular test timings cannot overlap with the repeated exam period.", string.Empty, 400);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        return new ServiceResponse<string>(false, "Invalid test duration.", string.Empty, 400);
+                                    }
+                                }
+                                else
+                                {
+                                    return new ServiceResponse<string>(false, "Invalid StartTime format.", string.Empty, 400);
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        return new ServiceResponse<string>(false, "Invalid repeat exam period provided.", string.Empty, 400);
+                    }
+                }
+                string updateQuery = @"
+                    UPDATE tblTestSeries
+                    SET
+                        APID = @APID,
+                        ManualQuestionSelect = @ManualQuestionSelect,
+                        StartDate = @StartDate,
+                        StartTime = @StartTime,
+                        ResultDate = @ResultDate,
+                        ResultTime = @ResultTime,
+                        NameOfExam = @NameOfExam,
+                        RepeatedExams = @RepeatedExams,
+                        modifiedon = @modifiedon,
+                        modifiedby = @modifiedby,
+                        RepeatExamEndDate = @RepeatExamEndDate,
+                        RepeatExamStartDate = @RepeatExamStartDate,
+                        RepeatExamStarttime = @RepeatExamStarttime,
+                        RepeatExamResulttimeId = @RepeatExamResulttimeId
+                    WHERE TestSeriesId = @TestSeriesId;";
+                var parameters = new
+                {
+                    request.APID,
+                    request.ManualQuestionSelect,
+                    request.StartDate,
+                    request.StartTime,
+                    request.ResultDate,
+                    request.ResultTime,
+                    request.NameOfExam,
+                    request.RepeatedExams,
+                    modifiedon = DateTime.Now,
+                    request.modifiedby,
+                    request.TestSeriesId,
+                    request.RepeatExamEndDate,
+                    request.RepeatExamStartDate,
+                    request.RepeatExamStarttime,
+                    request.RepeatExamResulttimeId,
+                    // request.IsAdmin
+                };
+                int rowsAffected = await _connection.ExecuteAsync(updateQuery, parameters);
+                if (rowsAffected > 0)
+                {
+                    return new ServiceResponse<string>(true, "operation successful", string.Empty, 200);
+                }
+                else
+                {
+                    return new ServiceResponse<string>(false, "Some error occured", string.Empty, 500);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
         public async Task<ServiceResponse<TestSeriesResponseDTO>> GetTestSeriesById(int TestSeriesId)

@@ -28,6 +28,11 @@ namespace Course_API.Services.Implementations
             }
         }
 
+        public async Task<ServiceResponse<string>> AddUpdateTestSeriesDateAndTime(TestSeriesDateAndTimeRequest request)
+        {
+            return await _testSeriesRepository.AddUpdateTestSeriesDateAndTime(request);
+        }
+
         public async Task<ServiceResponse<string>> ApproveRejectedQuestion(int testSeriesId, int QuestionId)
         {
             return await _testSeriesRepository.ApproveRejectedQuestion(testSeriesId, QuestionId);
