@@ -9,6 +9,7 @@
         public string MobileNumber { get; set; }
         public string Location { get; set; }
         public bool IsLoginSuccessful { get; set; }
+        public bool IsTermsAgreed {  get; set; }
         public string ProfilePercentage { get; set; } = string.Empty;
     }
     public class ClassCourseMappingResponse

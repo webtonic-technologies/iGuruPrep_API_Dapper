@@ -15,22 +15,28 @@ namespace StudentApp_API.Services.Implementations
             _refresherGuideRepository = refresherGuideRepository;
         }
 
+        public async Task<ServiceResponse<List<QuestionTypeResponse>>> GetDistinctQuestionTypes(int subjectId)
+        {
+            return await _refresherGuideRepository.GetDistinctQuestionTypes(subjectId);
+        }
+
         public async Task<ServiceResponse<List<QuestionResponse>>> GetQuestionsByCriteria(GetQuestionRequest request)
         {
             return await _refresherGuideRepository.GetQuestionsByCriteria(request);
         }
 
-        public async Task<ServiceResponse<List<RefresherGuideContentResponse>>> GetSyllabusContent(GetContentRequest request)
-        {
-            return await _refresherGuideRepository.GetSyllabusContent(request);
-        }
+
+        //public async Task<ServiceResponse<List<RefresherGuideContentResponse>>> GetSyllabusContent(GetContentRequest request)
+        //{
+        //    return await _refresherGuideRepository.GetSyllabusContent(request);
+        //}
 
         public async Task<ServiceResponse<List<RefresherGuideContentResponse>>> GetSyllabusContentDetails(SyllabusDetailsRequest request)
         {
             return await _refresherGuideRepository.GetSyllabusContentDetails(request);
         }
 
-        public async Task<ServiceResponse<List<RefresherGuideSubjectsResposne>>> GetSyllabusSubjects(RefresherGuideRequest request)
+        public async Task<ServiceResponse<RefresherGuideSubjects>> GetSyllabusSubjects(RefresherGuideRequest request)
         {
             return await _refresherGuideRepository.GetSyllabusSubjects(request);
         }

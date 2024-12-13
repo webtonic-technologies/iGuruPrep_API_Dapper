@@ -3,19 +3,14 @@
     public class GetTestseriesSubjects 
     { 
         public int SubjectId {  get; set; }
+        public int RegistrationId {  get; set; }
         public int PageNumber { get; set; }
         public int PageSize {  get; set; }
     }
 
     public class RefresherGuideRequest
     {
-     public int? RegistrationId { get; set; }
-    }
-    public class GetContentRequest
-    {
-        public int SyllabusId { get; set; }
-        public int SubjectId {  get; set; }
-        public int RegistrationId { get; set; }
+     public int RegistrationId { get; set; }
     }
     public class GetQuestionRequest
     {
@@ -24,6 +19,7 @@
         public int SubjectId { get; set; }        // The Subject ID to filter questions
         public int IndexTypeId { get; set; }      // Index Type (e.g., Chapter, Topic, Sub-Topic)
         public int ContentIndexId { get; set; }   // Content Index ID for filtering questions
+        public List<int>? QuestionTypeId { get; set; }
     }
     public class SaveQuestionRequest
     {

@@ -5,6 +5,7 @@
         public int SubjectId { get; set; }
         public string SubjectName { get; set; } = string.Empty;
         public int Count { get; set; }
+        public decimal Percentage {  get; set; }
     }
     public class TestSeriesResponse
     {
@@ -16,6 +17,7 @@
         public DateTime ResultDate { get; set; }
         public string ResultTime { get; set; }
         public int TotalNoOfQuestions { get; set; }
+        public decimal Percentage { get; set; }
     }
     public class TestSeriesQuestionResponse
     {
@@ -34,5 +36,22 @@
         public int AnswerId { get; set; }
         public string Answer { get; set; } = string.Empty;
     }
+    public class QuestionTypeResponse
+    {
+        public int QuestionTypeID { get; set; }
+        public string QuestionType { get; set; }
+    }
+    public class TestSeriesSubjectDetails
+    {
+        public int TestSeriesId { get; set; }
+        public int SubjectId { get; set; }
+        public string SubjectName { get; set; }
+    }
 
+    public class TestSeriesQuestionDetails
+    {
+        public int QuestionId { get; set; }
+        public int TotalQuestions { get; set; }
+        public bool Bookmarked { get; set; }
+    }
 }

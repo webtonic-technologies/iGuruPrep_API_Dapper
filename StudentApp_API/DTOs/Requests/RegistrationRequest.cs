@@ -24,7 +24,6 @@ namespace StudentApp_API.DTOs.Requests
         [Required(ErrorMessage = "Password is required.")]
         [MinLength(6, ErrorMessage = "Password must be at least 6 characters long.")]
         public string Password { get; set; }
-
         public int CountryID { get; set; }
         public string Location { get; set; }
         public string ReferralCode { get; set; }
@@ -47,6 +46,7 @@ namespace StudentApp_API.DTOs.Requests
         public string ReferralCode { get; set; }
         public string SchoolCode { get; set; }
         public string Photo { get; set; }
+        public bool IsActive {  get; set; }
         public List<ParentRequest>? ParentRequests { get; set; }
     }
     public class ParentRequest

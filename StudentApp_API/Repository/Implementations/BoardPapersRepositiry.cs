@@ -3,6 +3,7 @@ using Dapper;
 using StudentApp_API.DTOs.Requests;
 using StudentApp_API.DTOs.Response;
 using StudentApp_API.DTOs.ServiceResponse;
+using StudentApp_API.Models;
 using StudentApp_API.Repository.Interfaces;
 namespace StudentApp_API.Repository.Implementations
 {
@@ -75,7 +76,7 @@ namespace StudentApp_API.Repository.Implementations
                 {
                     TestSeriesIds = testSeriesIds
                 })).ToList();
-
+                response.Select(m => new TestSeriesSubjectsResponse { Percentage = CalculatePercentage(RegistrationId, 0, m.SubjectId) });
                 return new ServiceResponse<List<TestSeriesSubjectsResponse>>(true, "Success", response, 200);
             }
             catch (Exception ex)
@@ -117,6 +118,11 @@ namespace StudentApp_API.Repository.Implementations
                 {
                     TestSeriesIds = testSeriesIds
                 })).ToList();
+                response.Select(m => new TestSeriesResponse
+                {
+                    Percentage = CalculatePercentage(request.RegistrationId, m.TestSeriesId, request.SubjectId)
+                });
+
                 var paginatedList = response
                   .Skip((request.PageNumber - 1) * request.PageSize)
                   .Take(request.PageSize)
@@ -141,9 +147,9 @@ namespace StudentApp_API.Repository.Implementations
             {
                 // Step 1: Fetch QuestionIds associated with the TestSeriesId from tbltestseriesQuestions
                 string queryTestSeriesQuestions = @"
-            SELECT tsq.Questionid
-            FROM tbltestseriesQuestions tsq
-            WHERE tsq.TestSeriesid = @TestSeriesId";
+        SELECT tsq.Questionid
+        FROM tbltestseriesQuestions tsq
+        WHERE tsq.TestSeriesid = @TestSeriesId";
 
                 var questionIds = (await _connection.QueryAsync<int>(queryTestSeriesQuestions, new { TestSeriesId = request.TestSeriesId })).ToList();
 
@@ -152,19 +158,20 @@ namespace StudentApp_API.Repository.Implementations
                     return new ServiceResponse<List<TestSeriesQuestionResponse>>(false, "No questions found for the given TestSeriesId", null, 404);
                 }
 
-                // Step 2: Fetch questions from tblQuestion associated with the SubjectId and filter for descriptive types (QuestionTypeId IN (3, 7, 8))
+                // Step 2: Fetch questions from tblQuestion with the given SubjectId and filter for QuestionTypeId
                 string queryDescriptiveQuestions = @"
-            SELECT q.QuestionId, q.QuestionDescription, q.QuestionFormula, q.QuestionImage, q.DifficultyLevelId, 
-                   q.QuestionTypeId, q.Explanation
-            FROM tblQuestion q
-            WHERE q.QuestionId IN @QuestionIds
-              AND q.SubjectID = @SubjectId
-              AND q.QuestionTypeId IN (3, 7, 8) -- SA, LA, VSA";
+SELECT q.QuestionId, q.QuestionDescription, q.QuestionFormula, q.QuestionImage, q.DifficultyLevelId, 
+       q.QuestionTypeId, q.Explanation
+FROM tblQuestion q
+WHERE q.QuestionId IN @QuestionIds
+  AND q.SubjectID = @SubjectId
+  AND (@QuestionTypeId IS NULL OR q.QuestionTypeId IN @QuestionTypeId)";
 
                 var questions = (await _connection.QueryAsync<TestSeriesQuestionResponse>(queryDescriptiveQuestions, new
                 {
                     QuestionIds = questionIds,
-                    SubjectId = request.SubjectId
+                    SubjectId = request.SubjectId,
+                    QuestionTypeId = request.QuestionTypeId?.Count > 0 ? request.QuestionTypeId : null // Pass null if no IDs are specified
                 })).ToList();
 
                 if (!questions.Any())
@@ -176,19 +183,22 @@ namespace StudentApp_API.Repository.Implementations
                 foreach (var question in questions)
                 {
                     string queryAnswers = @"
-                SELECT am.Answerid, sac.Answer
-                FROM tblAnswerMaster am
-                INNER JOIN tblAnswersingleanswercategory sac ON am.Answerid = sac.Answerid
-                WHERE am.Questionid = @QuestionId";
+            SELECT am.Answerid, sac.Answer
+            FROM tblAnswerMaster am
+            INNER JOIN tblAnswersingleanswercategory sac ON am.Answerid = sac.Answerid
+            WHERE am.Questionid = @QuestionId";
 
                     var answers = await _connection.QueryAsync<AnswerResponses>(queryAnswers, new { QuestionId = question.QuestionId });
 
                     question.Answers = answers.ToList();
                 }
+
+                // Paginate the results
                 var paginatedList = questions
-                 .Skip((request.PageNumber - 1) * request.PageSize)
-                 .Take(request.PageSize)
-                 .ToList();
+                    .Skip((request.PageNumber - 1) * request.PageSize)
+                    .Take(request.PageSize)
+                    .ToList();
+
                 return new ServiceResponse<List<TestSeriesQuestionResponse>>(true, "Success", paginatedList, 200);
             }
             catch (Exception ex)
@@ -196,6 +206,74 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<List<TestSeriesQuestionResponse>>(false, ex.Message, null, 500);
             }
         }
+        //public async Task<ServiceResponse<List<TestSeriesQuestionResponse>>> GetTestSeriesDescriptiveQuestions(TestSeriesQuestionRequest request)
+        //{
+        //    List<TestSeriesQuestionResponse> response = new List<TestSeriesQuestionResponse>();
+
+        //    if (_connection.State != ConnectionState.Open)
+        //    {
+        //        _connection.Open();
+        //    }
+
+        //    try
+        //    {
+        //        // Step 1: Fetch QuestionIds associated with the TestSeriesId from tbltestseriesQuestions
+        //        string queryTestSeriesQuestions = @"
+        //    SELECT tsq.Questionid
+        //    FROM tbltestseriesQuestions tsq
+        //    WHERE tsq.TestSeriesid = @TestSeriesId";
+
+        //        var questionIds = (await _connection.QueryAsync<int>(queryTestSeriesQuestions, new { TestSeriesId = request.TestSeriesId })).ToList();
+
+        //        if (!questionIds.Any())
+        //        {
+        //            return new ServiceResponse<List<TestSeriesQuestionResponse>>(false, "No questions found for the given TestSeriesId", null, 404);
+        //        }
+
+        //        // Step 2: Fetch questions from tblQuestion associated with the SubjectId and filter for descriptive types (QuestionTypeId IN (3, 7, 8))
+        //        string queryDescriptiveQuestions = @"
+        //    SELECT q.QuestionId, q.QuestionDescription, q.QuestionFormula, q.QuestionImage, q.DifficultyLevelId, 
+        //           q.QuestionTypeId, q.Explanation
+        //    FROM tblQuestion q
+        //    WHERE q.QuestionId IN @QuestionIds
+        //      AND q.SubjectID = @SubjectId
+        //      AND q.QuestionTypeId IN (3, 7, 8) -- SA, LA, VSA";
+
+        //        var questions = (await _connection.QueryAsync<TestSeriesQuestionResponse>(queryDescriptiveQuestions, new
+        //        {
+        //            QuestionIds = questionIds,
+        //            SubjectId = request.SubjectId
+        //        })).ToList();
+
+        //        if (!questions.Any())
+        //        {
+        //            return new ServiceResponse<List<TestSeriesQuestionResponse>>(false, "No descriptive questions found for the given criteria", null, 404);
+        //        }
+
+        //        // Step 3: Fetch the answers for each question from tblAnswerMaster and tblAnswersingleanswercategory
+        //        foreach (var question in questions)
+        //        {
+        //            string queryAnswers = @"
+        //        SELECT am.Answerid, sac.Answer
+        //        FROM tblAnswerMaster am
+        //        INNER JOIN tblAnswersingleanswercategory sac ON am.Answerid = sac.Answerid
+        //        WHERE am.Questionid = @QuestionId";
+
+        //            var answers = await _connection.QueryAsync<AnswerResponses>(queryAnswers, new { QuestionId = question.QuestionId });
+
+        //            question.Answers = answers.ToList();
+        //        }
+        //        var paginatedList = questions
+        //         .Skip((request.PageNumber - 1) * request.PageSize)
+        //         .Take(request.PageSize)
+        //         .ToList();
+        //        return new ServiceResponse<List<TestSeriesQuestionResponse>>(true, "Success", paginatedList, 200);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new ServiceResponse<List<TestSeriesQuestionResponse>>(false, ex.Message, null, 500);
+        //    }
+        //}
         public async Task<ServiceResponse<string>> MarkQuestionAsRead(SaveQuestionRequest request)
         {
             try
@@ -312,6 +390,264 @@ namespace StudentApp_API.Repository.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<string>(false, $"An error occurred: {ex.Message}", null, 500);
+            }
+        }
+        public async Task<ServiceResponse<List<QuestionTypeResponse>>> GetQuestionTypesByTestSeriesIdAsync(int testSeriesId)
+        {
+            try
+            {
+                // SQL query to fetch question types
+                string query = @"
+            SELECT DISTINCT 
+                qt.QuestionTypeID,
+                qt.QuestionType
+            FROM tbltestseriesQuestionSection ts
+            INNER JOIN tblQBQuestionType qt ON ts.QuestionTypeID = qt.QuestionTypeID
+            WHERE ts.TestSeriesId = @TestSeriesId
+            ORDER BY qt.QuestionTypeID;
+        ";
+
+                // Execute query and fetch results
+                var questionTypes = await _connection.QueryAsync<QuestionTypeResponse>(
+                    query,
+                    new { TestSeriesId = testSeriesId }
+                );
+
+                // Check if data exists
+                if (questionTypes.Any())
+                {
+                    return new ServiceResponse<List<QuestionTypeResponse>>(
+                        true,
+                        "Question types retrieved successfully.",
+                        questionTypes.ToList(),
+                        200
+                    );
+                }
+
+                return new ServiceResponse<List<QuestionTypeResponse>>(
+                    false,
+                    "No question types found for the given test series ID.",
+                    null,
+                    404
+                );
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<QuestionTypeResponse>>(
+                    false,
+                    ex.Message,
+                    null,
+                    500
+                );
+            }
+        }
+        public async Task<ServiceResponse<Dictionary<string, object>>> GetTestSeriesPercentageBySubject(int RegistrationId)
+        {
+            Dictionary<string, object> response = new Dictionary<string, object>();
+
+            if (_connection.State != ConnectionState.Open)
+            {
+                _connection.Open();
+            }
+
+            try
+            {
+                // Step 1: Fetch board, class, and course ID using RegistrationId
+                string queryStudentMapping = @"
+            SELECT CourseID, ClassID, BoardId
+            FROM tblStudentClassCourseMapping
+            WHERE RegistrationID = @RegistrationId";
+
+                var studentMapping = await _connection.QueryFirstOrDefaultAsync(queryStudentMapping, new { RegistrationId });
+
+                if (studentMapping == null)
+                {
+                    return new ServiceResponse<Dictionary<string, object>>(false, "No mapping found for the given RegistrationId", null, 404);
+                }
+
+                int courseId = studentMapping.CourseID;
+                int classId = studentMapping.ClassID;
+                int boardId = studentMapping.BoardId;
+
+                // Step 2: Fetch Test Series matching the class, course, and board
+                string queryTestSeries = @"
+            SELECT ts.TestSeriesId, s.SubjectId, s.SubjectName
+            FROM tblTestSeries ts
+            INNER JOIN tblTestSeriesSubjects tsm ON ts.TestSeriesId = tsm.TestSeriesId
+            INNER JOIN tblSubject s ON s.SubjectId = tsm.SubjectId
+            INNER JOIN tblTestSeriesBoards tsb ON ts.TestSeriesId = tsb.TestSeriesId
+            INNER JOIN tblTestSeriesClass tsc ON ts.TestSeriesId = tsc.TestSeriesId
+            INNER JOIN tblTestSeriesCourse tscs ON ts.TestSeriesId = tscs.TestSeriesId
+            WHERE tsb.BoardId = @BoardId AND tsc.ClassId = @ClassId AND tscs.CourseId = @CourseId
+            AND ts.TypeOfTestSeries = 1002";
+
+                var testSeriesSubjects = await _connection.QueryAsync<TestSeriesSubjectDetails>(queryTestSeries, new
+                {
+                    BoardId = boardId,
+                    ClassId = classId,
+                    CourseId = courseId
+                });
+
+                if (!testSeriesSubjects.Any())
+                {
+                    return new ServiceResponse<Dictionary<string, object>>(false, "No test series found for the given class, course, and board combination", null, 404);
+                }
+
+                // Step 3: Prepare a structure to hold results
+                var subjectPercentages = new Dictionary<int, Dictionary<string, object>>();
+
+                // Step 4: Loop through each subject's test series to calculate the percentage
+                foreach (var testSeriesSubject in testSeriesSubjects)
+                {
+                    // Fetch the bookmarked questions for each test series
+                    string queryBookmarkedQuestions = @"
+                SELECT COUNT(*) AS BookmarkedCount
+                FROM tblBoardPaperQuestionRead bpq
+                INNER JOIN tblTestSeriesQuestions tsq ON bpq.QuestionID = tsq.QuestionID
+                WHERE tsq.TestSeriesId = @TestSeriesId AND bpq.StudentID = @StudentID";
+
+                    var bookmarkedQuestionCount = await _connection.QueryFirstOrDefaultAsync<int>(queryBookmarkedQuestions, new
+                    {
+                        TestSeriesId = testSeriesSubject.TestSeriesId,
+                        StudentID = RegistrationId  // Assuming RegistrationId can be used to identify the student
+                    });
+
+                    // Calculate the total questions for the test series (assumed to be all questions in the test series)
+                    string queryTotalQuestions = @"
+                SELECT COUNT(*) AS TotalQuestions
+                FROM tblTestSeriesQuestions tsq
+                WHERE tsq.TestSeriesId = @TestSeriesId";
+
+                    var totalQuestionCount = await _connection.QueryFirstOrDefaultAsync<int>(queryTotalQuestions, new { TestSeriesId = testSeriesSubject.TestSeriesId });
+
+                    // Calculate the percentage based on bookmarked questions
+                    double percentage = (totalQuestionCount > 0) ? ((double)bookmarkedQuestionCount / totalQuestionCount) * 100 : 0;
+
+                    // Add the percentage for the test series to the subject dictionary
+                    if (!subjectPercentages.ContainsKey(testSeriesSubject.SubjectId))
+                    {
+                        subjectPercentages[testSeriesSubject.SubjectId] = new Dictionary<string, object>();
+                    }
+
+                    var subjectData = subjectPercentages[testSeriesSubject.SubjectId];
+                    subjectData.Add(testSeriesSubject.SubjectName + " - TestSeries " + testSeriesSubject.TestSeriesId, Math.Round(percentage, 2));
+                }
+
+                // Step 5: Calculate the average percentage for each subject
+                foreach (var subject in subjectPercentages)
+                {
+                    var testSeriesPercentages = subject.Value.Values.Cast<double>().ToList();
+                    double subjectAveragePercentage = testSeriesPercentages.Any() ? testSeriesPercentages.Average() : 0;
+
+                    subject.Value.Add("SubjectPercentage", Math.Round(subjectAveragePercentage, 2));
+                }
+
+                // Convert dictionary to desired response format
+                foreach (var subject in subjectPercentages)
+                {
+                    string subjectName = subject.Value.Keys.First().ToString().Split('-').First().Trim();
+                    response.Add(subjectName, subject.Value);
+                }
+
+                return new ServiceResponse<Dictionary<string, object>>(true, "Success", response, 200);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<Dictionary<string, object>>(false, ex.Message, null, 500);
+            }
+        }
+        private decimal CalculatePercentage(int StudentId, int TestSeriesId, int SubjectId)
+        {
+            if (TestSeriesId > 0)
+            {
+                // Case 1: TestSeriesId is provided
+                // Fetch bookmarked question count
+                string queryBookmarkedQuestions = @"
+            SELECT COUNT(*) AS BookmarkedCount
+            FROM tblBoardPaperQuestionRead bpq
+            INNER JOIN tblTestSeriesQuestions tsq ON bpq.QuestionID = tsq.QuestionID
+            WHERE tsq.TestSeriesId = @TestSeriesId AND bpq.StudentID = @StudentID";
+
+                var bookmarkedQuestionCount = _connection.QueryFirstOrDefault<int>(queryBookmarkedQuestions, new
+                {
+                    TestSeriesId = TestSeriesId,
+                    StudentID = StudentId
+                });
+
+                // Fetch total question count for the test series
+                string queryTotalQuestions = @"
+            SELECT COUNT(*) AS TotalQuestions
+            FROM tblTestSeriesQuestions tsq
+            WHERE tsq.TestSeriesId = @TestSeriesId AND tsq.SubjectId = @SubjectId";
+
+                var totalQuestionCount = _connection.QueryFirstOrDefault<int>(queryTotalQuestions, new
+                {
+                    TestSeriesId = TestSeriesId,
+                    SubjectId = SubjectId
+                });
+
+                // Calculate percentage
+                if (totalQuestionCount == 0) return 0;
+
+                decimal percentage = ((decimal)bookmarkedQuestionCount / totalQuestionCount) * 100;
+                return Math.Round(percentage, 2);
+            }
+            else
+            {
+                // Case 2: TestSeriesId is not provided (Subject-based percentage calculation)
+                // Fetch the TestSeriesIds associated with the given SubjectId
+                string queryTestSeriesIds = @"
+            SELECT DISTINCT tsm.TestSeriesId
+            FROM tblTestSeriesSubjects tsm
+            WHERE tsm.SubjectId = @SubjectId";
+
+                var testSeriesIds = _connection.Query<int>(queryTestSeriesIds, new { SubjectId = SubjectId }).ToList();
+
+                if (!testSeriesIds.Any()) return 0; // No test series associated with the subject
+
+                // Calculate percentage for each test series
+                decimal totalPercentage = 0;
+                int count = 0;
+
+                foreach (var testSeriesId in testSeriesIds)
+                {
+                    // Fetch bookmarked question count for the current test series
+                    string queryBookmarkedQuestions = @"
+                SELECT COUNT(*) AS BookmarkedCount
+                FROM tblBoardPaperQuestionRead bpq
+                INNER JOIN tblTestSeriesQuestions tsq ON bpq.QuestionID = tsq.QuestionID
+                WHERE tsq.TestSeriesId = @TestSeriesId AND bpq.StudentID = @StudentID";
+
+                    var bookmarkedQuestionCount = _connection.QueryFirstOrDefault<int>(queryBookmarkedQuestions, new
+                    {
+                        TestSeriesId = testSeriesId,
+                        StudentID = StudentId
+                    });
+
+                    // Fetch total question count for the current test series
+                    string queryTotalQuestions = @"
+                SELECT COUNT(*) AS TotalQuestions
+                FROM tblTestSeriesQuestions tsq
+                WHERE tsq.TestSeriesId = @TestSeriesId AND tsq.SubjectId = @SubjectId";
+
+                    var totalQuestionCount = _connection.QueryFirstOrDefault<int>(queryTotalQuestions, new
+                    {
+                        TestSeriesId = testSeriesId,
+                        SubjectId = SubjectId
+                    });
+
+                    if (totalQuestionCount > 0)
+                    {
+                        decimal percentage = ((decimal)bookmarkedQuestionCount / totalQuestionCount) * 100;
+                        totalPercentage += Math.Round(percentage, 2);
+                        count++;
+                    }
+                }
+
+                if (count == 0) return 0;
+
+                // Calculate and return average percentage
+                return Math.Round(totalPercentage / count, 2);
             }
         }
     }

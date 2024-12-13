@@ -138,37 +138,88 @@ namespace StudentApp_API.Repository.Implementations
         {
             try
             {
-                string query = @"INSERT INTO tblQuestionNavigation (QuestionID, StartTime, EndTime, ScholarshipID, StudentID)
-                                 VALUES (@QuestionID, @StartTime, @EndTime, @ScholarshipID, @RegistrationId);
-                                 SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                string query = @"INSERT INTO tblQuestionNavigation 
+                         (QuestionID, StartTime, EndTime, ScholarshipID, StudentID) 
+                         VALUES (@QuestionID, @StartTime, @EndTime, @ScholarshipID, @StudentID);
+                         SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
-                var navigationId = await _connection.ExecuteScalarAsync<int>(query, new
+                foreach (var subject in request.Subjects)
                 {
-                    request.QuestionID,
-                    StartTime = request.StartTime,
-                    EndTime = request.EndTime,
-                    request.ScholarshipID,
-                    request.RegistrationId
-                });
+                    foreach (var question in subject.Questions)
+                    {
+                        foreach (var log in question.TimeLogs)
+                        {
+                            // Execute query for each time log
+                            var navigationId = await _connection.ExecuteScalarAsync<int>(query, new
+                            {
+                                QuestionID = question.QuestionID,
+                                StartTime = log.StartTime,
+                                EndTime = log.EndTime,
+                                ScholarshipID = request.ScholarshipID,
+                                StudentID = request.StudentID
+                            });
+                        }
+                    }
+                }
 
-                var response = new UpdateQuestionNavigationResponse
-                {
-                    NavigationID = navigationId,
-                    ScholarshipID = request.ScholarshipID,
-                    StudentID = request.RegistrationId,
-                    QuestionID = request.QuestionID,
-                    StartTime = request.StartTime,
-                    EndTime = request.EndTime,
-                    Message = "Navigation updated successfully."
-                };
-
-                return new ServiceResponse<UpdateQuestionNavigationResponse>(true, "Navigation updated successfully.", response, 200);
+                // Response message
+                return new ServiceResponse<UpdateQuestionNavigationResponse>(
+                    true,
+                    "Navigation updated successfully.",
+                    new UpdateQuestionNavigationResponse
+                    {
+                        ScholarshipID = request.ScholarshipID,
+                        StudentID = request.StudentID,
+                        Message = "All records inserted successfully."
+                    },
+                    200
+                );
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<UpdateQuestionNavigationResponse>(false, ex.Message, null, 500);
+                return new ServiceResponse<UpdateQuestionNavigationResponse>(
+                    false,
+                    ex.Message,
+                    null,
+                    500
+                );
             }
         }
+        //public async Task<ServiceResponse<UpdateQuestionNavigationResponse>> UpdateQuestionNavigationAsync(UpdateQuestionNavigationRequest request)
+        //{
+        //    try
+        //    {
+        //        string query = @"INSERT INTO tblQuestionNavigation (QuestionID, StartTime, EndTime, ScholarshipID, StudentID)
+        //                         VALUES (@QuestionID, @StartTime, @EndTime, @ScholarshipID, @RegistrationId);
+        //                         SELECT CAST(SCOPE_IDENTITY() AS INT);";
+
+        //        var navigationId = await _connection.ExecuteScalarAsync<int>(query, new
+        //        {
+        //            request.QuestionID,
+        //            StartTime = request.StartTime,
+        //            EndTime = request.EndTime,
+        //            request.ScholarshipID,
+        //            request.RegistrationId
+        //        });
+
+        //        var response = new UpdateQuestionNavigationResponse
+        //        {
+        //            NavigationID = navigationId,
+        //            ScholarshipID = request.ScholarshipID,
+        //            StudentID = request.RegistrationId,
+        //            QuestionID = request.QuestionID,
+        //            StartTime = request.StartTime,
+        //            EndTime = request.EndTime,
+        //            Message = "Navigation updated successfully."
+        //        };
+
+        //        return new ServiceResponse<UpdateQuestionNavigationResponse>(true, "Navigation updated successfully.", response, 200);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new ServiceResponse<UpdateQuestionNavigationResponse>(false, ex.Message, null, 500);
+        //    }
+        //}
         public async Task<ServiceResponse<ScholarshipTestResponse>> GetScholarshipTestByRegistrationId(int registrationId)
         {
             var response = new ServiceResponse<ScholarshipTestResponse>(true,string.Empty,null,200);
@@ -577,7 +628,6 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<List<MarksAcquiredAfterAnswerSubmission>>(false, ex.Message, null, 500);
             }
         }
-
         private async Task<(decimal acquiredMarks, decimal successRate)> CalculatePartialMarksAsync(
             int actualCorrectCount,
             int studentCorrectCount,

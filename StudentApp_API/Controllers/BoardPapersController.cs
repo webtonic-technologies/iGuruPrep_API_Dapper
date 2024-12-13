@@ -71,5 +71,27 @@ namespace StudentApp_API.Controllers
 
             return BadRequest(response);
         }
+        [HttpGet("GetQuestionTypesByTestSeries/{testSeriesId}")]
+        public async Task<IActionResult> GetQuestionTypesByTestSeries(int testSeriesId)
+        {
+            var result = await _boardPapersServices.GetQuestionTypesByTestSeriesIdAsync(testSeriesId);
+            if (result.Success)
+                return Ok(result);
+            return StatusCode(result.StatusCode, result);
+        }
+        [HttpGet("GetTestSeriesPercentageBySubject/{RegistrationId}")]
+        public async Task<IActionResult> GetTestSeriesPercentageBySubject(int RegistrationId)
+        {
+            var result = await _boardPapersServices.GetTestSeriesPercentageBySubject(RegistrationId);
+
+            if (result.Success)
+            {
+                return Ok(result.Data); // Return 200 OK with the data (distinct Question Types)
+            }
+            else
+            {
+                return NotFound(result.Message); // Return 404 if no data found
+            }
+        }
     }
 }

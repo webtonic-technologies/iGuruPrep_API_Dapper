@@ -1733,7 +1733,7 @@ namespace Schools_API.Repository.Implementations
                                 //AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
                                 MatchPairs = item.QuestionTypeId == 6 || item.QuestionTypeId == 12 ? GetMatchPairs(item.QuestionCode, item.QuestionId) : null,
                                 MatchThePairType2Answers = item.QuestionTypeId == 12 ? GetMatchThePairType2Answers(item.QuestionCode, item.QuestionId) : null,
-                                Answersingleanswercategories = (item.QuestionTypeId != 6 && item.QuestionTypeId != 12) ? GetSingleAnswer(item.QuestionCode) : null,
+                                Answersingleanswercategories = (item.QuestionTypeId != 6 && item.QuestionTypeId != 12) ? GetSingleAnswer(item.QuestionCode, item.QuestionId) : null,
                                 AnswerMultipleChoiceCategories = (item.QuestionTypeId != 12) ? GetMultipleAnswers(item.QuestionCode) : null
                             };
                         }
@@ -2278,7 +2278,7 @@ namespace Schools_API.Repository.Implementations
                                 //AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
                                 MatchPairs = item.QuestionTypeId == 6 || item.QuestionTypeId == 12 ? GetMatchPairs(item.QuestionCode, item.QuestionId) : null,
                                 MatchThePairType2Answers = item.QuestionTypeId == 12 ? GetMatchThePairType2Answers(item.QuestionCode, item.QuestionId) : null,
-                                Answersingleanswercategories = (item.QuestionTypeId != 6 && item.QuestionTypeId != 12) ? GetSingleAnswer(item.QuestionCode) : null,
+                                Answersingleanswercategories = (item.QuestionTypeId != 6 && item.QuestionTypeId != 12) ? GetSingleAnswer(item.QuestionCode, item.QuestionId) : null,
                                 AnswerMultipleChoiceCategories = (item.QuestionTypeId != 12) ? GetMultipleAnswers(item.QuestionCode) : null
                             };
                         }
@@ -2365,7 +2365,7 @@ namespace Schools_API.Repository.Implementations
                     question.QIDCourses = GetListOfQIDCourse(question.QuestionCode);
                     // question.QuestionSubjectMappings = GetListOfQuestionSubjectMapping(question.QuestionCode);
                     question.AnswerMultipleChoiceCategories = GetMultipleAnswers(question.QuestionCode);
-                    question.Answersingleanswercategories = GetSingleAnswer(question.QuestionCode);
+                    question.Answersingleanswercategories = GetSingleAnswer(question.QuestionCode, question.QuestionId);
                 }
 
                 return new ServiceResponse<List<QuestionResponseDTO>>(true, "Questions fetched successfully", questions.ToList(), 200);
@@ -2517,7 +2517,7 @@ namespace Schools_API.Repository.Implementations
                                 // AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
                                 MatchPairs = item.QuestionTypeId == 6 || item.QuestionTypeId == 12 ? GetMatchPairs(item.QuestionCode, item.QuestionId) : null,
                                 MatchThePairType2Answers = item.QuestionTypeId == 12 ? GetMatchThePairType2Answers(item.QuestionCode, item.QuestionId) : null,
-                                Answersingleanswercategories = (item.QuestionTypeId != 6 && item.QuestionTypeId != 12) ? GetSingleAnswer(item.QuestionCode) : null,
+                                Answersingleanswercategories = (item.QuestionTypeId != 6 && item.QuestionTypeId != 12) ? GetSingleAnswer(item.QuestionCode, item.QuestionId) : null,
                                 AnswerMultipleChoiceCategories = (item.QuestionTypeId != 12) ? GetMultipleAnswers(item.QuestionCode) : null
 
                             };
@@ -2784,7 +2784,7 @@ namespace Schools_API.Repository.Implementations
                                 // AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
                                 MatchPairs = item.QuestionTypeId == 6 || item.QuestionTypeId == 12 ? GetMatchPairs(item.QuestionCode, item.QuestionId) : null,
                                 MatchThePairType2Answers = item.QuestionTypeId == 12 ? GetMatchThePairType2Answers(item.QuestionCode, item.QuestionId) : null,
-                                Answersingleanswercategories = (item.QuestionTypeId != 6 && item.QuestionTypeId != 12) ? GetSingleAnswer(item.QuestionCode) : null,
+                                Answersingleanswercategories = (item.QuestionTypeId != 6 && item.QuestionTypeId != 12) ? GetSingleAnswer(item.QuestionCode, item.QuestionId) : null,
                                 AnswerMultipleChoiceCategories = (item.QuestionTypeId != 12) ? GetMultipleAnswers(item.QuestionCode) : null
 
                             };
@@ -2914,7 +2914,7 @@ namespace Schools_API.Repository.Implementations
                             IsActive = item.IsActive,
                             MatchPairs = item.QuestionTypeId == 6 || item.QuestionTypeId == 12 ? GetMatchPairs(item.QuestionCode, item.QuestionId) : null,
                             MatchThePairType2Answers = item.QuestionTypeId == 12 ? GetMatchThePairType2Answers(item.QuestionCode, item.QuestionId) : null,
-                            Answersingleanswercategories = (item.QuestionTypeId != 6 && item.QuestionTypeId != 12) ? GetSingleAnswer(item.QuestionCode) : null,
+                            Answersingleanswercategories = (item.QuestionTypeId != 6 && item.QuestionTypeId != 12) ? GetSingleAnswer(item.QuestionCode, item.QuestionId) : null,
                             AnswerMultipleChoiceCategories = (item.QuestionTypeId != 12) ? GetMultipleAnswers(item.QuestionCode) : null
 
                         };
@@ -3024,7 +3024,7 @@ namespace Schools_API.Repository.Implementations
                 IsActive = m.IsActive,
                 IsConfigure = m.IsConfigure,
                 AnswerMultipleChoiceCategories = GetMultipleAnswers(m.QuestionCode),
-                Answersingleanswercategories = GetSingleAnswer(m.QuestionCode)
+                Answersingleanswercategories = GetSingleAnswer(m.QuestionCode, m.QuestionId)
             }).ToList();
             return response;
         }
@@ -6411,10 +6411,10 @@ VALUES
             var data = _connection.Query<QuestionSubjectMappingResponse>(boardquery, new { QuestionCode, ActiveQuestionIds = activeQuestionIds });
             return data.ToList();
         }
-        private Answersingleanswercategory GetSingleAnswer(string QuestionCode)
+        private Answersingleanswercategory GetSingleAnswer(string QuestionCode, int QuestionId)
         {
             var answerMaster = _connection.QueryFirstOrDefault<AnswerMaster>(@"
-        SELECT * FROM tblAnswerMaster WHERE QuestionCode = @QuestionCode", new { QuestionCode });
+        SELECT * FROM tblAnswerMaster WHERE QuestionCode = @QuestionCode and Questionid = @Questionid", new { QuestionCode, Questionid = QuestionId });
 
             if (answerMaster != null)
             {
@@ -6472,7 +6472,7 @@ VALUES
                 Explanation = item.Explanation,
                 ExtraInformation = item.ExtraInformation,
                 IsActive = item.IsActive,
-                Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
+                Answersingleanswercategories = GetSingleAnswer(item.QuestionCode, item.QuestionId),
                 AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
             };
             return questionResponse;

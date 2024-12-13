@@ -113,4 +113,10 @@
         public int QuestionId {  get; set; }
         public decimal MarksAcquired {  get; set; }
     }
+    public class QuestionTypeResponse
+    {
+        public int QuestionTypeID { get; set; }
+        public string QuestionType { get; set; }
+    }
+
 }

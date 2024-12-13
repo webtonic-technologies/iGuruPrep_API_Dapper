@@ -27,17 +27,17 @@ namespace StudentApp_API.Controllers
             return BadRequest(response);
         }
 
-        [HttpPost("GetSyllabusContent")]
-        public async Task<IActionResult> GetSyllabusContent(GetContentRequest request)
-        {
-            var response = await _refresherGuideServices.GetSyllabusContent(request);
-            if (response.Success)
-            {
-                return Ok(response);
-            }
+        //[HttpPost("GetSyllabusContent")]
+        //public async Task<IActionResult> GetSyllabusContent(GetContentRequest request)
+        //{
+        //    var response = await _refresherGuideServices.GetSyllabusContent(request);
+        //    if (response.Success)
+        //    {
+        //        return Ok(response);
+        //    }
 
-            return BadRequest(response);
-        }
+        //    return BadRequest(response);
+        //}
         [HttpPost("GetQuestionsByCriteria")]
         public async Task<IActionResult> GetQuestionsByCriteria(GetQuestionRequest request)
         {
@@ -81,6 +81,20 @@ namespace StudentApp_API.Controllers
             }
 
             return BadRequest(response);
+        }
+        [HttpGet("question-types/{subjectId}")]
+        public async Task<IActionResult> GetDistinctQuestionTypes(int subjectId)
+        {
+            var result = await _refresherGuideServices.GetDistinctQuestionTypes(subjectId);
+
+            if (result.Success)
+            {
+                return Ok(result.Data); // Return 200 OK with the data (distinct Question Types)
+            }
+            else
+            {
+                return NotFound(result.Message); // Return 404 if no data found
+            }
         }
     }
 }

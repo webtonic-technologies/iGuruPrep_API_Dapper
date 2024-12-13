@@ -10,5 +10,7 @@ namespace StudentApp_API.Services.Interfaces
         Task<ServiceResponse<List<TestSeriesQuestionResponse>>> GetTestSeriesDescriptiveQuestions(TestSeriesQuestionRequest request);
         Task<ServiceResponse<string>> MarkQuestionAsSave(SaveQuestionRequest request);
         Task<ServiceResponse<string>> MarkQuestionAsRead(SaveQuestionRequest request);
+        Task<ServiceResponse<List<QuestionTypeResponse>>> GetQuestionTypesByTestSeriesIdAsync(int testSeriesId);
+        Task<ServiceResponse<Dictionary<string, object>>> GetTestSeriesPercentageBySubject(int RegistrationId);
     }
 }

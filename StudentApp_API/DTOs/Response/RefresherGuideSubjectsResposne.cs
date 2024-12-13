@@ -6,6 +6,12 @@
         public int SubjectId {  get; set; }
         public string SubjectName {  get; set; }
         public int? RegistrationId {  get; set; }
+        public decimal Percentage {  get; set; }
+    }
+    public class RefresherGuideSubjects
+    {
+        public List<RefresherGuideSubjectsResposne>? refresherGuideSubjectsResposnes {  get; set; }
+        public decimal Percentage { get; set; }
     }
     public class RefresherGuideContentResponse
     {
@@ -16,6 +22,7 @@
         public string ContentName { get; set; } = string.Empty;
         public string Synopsis { get; set; } = string.Empty;
         public int RegistrationId { get; set; }
+        public decimal Percentage {  get; set; }
     }
     public class QuestionResponse
     {
@@ -38,5 +45,24 @@
         public string Answer { get; set; }                    // Answer text for single-answer questions
         public string QuestionCode { get; set; }              // Code associated with the question
     }
+    public class PercentageResponse
+    {
+        public int SubjectId { get; set; }
+        public int ChapterId { get; set; }
+        public int TopicId { get; set; }
+        public int SubTopicId { get; set; }
+        public string SubTopicName { get; set; }
+        public decimal Percentage { get; set; }
+    }
 
+    public class QuestionData
+    {
+        public int SubjectId { get; set; }
+        public int ContentIndexId { get; set; }
+        public int IndexTypeId { get; set; }
+        public int IsRead { get; set; } // or boolean if applicable
+        public string ContentName_Chapter { get; set; }
+        public string ContentName_Topic { get; set; }
+        public string ContentName_SubTopic { get; set; }
+    }
 }

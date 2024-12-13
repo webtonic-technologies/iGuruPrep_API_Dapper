@@ -2,7 +2,7 @@
 {
     public class LoginRequest
     {
-        public string EmailID { get; set; }
+        public string EmailIDOrPhoneNumberOrLicense { get; set; }
         public string Password { get; set; }
     }
     public class GetAllClassCourseRequest
