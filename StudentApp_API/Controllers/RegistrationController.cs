@@ -207,7 +207,17 @@ namespace StudentApp_API.Controllers
 
             return BadRequest(response);
         }
+        [HttpDelete("DeleteProfile/{registrationId}")]
+        public async Task<IActionResult> DeleteProfile(int registrationId)
+        {
+            var response = await _registrationService.DeleteProfile(registrationId);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
 
+            return BadRequest(response);
+        }
         [HttpPost("DeviceCapture")]
         [AllowAnonymous]
         public async Task<IActionResult> DeviceCapture(DeviceCaptureRequest request)

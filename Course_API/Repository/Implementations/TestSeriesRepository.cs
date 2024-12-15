@@ -159,6 +159,106 @@ namespace Course_API.Repository.Implementations
                 return new ServiceResponse<int>(false, ex.Message, 0, 500);
             }
         }
+        public async Task<ServiceResponse<int>> AddUpdateDuplicateTestSeries(int TestSeriesId)
+        {
+            try
+            {
+                var data = await GetTestSeriesById(TestSeriesId);
+                if(data.Data != null)
+                {
+                    string insertQuery = @"
+                    INSERT INTO tblTestSeries 
+                    (
+                        TestPatternName, Duration, Status, APID, TotalNoOfQuestions, ExamTypeID, 
+                        EmployeeID, TypeOfTestSeries, 
+                        createdon, createdby, IsAdmin, DownloadStatusId
+                    ) 
+                    VALUES 
+                    (
+                        @TestPatternName, @Duration, @Status, @APID, @TotalNoOfQuestions, @ExamTypeID,
+                        @EmployeeID, @TypeOfTestSeries, 
+                        @createdon, @createdby, @IsAdmin, @DownloadStatusId
+                    ); 
+                    SELECT CAST(SCOPE_IDENTITY() as int);";
+                    var parameters = new
+                    {
+                        data.Data.TestPatternName,
+                        data.Data.Duration,
+                        data.Data.Status,
+                        data.Data.APID,
+                        data.Data.TotalNoOfQuestions,
+                        data.Data.EmployeeID,
+                        data.Data.TypeOfTestSeries,
+                        DateTime.Now,
+                        data.Data.createdby,
+                        data.Data.ExamTypeID,
+                        data.Data.IsAdmin,
+                        DownloadStatusId = 1
+                    };
+                    int newId = await _connection.QuerySingleAsync<int>(insertQuery, parameters);
+                    if (newId > 0)
+                    {
+                        // Mapping TestSeriesSubjects
+                        var testSeriesSubjects = data.Data.TestSeriesSubject?
+                            .Select(s => new TestSeriesSubjects
+                            {
+                                SubjectID = s.SubjectID,
+                                TestSeriesID = newId
+                            }).ToList(); // Ensure the result is materialized into a list
+
+                        // Mapping TestSeriesClasses
+                        var testSeriesClasses = data.Data.TestSeriesClasses?
+                            .Select(c => new TestSeriesClass
+                            {
+                                ClassId = c.ClassId,
+                                TestSeriesId = newId
+                            }).ToList();
+
+                        // Mapping TestSeriesBoards
+                        var testSeriesBoards = data.Data.TestSeriesBoard?
+                            .Select(b => new TestSeriesBoards
+                            {
+                                BoardId = b.BoardId,
+                                TestSeriesId = newId
+                            }).ToList();
+
+                        // Mapping TestSeriesCourses
+                        var testSeriesCourses = data.Data.TestSeriesCourses?
+                            .Select(cr => new TestSeriesCourse
+                            {
+                                CourseId = cr.CourseId,
+                                TestSeriesId = newId
+                            }).ToList();
+
+                        // Performing the actual database mappings using the methods
+                        int sub = TestSeriesSubjectMapping(testSeriesSubjects ?? new List<TestSeriesSubjects>(), newId);
+                        int cla = TestSeriesClassMapping(testSeriesClasses ?? new List<TestSeriesClass>(), newId);
+                        int board = TestSeriesBoardMapping(testSeriesBoards ?? new List<TestSeriesBoards>(), newId);
+                        int course = TestSeriesCourseMapping(testSeriesCourses ?? new List<TestSeriesCourse>(), newId);
+                        if (sub > 0 && cla > 0 && board > 0 && course > 0)
+                        {
+                            return new ServiceResponse<int>(true, "operation successful", newId, 200);
+                        }
+                        else
+                        {
+                            return new ServiceResponse<int>(false, "Some error occured", 0, 500);
+                        }
+                    }
+                    else
+                    {
+                        return new ServiceResponse<int>(false, "Some error occured", 0, 500);
+                    }
+                }
+                else
+                {
+                    return new ServiceResponse<int>(false, "Some error occured", 0, 500);
+                }
+            }
+            catch(Exception ex)
+            {
+                return new ServiceResponse<int>(false, ex.Message, 0, 500);
+            }
+        }
         public async Task<ServiceResponse<string>> AddUpdateTestSeriesDateAndTime(TestSeriesDateAndTimeRequest request)
         {
             try
@@ -949,95 +1049,6 @@ WHERE TestSeriesId != @TestSeriesId
                 return new ServiceResponse<string>(true, "Success", "Data added successfully", 200);
             }
         }
-        public async Task<ServiceResponse<string>> TestSeriesQuestionSectionMapping(List<TestSeriesQuestionSection> request, int TestSeriesId)
-        {
-            try
-            {
-                // Step 1: Retrieve the total number of questions for the test series from tblTestSeries
-                var testSeriesQuery = "SELECT TotalNoOfQuestions FROM tblTestSeries WHERE TestSeriesId = @TestSeriesId";
-                int totalNoOfQuestionsForTestSeries = await _connection.QueryFirstOrDefaultAsync<int>(testSeriesQuery, new { TestSeriesId });
-
-                // Step 2: Retrieve all existing sections for the given TestSeriesId
-                var existingSectionsQuery = "SELECT TotalNoofQuestions FROM tbltestseriesQuestionSection WHERE TestSeriesid = @TestSeriesId";
-                var existingSections = await _connection.QueryAsync<int>(existingSectionsQuery, new { TestSeriesId });
-
-                // Step 3: Sum up the total number of questions from existing sections
-                int totalExistingQuestions = existingSections.Sum();
-
-                // Step 4: Sum up TotalNoofQuestions from the request body
-                int totalRequestedQuestions = request.Sum(section => section.TotalNoofQuestions);
-
-                // Step 5: Calculate the total number of questions (existing + requested)
-                int totalAssignedQuestions = totalExistingQuestions + totalRequestedQuestions;
-
-                // Step 6: Validate that the total assigned questions must be exactly equal to the total number of questions for the test series
-                if (totalAssignedQuestions != totalNoOfQuestionsForTestSeries)
-                {
-                    return new ServiceResponse<string>(false, $"The total number of questions assigned ({totalAssignedQuestions}) must be exactly equal to the limit of {totalNoOfQuestionsForTestSeries} for the test series.", null, StatusCodes.Status400BadRequest);
-                }
-
-
-                // Step 7: Update TestSeriesId for all sections in the request
-                foreach (var section in request)
-                {
-                    section.TestSeriesid = TestSeriesId;
-                }
-
-                // Step 8: Perform Insert or Update operations
-                string checkExistenceQuery = @"
-            SELECT COUNT(1) 
-            FROM tbltestseriesQuestionSection 
-            WHERE testseriesQuestionSectionid = @testseriesQuestionSectionid";
-
-                string updateQuery = @"
-            UPDATE tbltestseriesQuestionSection
-            SET 
-                Status = @Status,
-                QuestionTypeID = @QuestionTypeID,
-                EntermarksperCorrectAnswer = @EntermarksperCorrectAnswer,
-                EnterNegativeMarks = @EnterNegativeMarks,
-                TotalNoofQuestions = @TotalNoofQuestions,
-                NoofQuestionsforChoice = @NoofQuestionsforChoice,
-                SubjectId = @SubjectId
-            WHERE TestSeriesid = @TestSeriesid";
-
-                string insertQuery = @"
-            INSERT INTO tbltestseriesQuestionSection 
-            (TestSeriesid, DisplayOrder, SectionName, Status, QuestionTypeID, EntermarksperCorrectAnswer, EnterNegativeMarks, TotalNoofQuestions, NoofQuestionsforChoice, SubjectId)
-            VALUES 
-            (@TestSeriesid, @DisplayOrder, @SectionName, @Status, @QuestionTypeID, @EntermarksperCorrectAnswer, @EnterNegativeMarks, @TotalNoofQuestions, @NoofQuestionsforChoice, @SubjectId);
-              SELECT CAST(SCOPE_IDENTITY() as int);";
-
-                foreach (var section in request)
-                {
-                    // Check if the record exists
-                    int recordExists = await _connection.ExecuteScalarAsync<int>(checkExistenceQuery, new { testseriesQuestionSectionid = section.testseriesQuestionSectionid });
-
-                    if (recordExists > 0)
-                    {
-                        // Update existing record
-                        await _connection.ExecuteAsync(updateQuery, section);
-                    }
-                    else
-                    {
-                        // Insert new record
-                       section.testseriesQuestionSectionid = await _connection.QuerySingleAsync<int>(insertQuery, section);
-                    }
-                    foreach (var record in section.TestSeriesQuestionDifficulties)
-                    {
-                        record.QuestionSectionId = section.testseriesQuestionSectionid;
-                    }
-                    // Handle difficulties for the section
-                    await AddUpdateTestSeriesQuestionDifficultyAsync(section.TestSeriesQuestionDifficulties);
-                }
-
-                return new ServiceResponse<string>(true, "Operation successful", "Sections mapped successfully", StatusCodes.Status200OK);
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("An error occurred while mapping test series sections", ex);
-            }
-        }
         //public async Task<ServiceResponse<string>> TestSeriesQuestionSectionMapping(List<TestSeriesQuestionSection> request, int TestSeriesId)
         //{
         //    try
@@ -1059,11 +1070,12 @@ WHERE TestSeriesId != @TestSeriesId
         //        // Step 5: Calculate the total number of questions (existing + requested)
         //        int totalAssignedQuestions = totalExistingQuestions + totalRequestedQuestions;
 
-        //        // Step 6: Validate that the total assigned questions do not exceed the total number of questions for the test series
-        //        if (totalAssignedQuestions > totalNoOfQuestionsForTestSeries)
+        //        // Step 6: Validate that the total assigned questions must be exactly equal to the total number of questions for the test series
+        //        if (totalAssignedQuestions != totalNoOfQuestionsForTestSeries)
         //        {
-        //            return new ServiceResponse<string>(false, $"The total number of questions assigned ({totalAssignedQuestions}) exceeds the limit of {totalNoOfQuestionsForTestSeries} for the test series.", null, StatusCodes.Status400BadRequest);
+        //            return new ServiceResponse<string>(false, $"The total number of questions assigned ({totalAssignedQuestions}) must be exactly equal to the limit of {totalNoOfQuestionsForTestSeries} for the test series.", null, StatusCodes.Status400BadRequest);
         //        }
+
 
         //        // Step 7: Update TestSeriesId for all sections in the request
         //        foreach (var section in request)
@@ -1071,21 +1083,53 @@ WHERE TestSeriesId != @TestSeriesId
         //            section.TestSeriesid = TestSeriesId;
         //        }
 
-        //        // Step 8: Delete existing records for the given TestSeriesId (if you want to replace them)
-        //        var deleteQuery = "DELETE FROM [tbltestseriesQuestionSection] WHERE [TestSeriesid] = @TestSeriesId";
-        //        await _connection.ExecuteAsync(deleteQuery, new { TestSeriesId });
+        //        // Step 8: Perform Insert or Update operations
+        //        string checkExistenceQuery = @"
+        //    SELECT COUNT(1) 
+        //    FROM tbltestseriesQuestionSection 
+        //    WHERE testseriesQuestionSectionid = @testseriesQuestionSectionid";
 
-        //        // Step 9: Insert new records for sections
+        //        string updateQuery = @"
+        //    UPDATE tbltestseriesQuestionSection
+        //    SET 
+        //        Status = @Status,
+        //        QuestionTypeID = @QuestionTypeID,
+        //        EntermarksperCorrectAnswer = @EntermarksperCorrectAnswer,
+        //        EnterNegativeMarks = @EnterNegativeMarks,
+        //        TotalNoofQuestions = @TotalNoofQuestions,
+        //        NoofQuestionsforChoice = @NoofQuestionsforChoice,
+        //        SubjectId = @SubjectId
+        //    WHERE TestSeriesid = @TestSeriesid";
+
         //        string insertQuery = @"
         //    INSERT INTO tbltestseriesQuestionSection 
-        //    (TestSeriesid, DisplayOrder, SectionName, Status, LevelID1, QuesPerDifficulty1, LevelID2, QuesPerDifficulty2, LevelID3, QuesPerDifficulty3, QuestionTypeID, EntermarksperCorrectAnswer, EnterNegativeMarks, TotalNoofQuestions, NoofQuestionsforChoice, SubjectId)
+        //    (TestSeriesid, DisplayOrder, SectionName, Status, QuestionTypeID, EntermarksperCorrectAnswer, EnterNegativeMarks, TotalNoofQuestions, NoofQuestionsforChoice, SubjectId)
         //    VALUES 
-        //    (@TestSeriesid, @DisplayOrder, @SectionName, @Status, @LevelID1, @QuesPerDifficulty1, @LevelID2, @QuesPerDifficulty2, @LevelID3, @QuesPerDifficulty3, @QuestionTypeID, @EntermarksperCorrectAnswer, @EnterNegativeMarks, @TotalNoofQuestions, @NoofQuestionsforChoice, @SubjectId);";
-        //        foreach (var data in request)
+        //    (@TestSeriesid, @DisplayOrder, @SectionName, @Status, @QuestionTypeID, @EntermarksperCorrectAnswer, @EnterNegativeMarks, @TotalNoofQuestions, @NoofQuestionsforChoice, @SubjectId);
+        //      SELECT CAST(SCOPE_IDENTITY() as int);";
+
+        //        foreach (var section in request)
         //        {
-        //            await AddUpdateTestSeriesQuestionDifficultyAsync(data.TestSeriesQuestionDifficulties);
+        //            // Check if the record exists
+        //            int recordExists = await _connection.ExecuteScalarAsync<int>(checkExistenceQuery, new { testseriesQuestionSectionid = section.testseriesQuestionSectionid });
+
+        //            if (recordExists > 0)
+        //            {
+        //                // Update existing record
+        //                await _connection.ExecuteAsync(updateQuery, section);
+        //            }
+        //            else
+        //            {
+        //                // Insert new record
+        //               section.testseriesQuestionSectionid = await _connection.QuerySingleAsync<int>(insertQuery, section);
+        //            }
+        //            foreach (var record in section.TestSeriesQuestionDifficulties)
+        //            {
+        //                record.QuestionSectionId = section.testseriesQuestionSectionid;
+        //            }
+        //            // Handle difficulties for the section
+        //            await AddUpdateTestSeriesQuestionDifficultyAsync(section.TestSeriesQuestionDifficulties);
         //        }
-        //        await _connection.ExecuteAsync(insertQuery, request);
 
         //        return new ServiceResponse<string>(true, "Operation successful", "Sections mapped successfully", StatusCodes.Status200OK);
         //    }
@@ -1094,6 +1138,116 @@ WHERE TestSeriesId != @TestSeriesId
         //        throw new Exception("An error occurred while mapping test series sections", ex);
         //    }
         //}
+        public async Task<ServiceResponse<string>> TestSeriesQuestionSectionMapping(List<TestSeriesQuestionSection> request, int TestSeriesId)
+        {
+            try
+            {
+                // Step 1: Retrieve the total number of questions for the test series
+                var testSeriesQuery = "SELECT TotalNoOfQuestions FROM tblTestSeries WHERE TestSeriesId = @TestSeriesId";
+                int totalNoOfQuestionsForTestSeries = await _connection.QueryFirstOrDefaultAsync<int>(testSeriesQuery, new { TestSeriesId });
+
+                // Step 2: Retrieve existing sections and difficulty levels for the test series
+                var existingSectionsQuery = "SELECT TotalNoofQuestions FROM tbltestseriesQuestionSection WHERE TestSeriesid = @TestSeriesId";
+                var existingSections = await _connection.QueryAsync<int>(existingSectionsQuery, new { TestSeriesId });
+
+                var existingDifficultyLevelsQuery = @"
+            SELECT DifficultyLevelId, SUM(QuesPerDiffiLevel) AS TotalQuestions
+            FROM tblTestSeriesQuestionDifficulty
+            WHERE QuestionSectionId IN (
+                SELECT testseriesQuestionSectionid
+                FROM tbltestseriesQuestionSection
+                WHERE TestSeriesid = @TestSeriesId
+            )
+            GROUP BY DifficultyLevelId";
+                var existingDifficultyLevels = await _connection.QueryAsync<(int DifficultyLevelId, int TotalQuestions)>(existingDifficultyLevelsQuery, new { TestSeriesId });
+
+                // Step 3: Sum up questions from existing sections
+                int totalExistingQuestions = existingSections.Sum();
+
+                // Step 4: Calculate questions from the incoming request
+                int totalRequestedQuestions = request.Sum(section => section.TotalNoofQuestions);
+
+                // Step 5: Validate the total number of questions
+                int totalAssignedQuestions = totalExistingQuestions + totalRequestedQuestions;
+                if (totalAssignedQuestions != totalNoOfQuestionsForTestSeries)
+                {
+                    return new ServiceResponse<string>(false, $"The total number of questions assigned ({totalAssignedQuestions}) must be exactly equal to the limit of {totalNoOfQuestionsForTestSeries} for the test series.", null, StatusCodes.Status400BadRequest);
+                }
+
+                // Step 6: Validate questions for difficulty levels
+                foreach (var difficultyGroup in request.SelectMany(section => section.TestSeriesQuestionDifficulties)
+                                                       .GroupBy(d => d.DifficultyLevelId))
+                {
+                    int requestedDifficultyTotal = difficultyGroup.Sum(d => d.QuesPerDiffiLevel);
+                    int existingDifficultyTotal = existingDifficultyLevels.FirstOrDefault(x => x.DifficultyLevelId == difficultyGroup.Key).TotalQuestions;
+
+                    if (existingDifficultyTotal + requestedDifficultyTotal > totalNoOfQuestionsForTestSeries)
+                    {
+                        return new ServiceResponse<string>(false, $"The total questions for Difficulty Level {difficultyGroup.Key} exceed the allowed limit of {totalNoOfQuestionsForTestSeries}.", null, StatusCodes.Status400BadRequest);
+                    }
+                }
+
+                // Step 7: Update TestSeriesId for all sections in the request
+                foreach (var section in request)
+                {
+                    section.TestSeriesid = TestSeriesId;
+                }
+
+                // Step 8: Perform Insert or Update operations
+                string checkExistenceQuery = @"
+                    SELECT COUNT(1) 
+                    FROM tbltestseriesQuestionSection 
+                    WHERE testseriesQuestionSectionid = @testseriesQuestionSectionid";
+
+                string updateQuery = @"
+                    UPDATE tbltestseriesQuestionSection
+                    SET 
+                        Status = @Status,
+                        QuestionTypeID = @QuestionTypeID,
+                        EntermarksperCorrectAnswer = @EntermarksperCorrectAnswer,
+                        EnterNegativeMarks = @EnterNegativeMarks,
+                        TotalNoofQuestions = @TotalNoofQuestions,
+                        NoofQuestionsforChoice = @NoofQuestionsforChoice,
+                        SubjectId = @SubjectId
+                    WHERE TestSeriesid = @TestSeriesid";
+
+                string insertQuery = @"
+                    INSERT INTO tbltestseriesQuestionSection 
+                    (TestSeriesid, DisplayOrder, SectionName, Status, QuestionTypeID, EntermarksperCorrectAnswer, EnterNegativeMarks, TotalNoofQuestions, NoofQuestionsforChoice, SubjectId)
+                    VALUES 
+                    (@TestSeriesid, @DisplayOrder, @SectionName, @Status, @QuestionTypeID, @EntermarksperCorrectAnswer, @EnterNegativeMarks, @TotalNoofQuestions, @NoofQuestionsforChoice, @SubjectId);
+                      SELECT CAST(SCOPE_IDENTITY() as int);";
+
+                foreach (var section in request)
+                {
+                    // Check if the record exists
+                    int recordExists = await _connection.ExecuteScalarAsync<int>(checkExistenceQuery, new { testseriesQuestionSectionid = section.testseriesQuestionSectionid });
+
+                    if (recordExists > 0)
+                    {
+                        // Update existing record
+                        await _connection.ExecuteAsync(updateQuery, section);
+                    }
+                    else
+                    {
+                        // Insert new record
+                        section.testseriesQuestionSectionid = await _connection.QuerySingleAsync<int>(insertQuery, section);
+                    }
+                    foreach (var record in section.TestSeriesQuestionDifficulties)
+                    {
+                        record.QuestionSectionId = section.testseriesQuestionSectionid;
+                    }
+                    // Handle difficulties for the section
+                    await AddUpdateTestSeriesQuestionDifficultyAsync(section.TestSeriesQuestionDifficulties);
+                }
+
+                return new ServiceResponse<string>(true, "Operation successful", "Sections mapped successfully", StatusCodes.Status200OK);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("An error occurred while mapping test series sections", ex);
+            }
+        }
         private async Task AddUpdateTestSeriesQuestionDifficultyAsync(List<TestSeriesQuestionDifficulty> difficulties)
         {
             try

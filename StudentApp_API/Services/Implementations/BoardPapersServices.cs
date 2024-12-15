@@ -31,7 +31,7 @@ namespace StudentApp_API.Services.Implementations
             return await _boardPapersRepository.GetTestSeriesBySubjectId(request);
         }
 
-        public async Task<ServiceResponse<List<TestSeriesQuestionResponse>>> GetTestSeriesDescriptiveQuestions(TestSeriesQuestionRequest request)
+        public async Task<ServiceResponse<List<TestSeriesQuestionsList>>> GetTestSeriesDescriptiveQuestions(TestSeriesQuestionRequest request)
         {
             return await _boardPapersRepository.GetTestSeriesDescriptiveQuestions(request);
         }

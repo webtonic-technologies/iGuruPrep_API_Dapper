@@ -26,6 +26,8 @@
         public int QuestionId { get; set; }
         public string QuestionCode {  get; set; }= string.Empty;
         public int RegistrationId { get; set; }
+        public int SubjectId { get; set; }
+        public int TestSeriesId {  get; set; }
     }
     public class SyllabusDetailsRequest
     {

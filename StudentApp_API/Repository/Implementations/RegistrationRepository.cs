@@ -2,6 +2,7 @@
 using StudentApp_API.DTOs.Requests;
 using StudentApp_API.DTOs.Responses;
 using StudentApp_API.DTOs.ServiceResponse;
+using StudentApp_API.Models;
 using StudentApp_API.Repository.Interfaces;
 using System.Data;
 
@@ -791,6 +792,32 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<RegistrationDTO>(false, ex.Message, null, 500);
             }
         }
+        public async Task<ServiceResponse<string>> DeleteProfile(int registrationId)
+        {
+            try
+            {
+                string query = @"UPDATE tblUsers 
+                             SET IsDeleted = 1, StatusID = 0 
+                             WHERE RegistrationID = @RegistrationID AND IsDeleted = 0";
+
+                var rowsAffected = await _connection.ExecuteAsync(query, new { RegistrationID = registrationId });
+
+                if (rowsAffected > 0)
+                {
+                    return new ServiceResponse<string>(true, "Success", "Profile deletd successfully", 200);
+                }
+                else
+                {
+                    return new ServiceResponse<string>(false, "Failure", string.Empty, 200);
+                }
+
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, "Failure", ex.Message, 500);
+            }
+        }
+
         private string ImageUpload(string image)
         {
             if (string.IsNullOrEmpty(image) || image == "string")

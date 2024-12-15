@@ -76,7 +76,10 @@ namespace StudentApp_API.Repository.Implementations
                 {
                     TestSeriesIds = testSeriesIds
                 })).ToList();
-                response.Select(m => new TestSeriesSubjectsResponse { Percentage = CalculatePercentage(RegistrationId, 0, m.SubjectId) });
+                foreach (var data in response)
+                {
+                    data.Percentage = CalculatePercentage(RegistrationId, 0, data.SubjectId);
+                }
                 return new ServiceResponse<List<TestSeriesSubjectsResponse>>(true, "Success", response, 200);
             }
             catch (Exception ex)
@@ -118,11 +121,11 @@ namespace StudentApp_API.Repository.Implementations
                 {
                     TestSeriesIds = testSeriesIds
                 })).ToList();
-                response.Select(m => new TestSeriesResponse
+               
+                foreach (var data in response)
                 {
-                    Percentage = CalculatePercentage(request.RegistrationId, m.TestSeriesId, request.SubjectId)
-                });
-
+                    data.Percentage = CalculatePercentage(request.RegistrationId, data.TestSeriesId, request.SubjectId);
+                }
                 var paginatedList = response
                   .Skip((request.PageNumber - 1) * request.PageSize)
                   .Take(request.PageSize)
@@ -134,10 +137,80 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<List<TestSeriesResponse>>(false, ex.Message, null, 500);
             }
         }
-        public async Task<ServiceResponse<List<TestSeriesQuestionResponse>>> GetTestSeriesDescriptiveQuestions(TestSeriesQuestionRequest request)
-        {
-            List<TestSeriesQuestionResponse> response = new List<TestSeriesQuestionResponse>();
+//        public async Task<ServiceResponse<List<TestSeriesQuestionsList>>> GetTestSeriesDescriptiveQuestions(TestSeriesQuestionRequest request)
+//        {
+//            List<TestSeriesQuestionResponse> response = new List<TestSeriesQuestionResponse>();
 
+//            if (_connection.State != ConnectionState.Open)
+//            {
+//                _connection.Open();
+//            }
+
+//            try
+//            {
+//                // Step 1: Fetch QuestionIds associated with the TestSeriesId from tbltestseriesQuestions
+//                string queryTestSeriesQuestions = @"
+//        SELECT tsq.Questionid
+//        FROM tbltestseriesQuestions tsq
+//        WHERE tsq.TestSeriesid = @TestSeriesId";
+
+//                var questionIds = (await _connection.QueryAsync<int>(queryTestSeriesQuestions, new { TestSeriesId = request.TestSeriesId })).ToList();
+
+//                if (!questionIds.Any())
+//                {
+//                    return new ServiceResponse<List<TestSeriesQuestionResponse>>(false, "No questions found for the given TestSeriesId", null, 404);
+//                }
+
+//                // Step 2: Fetch questions from tblQuestion with the given SubjectId and filter for QuestionTypeId
+//                string queryDescriptiveQuestions = @"
+//SELECT q.QuestionId, q.QuestionDescription, q.QuestionFormula, q.QuestionImage, q.DifficultyLevelId, 
+//       q.QuestionTypeId, q.Explanation
+//FROM tblQuestion q
+//WHERE q.QuestionId IN @QuestionIds
+//  AND q.SubjectID = @SubjectId
+//  AND (@QuestionTypeId IS NULL OR q.QuestionTypeId IN @QuestionTypeId)";
+
+//                var questions = (await _connection.QueryAsync<TestSeriesQuestionResponse>(queryDescriptiveQuestions, new
+//                {
+//                    QuestionIds = questionIds,
+//                    SubjectId = request.SubjectId,
+//                    QuestionTypeId = request.QuestionTypeId?.Count > 0 ? request.QuestionTypeId : null // Pass null if no IDs are specified
+//                })).ToList();
+
+//                if (!questions.Any())
+//                {
+//                    return new ServiceResponse<List<TestSeriesQuestionResponse>>(false, "No descriptive questions found for the given criteria", null, 404);
+//                }
+
+//                // Step 3: Fetch the answers for each question from tblAnswerMaster and tblAnswersingleanswercategory
+//                foreach (var question in questions)
+//                {
+//                    string queryAnswers = @"
+//            SELECT am.Answerid, sac.Answer
+//            FROM tblAnswerMaster am
+//            INNER JOIN tblAnswersingleanswercategory sac ON am.Answerid = sac.Answerid
+//            WHERE am.Questionid = @QuestionId";
+
+//                    var answers = await _connection.QueryAsync<AnswerResponses>(queryAnswers, new { QuestionId = question.QuestionId });
+
+//                    question.Answers = answers.ToList();
+//                }
+
+//                // Paginate the results
+//                var paginatedList = questions
+//                    .Skip((request.PageNumber - 1) * request.PageSize)
+//                    .Take(request.PageSize)
+//                    .ToList();
+
+//                return new ServiceResponse<List<TestSeriesQuestionResponse>>(true, "Success", paginatedList, 200);
+//            }
+//            catch (Exception ex)
+//            {
+//                return new ServiceResponse<List<TestSeriesQuestionResponse>>(false, ex.Message, null, 500);
+//            }
+//        }
+        public async Task<ServiceResponse<List<TestSeriesQuestionsList>>> GetTestSeriesDescriptiveQuestions(TestSeriesQuestionRequest request)
+        {
             if (_connection.State != ConnectionState.Open)
             {
                 _connection.Open();
@@ -145,67 +218,90 @@ namespace StudentApp_API.Repository.Implementations
 
             try
             {
-                // Step 1: Fetch QuestionIds associated with the TestSeriesId from tbltestseriesQuestions
+                // Step 1: Fetch Sections associated with the TestSeriesId
+                string queryTestSeriesSections = @"
+        SELECT tsqs.testseriesQuestionSectionid, tsqs.TestSeriesid, tsqs.SectionName, tsqs.SubjectId
+        FROM tbltestseriesQuestionSection tsqs
+        WHERE tsqs.TestSeriesid = @TestSeriesId";
+
+                var sections = (await _connection.QueryAsync<TestSeriesQuestionsList>(queryTestSeriesSections, new { TestSeriesId = request.TestSeriesId })).ToList();
+
+                if (!sections.Any())
+                {
+                    return new ServiceResponse<List<TestSeriesQuestionsList>>(false, "No sections found for the given TestSeriesId", null, 404);
+                }
+
+                // Step 2: Fetch QuestionIds associated with each Section
                 string queryTestSeriesQuestions = @"
-        SELECT tsq.Questionid
+        SELECT tsq.Questionid, tsq.testseriesQuestionSectionid
         FROM tbltestseriesQuestions tsq
         WHERE tsq.TestSeriesid = @TestSeriesId";
 
-                var questionIds = (await _connection.QueryAsync<int>(queryTestSeriesQuestions, new { TestSeriesId = request.TestSeriesId })).ToList();
+                var allQuestions = (await _connection.QueryAsync<TestSeriesQuestionMapping>(queryTestSeriesQuestions, new { TestSeriesId = request.TestSeriesId })).ToList();
 
-                if (!questionIds.Any())
-                {
-                    return new ServiceResponse<List<TestSeriesQuestionResponse>>(false, "No questions found for the given TestSeriesId", null, 404);
-                }
-
-                // Step 2: Fetch questions from tblQuestion with the given SubjectId and filter for QuestionTypeId
+                // Step 3: Fetch Descriptive Questions for each Section
                 string queryDescriptiveQuestions = @"
-SELECT q.QuestionId, q.QuestionDescription, q.QuestionFormula, q.QuestionImage, q.DifficultyLevelId, 
-       q.QuestionTypeId, q.Explanation
-FROM tblQuestion q
-WHERE q.QuestionId IN @QuestionIds
-  AND q.SubjectID = @SubjectId
-  AND (@QuestionTypeId IS NULL OR q.QuestionTypeId IN @QuestionTypeId)";
+        SELECT q.QuestionId, q.QuestionDescription, q.QuestionFormula, q.QuestionImage, q.DifficultyLevelId, 
+               q.QuestionTypeId, q.Explanation
+        FROM tblQuestion q
+        WHERE q.QuestionId IN @QuestionIds
+          AND q.SubjectID = @SubjectId
+          AND (@QuestionTypeId IS NULL OR q.QuestionTypeId IN @QuestionTypeId)";
 
-                var questions = (await _connection.QueryAsync<TestSeriesQuestionResponse>(queryDescriptiveQuestions, new
+                foreach (var section in sections)
                 {
-                    QuestionIds = questionIds,
-                    SubjectId = request.SubjectId,
-                    QuestionTypeId = request.QuestionTypeId?.Count > 0 ? request.QuestionTypeId : null // Pass null if no IDs are specified
-                })).ToList();
+                    var questionIdsInSection = allQuestions
+                        .Where(q => q.testseriesQuestionSectionid == section.testseriesQuestionSectionid)
+                        .Select(q => q.Questionid)
+                        .ToList();
 
-                if (!questions.Any())
-                {
-                    return new ServiceResponse<List<TestSeriesQuestionResponse>>(false, "No descriptive questions found for the given criteria", null, 404);
+                    if (!questionIdsInSection.Any()) continue;
+
+                    var questions = (await _connection.QueryAsync<TestSeriesQuestionResponse>(queryDescriptiveQuestions, new
+                    {
+                        QuestionIds = questionIdsInSection,
+                        SubjectId = section.SubjectId,
+                        QuestionTypeId = request.QuestionTypeId?.Count > 0 ? request.QuestionTypeId : null
+                    })).ToList();
+
+                    // Step 4: Fetch Answers for each question
+                    foreach (var question in questions)
+                    {
+                        string queryAnswers = @"
+                SELECT am.Answerid, sac.Answer
+                FROM tblAnswerMaster am
+                INNER JOIN tblAnswersingleanswercategory sac ON am.Answerid = sac.Answerid
+                WHERE am.Questionid = @QuestionId";
+
+                        var answers = await _connection.QueryAsync<AnswerResponses>(queryAnswers, new { QuestionId = question.QuestionId });
+
+                        question.Answers = answers.ToList();
+                    }
+
+                    // Assign the questions to the section
+                    section.TestSeriesQuestionResponses = questions;
                 }
 
-                // Step 3: Fetch the answers for each question from tblAnswerMaster and tblAnswersingleanswercategory
-                foreach (var question in questions)
-                {
-                    string queryAnswers = @"
-            SELECT am.Answerid, sac.Answer
-            FROM tblAnswerMaster am
-            INNER JOIN tblAnswersingleanswercategory sac ON am.Answerid = sac.Answerid
-            WHERE am.Questionid = @QuestionId";
-
-                    var answers = await _connection.QueryAsync<AnswerResponses>(queryAnswers, new { QuestionId = question.QuestionId });
-
-                    question.Answers = answers.ToList();
-                }
-
-                // Paginate the results
-                var paginatedList = questions
+                // Filter and paginate the sections that contain questions
+                var paginatedSections = sections
+                    .Where(s => s.TestSeriesQuestionResponses != null && s.TestSeriesQuestionResponses.Any())
                     .Skip((request.PageNumber - 1) * request.PageSize)
                     .Take(request.PageSize)
                     .ToList();
 
-                return new ServiceResponse<List<TestSeriesQuestionResponse>>(true, "Success", paginatedList, 200);
+                if (!paginatedSections.Any())
+                {
+                    return new ServiceResponse<List<TestSeriesQuestionsList>>(false, "No descriptive questions found for the given criteria", null, 404);
+                }
+
+                return new ServiceResponse<List<TestSeriesQuestionsList>>(true, "Success", paginatedSections, 200);
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<TestSeriesQuestionResponse>>(false, ex.Message, null, 500);
+                return new ServiceResponse<List<TestSeriesQuestionsList>>(false, ex.Message, null, 500);
             }
         }
+
         //public async Task<ServiceResponse<List<TestSeriesQuestionResponse>>> GetTestSeriesDescriptiveQuestions(TestSeriesQuestionRequest request)
         //{
         //    List<TestSeriesQuestionResponse> response = new List<TestSeriesQuestionResponse>();
@@ -315,14 +411,16 @@ WHERE q.QuestionId IN @QuestionIds
                 {
                     // If record does not exist, insert it
                     string insertQuery = @"
-                INSERT INTO tblBoardPaperQuestionRead (StudentID, QuestionID, QuestionCode)
-                VALUES (@RegistrationId, @QuestionId, @QuestionCode)";
+                INSERT INTO tblBoardPaperQuestionRead (StudentID, QuestionID, QuestionCode, SubjectId, TestSeriesId)
+                VALUES (@RegistrationId, @QuestionId, @QuestionCode, @SubjectId, @TestSeriesId)";
 
                     await _connection.ExecuteAsync(insertQuery, new
                     {
                         request.RegistrationId,
                         request.QuestionId,
-                        request.QuestionCode
+                        request.QuestionCode,
+                        request.SubjectId,
+                        request.TestSeriesId
                     });
 
                     return new ServiceResponse<string>(true, "Question marked as read (inserted).", null, 200);
@@ -374,14 +472,16 @@ WHERE q.QuestionId IN @QuestionIds
                 {
                     // If record does not exist, insert it
                     string insertQuery = @"
-                INSERT INTO tblBoardPaperQuestionSave (StudentID, QuestionID, QuestionCode)
-                VALUES (@RegistrationId, @QuestionId, @QuestionCode)";
+                INSERT INTO tblBoardPaperQuestionSave (StudentID, QuestionID, QuestionCode,SubjectId, TestSeriesId)
+                VALUES (@RegistrationId, @QuestionId, @QuestionCode,@SubjectId, @TestSeriesId)";
 
                     await _connection.ExecuteAsync(insertQuery, new
                     {
                         request.RegistrationId,
                         request.QuestionId,
-                        request.QuestionCode
+                        request.QuestionCode,
+                        request.SubjectId,
+                        request.TestSeriesId
                     });
 
                     return new ServiceResponse<string>(true, "Question saved (inserted).", null, 200);
@@ -574,11 +674,11 @@ WHERE q.QuestionId IN @QuestionIds
                     StudentID = StudentId
                 });
 
-                // Fetch total question count for the test series
                 string queryTotalQuestions = @"
-            SELECT COUNT(*) AS TotalQuestions
-            FROM tblTestSeriesQuestions tsq
-            WHERE tsq.TestSeriesId = @TestSeriesId AND tsq.SubjectId = @SubjectId";
+SELECT COUNT(*) AS TotalQuestions
+FROM tblTestSeriesQuestions tsq
+JOIN tblQuestion q ON tsq.Questionid = q.QuestionId
+WHERE tsq.TestSeriesId = @TestSeriesId AND q.SubjectId = @SubjectId";
 
                 var totalQuestionCount = _connection.QueryFirstOrDefault<int>(queryTotalQuestions, new
                 {
@@ -626,9 +726,10 @@ WHERE q.QuestionId IN @QuestionIds
 
                     // Fetch total question count for the current test series
                     string queryTotalQuestions = @"
-                SELECT COUNT(*) AS TotalQuestions
-                FROM tblTestSeriesQuestions tsq
-                WHERE tsq.TestSeriesId = @TestSeriesId AND tsq.SubjectId = @SubjectId";
+SELECT COUNT(*) AS TotalQuestions
+FROM tblTestSeriesQuestions tsq
+JOIN tblQuestion q ON tsq.Questionid = q.QuestionId
+WHERE tsq.TestSeriesId = @TestSeriesId AND q.SubjectId = @SubjectId";
 
                     var totalQuestionCount = _connection.QueryFirstOrDefault<int>(queryTotalQuestions, new
                     {

@@ -36,6 +36,26 @@ namespace Course_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
+        [HttpPost("AddUpdateDuplicateTestSeries/{TestSeriesId}")]
+        public async Task<IActionResult> AddUpdateDuplicateTestSeries(int TestSeriesId)
+        {
+            try
+            {
+                var data = await _testSeriesServices.AddUpdateDuplicateTestSeries(TestSeriesId);
+                if (data != null)
+                {
+                    return Ok(data);
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
 
         [HttpPost("GetTestSeriesById/{TestSeriesId}")]
         public async Task<IActionResult> GetTestSeriesById(int TestSeriesId)

@@ -16,6 +16,12 @@ namespace Course_API.Services.Implementations
         {
             _testSeriesRepository = testSeriesRepository;
         }
+
+        public async Task<ServiceResponse<int>> AddUpdateDuplicateTestSeries(int TestSeriesId)
+        {
+            return await _testSeriesRepository.AddUpdateDuplicateTestSeries(TestSeriesId);
+        }
+
         public async Task<ServiceResponse<int>> AddUpdateTestSeries(TestSeriesDTO request)
         {
             try

@@ -17,5 +17,6 @@ namespace StudentApp_API.Repository.Interfaces
         Task<ServiceResponse<List<ClassCourseMappingResponse>>> GetAllClassCoursesMappings(GetAllClassCourseRequest request);
         Task<ServiceResponse<int>> AddUpdateProfile(UpdateProfileRequest request);
         Task<ServiceResponse<RegistrationDTO>> GetRegistrationByIdAsync(int registrationId);
+        Task<ServiceResponse<string>> DeleteProfile(int registrationId);
     }
 }

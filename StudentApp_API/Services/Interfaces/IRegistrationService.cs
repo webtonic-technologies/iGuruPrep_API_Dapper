@@ -16,5 +16,6 @@ namespace StudentApp_API.Services.Interfaces
         Task<ServiceResponse<string>> DeviceCapture(DeviceCaptureRequest request);
         Task<ServiceResponse<AssignStudentMappingResponse>> AssignStudentClassCourseBoardMapping(AssignStudentMappingRequest request);
         Task<ServiceResponse<List<ClassCourseMappingResponse>>> GetAllClassCoursesMappings(GetAllClassCourseRequest request);
+        Task<ServiceResponse<string>> DeleteProfile(int registrationId);
     }
 }

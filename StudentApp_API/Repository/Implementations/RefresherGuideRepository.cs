@@ -505,10 +505,6 @@ namespace StudentApp_API.Repository.Implementations
                         SyllabusId = request.SyllabusId,
                         SubjectId = request.SubjectId
                     })).ToList();
-                    contentResponse.Select(q => new RefresherGuideContentResponse
-                    {
-                        Percentage = PercentageCalculation(1, q.ContentId, request.RegistrationId, request.SubjectId, request.SyllabusId)
-                    });
                 }
                 // Fetch topics (children of chapters) if IndexTypeId = 1 and ContentId (chapter) is provided
                 else if (request.IndexTypeId == 1 && request.ContentIndexId.HasValue)
@@ -523,10 +519,6 @@ namespace StudentApp_API.Repository.Implementations
                     {
                         ContentIndexId = request.ContentIndexId
                     })).ToList();
-                    contentResponse.Select(q => new RefresherGuideContentResponse
-                    {
-                        Percentage = PercentageCalculation(2, q.ContentId, request.RegistrationId, request.SubjectId, request.SyllabusId)
-                    });
                 }
                 // Fetch subtopics (children of topics) if IndexTypeId = 2 and ContentId (topic) is provided
                 else if (request.IndexTypeId == 2 && request.ContentIndexId.HasValue)
@@ -541,14 +533,11 @@ namespace StudentApp_API.Repository.Implementations
                     {
                         ContentIndexId = request.ContentIndexId,
                     })).ToList();
-                    contentResponse.Select(q => new RefresherGuideContentResponse
-                    {
-                        Percentage = PercentageCalculation(3, q.ContentId, request.RegistrationId, request.SubjectId, request.SyllabusId)
-                    });
                 }
                 foreach (var data in contentResponse)
                 {
                     data.RegistrationId = request.RegistrationId;
+                    data.Percentage = PercentageCalculation(data.IndexTypeId, data.ContentId, request.RegistrationId, request.SubjectId, request.SyllabusId);
                 }
                 return new ServiceResponse<List<RefresherGuideContentResponse>>(true, "Success", contentResponse, 200);
             }
@@ -566,15 +555,7 @@ namespace StudentApp_API.Repository.Implementations
 
             int totalQuestions = 0;
             int markedQuestions = 0;
-            string syllabusFilterSql = @"
-            AND ContentIndexId IN (
-                SELECT ContentIndexId
-                FROM tblSyllabusDetails
-                WHERE IndexTypeId = @IndexTypeId
-                  AND SubjectId = @SubjectId
-                  AND SyllabusID = @SyllabusId
-                  AND Status = 1
-            )";
+           
             if (indexTypeId == 0 && contentIndexId == 0) // New Scenario: Calculate for entire syllabus
             {
                 // Step 1: Fetch all chapters in the syllabus
@@ -594,11 +575,9 @@ namespace StudentApp_API.Repository.Implementations
                     AND ContentIndexId IN (
                         SELECT ContInIdTopic 
                         FROM tblContentIndexTopics 
-                        WHERE ContInIdChapter IN @ChapterIds 
-                          AND IsActive = 1)
+                        WHERE ContentIndexId IN @ChapterIds)
                     AND SyllabusID = @SyllabusId 
-                    AND SubjectId = @SubjectId 
-                    AND IsActive = 1",
+                    AND SubjectId = @SubjectId",
                     new { ChapterIds = chapterIds, SyllabusId = SyllabusId, SubjectId = subjectid }).ToList();
 
                 // Step 3: Fetch all subtopics belonging to these topics and present in syllabus details
@@ -612,8 +591,7 @@ namespace StudentApp_API.Repository.Implementations
                         WHERE ContInIdTopic IN @TopicIds 
                           AND IsActive = 1)
                     AND SyllabusID = @SyllabusId 
-                    AND SubjectId = @SubjectId 
-                    AND IsActive = 1",
+                    AND SubjectId = @SubjectId",
                     new { TopicIds = topicIds, SyllabusId = SyllabusId, SubjectId = subjectid }).ToList();
 
                 // Step 4: Calculate total questions in chapters, topics, and subtopics
@@ -665,12 +643,18 @@ namespace StudentApp_API.Repository.Implementations
             else if (indexTypeId == 2) // Concept logic
             {
                 var childSubConceptIds = _connection.Query<int>(
-                    $@"SELECT ContInIdSubTopic
-                   FROM tblContentIndexSubTopics
-                   WHERE ContInIdTopic = @ContentIndexId
-                     AND IsActive = 1
-                     {syllabusFilterSql}",
-                    new { ContentIndexId = contentIndexId, IndexTypeId = 3, SubjectId = subjectid, SyllabusId = SyllabusId }).ToList();
+     @"SELECT CIST.ContInIdSubTopic
+      FROM tblContentIndexSubTopics CIST
+      INNER JOIN tblSyllabusDetails SD
+          ON CIST.ContInIdTopic = SD.ContentIndexId
+      WHERE CIST.ContInIdTopic = @ContentIndexId
+        AND CIST.IsActive = 1
+        AND SD.IndexTypeId = @IndexTypeId
+        AND SD.SubjectId = @SubjectId
+        AND SD.SyllabusID = @SyllabusId
+        AND SD.Status = 1",
+     new { ContentIndexId = contentIndexId, IndexTypeId = 3, SubjectId = subjectid, SyllabusId = SyllabusId }).ToList();
+
 
                 int childTotalQuestions = _connection.ExecuteScalar<int>(
                     $@"SELECT COUNT(*)
@@ -718,20 +702,32 @@ namespace StudentApp_API.Repository.Implementations
             else if (indexTypeId == 1) // Chapter logic
             {
                 var childTopicIds = _connection.Query<int>(
-                    $@"SELECT ContInIdTopic
-                   FROM tblContentIndexTopics
-                   WHERE ContInIdChapter = @ContentIndexId
-                     AND IsActive = 1
-                     {syllabusFilterSql}",
-                    new { ContentIndexId = contentIndexId, IndexTypeId = 2, SubjectId = subjectid, SyllabusId = SyllabusId }).ToList();
+       @"SELECT CIT.ContInIdTopic
+      FROM tblContentIndexTopics CIT
+      INNER JOIN tblSyllabusDetails SD
+          ON CIT.ContentIndexId = SD.ContentIndexId
+      WHERE CIT.ContentIndexId = @ContentIndexId
+        AND CIT.IsActive = 1
+        AND SD.IndexTypeId = @IndexTypeId
+        AND SD.SubjectId = @SubjectId
+        AND SD.SyllabusId = @SyllabusId
+        AND SD.Status = 1",
+       new { ContentIndexId = contentIndexId, IndexTypeId = 2, SubjectId = subjectid, SyllabusId = SyllabusId }).ToList();
+
 
                 var childSubConceptIds = _connection.Query<int>(
-                    $@"SELECT ContInIdSubTopic
-                   FROM tblContentIndexSubTopics
-                   WHERE ContInIdTopic IN @ChildTopicIds
-                     AND IsActive = 1
-                     {syllabusFilterSql}",
-                    new { ChildTopicIds = childTopicIds, IndexTypeId = 3, SubjectId = subjectid, SyllabusId = SyllabusId }).ToList();
+     @"SELECT CST.ContInIdSubTopic
+      FROM tblContentIndexSubTopics CST
+      INNER JOIN tblSyllabusDetails SD
+          ON CST.ContInIdTopic = SD.ContentIndexId
+      WHERE CST.ContInIdTopic IN @ChildTopicIds
+        AND CST.IsActive = 1
+        AND SD.IndexTypeId = @IndexTypeId
+        AND SD.SubjectId = @SubjectId
+        AND SD.SyllabusId = @SyllabusId
+        AND SD.Status = 1",
+     new { ChildTopicIds = childTopicIds, IndexTypeId = 3, SubjectId = subjectid, SyllabusId = SyllabusId }).ToList();
+
 
                 int subConceptTotalQuestions = _connection.ExecuteScalar<int>(
                     $@"SELECT COUNT(*)

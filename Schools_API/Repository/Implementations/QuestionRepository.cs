@@ -1769,7 +1769,12 @@ namespace Schools_API.Repository.Implementations
                     //    ExtraInformation = item.ExtraInformation,
                     //    IsActive = item.IsActive
                     //}).ToList();
-
+                    // Adding role information and pagination logic
+                    foreach (var record in response)
+                    {
+                        var employeeRoleId = _connection.QuerySingleOrDefault<int?>("SELECT RoleID FROM tblEmployee WHERE EmployeeID = @EmployeeId", new { EmployeeId = record.EmployeeId });
+                        record.userRole = employeeRoleId.HasValue ? GetRoleName(employeeRoleId.Value) : string.Empty;
+                    }
                     if (response.Count != 0)
                     {
                         return new ServiceResponse<List<QuestionResponseDTO>>(true, "Operation Successful", response, 200);
@@ -2554,7 +2559,12 @@ namespace Schools_API.Repository.Implementations
                     //    ExtraInformation = item.ExtraInformation,
                     //    IsActive = item.IsActive
                     //}).ToList();
-
+                    // Adding role information and pagination logic
+                    foreach (var record in response)
+                    {
+                        var employeeRoleId = _connection.QuerySingleOrDefault<int?>("SELECT RoleID FROM tblEmployee WHERE EmployeeID = @EmployeeId", new { EmployeeId = record.EmployeeId });
+                        record.userRole = employeeRoleId.HasValue ? GetRoleName(employeeRoleId.Value) : string.Empty;
+                    }
                     var paginatedList = response.Skip((request.PageNumber - 1) * request.PageSize)
                                                 .Take(request.PageSize)
                                                 .ToList();
@@ -2791,7 +2801,12 @@ namespace Schools_API.Repository.Implementations
                         }
                     }
                     ).ToList();
-
+                    // Adding role information and pagination logic
+                    foreach (var record in response)
+                    {
+                        var employeeRoleId = _connection.QuerySingleOrDefault<int?>("SELECT RoleID FROM tblEmployee WHERE EmployeeID = @EmployeeId", new { EmployeeId = record.EmployeeId });
+                        record.userRole = employeeRoleId.HasValue ? GetRoleName(employeeRoleId.Value) : string.Empty;
+                    }
                     var paginatedList = response.Skip((request.PageNumber - 1) * request.PageSize)
                                                 .Take(request.PageSize)
                                                 .ToList();
@@ -3250,18 +3265,27 @@ namespace Schools_API.Repository.Implementations
         WHERE QuestionCode = @QuestionCode
     ) AS OrderedProfilerList
     WHERE RowNum = 2", new { QuestionCode = request.QuestionCode }, transaction)).FirstOrDefault();
-
-                    if (profilerList != null)
-                    {
-                        string insertSql = @"
+                    string insertSql = @"
     INSERT INTO tblQuestionProfiler (Questionid, QuestionCode, EmpId, RejectedStatus, ApprovedStatus, Status, AssignedDate)
     VALUES (@Questionid, @QuestionCode, @EmpId, 0, 1, 1, @AssignedDate)";
-
+                    if (profilerList != null)
+                    {
                         await _connection.ExecuteAsync(insertSql, new
                         {
                             Questionid = questionId,
                             request.QuestionCode,
                             EmpId = profilerList.EmpId, // Map EmpId from the second last record
+                            AssignedDate = DateTime.Now
+                        }, transaction);
+                    }
+                    else
+                    {
+                        int employeeId = await _connection.QueryFirstOrDefaultAsync<int>(@"select EmployeeId from tblQuestion where QuestionCode = @QuestionCode and IsActive = 1", new { QuestionCode = request.QuestionCode }, transaction);
+                        await _connection.ExecuteAsync(insertSql, new
+                        {
+                            Questionid = questionId,
+                            request.QuestionCode,
+                            EmpId = employeeId, // Map EmpId from the second last record
                             AssignedDate = DateTime.Now
                         }, transaction);
                     }

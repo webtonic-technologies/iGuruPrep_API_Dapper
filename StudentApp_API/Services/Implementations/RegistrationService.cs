@@ -60,5 +60,10 @@ namespace StudentApp_API.Services.Implementations
         {
             return await _registrationRepository.AssignStudentClassCourseBoardMapping(request);
         }
+
+        public async Task<ServiceResponse<string>> DeleteProfile(int registrationId)
+        {
+            return await _registrationRepository.DeleteProfile(registrationId);
+        }
     }
 }

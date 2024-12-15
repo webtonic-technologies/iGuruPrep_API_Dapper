@@ -7,7 +7,7 @@ namespace StudentApp_API.Repository.Interfaces
     {
         Task<ServiceResponse<List<TestSeriesSubjectsResponse>>> GetAllTestSeriesSubjects(int RegistrationId);
         Task<ServiceResponse<List<TestSeriesResponse>>> GetTestSeriesBySubjectId(GetTestseriesSubjects request);
-        Task<ServiceResponse<List<TestSeriesQuestionResponse>>> GetTestSeriesDescriptiveQuestions(TestSeriesQuestionRequest request);
+        Task<ServiceResponse<List<TestSeriesQuestionsList>>> GetTestSeriesDescriptiveQuestions(TestSeriesQuestionRequest request);
         Task<ServiceResponse<string>> MarkQuestionAsSave(SaveQuestionRequest request);
         Task<ServiceResponse<string>> MarkQuestionAsRead(SaveQuestionRequest request);
         Task<ServiceResponse<List<QuestionTypeResponse>>> GetQuestionTypesByTestSeriesIdAsync(int testSeriesId);

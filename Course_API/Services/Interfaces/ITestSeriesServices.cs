@@ -7,6 +7,7 @@ namespace Course_API.Services.Interfaces
     public interface ITestSeriesServices
     {
         Task<ServiceResponse<int>> AddUpdateTestSeries(TestSeriesDTO request);
+        Task<ServiceResponse<int>> AddUpdateDuplicateTestSeries(int TestSeriesId);
         Task<ServiceResponse<TestSeriesResponseDTO>> GetTestSeriesById(int TestSeriesId);
         Task<ServiceResponse<string>> TestSeriesContentIndexMapping(ContentIndexRequest request, int TestSeriesId);
         Task<ServiceResponse<List<QuestionResponseDTO>>> GetQuestionsList(GetAllQuestionListRequest request);
