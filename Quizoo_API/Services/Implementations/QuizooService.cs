@@ -19,6 +19,16 @@ namespace Quizoo_API.Services.Implementations
             return await _quizooRepository.GetChaptersAsync(registrationId, subjectId);
         }
 
+        public async Task<ServiceResponse<List<QuizooDTO>>> GetInvitedQuizoosByRegistrationId(int registrationId)
+        {
+            return await _quizooRepository.GetInvitedQuizoosByRegistrationId(registrationId);
+        }
+
+        public async Task<ServiceResponse<List<QuizooDTO>>> GetQuizoosByRegistrationIdAsync(int registrationId)
+        {
+            return await _quizooRepository.GetQuizoosByRegistrationIdAsync(registrationId);
+        }
+
         public async Task<ServiceResponse<List<SubjectDTO>>> GetSubjectsAsync(int registrationId)
         {
             return await _quizooRepository.GetSubjectsAsync(registrationId);

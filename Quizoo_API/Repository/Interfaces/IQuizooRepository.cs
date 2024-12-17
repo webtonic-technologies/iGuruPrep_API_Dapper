@@ -9,5 +9,7 @@ namespace Quizoo_API.Repository.Interfaces
         Task<ServiceResponse<List<ChapterDTO>>> GetChaptersAsync(int registrationId, int subjectId);
         Task<ServiceResponse<int>> InsertOrUpdateQuizooAsync(QuizooDTO quizoo);
         Task<ServiceResponse<bool>> UpdateQuizooSyllabusAsync(int quizooId, List<QuizooSyllabusDTO> syllabusList);
+        Task<ServiceResponse<List<QuizooDTO>>> GetQuizoosByRegistrationIdAsync(int registrationId);
+        Task<ServiceResponse<List<QuizooDTO>>> GetInvitedQuizoosByRegistrationId(int registrationId);
     }
 }

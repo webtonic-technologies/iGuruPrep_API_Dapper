@@ -14,7 +14,7 @@ namespace Quizoo_API.Controllers
         {
             _quizooServices = quizooServices;
         }
-        [HttpGet("GetSubjectsAsync/{registrationId}")]
+        [HttpGet("GetSubjects/{registrationId}")]
         public async Task<IActionResult> GetSubjectsAsync(int registrationId)
         {
             try
@@ -35,7 +35,7 @@ namespace Quizoo_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
-        [HttpGet("GetChaptersAsync/{registrationId}/{subjectId}")]
+        [HttpGet("GetChapters/{registrationId}/{subjectId}")]
         public async Task<IActionResult> GetChaptersAsync(int registrationId, int subjectId)
         {
             try
@@ -56,7 +56,7 @@ namespace Quizoo_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
-        [HttpPost("InsertOrUpdateQuizooAsync")]
+        [HttpPost("InsertOrUpdateQuizoo")]
         public async Task<IActionResult> InsertOrUpdateQuizooAsync(QuizooDTO quizoo)
         {
             try
@@ -77,12 +77,54 @@ namespace Quizoo_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
-        [HttpPost("UpdateQuizooSyllabusAsync/{quizooId}")]
+        [HttpPost("UpdateQuizooSyllabus/{quizooId}")]
         public async Task<IActionResult> UpdateQuizooSyllabusAsync(int quizooId, List<QuizooSyllabusDTO> syllabusList)
         {
             try
             {
                 var data = await _quizooServices.UpdateQuizooSyllabusAsync(quizooId, syllabusList);
+                if (data != null)
+                {
+                    return Ok(data);
+
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
+        [HttpGet("GetQuizoosByRegistrationId/{registrationId}")]
+        public async Task<IActionResult> GetQuizoosByRegistrationIdAsync(int registrationId)
+        {
+            try
+            {
+                var data = await _quizooServices.GetQuizoosByRegistrationIdAsync(registrationId);
+                if (data != null)
+                {
+                    return Ok(data);
+
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
+        [HttpGet("GetInvitedQuizoosByRegistrationId/{registrationId}")]
+        public async Task<IActionResult> GetInvitedQuizoosByRegistrationId(int registrationId)
+        {
+            try
+            {
+                var data = await _quizooServices.GetInvitedQuizoosByRegistrationId(registrationId);
                 if (data != null)
                 {
                     return Ok(data);

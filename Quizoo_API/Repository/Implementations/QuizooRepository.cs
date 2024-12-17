@@ -194,5 +194,70 @@ namespace Quizoo_API.Repository.Implementations
             }
 
         }
+        public async Task<ServiceResponse<List<QuizooDTO>>> GetQuizoosByRegistrationIdAsync(int registrationId)
+        {
+            try
+            {
+                var query = @"
+                SELECT 
+                    QuizooID,
+                    QuizooName,
+                    QuizooDate,
+                    QuizooStartTime,
+                    Duration,
+                    NoOfQuestions,
+                    NoOfPlayers,
+                    QuizooLink,
+                    CreatedBy,
+                    QuizooDuration,
+                    IsSystemGenerated,
+                    ClassID,
+                    CourseID,
+                    BoardID
+                FROM tblQuizoo
+                WHERE CreatedBy = @RegistrationId";
+
+                var result = await _connection.QueryAsync<QuizooDTO>(query, new { RegistrationId = registrationId });
+
+                return new ServiceResponse<List<QuizooDTO>>(true, "Quizoos fetched successfully.", result.AsList(), 200);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<QuizooDTO>>(false, $"Error: {ex.Message}", [], 500);
+            }
+        }
+        public async Task<ServiceResponse<List<QuizooDTO>>> GetInvitedQuizoosByRegistrationId(int registrationId)
+        {
+            try
+            {
+                var query = @"
+                SELECT 
+                    q.QuizooID,
+                    q.QuizooName,
+                    q.QuizooDate,
+                    q.QuizooStartTime,
+                    q.Duration,
+                    q.NoOfQuestions,
+                    q.NoOfPlayers,
+                    q.QuizooLink,
+                    q.CreatedBy,
+                    q.QuizooDuration,
+                    q.IsSystemGenerated,
+                    q.ClassID,
+                    q.CourseID,
+                    q.BoardID
+                FROM tblQuizooInvitation qi
+                INNER JOIN tblQuizoo q ON qi.QuizooID = q.QuizooID
+                WHERE qi.QInvitee = @RegistrationId";
+
+                var result = await _connection.QueryAsync<QuizooDTO>(query, new { RegistrationId = registrationId });
+
+                return new ServiceResponse<List<QuizooDTO>>(true, "Quizoos invited successfully fetched.", result.AsList(), 200);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<QuizooDTO>>(false, $"Error: {ex.Message}", [], 500);
+            }
+        }
     }
 }
