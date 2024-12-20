@@ -2,10 +2,8 @@
 using StudentApp_API.DTOs.Requests;
 using StudentApp_API.DTOs.Response;
 using StudentApp_API.DTOs.ServiceResponse;
-using StudentApp_API.Models;
 using StudentApp_API.Repository.Interfaces;
 using System.Data;
-using System.Data.SqlClient;
 
 namespace StudentApp_API.Repository.Implementations
 {

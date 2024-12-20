@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using Quizoo_API.DTOs.Request;
-using Quizoo_API.Services.Interfaces;
+using StudentApp_API.DTOs.Requests;
+using StudentApp_API.Services.Interfaces;
 
 namespace Quizoo_API.Controllers
 {
@@ -20,6 +20,27 @@ namespace Quizoo_API.Controllers
             try
             {
                 var data = await _quizooServices.GetSubjectsAsync(registrationId);
+                if (data != null)
+                {
+                    return Ok(data);
+
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
+        [HttpGet("GetQuizooByIdAsync/{quizooId}")]
+        public async Task<IActionResult> GetQuizooByIdAsync(int quizooId)
+        {
+            try
+            {
+                var data = await _quizooServices.GetQuizooByIdAsync(quizooId);
                 if (data != null)
                 {
                     return Ok(data);

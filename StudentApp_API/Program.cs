@@ -38,7 +38,12 @@ builder.Services.AddTransient<IRefresherGuideServices, RefresherGuideServices>()
 
 builder.Services.AddTransient<IBoardPapersRepository, BoardPapersRepositiry>();
 builder.Services.AddTransient<IBoardPapersServices, BoardPapersServices>();
-
+builder.Services.AddTransient<IQuizooServices, QuizooService>();
+builder.Services.AddTransient<IQuizooRepository, QuizooRepository>();
+builder.Services.AddTransient<IOnlineQuizooServices, OnlineQuizooServices>();
+builder.Services.AddTransient<IOnlineQuizooRepository, OnlineQuizooRepository>();
+builder.Services.AddTransient<IQuizooQuestionBoardServices, QuizooQuestionBoardServices>();
+builder.Services.AddTransient<IQuizooQuestionBoardRepository, QuizooQuestionBoardRepository>();
 // Add other services as needed in the future
 // builder.Services.AddTransient<IOtherService, OtherService>();
 // builder.Services.AddTransient<IOtherRepository, OtherRepository>();

@@ -15,8 +15,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Course_API", "Course_API\Co
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StudentApp_API", "StudentApp_API\StudentApp_API.csproj", "{52BD67F5-C4E0-4588-824F-835FA0E56D3B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quizoo_API", "Quizoo_API\Quizoo_API.csproj", "{3A95A46A-2E84-45B9-B600-98B3A8C890D0}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -47,10 +45,6 @@ Global
 		{52BD67F5-C4E0-4588-824F-835FA0E56D3B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{52BD67F5-C4E0-4588-824F-835FA0E56D3B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{52BD67F5-C4E0-4588-824F-835FA0E56D3B}.Release|Any CPU.Build.0 = Release|Any CPU
-		{3A95A46A-2E84-45B9-B600-98B3A8C890D0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{3A95A46A-2E84-45B9-B600-98B3A8C890D0}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{3A95A46A-2E84-45B9-B600-98B3A8C890D0}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{3A95A46A-2E84-45B9-B600-98B3A8C890D0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,10 +1,11 @@
-﻿namespace Quizoo_API.DTOs.Response
+﻿namespace StudentApp_API.DTOs.Response
 {
 
     public class SubjectDTO
     {
         public int SubjectID { get; set; }
         public string SubjectName { get; set; }
+        public int ConceptCount {  get; set; }
     }
 
     public class ChapterDTO
@@ -13,6 +14,7 @@
         public string ChapterName { get; set; }
         public string ChapterCode { get; set; }
         public int DisplayOrder { get; set; }
+        public int ConceptCount { get; set; }
     }
 
 }

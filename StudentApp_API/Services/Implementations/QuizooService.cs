@@ -1,10 +1,10 @@
-﻿using Quizoo_API.DTOs.Request;
-using Quizoo_API.DTOs.Response;
-using Quizoo_API.DTOs.ServiceResponse;
-using Quizoo_API.Repository.Interfaces;
-using Quizoo_API.Services.Interfaces;
+﻿using StudentApp_API.DTOs.Requests;
+using StudentApp_API.DTOs.Response;
+using StudentApp_API.DTOs.ServiceResponse;
+using StudentApp_API.Repository.Interfaces;
+using StudentApp_API.Services.Interfaces;
 
-namespace Quizoo_API.Services.Implementations
+namespace StudentApp_API.Services.Implementations
 {
     public class QuizooService : IQuizooServices
     {
@@ -19,12 +19,17 @@ namespace Quizoo_API.Services.Implementations
             return await _quizooRepository.GetChaptersAsync(registrationId, subjectId);
         }
 
-        public async Task<ServiceResponse<List<QuizooDTO>>> GetInvitedQuizoosByRegistrationId(int registrationId)
+        public async Task<ServiceResponse<List<QuizooDTOResponse>>> GetInvitedQuizoosByRegistrationId(int registrationId)
         {
             return await _quizooRepository.GetInvitedQuizoosByRegistrationId(registrationId);
         }
 
-        public async Task<ServiceResponse<List<QuizooDTO>>> GetQuizoosByRegistrationIdAsync(int registrationId)
+        public async Task<ServiceResponse<QuizooDTOResponse>> GetQuizooByIdAsync(int quizooId)
+        {
+            return await _quizooRepository.GetQuizooByIdAsync(quizooId);
+        }
+
+        public async Task<ServiceResponse<List<QuizooDTOResponse>>> GetQuizoosByRegistrationIdAsync(int registrationId)
         {
             return await _quizooRepository.GetQuizoosByRegistrationIdAsync(registrationId);
         }
