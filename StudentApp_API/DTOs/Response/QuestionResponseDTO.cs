@@ -97,4 +97,21 @@
         public string FirstName { get; set; }
         public string LastName { get; set; }
     }
+    public class CYOTQuestionWithAnswersDTO
+    {
+        public int CYOTID { get; set; }
+        public int QuestionID { get; set; }
+        public string QuestionCode { get; set; }
+        public string QuestionDescription { get; set; }
+        public string Explanation {  get; set; }
+        public string ExtraInformation {  get; set; }
+        public List<AnswerOptionDTO> Answers { get; set; } // List of answers for the question
+    }
+    public class AnswerOptionDTO
+    {
+        public int AnswerMultipleChoiceCategoryID { get; set; }
+        public string Answer { get; set; }
+        public bool IsCorrect { get; set; }
+    }
+
 }
