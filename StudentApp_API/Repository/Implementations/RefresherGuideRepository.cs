@@ -249,9 +249,9 @@ namespace StudentApp_API.Repository.Implementations
             {
                 // SQL query to fetch distinct QuestionTypeId and their names for the given SubjectId
                 string query = @"
-        SELECT DISTINCT q.QuestionTypeId, qt.QuestionTypeName
+        SELECT DISTINCT q.QuestionTypeId, qt.QuestionType
         FROM tblQuestion q
-        INNER JOIN tblQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeId
+        INNER JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeId
         WHERE q.SubjectId = @SubjectId
         AND q.IsActive = 1";
 
