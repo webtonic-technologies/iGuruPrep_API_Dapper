@@ -18,5 +18,7 @@ namespace StudentApp_API.Repository.Interfaces
         Task<ServiceResponse<int>> AddUpdateProfile(UpdateProfileRequest request);
         Task<ServiceResponse<RegistrationDTO>> GetRegistrationByIdAsync(int registrationId);
         Task<ServiceResponse<string>> DeleteProfile(int registrationId);
+        Task<ServiceResponse<List<CountryResponse>>> GetCountries();
+        Task<ServiceResponse<List<StateResponse>>> GetStatesByCountryId(int countryId);
     }
 }

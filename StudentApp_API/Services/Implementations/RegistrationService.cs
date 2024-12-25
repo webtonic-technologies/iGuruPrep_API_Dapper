@@ -65,5 +65,15 @@ namespace StudentApp_API.Services.Implementations
         {
             return await _registrationRepository.DeleteProfile(registrationId);
         }
+
+        public async Task<ServiceResponse<List<CountryResponse>>> GetCountries()
+        {
+            return await _registrationRepository.GetCountries();
+        }
+
+        public async Task<ServiceResponse<List<StateResponse>>> GetStatesByCountryId(int countryId)
+        {
+            return await _registrationRepository.GetStatesByCountryId(countryId);
+        }
     }
 }

@@ -172,9 +172,11 @@ namespace StudentApp_API.Repository.Implementations
         {
             try
             {
+                // Start with the SQL query
                 string query = @"
         SELECT 
             q.QuestionId,
+            q.QuestionCode,
             q.QuestionDescription,
             q.QuestionFormula,
             q.QuestionImage,
@@ -185,51 +187,69 @@ namespace StudentApp_API.Repository.Implementations
             q.Explanation,
             q.IsActive,
             q.IsLive,
+            q.ExtraInformation,
             q.IsConfigure,
             q.CategoryId,
-            q.QuestionCode,
-            am.AnswerId,
-            am.QuestionCode,
-            sac.Answer AS Answer
+            qt.QuestionType AS QuestionType
         FROM tblQuestion q
-        LEFT JOIN tblAnswerMaster am ON q.QuestionCode = am.QuestionCode
-        LEFT JOIN tblAnswerSingleAnswerCategory sac ON am.AnswerId = sac.AnswerId
+        LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
         WHERE q.SubjectId = @SubjectId
         AND q.IndexTypeId = @IndexTypeId
         AND q.ContentIndexId = @ContentIndexId
-        AND q.IsActive = 1
-        AND 
-        (
-            @QuestionTypeId IS NULL OR q.QuestionTypeId IN @QuestionTypeId
-            OR (@QuestionTypeId IS NULL AND q.QuestionTypeId IN (3, 7, 8)) -- Default types
-        )
-        ORDER BY q.QuestionId";
+        AND q.IsActive = 1";
 
-                // Directly map the query results to the QuestionResponse and AnswerResponse objects
-                var questionList = await _connection.QueryAsync<QuestionResponse, AnswerResponse, QuestionResponse>(
-                    query,
-                    (question, answer) =>
-                    {
-                        question.Answers = answer; // Map the answer directly to the question's Answers property
-                        return question;
-                    },
-                    splitOn: "AnswerId", // Dapper will split at AnswerId to map the second object
-                    param: new
-                    {
-                        request.SubjectId,
-                        request.IndexTypeId,
-                        request.ContentIndexId,
-                        QuestionTypeId = request.QuestionTypeId?.Count > 0 ? request.QuestionTypeId : null
-                    }
-                );
+                // Add the QuestionTypeId filter dynamically if it's not empty or null
+                if (request.QuestionTypeId != null && request.QuestionTypeId.Any())
+                {
+                    query += " AND q.QuestionTypeId IN @QuestionTypeId";  // Add IN clause for QuestionTypeId
+                }
 
-                var response = questionList
+                // Append the ORDER BY clause
+                query += " ORDER BY q.QuestionId";
+
+                // Parameters for the query
+                var parameters = new DynamicParameters();
+                parameters.Add("@SubjectId", request.SubjectId);
+                parameters.Add("@IndexTypeId", request.IndexTypeId);
+                parameters.Add("@ContentIndexId", request.ContentIndexId);
+
+                // Add QuestionTypeId parameter if it's not empty
+                if (request.QuestionTypeId != null && request.QuestionTypeId.Any())
+                {
+                    parameters.Add("@QuestionTypeId", request.QuestionTypeId.ToArray());
+                }
+
+                // Execute the query and fetch results
+                var results = await _connection.QueryAsync(query, parameters);
+
+                // Map the results to QuestionResponse
+                var mappedResults = results.Select(row => new QuestionResponse
+                {
+                    QuestionId = row.QuestionId,
+                    QuestionCode = row.QuestionCode,
+                    QuestionDescription = row.QuestionDescription,
+                    QuestionFormula = row.QuestionFormula,
+                    QuestionImage = row.QuestionImage,
+                    DifficultyLevelId = row.DifficultyLevelId,
+                    QuestionTypeId = row.QuestionTypeId,
+                    IndexTypeId = row.IndexTypeId,
+                    Explanation = row.Explanation,
+                    IsActive = row.IsActive,
+                    IsLive = row.IsLive,
+                    ExtraInformation = row.ExtraInformation,
+                    QuestionType = row.QuestionType,
+                    Answers = GetAnswersByQuestionCode(row.QuestionCode, row.QuestionId),
+                    QIDCourseResponses = GetListOfQIDCourse(row.QuestionCode)
+                }).ToList();
+
+                // Apply pagination
+                var response = mappedResults
                     .Skip((request.PageNumber - 1) * request.PageSize)
                     .Take(request.PageSize)
                     .ToList();
 
-                // Check if any questions were found
-                if (questionList != null && questionList.Any())
+                // Return the response
+                if (response.Any())
                 {
                     return new ServiceResponse<List<QuestionResponse>>(true, "Questions retrieved successfully.", response, 200);
                 }
@@ -243,6 +263,21 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<List<QuestionResponse>>(false, ex.Message, null, 500);
             }
         }
+        // Helper method to fetch answers for a question
+        private AnswerResponse GetAnswersByQuestionCode(string questionCode, int Questionid)
+        {
+            string query = @"
+    SELECT 
+        am.AnswerId,
+        am.QuestionCode,
+        sac.Answer AS Answer
+    FROM tblAnswerMaster am
+    LEFT JOIN tblAnswerSingleAnswerCategory sac ON am.AnswerId = sac.AnswerId
+    WHERE am.QuestionCode = @QuestionCode and am.Questionid = @Questionid";
+
+            return  _connection.QueryFirstOrDefault<AnswerResponse>(query, new { QuestionCode = questionCode , Questionid = Questionid });
+        }
+
         public async Task<ServiceResponse<List<QuestionTypeResponse>>> GetDistinctQuestionTypes(int subjectId)
         {
             try
@@ -340,7 +375,7 @@ namespace StudentApp_API.Repository.Implementations
         //        return new ServiceResponse<List<QuestionResponse>>(false, ex.Message, null, 500);
         //    }
         //}
-        public async Task<ServiceResponse<string>> MarkQuestionAsSave(SaveQuestionRequest request)
+        public async Task<ServiceResponse<string>> MarkQuestionAsSave(SaveQuestionRefresherGuidwRequest request)
         {
             var response = new ServiceResponse<string>(true, string.Empty, string.Empty, 200);
 
@@ -351,7 +386,7 @@ namespace StudentApp_API.Repository.Implementations
                     @"SELECT RFQSID 
               FROM tblRefresherGuideQuestionSave 
               WHERE StudentID = @StudentId AND QuestionID = @QuestionId",
-                      new { request.RegistrationId, request.QuestionId });
+                      new { StudentId = request.RegistrationId, request.QuestionId });
 
                 if (existingRecord != null)
                 {
@@ -409,7 +444,7 @@ namespace StudentApp_API.Repository.Implementations
 
             return response;
         }
-        public async Task<ServiceResponse<string>> MarkQuestionAsRead(SaveQuestionRequest request)
+        public async Task<ServiceResponse<string>> MarkQuestionAsRead(SaveQuestionRefresherGuidwRequest request)
         {
             var response = new ServiceResponse<string>(true, string.Empty, string.Empty, 200);
 
@@ -812,6 +847,39 @@ namespace StudentApp_API.Repository.Implementations
             string base64String = Convert.ToBase64String(fileBytes);
             return base64String;
         }
-     
+        private List<QIDCourseResponse> GetListOfQIDCourse(string QuestionCode)
+        {
+            // Get active question IDs
+            var activeQuestionIds = GetActiveQuestionIds(QuestionCode);
+
+            // If no active question IDs found, return an empty list
+            if (!activeQuestionIds.Any())
+            {
+                return new List<QIDCourseResponse>();
+            }
+
+            var query = @"
+    SELECT qc.*, c.CourseName, l.LevelName
+    FROM [tblQIDCourse] qc
+    LEFT JOIN tblCourse c ON qc.CourseID = c.CourseID
+    LEFT JOIN tbldifficultylevel l ON qc.LevelId = l.LevelId
+    WHERE qc.QuestionCode = @QuestionCode
+      AND qc.QID IN @ActiveQuestionIds";
+
+            var data = _connection.Query<QIDCourseResponse>(query, new { QuestionCode, ActiveQuestionIds = activeQuestionIds });
+            return data.ToList();
+        }
+        private List<int> GetActiveQuestionIds(string QuestionCode)
+        {
+          //  if (_connection.Open) { }then close
+            var query = @"
+            SELECT q.QuestionId
+            FROM tblQuestion q
+            WHERE q.QuestionCode = @QuestionCode
+              AND q.IsActive = 1 AND q.IsConfigure = 1";
+            
+           var questionIds = _connection.Query<int>(query, new { QuestionCode });
+            return questionIds.ToList();
+        }
     }
 }

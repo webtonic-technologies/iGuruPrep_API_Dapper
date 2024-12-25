@@ -17,6 +17,53 @@ namespace StudentApp_API.Repository.Implementations
             _connection = connection;
             _hostingEnvironment = hostingEnvironment;
         }
+        public async Task<ServiceResponse<List<StateResponse>>> GetStatesByCountryId(int countryId)
+        {
+            try
+            {
+                // SQL query to fetch states by countryId
+                string query = "SELECT StateId, StateName FROM tblStateName WHERE CountryId = @CountryId";
+
+                var states = await _connection.QueryAsync<StateResponse>(query, new { CountryId = countryId });
+
+                if (states.Any())
+                {
+                    return new ServiceResponse<List<StateResponse>>(true, "States retrieved successfully.", states.ToList(), 200);
+                }
+                else
+                {
+                    return new ServiceResponse<List<StateResponse>>(false, "No states found for the given country.", null, 404);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<StateResponse>>(false, ex.Message, null, 500);
+            }
+        }
+
+        public async Task<ServiceResponse<List<CountryResponse>>> GetCountries()
+        {
+            try
+            {
+                // SQL query to fetch countries and their country codes
+                string query = "SELECT CountryId, CountryName, CountryCode FROM tblCountries";
+
+                var countries = await _connection.QueryAsync<CountryResponse>(query);
+
+                if (countries.Any())
+                {
+                    return new ServiceResponse<List<CountryResponse>>(true, "Countries retrieved successfully.", countries.ToList(), 200);
+                }
+                else
+                {
+                    return new ServiceResponse<List<CountryResponse>>(false, "No countries found.", null, 404);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<CountryResponse>>(false, ex.Message, null, 500);
+            }
+        }
 
         public async Task<ServiceResponse<int>> AddRegistrationAsync(RegistrationRequest request)
         {
@@ -279,17 +326,17 @@ namespace StudentApp_API.Repository.Implementations
                 {
                     // Login via email
                     string userQuery = @"
-            SELECT RegistrationID, FirstName, LastName, EmailID, MobileNumber, Location, Password, CountryCodeID, StateId, CountryID, IsEmailAccess
-            FROM tblRegistration 
-            WHERE EmailID = @Input AND IsActive = 1";
+                SELECT RegistrationID, FirstName, LastName, EmailID, MobileNumber, Location, Password, CountryCodeID, StateId, CountryID, IsEmailAccess
+                FROM tblRegistration 
+                WHERE EmailID = @Input AND IsActive = 1";
 
                     userWithPassword = await _connection.QueryFirstOrDefaultAsync<RegistrationRequest>(userQuery, new { Input = input });
 
                     if (userWithPassword != null)
                     {
-                        // Decrypt and validate password
+                        // Decrypt and validate password (case insensitive comparison)
                         string decryptedPassword = EncryptionHelper.DecryptString(userWithPassword.Password);
-                        if (decryptedPassword != password)
+                        if (!decryptedPassword.Equals(password, StringComparison.OrdinalIgnoreCase))
                         {
                             return new ServiceResponse<LoginResponse>(false, "Invalid email or password.", null, 401);
                         }
@@ -303,17 +350,17 @@ namespace StudentApp_API.Repository.Implementations
                 {
                     // Login via phone number
                     string userQuery = @"
-            SELECT RegistrationID, FirstName, LastName, EmailID, MobileNumber, Location, Password, CountryCodeID, StateId, CountryID, IsMobileAccess
-            FROM tblRegistration 
-            WHERE MobileNumber = @Input AND IsActive = 1";
+                SELECT RegistrationID, FirstName, LastName, EmailID, MobileNumber, Location, Password, CountryCodeID, StateId, CountryID, IsMobileAccess
+                FROM tblRegistration 
+                WHERE MobileNumber = @Input AND IsActive = 1";
 
                     userWithPassword = await _connection.QueryFirstOrDefaultAsync<RegistrationRequest>(userQuery, new { Input = input });
 
                     if (userWithPassword != null)
                     {
-                        // Decrypt and validate password
+                        // Decrypt and validate password (case insensitive comparison)
                         string decryptedPassword = EncryptionHelper.DecryptString(userWithPassword.Password);
-                        if (decryptedPassword != password)
+                        if (!decryptedPassword.Equals(password, StringComparison.OrdinalIgnoreCase))
                         {
                             return new ServiceResponse<LoginResponse>(false, "Invalid phone number or password.", null, 401);
                         }
@@ -327,24 +374,24 @@ namespace StudentApp_API.Repository.Implementations
                 {
                     // Login via license number
                     string licenseQuery = @"
-            SELECT ln.LicenseNumbersId, ln.LicensePassword, ld.GenerateLicenseID, gl.SchoolCode
-            FROM tblLicenseNumbers ln
-            INNER JOIN tblLicenseDetail ld ON ln.LicenseDetailID = ld.LicenseDetailID
-            INNER JOIN tblGenerateLicense gl ON ld.GenerateLicenseID = gl.GenerateLicenseID
-            WHERE ln.LicenseNo = @Input";
+                SELECT ln.LicenseNumbersId, ln.LicensePassword, ld.GenerateLicenseID, gl.SchoolCode
+                FROM tblLicenseNumbers ln
+                INNER JOIN tblLicenseDetail ld ON ln.LicenseDetailID = ld.LicenseDetailID
+                INNER JOIN tblGenerateLicense gl ON ld.GenerateLicenseID = gl.GenerateLicenseID
+                WHERE ln.LicenseNo = @Input";
 
                     var licenseDetails = await _connection.QueryFirstOrDefaultAsync<dynamic>(licenseQuery, new { Input = input });
 
-                    if (licenseDetails != null && licenseDetails.LicensePassword == password)
+                    if (licenseDetails != null && licenseDetails.LicensePassword.Equals(password, StringComparison.OrdinalIgnoreCase))
                     {
                         isLicenseLogin = true;
                         schoolCode = licenseDetails.SchoolCode;
 
                         // Update registration with SchoolCode and license access
                         string updateQuery = @"
-                UPDATE tblRegistration 
-                SET IsLicenceAccess = 1, SchoolCode = @SchoolCode 
-                WHERE RegistrationID = @RegistrationID";
+                    UPDATE tblRegistration 
+                    SET IsLicenceAccess = 1, SchoolCode = @SchoolCode 
+                    WHERE RegistrationID = @RegistrationID";
 
                         await _connection.ExecuteAsync(updateQuery, new
                         {
@@ -395,48 +442,123 @@ namespace StudentApp_API.Repository.Implementations
         //{
         //    try
         //    {
-        //        // Query to fetch user details
-        //        string userQuery = @"
-        //SELECT RegistrationID, FirstName, LastName, EmailID, MobileNumber, Location, Password, CountryCodeID, StateId , CountryID
-        //FROM tblRegistration 
-        //WHERE EmailID = @EmailID AND IsActive = 1";
+        //        string input = request.EmailIDOrPhoneNumberOrLicense;
+        //        string password = request.Password;
+        //        RegistrationRequest userWithPassword = null;
+        //        bool isLicenseLogin = false;
+        //        string schoolCode = null;
 
-        //        var userWithPassword = await _connection.QueryFirstOrDefaultAsync<RegistrationRequest>(userQuery, new { request.EmailID });
-
-        //        if (userWithPassword != null)
+        //        // Determine the type of login
+        //        if (IsEmail(input))
         //        {
-        //            // Extract encrypted password
-        //            string encryptedPassword = userWithPassword.Password;
+        //            // Login via email
+        //            string userQuery = @"
+        //    SELECT RegistrationID, FirstName, LastName, EmailID, MobileNumber, Location, Password, CountryCodeID, StateId, CountryID, IsEmailAccess
+        //    FROM tblRegistration 
+        //    WHERE EmailID = @Input AND IsActive = 1";
 
-        //            // Decrypt password
-        //            string decryptedPassword = EncryptionHelper.DecryptString(encryptedPassword);
+        //            userWithPassword = await _connection.QueryFirstOrDefaultAsync<RegistrationRequest>(userQuery, new { Input = input });
 
-        //            // Compare passwords
-        //            if (decryptedPassword == request.Password)
+        //            if (userWithPassword != null)
         //            {
-        //                // Calculate profile percentage
-        //                decimal profilePercentage = await CalculateProfilePercentageAsync(userWithPassword.RegistrationId, userWithPassword);
-
-        //                // Create response object
-        //                var loginResponse = new LoginResponse
+        //                // Decrypt and validate password
+        //                string decryptedPassword = EncryptionHelper.DecryptString(userWithPassword.Password);
+        //                if (decryptedPassword != password)
         //                {
-        //                    RegistrationID = userWithPassword.RegistrationId,
-        //                    FirstName = userWithPassword.FirstName,
-        //                    LastName = userWithPassword.LastName,
-        //                    EmailID = userWithPassword.EmailID,
-        //                    MobileNumber = userWithPassword.MobileNumber,
-        //                    Location = userWithPassword.Location,
-        //                    IsLoginSuccessful = true,
-        //                    ProfilePercentage = $"{profilePercentage}%"
-        //                };
+        //                    return new ServiceResponse<LoginResponse>(false, "Invalid email or password.", null, 401);
+        //                }
 
-        //                return new ServiceResponse<LoginResponse>(true, "Login successful.", loginResponse, 200);
+        //                // Mark email login access
+        //                string updateQuery = "UPDATE tblRegistration SET IsEmailAccess = 1 WHERE RegistrationID = @RegistrationID";
+        //                await _connection.ExecuteAsync(updateQuery, new { RegistrationID = userWithPassword.RegistrationId });
         //            }
+        //        }
+        //        else if (IsPhoneNumber(input))
+        //        {
+        //            // Login via phone number
+        //            string userQuery = @"
+        //    SELECT RegistrationID, FirstName, LastName, EmailID, MobileNumber, Location, Password, CountryCodeID, StateId, CountryID, IsMobileAccess
+        //    FROM tblRegistration 
+        //    WHERE MobileNumber = @Input AND IsActive = 1";
 
-        //            return new ServiceResponse<LoginResponse>(false, "Invalid email or password.", null, 401);
+        //            userWithPassword = await _connection.QueryFirstOrDefaultAsync<RegistrationRequest>(userQuery, new { Input = input });
+
+        //            if (userWithPassword != null)
+        //            {
+        //                // Decrypt and validate password
+        //                string decryptedPassword = EncryptionHelper.DecryptString(userWithPassword.Password);
+        //                if (decryptedPassword != password)
+        //                {
+        //                    return new ServiceResponse<LoginResponse>(false, "Invalid phone number or password.", null, 401);
+        //                }
+
+        //                // Mark mobile login access
+        //                string updateQuery = "UPDATE tblRegistration SET IsMobileAccess = 1 WHERE RegistrationID = @RegistrationID";
+        //                await _connection.ExecuteAsync(updateQuery, new { RegistrationID = userWithPassword.RegistrationId });
+        //            }
+        //        }
+        //        else
+        //        {
+        //            // Login via license number
+        //            string licenseQuery = @"
+        //    SELECT ln.LicenseNumbersId, ln.LicensePassword, ld.GenerateLicenseID, gl.SchoolCode
+        //    FROM tblLicenseNumbers ln
+        //    INNER JOIN tblLicenseDetail ld ON ln.LicenseDetailID = ld.LicenseDetailID
+        //    INNER JOIN tblGenerateLicense gl ON ld.GenerateLicenseID = gl.GenerateLicenseID
+        //    WHERE ln.LicenseNo = @Input";
+
+        //            var licenseDetails = await _connection.QueryFirstOrDefaultAsync<dynamic>(licenseQuery, new { Input = input });
+
+        //            if (licenseDetails != null && licenseDetails.LicensePassword == password)
+        //            {
+        //                isLicenseLogin = true;
+        //                schoolCode = licenseDetails.SchoolCode;
+
+        //                // Update registration with SchoolCode and license access
+        //                string updateQuery = @"
+        //        UPDATE tblRegistration 
+        //        SET IsLicenceAccess = 1, SchoolCode = @SchoolCode 
+        //        WHERE RegistrationID = @RegistrationID";
+
+        //                await _connection.ExecuteAsync(updateQuery, new
+        //                {
+        //                    SchoolCode = schoolCode,
+        //                    RegistrationID = userWithPassword?.RegistrationId
+        //                });
+        //            }
+        //            else
+        //            {
+        //                return new ServiceResponse<LoginResponse>(false, "Invalid license number or password.", null, 401);
+        //            }
         //        }
 
-        //        return new ServiceResponse<LoginResponse>(false, "User not found.", null, 404);
+        //        // If no valid login found
+        //        if (userWithPassword == null && !isLicenseLogin)
+        //        {
+        //            return new ServiceResponse<LoginResponse>(false, "User not found.", null, 404);
+        //        }
+
+        //        // Calculate profile percentage for non-license login
+        //        decimal profilePercentage = 0;
+        //        if (!isLicenseLogin && userWithPassword != null)
+        //        {
+        //            profilePercentage = await CalculateProfilePercentageAsync(userWithPassword.RegistrationId, userWithPassword);
+        //        }
+
+        //        // Create response object
+        //        var loginResponse = new LoginResponse
+        //        {
+        //            RegistrationID = userWithPassword?.RegistrationId ?? 0,
+        //            FirstName = userWithPassword?.FirstName,
+        //            LastName = userWithPassword?.LastName,
+        //            EmailID = userWithPassword?.EmailID,
+        //            MobileNumber = userWithPassword?.MobileNumber,
+        //            Location = userWithPassword?.Location,
+        //            IsLoginSuccessful = true,
+        //            ProfilePercentage = isLicenseLogin ? null : $"{profilePercentage}%"
+        //        };
+
+        //        return new ServiceResponse<LoginResponse>(true, "Login successful.", loginResponse, 200);
         //    }
         //    catch (Exception ex)
         //    {

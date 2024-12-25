@@ -41,12 +41,12 @@ namespace StudentApp_API.Services.Implementations
             return await _refresherGuideRepository.GetSyllabusSubjects(request);
         }
 
-        public async Task<ServiceResponse<string>> MarkQuestionAsRead(SaveQuestionRequest request)
+        public async Task<ServiceResponse<string>> MarkQuestionAsRead(SaveQuestionRefresherGuidwRequest request)
         {
             return await _refresherGuideRepository.MarkQuestionAsRead(request);
         }
 
-        public async Task<ServiceResponse<string>> MarkQuestionAsSave(SaveQuestionRequest request)
+        public async Task<ServiceResponse<string>> MarkQuestionAsSave(SaveQuestionRefresherGuidwRequest request)
         {
             return await _refresherGuideRepository.MarkQuestionAsSave(request);
         }

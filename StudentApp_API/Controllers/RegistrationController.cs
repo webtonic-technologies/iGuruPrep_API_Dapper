@@ -242,5 +242,29 @@ namespace StudentApp_API.Controllers
 
             return BadRequest(response);
         }
+        [HttpGet("GetCountries")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetCountries()
+        {
+            var response = await _registrationService.GetCountries();
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+
+            return BadRequest(response);
+        }
+        [HttpGet("GetStatesByCountryId/{countryId}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetStatesByCountryId(int countryId)
+        {
+            var response = await _registrationService.GetStatesByCountryId(countryId);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+
+            return BadRequest(response);
+        }
     }
 }

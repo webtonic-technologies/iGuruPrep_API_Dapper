@@ -50,7 +50,7 @@ namespace StudentApp_API.Controllers
             return BadRequest(response);
         }
         [HttpPost("Save")]
-        public async Task<IActionResult> MarkQuestionAsSave(SaveQuestionRequest request)
+        public async Task<IActionResult> MarkQuestionAsSave(SaveQuestionRefresherGuidwRequest request)
         {
             var response = await _refresherGuideServices.MarkQuestionAsSave(request);
             if (response.Success)
@@ -61,7 +61,7 @@ namespace StudentApp_API.Controllers
             return BadRequest(response);
         }
         [HttpPost("MarkAsRead")]
-        public async Task<IActionResult> MarkQuestionAsRead(SaveQuestionRequest request)
+        public async Task<IActionResult> MarkQuestionAsRead(SaveQuestionRefresherGuidwRequest request)
         {
             var response = await _refresherGuideServices.MarkQuestionAsRead(request);
             if (response.Success)

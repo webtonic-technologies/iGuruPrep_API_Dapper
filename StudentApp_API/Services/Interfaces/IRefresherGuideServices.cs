@@ -8,8 +8,8 @@ namespace StudentApp_API.Services.Interfaces
         Task<ServiceResponse<RefresherGuideSubjects>> GetSyllabusSubjects(RefresherGuideRequest request);
        // Task<ServiceResponse<List<RefresherGuideContentResponse>>> GetSyllabusContent(GetContentRequest request);
         Task<ServiceResponse<List<QuestionResponse>>> GetQuestionsByCriteria(GetQuestionRequest request);
-        Task<ServiceResponse<string>> MarkQuestionAsSave(SaveQuestionRequest request);
-        Task<ServiceResponse<string>> MarkQuestionAsRead(SaveQuestionRequest request);
+        Task<ServiceResponse<string>> MarkQuestionAsSave(SaveQuestionRefresherGuidwRequest request);
+        Task<ServiceResponse<string>> MarkQuestionAsRead(SaveQuestionRefresherGuidwRequest request);
         Task<ServiceResponse<List<RefresherGuideContentResponse>>> GetSyllabusContentDetails(SyllabusDetailsRequest request);
         Task<ServiceResponse<List<QuestionTypeResponse>>> GetDistinctQuestionTypes(int subjectId);
     }

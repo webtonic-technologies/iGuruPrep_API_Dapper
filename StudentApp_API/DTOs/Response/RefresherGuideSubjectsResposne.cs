@@ -26,19 +26,37 @@
     }
     public class QuestionResponse
     {
-        public int QuestionId { get; set; }                   // Unique ID of the question
+        public int QuestionId { get; set; } 
+        public string QuestionCode { get; set; }// Unique ID of the question
         public string QuestionDescription { get; set; }       // Text of the question
         public string QuestionFormula { get; set; }           // Optional formula related to the question
         public string QuestionImage { get; set; }             // URL or path to the question image (if any)
         public int DifficultyLevelId { get; set; }            // Difficulty level (easy, medium, hard)
         public int QuestionTypeId { get; set; }               // Type of question (SA, LA, VSA)
+        public string QuestionType { get; set; }
         public int IndexTypeId { get; set; }                    // Time allocated for the question
-        public string Explanation { get; set; }               // Explanation or solution for the question
+        public string Explanation { get; set; } 
+        public string ExtraInformation { get; set; }// Explanation or solution for the question
         public bool IsActive { get; set; }                    // Is the question active
-        public bool IsLive { get; set; }                      // Is the question live
+        public bool IsLive { get; set; }
+        public List<QIDCourseResponse> QIDCourseResponses { get; set; }// Is the question live
         public AnswerResponse Answers { get; set; }     // List of associated answers for the question
     }
-
+    public class QIDCourseResponse
+    {
+        public int QIDCourseID { get; set; }
+        public int? QID { get; set; }
+        public int? CourseID { get; set; }
+        public string CourseName { get; set; } = string.Empty;
+        public int? LevelId { get; set; }
+        public string LevelName { get; set; } = string.Empty;
+        public int Status { get; set; }
+        public string? CreatedBy { get; set; }
+        public DateTime? CreatedDate { get; set; }
+        public string? ModifiedBy { get; set; }
+        public DateTime? ModifiedDate { get; set; }
+        public string QuestionCode { get; set; } = string.Empty;
+    }
     public class AnswerResponse
     {
         public int AnswerId { get; set; }                     // Unique ID of the answer
