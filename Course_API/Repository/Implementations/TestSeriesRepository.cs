@@ -2265,7 +2265,7 @@ WHERE TestSeriesId != @TestSeriesId
                 }).ToList();
 
                 // Return the response
-                return new ServiceResponse<List<QuestionResponseDTO>>(true, "Questions retrieved successfully.", response, 200);
+                return new ServiceResponse<List<QuestionResponseDTO>>(true, "Questions retrieved successfully.", response, 200, response.Count);
             }
             catch (Exception ex)
             {
