@@ -1142,6 +1142,23 @@ WHERE TestSeriesId != @TestSeriesId
         {
             try
             {
+                 // Step 1: Validate that each subject has at least one question
+        var subjectsWithNoQuestions = request
+            .GroupBy(section => section.SubjectId)
+            .Where(group => group.Sum(section => section.TotalNoofQuestions) == 0)
+            .Select(group => group.Key)
+            .ToList();
+
+        if (subjectsWithNoQuestions.Any())
+        {
+            string missingSubjects = string.Join(", ", subjectsWithNoQuestions);
+            return new ServiceResponse<string>(
+                false,
+                $"The following subjects must have at least one question: {missingSubjects}.",
+                null,
+                StatusCodes.Status400BadRequest
+            );
+        }
                 // Step 1: Retrieve the total number of questions for the test series
                 var testSeriesQuery = "SELECT TotalNoOfQuestions FROM tblTestSeries WHERE TestSeriesId = @TestSeriesId";
                 int totalNoOfQuestionsForTestSeries = await _connection.QueryFirstOrDefaultAsync<int>(testSeriesQuery, new { TestSeriesId });
@@ -3385,7 +3402,8 @@ WHERE TestSeriesId != @TestSeriesId
                         int questionTypeId = Convert.ToInt32(worksheet.Cells[row, 3].Text);
                         if (questionTypeId == 11) // Handle paragraph type
                         {
-                            var paragraphIdPrevious = (row > 2) ? Convert.ToInt32(worksheet.Cells[row - 1, 6].Text) : 0;
+                            var paragraphIdPrevious = (row > 2 && int.TryParse(worksheet.Cells[row - 1, 6].Text, out int previousId)) ? previousId : 0;
+                          //  var paragraphIdPrevious = (row > 2) ? Convert.ToInt32(worksheet.Cells[row - 1, 6].Text) : 0;
 
                             var paragraphId = Convert.ToInt32(worksheet.Cells[row, 6].Text); // Assuming ParagraphId is in column 6
 

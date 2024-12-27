@@ -62,15 +62,6 @@ namespace Course_API.DTOs.Requests
         public int DisplayOrder { get; set; }
         public string SectionName { get; set; } = string.Empty;
         public bool? Status { get; set; }
-        [Required(ErrorMessage = "Difficulty level cannot be empty")]
-        public int LevelId1 { get; set; }
-        public int QuesPerDifficulty1 { get; set; }
-        [Required(ErrorMessage = "Difficulty level cannot be empty")]
-        public int LevelId2 { get; set; }
-        public int QuesPerDifficulty2 { get; set; }
-        [Required(ErrorMessage = "Difficulty level cannot be empty")]
-        public int LevelId3 { get; set; }
-        public int QuesPerDifficulty3 { get; set; }
         public int QuestionTypeId { get; set; }
         [Required(ErrorMessage = "Mark per question cannot be empty")]
         public decimal MarksPerQuestion { get; set; }
@@ -79,6 +70,14 @@ namespace Course_API.DTOs.Requests
         public int TotalNumberOfQuestions { get; set; }
         public int NoOfQuestionsPerChoice { get; set; }
         public int SubjectId { get; set; }
+        public List<ScholarshipSectionQuestionDifficulty>? ScholarshipSectionQuestionDifficulties { get; set; }
+    }
+    public class ScholarshipSectionQuestionDifficulty
+    {
+        public int Id { get; set; }
+        public int SSTSectionId { get; set; }
+        public int DifficultyLevelId { get; set; }
+        public int QuesPerDiffiLevel { get; set; }
     }
     public class ScholarshipTestInstructions
     {

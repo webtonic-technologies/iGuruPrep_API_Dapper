@@ -165,18 +165,18 @@ namespace Course_API.Services.Implementations
                             DisplayOrder = m.DisplayOrder,
                             SectionName = m.SectionName,
                             Status = m.Status,
-                            LevelId1 = m.LevelId1,
-                            QuesPerDifficulty1 = m.QuesPerDifficulty1,
-                            LevelId2 = m.LevelId2,
-                            QuesPerDifficulty2 = m.QuesPerDifficulty2,
-                            LevelId3 = m.LevelId3,
-                            QuesPerDifficulty3 = m.QuesPerDifficulty3,
                             QuestionTypeId = m.QuestionTypeId,
                             MarksPerQuestion = m.MarksPerQuestion,
                             NegativeMarks = m.NegativeMarks,
                             TotalNumberOfQuestions = m.TotalNumberOfQuestions,
                             NoOfQuestionsPerChoice = m.NoOfQuestionsPerChoice,
-                            SubjectId = data.SubjectId // Map the SubjectId from the parent QuestionSection
+                            SubjectId = data.SubjectId,
+                            ScholarshipSectionQuestionDifficulties = m.ScholarshipSectionQuestionDifficulties?.Select(d => new ScholarshipSectionQuestionDifficulty
+                            {
+                                SSTSectionId = m.SSTSectionId, // Map the parent section ID
+                                DifficultyLevelId = d.DifficultyLevelId,
+                                QuesPerDiffiLevel = d.QuesPerDiffiLevel
+                            }).ToList()// Map the SubjectId from the parent QuestionSection
                         }).ToList();
 
                         // Add the mapped sections to the requestBody

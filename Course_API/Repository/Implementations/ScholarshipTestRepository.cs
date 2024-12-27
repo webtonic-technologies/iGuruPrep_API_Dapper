@@ -7,7 +7,7 @@ using System.Data;
 
 namespace Course_API.Repository.Implementations
 {
-    public class ScholarshipTestRepository: IScholarshipTestRepository
+    public class ScholarshipTestRepository : IScholarshipTestRepository
     {
         private readonly IDbConnection _connection;
 
@@ -134,7 +134,7 @@ namespace Course_API.Repository.Implementations
             FROM tblScholarshipTest
             WHERE ScholarshipTestId = @ScholarshipTestId";
 
-                var scholarship = await _connection.QueryFirstOrDefaultAsync<dynamic>(scholarshipSql, new { request.ScholarshipTestId});
+                var scholarship = await _connection.QueryFirstOrDefaultAsync<dynamic>(scholarshipSql, new { request.ScholarshipTestId });
 
                 if (scholarship == null)
                 {
@@ -343,7 +343,7 @@ namespace Course_API.Repository.Implementations
                 // Check if the connection is open
                 if (_connection.State != System.Data.ConnectionState.Open)
                 {
-                     _connection.Open();
+                    _connection.Open();
                 }
 
                 if (request == null || !request.Any())
@@ -395,7 +395,7 @@ namespace Course_API.Repository.Implementations
                 // Ensure the connection is closed
                 if (_connection.State == System.Data.ConnectionState.Open)
                 {
-                     _connection.Close();
+                    _connection.Close();
                 }
             }
         }
@@ -504,63 +504,271 @@ namespace Course_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-        public async Task<ServiceResponse<string>> ScholarshipQuestionSectionMapping(List<ScholarshipQuestionSection> request, int ScholarshipTestId)
+        public async Task<ServiceResponse<string>> ScholarshipQuestionSectionMapping(List<ScholarshipQuestionSection> request, int ScholarshipId)
         {
             try
             {
-                // Delete existing question sections for the given ScholarshipTestId
-                await DeleteScholarshipQuestionSections(ScholarshipTestId);
+                // Step 1: Validate that each subject has at least one question
+                var subjectsWithNoQuestions = request
+                    .GroupBy(section => section.SubjectId)
+                    .Where(group => group.Sum(section => section.TotalNumberOfQuestions) == 0)
+                    .Select(group => group.Key)
+                    .ToList();
 
-                if (request != null && request.Any())
+                if (subjectsWithNoQuestions.Any())
                 {
-                    string insertQuery = @"
-            INSERT INTO tblSSQuestionSection
-            (
-                ScholarshipTestId, DisplayOrder, SectionName,
-                LevelId1, QuesPerDifficulty1, LevelId2, QuesPerDifficulty2,
-                LevelId3, QuesPerDifficulty3, QuestionTypeId, MarksPerQuestion,
-                NegativeMarks, TotalNumberOfQuestions, NoOfQuestionsPerChoice, SubjectId
-            )
-            VALUES
-            (
-                @ScholarshipTestId, @DisplayOrder, @SectionName,
-                @LevelId1, @QuesPerDifficulty1, @LevelId2, @QuesPerDifficulty2,
-                @LevelId3, @QuesPerDifficulty3, @QuestionTypeId, @MarksPerQuestion,
-                @NegativeMarks, @TotalNumberOfQuestions, @NoOfQuestionsPerChoice, @SubjectId
-            )";
-
-                    var rowsAffected = await _connection.ExecuteAsync(insertQuery, request.Select(section => new
-                    {
-                        ScholarshipTestId = ScholarshipTestId,
-                        DisplayOrder = section.DisplayOrder,
-                        SectionName = section.SectionName,
-                        Status = section.Status,
-                        LevelId1 = section.LevelId1,
-                        QuesPerDifficulty1 = section.QuesPerDifficulty1,
-                        LevelId2 = section.LevelId2,
-                        QuesPerDifficulty2 = section.QuesPerDifficulty2,
-                        LevelId3 = section.LevelId3,
-                        QuesPerDifficulty3 = section.QuesPerDifficulty3,
-                        QuestionTypeId = section.QuestionTypeId,
-                        MarksPerQuestion = section.MarksPerQuestion,
-                        NegativeMarks = section.NegativeMarks,
-                        TotalNumberOfQuestions = section.TotalNumberOfQuestions,
-                        NoOfQuestionsPerChoice = section.NoOfQuestionsPerChoice,
-                        SubjectId = section.SubjectId
-                    }));
-
-                    return rowsAffected > 0
-                        ? new ServiceResponse<string>(true, "Operation successful", null, 200)
-                        : new ServiceResponse<string>(false, "Some error occurred", null, 500);
+                    string missingSubjects = string.Join(", ", subjectsWithNoQuestions);
+                    return new ServiceResponse<string>(
+                        false,
+                        $"The following subjects must have at least one question: {missingSubjects}.",
+                        null,
+                        StatusCodes.Status400BadRequest
+                    );
                 }
 
-                return new ServiceResponse<string>(true, "No question sections to process", null, 200);
+                // Step 2: Retrieve the total number of questions for the scholarship
+                var scholarshipQuery = "SELECT TotalNoOfQuestions FROM tblScholarship WHERE ScholarshipId = @ScholarshipId";
+                int totalNoOfQuestionsForScholarship = await _connection.QueryFirstOrDefaultAsync<int>(scholarshipQuery, new { ScholarshipId });
+
+                // Step 3: Retrieve existing sections and difficulty levels for the scholarship
+                var existingSectionsQuery = "SELECT TotalNoofQuestions FROM tblScholarshipQuestionSection WHERE ScholarshipId = @ScholarshipId";
+                var existingSections = await _connection.QueryAsync<int>(existingSectionsQuery, new { ScholarshipId });
+
+                var existingDifficultyLevelsQuery = @"
+            SELECT DifficultyLevelId, SUM(QuesPerDiffiLevel) AS TotalQuestions
+            FROM tblScholarshipQuestionDifficulty
+            WHERE QuestionSectionId IN (
+                SELECT ScholarshipQuestionSectionId
+                FROM tblScholarshipQuestionSection
+                WHERE ScholarshipId = @ScholarshipId
+            )
+            GROUP BY DifficultyLevelId";
+                var existingDifficultyLevels = await _connection.QueryAsync<(int DifficultyLevelId, int TotalQuestions)>(existingDifficultyLevelsQuery, new { ScholarshipId });
+
+                // Step 4: Sum up questions from existing sections
+                int totalExistingQuestions = existingSections.Sum();
+
+                // Step 5: Calculate questions from the incoming request
+                int totalRequestedQuestions = request.Sum(section => section.TotalNumberOfQuestions);
+
+                // Step 6: Validate the total number of questions
+                int totalAssignedQuestions = totalExistingQuestions + totalRequestedQuestions;
+                if (totalAssignedQuestions != totalNoOfQuestionsForScholarship)
+                {
+                    return new ServiceResponse<string>(
+                        false,
+                        $"The total number of questions assigned ({totalAssignedQuestions}) must be exactly equal to the limit of {totalNoOfQuestionsForScholarship} for the scholarship.",
+                        null,
+                        StatusCodes.Status400BadRequest
+                    );
+                }
+
+                // Step 7: Validate questions for difficulty levels
+                foreach (var difficultyGroup in request.SelectMany(section => section.ScholarshipSectionQuestionDifficulties)
+                                                       .GroupBy(d => d.DifficultyLevelId))
+                {
+                    int requestedDifficultyTotal = difficultyGroup.Sum(d => d.QuesPerDiffiLevel);
+                    int existingDifficultyTotal = existingDifficultyLevels.FirstOrDefault(x => x.DifficultyLevelId == difficultyGroup.Key).TotalQuestions;
+
+                    if (existingDifficultyTotal + requestedDifficultyTotal > totalNoOfQuestionsForScholarship)
+                    {
+                        return new ServiceResponse<string>(
+                            false,
+                            $"The total questions for Difficulty Level {difficultyGroup.Key} exceed the allowed limit of {totalNoOfQuestionsForScholarship}.",
+                            null,
+                            StatusCodes.Status400BadRequest
+                        );
+                    }
+                }
+
+                // Step 8: Update ScholarshipId for all sections in the request
+                foreach (var section in request)
+                {
+                    section.ScholarshipTestId = ScholarshipId;
+                }
+
+                // Step 9: Perform Insert or Update operations
+                string checkExistenceQuery = @"
+            SELECT COUNT(1) 
+            FROM tblScholarshipQuestionSection 
+            WHERE ScholarshipQuestionSectionId = @ScholarshipQuestionSectionId";
+
+                string updateQuery = @"
+            UPDATE tblScholarshipQuestionSection
+            SET 
+                Status = @Status,
+                QuestionTypeID = @QuestionTypeID,
+                EntermarksperCorrectAnswer = @EntermarksperCorrectAnswer,
+                EnterNegativeMarks = @EnterNegativeMarks,
+                TotalNoofQuestions = @TotalNoofQuestions,
+                NoofQuestionsforChoice = @NoofQuestionsforChoice,
+                SubjectId = @SubjectId
+            WHERE ScholarshipId = @ScholarshipId";
+
+                string insertQuery = @"
+            INSERT INTO tblScholarshipQuestionSection 
+            (ScholarshipId, DisplayOrder, SectionName, Status, QuestionTypeID, EntermarksperCorrectAnswer, EnterNegativeMarks, TotalNoofQuestions, NoofQuestionsforChoice, SubjectId)
+            VALUES 
+            (@ScholarshipId, @DisplayOrder, @SectionName, @Status, @QuestionTypeID, @EntermarksperCorrectAnswer, @EnterNegativeMarks, @TotalNoofQuestions, @NoofQuestionsforChoice, @SubjectId);
+            SELECT CAST(SCOPE_IDENTITY() as int);";
+
+                foreach (var section in request)
+                {
+                    // Check if the record exists
+                    int recordExists = await _connection.ExecuteScalarAsync<int>(checkExistenceQuery, new { ScholarshipQuestionSectionId = section.SSTSectionId });
+
+                    if (recordExists > 0)
+                    {
+                        // Update existing record
+                        await _connection.ExecuteAsync(updateQuery, section);
+                    }
+                    else
+                    {
+                        // Insert new record
+                        section.SSTSectionId = await _connection.QuerySingleAsync<int>(insertQuery, section);
+                    }
+
+                    foreach (var record in section.ScholarshipSectionQuestionDifficulties)
+                    {
+                        record.SSTSectionId = section.SSTSectionId;
+                    }
+
+                    // Handle difficulties for the section
+                    await AddUpdateScholarshipQuestionDifficultyAsync(section.ScholarshipSectionQuestionDifficulties);
+                }
+
+                return new ServiceResponse<string>(true, "Operation successful", "Sections mapped successfully", StatusCodes.Status200OK);
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<string>(false, ex.Message, null, 500);
+                throw new Exception("An error occurred while mapping scholarship sections", ex);
             }
         }
+
+        private async Task AddUpdateScholarshipQuestionDifficultyAsync(List<ScholarshipSectionQuestionDifficulty> difficulties)
+        {
+            try
+            {
+                // SQL queries for inserting or updating difficulties
+                string checkExistenceQuery = @"
+            SELECT COUNT(1)
+            FROM tblScholarshipQuestionDifficulty
+            WHERE SSTSectionId = @SSTSectionId AND DifficultyLevelId = @DifficultyLevelId";
+
+                string updateQuery = @"
+            UPDATE tblScholarshipQuestionDifficulty
+            SET QuesPerDiffiLevel = @QuesPerDiffiLevel
+            WHERE SSTSectionId = @SSTSectionId AND DifficultyLevelId = @DifficultyLevelId";
+
+                string insertQuery = @"
+            INSERT INTO tblScholarshipQuestionDifficulty
+            (SSTSectionId, DifficultyLevelId, QuesPerDiffiLevel)
+            VALUES
+            (@SSTSectionId, @DifficultyLevelId, @QuesPerDiffiLevel)";
+
+                foreach (var difficulty in difficulties)
+                {
+                    int recordExists = await _connection.ExecuteScalarAsync<int>(checkExistenceQuery, new
+                    {
+                        difficulty.SSTSectionId,
+                        difficulty.DifficultyLevelId
+                    });
+
+                    if (recordExists > 0)
+                    {
+                        await _connection.ExecuteAsync(updateQuery, difficulty);
+                    }
+                    else
+                    {
+                        await _connection.ExecuteAsync(insertQuery, difficulty);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("An error occurred while updating scholarship question difficulties", ex);
+            }
+        }
+
+        private async Task DeleteScholarshipQuestionSections(int ScholarshipTestId)
+        {
+            try
+            {
+                string deleteSectionsQuery = "DELETE FROM tblSSQuestionSection WHERE ScholarshipTestId = @ScholarshipTestId";
+                string deleteDifficultiesQuery = @"
+            DELETE FROM tblScholarshipQuestionDifficulty
+            WHERE SSTSectionId IN (
+                SELECT SSTSectionId
+                FROM tblSSQuestionSection
+                WHERE ScholarshipTestId = @ScholarshipTestId
+            )";
+
+                await _connection.ExecuteAsync(deleteDifficultiesQuery, new { ScholarshipTestId });
+                await _connection.ExecuteAsync(deleteSectionsQuery, new { ScholarshipTestId });
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("An error occurred while deleting scholarship question sections", ex);
+            }
+        }
+
+        //public async Task<ServiceResponse<string>> ScholarshipQuestionSectionMapping(List<ScholarshipQuestionSection> request, int ScholarshipTestId)
+        //{
+        //    try
+        //    {
+        //        // Delete existing question sections for the given ScholarshipTestId
+        //        await DeleteScholarshipQuestionSections(ScholarshipTestId);
+
+        //        if (request != null && request.Any())
+        //        {
+        //            string insertQuery = @"
+        //    INSERT INTO tblSSQuestionSection
+        //    (
+        //        ScholarshipTestId, DisplayOrder, SectionName,
+        //        LevelId1, QuesPerDifficulty1, LevelId2, QuesPerDifficulty2,
+        //        LevelId3, QuesPerDifficulty3, QuestionTypeId, MarksPerQuestion,
+        //        NegativeMarks, TotalNumberOfQuestions, NoOfQuestionsPerChoice, SubjectId
+        //    )
+        //    VALUES
+        //    (
+        //        @ScholarshipTestId, @DisplayOrder, @SectionName,
+        //        @LevelId1, @QuesPerDifficulty1, @LevelId2, @QuesPerDifficulty2,
+        //        @LevelId3, @QuesPerDifficulty3, @QuestionTypeId, @MarksPerQuestion,
+        //        @NegativeMarks, @TotalNumberOfQuestions, @NoOfQuestionsPerChoice, @SubjectId
+        //    )";
+
+        //            var rowsAffected = await _connection.ExecuteAsync(insertQuery, request.Select(section => new
+        //            {
+        //                ScholarshipTestId = ScholarshipTestId,
+        //                DisplayOrder = section.DisplayOrder,
+        //                SectionName = section.SectionName,
+        //                Status = section.Status,
+        //                LevelId1 = section.LevelId1,
+        //                QuesPerDifficulty1 = section.QuesPerDifficulty1,
+        //                LevelId2 = section.LevelId2,
+        //                QuesPerDifficulty2 = section.QuesPerDifficulty2,
+        //                LevelId3 = section.LevelId3,
+        //                QuesPerDifficulty3 = section.QuesPerDifficulty3,
+        //                QuestionTypeId = section.QuestionTypeId,
+        //                MarksPerQuestion = section.MarksPerQuestion,
+        //                NegativeMarks = section.NegativeMarks,
+        //                TotalNumberOfQuestions = section.TotalNumberOfQuestions,
+        //                NoOfQuestionsPerChoice = section.NoOfQuestionsPerChoice,
+        //                SubjectId = section.SubjectId
+        //            }));
+
+        //            return rowsAffected > 0
+        //                ? new ServiceResponse<string>(true, "Operation successful", null, 200)
+        //                : new ServiceResponse<string>(false, "Some error occurred", null, 500);
+        //        }
+
+        //        return new ServiceResponse<string>(true, "No question sections to process", null, 200);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new ServiceResponse<string>(false, ex.Message, null, 500);
+        //    }
+        //}
         public async Task<ServiceResponse<string>> ScholarshipQuestionsMapping(List<ScholarshipTestQuestion> request, int ScholarshipTestId, int SSTSectionId)
         {
             try
@@ -1059,11 +1267,6 @@ namespace Course_API.Repository.Implementations
         private async Task DeleteScholarshipTestInstructions(int ScholarshipTestId)
         {
             string query = "DELETE FROM tblSSTInstructions WHERE ScholarshipTestId = @ScholarshipTestId";
-            await _connection.ExecuteAsync(query, new { ScholarshipTestId = ScholarshipTestId });
-        }
-        private async Task DeleteScholarshipQuestionSections(int ScholarshipTestId)
-        {
-            string query = "DELETE FROM tblSSQuestionSection WHERE ScholarshipTestId = @ScholarshipTestId";
             await _connection.ExecuteAsync(query, new { ScholarshipTestId = ScholarshipTestId });
         }
     }
