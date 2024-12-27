@@ -3290,10 +3290,10 @@ WHERE TestSeriesId != @TestSeriesId
             return await _connection.QueryFirstOrDefaultAsync<int>(query, new { SubTopicCode = subTopicCode });
         }
         private List<ParagraphQuestionDTO> GetChildQuestions(ExcelWorksheet worksheet, int rowCount,
-      Dictionary<string, int> subjectDictionary, int EmployeeId, int ParagraphId)
+      Dictionary<string, int> subjectDictionary, int EmployeeId, int ParagraphId, int rowNumber)
         {
             var questions = new List<ParagraphQuestionDTO>();
-            for (int row = 2; row <= rowCount; row++) // Skip header row
+            for (int row = rowNumber; row <= rowCount; row++) // Skip header row
             {
                 int questionTypeId = Convert.ToInt32(worksheet.Cells[row, 3].Text);
                 var paragraphID = string.IsNullOrWhiteSpace(worksheet.Cells[row, 5].Text)
@@ -3442,7 +3442,7 @@ WHERE TestSeriesId != @TestSeriesId
                                     IsActive = true,
                                     IsConfigure = true,
                                     QIDCourses = qidCourses,
-                                    Questions = GetChildQuestions(worksheet, rowCount, subjectDictionary, EmployeeId, paragraphId), // Populate child questions as needed
+                                    Questions = GetChildQuestions(worksheet, rowCount, subjectDictionary, EmployeeId, paragraphId, row), // Populate child questions as needed
                                 };
 
                                 var comprehensiveResponse = await AddUpdateComprehensiveQuestion(comprehensiveQuestionRequest);

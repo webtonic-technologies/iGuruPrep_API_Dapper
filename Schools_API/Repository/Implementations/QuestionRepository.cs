@@ -5608,7 +5608,7 @@ VALUES
                         if (questionTypeId == 11) // Handle paragraph type
                         {
 
-                            var paragraphIdPrevious = (row > 2) ? Convert.ToInt32(worksheet.Cells[row - 1, 5].Text) : 0;
+                            var paragraphIdPrevious = (row > 2 && int.TryParse(worksheet.Cells[row - 1, 5].Text, out int previousId)) ? previousId : 0;
 
                             var paragraphId = Convert.ToInt32(worksheet.Cells[row, 5].Text); // Assuming ParagraphId is in column 6
 
@@ -5683,7 +5683,7 @@ VALUES
                                     IsActive = true,
                                     IsConfigure = true,
                                     QIDCourses = ExtractQIDCourses(paragraphSheet, courseCodeDictionary, 2), // Populate from the row
-                                    Questions = GetChildQuestions(worksheet, rowCount, courseCodeDictionary, subjectDictionary, EmployeeId, paragraphId), // Populate child questions as needed
+                                    Questions = GetChildQuestions(worksheet, rowCount, courseCodeDictionary, subjectDictionary, EmployeeId, paragraphId, row), // Populate child questions as needed
                                 };
 
                                 var comprehensiveResponse = await AddUpdateComprehensiveQuestion(comprehensiveQuestionRequest);
@@ -5900,10 +5900,10 @@ VALUES
         }
         private List<ParagraphQuestionDTO> GetChildQuestions(ExcelWorksheet worksheet, int rowCount,
         Dictionary<string, int> courseCodeDictionary,
-        Dictionary<string, int> subjectDictionary, int EmployeeId, int ParagraphId)
+        Dictionary<string, int> subjectDictionary, int EmployeeId, int ParagraphId, int rowNumber)
         {
             var questions = new List<ParagraphQuestionDTO>();
-            for (int row = 2; row <= rowCount; row++) // Skip header row
+            for (int row = rowNumber; row <= rowCount; row++) // Skip header row
             {
 
                 var paragraphID = string.IsNullOrWhiteSpace(worksheet.Cells[row, 5].Text)
