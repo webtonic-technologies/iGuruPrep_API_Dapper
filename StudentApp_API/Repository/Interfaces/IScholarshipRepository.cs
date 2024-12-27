@@ -1,8 +1,6 @@
 ﻿using StudentApp_API.DTOs.Requests;
 using StudentApp_API.DTOs.Responses;
 using StudentApp_API.DTOs.ServiceResponse;
-using System.Threading.Tasks;
-using static StudentApp_API.Repository.Implementations.ScholarshipRepository;
 
 namespace StudentApp_API.Repository.Interfaces
 {

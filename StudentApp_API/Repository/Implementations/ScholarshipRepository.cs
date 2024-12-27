@@ -427,6 +427,7 @@ namespace StudentApp_API.Repository.Implementations
                 // Return the fetched questions list
                 response.Data = questionsList;
                 response.Success = true;
+                response.StatusCode = 200;
             }
             catch (Exception ex)
             {

@@ -86,6 +86,17 @@ namespace StudentApp_API.Controllers
 
             return BadRequest(response);
         }
+        [HttpGet("GetQuestionsBySectionSettings/{scholarshipTestId}")]
+        public async Task<IActionResult> GetQuestionsBySectionSettings(int scholarshipTestId)
+        {
+            var response = await _scholarshipService.GetQuestionsBySectionSettings(scholarshipTestId);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+
+            return BadRequest(response);
+        }
         [HttpPost("SubmitAnswer")]
         public async Task<IActionResult> SubmitAnswer(List<AnswerSubmissionRequest> request)
         {

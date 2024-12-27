@@ -464,10 +464,10 @@ namespace StudentApp_API.Repository.Implementations
                 var syllabusQuery = @"
             SELECT 
                 qs.QuizooID, qs.SubjectID, qs.ChapterID, 
-                s.SubjectName, c.ChapterName
+                s.SubjectName, c.ContentName_Chapter
             FROM tblQuizooSyllabus qs
             INNER JOIN tblSubject s ON qs.SubjectID = s.SubjectID
-            INNER JOIN tblChapter c ON qs.ChapterID = c.ChapterID
+            INNER JOIN tblContentIndexChapters c ON qs.ChapterID = c.ContentIndexId
             WHERE qs.QuizooID = @QuizooID";
 
                 var syllabus = await _connection.QueryAsync<QuizooSyllabusDTO>(syllabusQuery, new { QuizooID = quizooId });

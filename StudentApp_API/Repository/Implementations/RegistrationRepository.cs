@@ -334,9 +334,9 @@ namespace StudentApp_API.Repository.Implementations
 
                     if (userWithPassword != null)
                     {
-                        // Decrypt and validate password (case insensitive comparison)
+                        // Decrypt and validate password (case-sensitive comparison)
                         string decryptedPassword = EncryptionHelper.DecryptString(userWithPassword.Password);
-                        if (!decryptedPassword.Equals(password, StringComparison.OrdinalIgnoreCase))
+                        if (decryptedPassword != password) // Case-sensitive check
                         {
                             return new ServiceResponse<LoginResponse>(false, "Invalid email or password.", null, 401);
                         }
@@ -358,9 +358,9 @@ namespace StudentApp_API.Repository.Implementations
 
                     if (userWithPassword != null)
                     {
-                        // Decrypt and validate password (case insensitive comparison)
+                        // Decrypt and validate password (case-sensitive comparison)
                         string decryptedPassword = EncryptionHelper.DecryptString(userWithPassword.Password);
-                        if (!decryptedPassword.Equals(password, StringComparison.OrdinalIgnoreCase))
+                        if (decryptedPassword != password) // Case-sensitive check
                         {
                             return new ServiceResponse<LoginResponse>(false, "Invalid phone number or password.", null, 401);
                         }
@@ -382,8 +382,14 @@ namespace StudentApp_API.Repository.Implementations
 
                     var licenseDetails = await _connection.QueryFirstOrDefaultAsync<dynamic>(licenseQuery, new { Input = input });
 
-                    if (licenseDetails != null && licenseDetails.LicensePassword.Equals(password, StringComparison.OrdinalIgnoreCase))
+                    if (licenseDetails != null)
                     {
+                        // Validate password (case-sensitive comparison)
+                        if (licenseDetails.LicensePassword != password) // Case-sensitive check
+                        {
+                            return new ServiceResponse<LoginResponse>(false, "Invalid license number or password.", null, 401);
+                        }
+
                         isLicenseLogin = true;
                         schoolCode = licenseDetails.SchoolCode;
 
@@ -398,10 +404,6 @@ namespace StudentApp_API.Repository.Implementations
                             SchoolCode = schoolCode,
                             RegistrationID = userWithPassword?.RegistrationId
                         });
-                    }
-                    else
-                    {
-                        return new ServiceResponse<LoginResponse>(false, "Invalid license number or password.", null, 401);
                     }
                 }
 
@@ -568,7 +570,7 @@ namespace StudentApp_API.Repository.Implementations
         private async Task<decimal> CalculateProfilePercentageAsync(int registrationId, RegistrationRequest userWithPassword)
         {
             // Determine the country type
-            bool isIndian = userWithPassword.CountryCodeID == "India"; // Assuming 1 is for India
+            bool isIndian = userWithPassword.CountryID == 1; // Assuming 1 is for India
 
             // Query to fetch parent info
             string parentQuery = @"

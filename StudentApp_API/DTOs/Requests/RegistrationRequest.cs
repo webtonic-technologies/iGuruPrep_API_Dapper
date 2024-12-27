@@ -11,7 +11,7 @@ namespace StudentApp_API.DTOs.Requests
         public string LastName { get; set; }
 
         [Required(ErrorMessage = "Country code is required.")]
-        public string CountryCodeID { get; set; }
+        public int CountryCodeID { get; set; }
 
         [Required(ErrorMessage = "Mobile number is required.")]
         public string MobileNumber { get; set; }
