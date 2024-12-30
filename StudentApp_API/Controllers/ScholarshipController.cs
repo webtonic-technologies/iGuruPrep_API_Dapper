@@ -87,10 +87,10 @@ namespace StudentApp_API.Controllers
 
             return BadRequest(response);
         }
-        [HttpGet("GetQuestionsBySectionSettings/{scholarshipTestId}/{studentId}")]
-        public async Task<IActionResult> GetQuestionsBySectionSettings(int scholarshipTestId, int studentId)
+        [HttpPost("GetQuestionsBySectionSettings")]
+        public async Task<IActionResult> GetQuestionsBySectionSettings(GetScholarshipQuestionRequest request)
         {
-            var response = await _scholarshipService.GetQuestionsBySectionSettings(scholarshipTestId, studentId);
+            var response = await _scholarshipService.GetQuestionsBySectionSettings(request);
             if (response.Success)
             {
                 return Ok(response);
@@ -113,6 +113,17 @@ namespace StudentApp_API.Controllers
         public async Task<IActionResult> MarkQuestionAsSave(ScholarshipQuestionSaveRequest request)
         {
             var response = await _scholarshipService.MarkScholarshipQuestionAsSave(request);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+
+            return BadRequest(response);
+        }
+        [HttpGet("GetQuestionTypesByScholarshipId/{scholarshipId}")]
+        public async Task<IActionResult> GetQuestionTypesByScholarshipId(int scholarshipId)
+        {
+            var response = await _scholarshipService.GetQuestionTypesByScholarshipId(scholarshipId);
             if (response.Success)
             {
                 return Ok(response);

@@ -122,5 +122,11 @@
         public int QuestionTypeID { get; set; }
         public string QuestionType { get; set; }
     }
-
+    public class ScholarshipSectionResponse
+    {
+        public int SSTSectionId { get; set; }
+        public int ScholarshipTestId { get; set; }
+        public string SectionName { get; set; }
+        public int QuestionTypeId { get; set; }
+    }
 }

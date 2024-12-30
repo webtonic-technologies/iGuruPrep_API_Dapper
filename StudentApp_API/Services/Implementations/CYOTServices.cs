@@ -25,9 +25,9 @@ namespace StudentApp_API.Services.Implementations
             return await _cYOTRepository.GetCYOTByIdAsync(cyotId);
         }
 
-        public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetCYOTQuestions(int cyotId, int registrationId)
+        public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetCYOTQuestions(GetCYOTQuestionsRequest request)
         {
-            return await _cYOTRepository.GetCYOTQuestions(cyotId, registrationId);
+            return await _cYOTRepository.GetCYOTQuestions(request);
         }
 
         public async Task<ServiceResponse<List<CYOTQuestionWithAnswersDTO>>> GetCYOTQuestionsWithOptionsAsync(int cyotId)

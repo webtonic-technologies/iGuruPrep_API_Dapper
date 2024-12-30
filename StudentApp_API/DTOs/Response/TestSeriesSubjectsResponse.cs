@@ -68,4 +68,10 @@
         public int TotalQuestions { get; set; }
         public bool Bookmarked { get; set; }
     }
+    public class QuestionTypeDTO
+    {
+        public int QuestionTypeID { get; set; }
+        public string QuestionType { get; set; } = string.Empty;
+    }
+
 }

@@ -70,10 +70,10 @@ namespace StudentApp_API.Controllers
 
             return BadRequest(response);
         }
-        [HttpGet("GetCYOTQuestions/{cyotId}/{registrationId}")]
-        public async Task<IActionResult> GetCYOTQuestions(int cyotId, int registrationId)
+        [HttpPost("GetCYOTQuestions")]
+        public async Task<IActionResult> GetCYOTQuestions(GetCYOTQuestionsRequest request)
         {
-            var result = await _cYOTServices.GetCYOTQuestions(cyotId, registrationId);
+            var result = await _cYOTServices.GetCYOTQuestions(request);
             if (result.Success)
                 return Ok(result);
             return StatusCode(result.StatusCode, result);

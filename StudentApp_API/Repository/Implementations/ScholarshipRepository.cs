@@ -35,9 +35,14 @@ namespace StudentApp_API.Repository.Implementations
 
                 // Step 2: Get scholarship data based on the student's registration ID
                 var scholarshipData = await GetScholarshipTestByRegistrationId(request.RegistrationID);
-
+                var requestbody = new GetScholarshipQuestionRequest
+                {
+                    scholarshipTestId = scholarshipData.Data.ScholarshipTest.ScholarshipTestId,
+                    studentId = 0,
+                    QuestionTypeId = null
+                };
                 // Step 3: Get the questions for the scholarship test
-                var scholarshipQuestion = await GetQuestionsBySectionSettings(scholarshipData.Data.ScholarshipTest.ScholarshipTestId, 0);
+                var scholarshipQuestion = await GetQuestionsBySectionSettings(requestbody);
 
                 // Step 4: Insert the scholarship details for the student
                 string insertQuery = @"INSERT INTO tblStudentScholarship (ScholarshipID, StudentID, QuestionID, SubjectID, QuestionTypeID, ExamDate)
@@ -61,6 +66,53 @@ namespace StudentApp_API.Repository.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<bool>(false, ex.Message, false, 500);
+            }
+        }
+        public async Task<ServiceResponse<List<QuestionTypeResponse>>> GetQuestionTypesByScholarshipId(int scholarshipId)
+        {
+            if (_connection.State != ConnectionState.Open)
+            {
+                _connection.Open();
+            }
+
+            try
+            {
+                // Query to fetch sections for the given ScholarshipId
+                string querySections = @"
+            SELECT SSTSectionId, ScholarshipTestId, SectionName, QuestionTypeId
+            FROM tblSSQuestionSection
+            WHERE ScholarshipTestId = @ScholarshipId";
+
+                // Fetch the sections
+                var sections = (await _connection.QueryAsync<ScholarshipSectionResponse>(querySections, new { ScholarshipId = scholarshipId })).ToList();
+
+                if (!sections.Any())
+                {
+                    return new ServiceResponse<List<QuestionTypeResponse>>(false, "No sections found for the given ScholarshipId", null, 404);
+                }
+
+                // Extract the unique QuestionTypeIds from the sections
+                var questionTypeIds = sections.Select(s => s.QuestionTypeId).Distinct().ToList();
+
+                // Query to fetch question type details
+                string queryQuestionTypes = @"
+            SELECT QuestionTypeID, QuestionType, Code
+            FROM tblQBQuestionType
+            WHERE QuestionTypeID IN @QuestionTypeIds";
+
+                // Fetch the question types
+                var questionTypes = (await _connection.QueryAsync<QuestionTypeResponse>(queryQuestionTypes, new { QuestionTypeIds = questionTypeIds })).ToList();
+
+                if (!questionTypes.Any())
+                {
+                    return new ServiceResponse<List<QuestionTypeResponse>>(false, "No question types found for the given ScholarshipId", null, 404);
+                }
+
+                return new ServiceResponse<List<QuestionTypeResponse>>(true, "Success", questionTypes, 200);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<QuestionTypeResponse>>(false, ex.Message, null, 500);
             }
         }
         //public async Task<ServiceResponse<bool>> AssignScholarshipAsync(AssignScholarshipRequest request)
@@ -372,7 +424,7 @@ namespace StudentApp_API.Repository.Implementations
                 }
             return response;
         }
-        public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetQuestionsBySectionSettings(int scholarshipTestId, int studentId)
+        public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetQuestionsBySectionSettings(GetScholarshipQuestionRequest request)
         {
             ServiceResponse<List<QuestionResponseDTO>> response = new ServiceResponse<List<QuestionResponseDTO>>(true, string.Empty, new List<QuestionResponseDTO>(), 200);
             try
@@ -388,7 +440,7 @@ namespace StudentApp_API.Repository.Implementations
         FROM tblSSQuestionSection qs
         WHERE qs.ScholarshipTestId = @ScholarshipTestId";
 
-                var sections = await _connection.QueryAsync<SectionSettingDTO>(sectionQuery, new { ScholarshipTestId = scholarshipTestId });
+                var sections = await _connection.QueryAsync<SectionSettingDTO>(sectionQuery, new { ScholarshipTestId = request.scholarshipTestId });
 
                 // Initialize the question list
                 List<QuestionResponseDTO> questionsList = new List<QuestionResponseDTO>();
@@ -445,7 +497,7 @@ namespace StudentApp_API.Repository.Implementations
                 WHERE StudentID = @StudentId AND QuestionID = @QuestionId AND ScholarshipID = @ScholarshipTestId";
 
                         var studentAnswer = await _connection.QuerySingleOrDefaultAsync<dynamic>(studentAnswerQuery,
-                            new { StudentId = studentId, QuestionId = question.QuestionId, ScholarshipTestId = scholarshipTestId });
+                            new { StudentId = request.studentId, QuestionId = question.QuestionId, ScholarshipTestId = request.scholarshipTestId });
 
                         if (studentAnswer != null)
                         {
@@ -513,7 +565,13 @@ namespace StudentApp_API.Repository.Implementations
                     // Add questions to the list
                     questionsList.AddRange(questions);
                 }
-
+                // Apply the QuestionTypeId filter on the questionsList
+                if (request.QuestionTypeId != null && request.QuestionTypeId.Any())
+                {
+                    questionsList = questionsList
+                        .Where(q => request.QuestionTypeId.Contains(q.QuestionTypeId))
+                        .ToList();
+                }
                 response.Data = questionsList;
                 response.Success = true;
                 response.StatusCode = 200;

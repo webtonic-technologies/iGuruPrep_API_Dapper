@@ -20,9 +20,14 @@ namespace StudentApp_API.Services.Implementations
             return await _scholarshipRepository.AssignScholarshipAsync(request);
         }
 
-        public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetQuestionsBySectionSettings(int scholarshipTestId, int studentId)
+        public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetQuestionsBySectionSettings(GetScholarshipQuestionRequest request)
         {
-            return await _scholarshipRepository.GetQuestionsBySectionSettings(scholarshipTestId, studentId);
+            return await _scholarshipRepository.GetQuestionsBySectionSettings(request);
+        }
+
+        public async Task<ServiceResponse<List<QuestionTypeResponse>>> GetQuestionTypesByScholarshipId(int scholarshipId)
+        {
+            return await _scholarshipRepository.GetQuestionTypesByScholarshipId(scholarshipId);
         }
 
         public async Task<ServiceResponse<List<SubjectQuestionCountResponse>>> GetScholarshipSubjectQuestionCount(int scholarshipTestId)

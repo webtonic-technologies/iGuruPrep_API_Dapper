@@ -270,7 +270,7 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<bool>(false, $"Error: {ex.Message}", false, 500);
             }
         }
-        public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetCYOTQuestions(int cyotId, int registrationId)
+        public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetCYOTQuestions(GetCYOTQuestionsRequest request)
         {
             _connection.Open();
 
@@ -278,7 +278,7 @@ namespace StudentApp_API.Repository.Implementations
             var studentDetails = await _connection.QuerySingleOrDefaultAsync<StudentDetails>(
                 "SELECT SCCMID, RegistrationID, CourseID, ClassID, BoardId " +
                 "FROM tblStudentClassCourseMapping WHERE RegistrationID = @RegistrationID",
-                new { RegistrationID = registrationId });
+                new { RegistrationID = request.registrationId });
 
             if (studentDetails == null)
                 return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
@@ -295,7 +295,7 @@ namespace StudentApp_API.Repository.Implementations
             var cyotSyllabus = await _connection.QueryAsync<QuizooSubjectMapping>(
                 "SELECT CYOTID, SubjectID, ChapterID " +
                 "FROM tblCYOTSyllabus WHERE CYOTID = @CYOTID",
-                new { CYOTID = cyotId });
+                new { CYOTID = request.cyotId });
 
             if (!cyotSyllabus.Any())
                 return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
@@ -380,7 +380,7 @@ namespace StudentApp_API.Repository.Implementations
             // Step 8: Fetch CYOT details
             var cyotDetails = await _connection.QuerySingleOrDefaultAsync<dynamic>(
                 "SELECT NoOfQuestions, Duration FROM tblCYOT WHERE CYOTID = @CYOTID",
-                new { CYOTID = cyotId });
+                new { CYOTID = request.cyotId });
 
             if (cyotDetails == null)
                 return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
@@ -389,53 +389,134 @@ namespace StudentApp_API.Repository.Implementations
             int durationPerQuestion = cyotDetails.Duration / limit;
 
             // Step 9: Fetch questions
+            //var questions = await _connection.QueryAsync<QuestionResponseDTO>(
+            //    "SELECT TOP(@Limit) * " +
+            //    "FROM tblQuestion " +
+            //    "WHERE ContentIndexId IN @ContentIndexIds " +
+            //    "AND SubjectID IN @SubjectIds " +
+            //    "AND IndexTypeId IN @IndexTypeIds " +
+            //    "AND IsConfigure = 1 AND IsLive = 1 AND QuestionTypeId IN (1, 2, 10, 6) " +
+            //    "ORDER BY NEWID()",
+            //    new
+            //    {
+            //        ContentIndexIds = filteredContent.Select(c => c.ContentIndexId),
+            //        SubjectIds = filteredContent.Select(c => c.SubjectId),
+            //        IndexTypeIds = filteredContent.Select(c => c.IndexTypeId),
+            //        Limit = limit
+            //    });
             var questions = await _connection.QueryAsync<QuestionResponseDTO>(
-                "SELECT TOP(@Limit) * " +
-                "FROM tblQuestion " +
-                "WHERE ContentIndexId IN @ContentIndexIds " +
-                "AND SubjectID IN @SubjectIds " +
-                "AND IndexTypeId IN @IndexTypeIds " +
-                "AND IsConfigure = 1 AND IsLive = 1 AND QuestionTypeId IN (1, 2, 10, 6) " +
-                "ORDER BY NEWID()",
-                new
-                {
-                    ContentIndexIds = filteredContent.Select(c => c.ContentIndexId),
-                    SubjectIds = filteredContent.Select(c => c.SubjectId),
-                    IndexTypeIds = filteredContent.Select(c => c.IndexTypeId),
-                    Limit = limit
-                });
+    "SELECT TOP(@Limit) * " +
+    "FROM tblQuestion " +
+    "WHERE ContentIndexId IN @ContentIndexIds " +
+    "AND SubjectID IN @SubjectIds " +
+    "AND IndexTypeId IN @IndexTypeIds " +
+    "AND IsConfigure = 1 AND IsLive = 1 " +
+    "AND QuestionTypeId IN @QuestionTypeIds " + // Added filter
+    "ORDER BY NEWID()",
+    new
+    {
+        ContentIndexIds = filteredContent.Select(c => c.ContentIndexId),
+        SubjectIds = filteredContent.Select(c => c.SubjectId),
+        IndexTypeIds = filteredContent.Select(c => c.IndexTypeId),
+        QuestionTypeIds = request.QuestionTypeId?.Any() == true ? request.QuestionTypeId : new List<int> { 1, 2, 10, 6 }, // Use provided list or default
+        Limit = limit
+    });
             // Convert the data to a list of DTOs
             var response = questions.Select(item =>
             {
-                return new QuestionResponseDTO
+                if (item.QuestionTypeId == 11)
                 {
-                    QuestionId = item.QuestionId,
-                    QuestionDescription = item.QuestionDescription,
-                    QuestionTypeId = item.QuestionTypeId,
-                    Status = item.Status,
-                    CreatedBy = item.CreatedBy,
-                    CreatedOn = item.CreatedOn,
-                    ModifiedBy = item.ModifiedBy,
-                    ModifiedOn = item.ModifiedOn,
-                    subjectID = item.subjectID,
-                    SubjectName = item.SubjectName,
-                    EmployeeId = item.EmployeeId,
-                    // EmployeeName = item.EmpFirstName,
-                    IndexTypeId = item.IndexTypeId,
-                    IndexTypeName = item.IndexTypeName,
-                    ContentIndexId = item.ContentIndexId,
-                    ContentIndexName = item.ContentIndexName,
-                    IsRejected = item.IsRejected,
-                    IsApproved = item.IsApproved,
-                    QuestionTypeName = item.QuestionTypeName,
-                    QuestionCode = item.QuestionCode,
-                    Explanation = item.Explanation,
-                    ExtraInformation = item.ExtraInformation,
-                    IsActive = item.IsActive,
-                    DurationperQuestion = durationPerQuestion,
-                    MatchPairs = item.QuestionTypeId == 6 || item.QuestionTypeId == 12 ? GetMatchPairs(item.QuestionCode, item.QuestionId) : null,
-                    AnswerMultipleChoiceCategories = (item.QuestionTypeId != 12) ? GetMultipleAnswers(item.QuestionCode) : null
-                };
+                    return new QuestionResponseDTO
+                    {
+                        QuestionId = item.QuestionId,
+                        Paragraph = item.Paragraph,
+                        SubjectName = item.SubjectName,
+                      //  EmployeeName = item.EmpFirstName,
+                        IndexTypeName = item.IndexTypeName,
+                        ContentIndexName = item.ContentIndexName,
+                       // QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+                        ContentIndexId = item.ContentIndexId,
+                        CreatedBy = item.CreatedBy,
+                        CreatedOn = item.CreatedOn,
+                        EmployeeId = item.EmployeeId,
+                        IndexTypeId = item.IndexTypeId,
+                        subjectID = item.subjectID,
+                        ModifiedOn = item.ModifiedOn,
+                        QuestionTypeId = item.QuestionTypeId,
+                        QuestionTypeName = item.QuestionTypeName,
+                        QuestionCode = item.QuestionCode,
+                        Explanation = item.Explanation,
+                        ExtraInformation = item.ExtraInformation,
+                        IsActive = item.IsActive,
+                        ComprehensiveChildQuestions = GetChildQuestions(item.QuestionCode)
+                    };
+                }
+                else
+                {
+                    return new QuestionResponseDTO
+                    {
+                        QuestionId = item.QuestionId,
+                        QuestionDescription = item.QuestionDescription,
+                        QuestionTypeId = item.QuestionTypeId,
+                        Status = item.Status,
+                        CreatedBy = item.CreatedBy,
+                        CreatedOn = item.CreatedOn,
+                        ModifiedBy = item.ModifiedBy,
+                        ModifiedOn = item.ModifiedOn,
+                        subjectID = item.subjectID,
+                        SubjectName = item.SubjectName,
+                        EmployeeId = item.EmployeeId,
+                       // EmployeeName = item.EmpFirstName,
+                        IndexTypeId = item.IndexTypeId,
+                        IndexTypeName = item.IndexTypeName,
+                        ContentIndexId = item.ContentIndexId,
+                        ContentIndexName = item.ContentIndexName,
+                        IsRejected = item.IsRejected,
+                        IsApproved = item.IsApproved,
+                        QuestionTypeName = item.QuestionTypeName,
+                        QuestionCode = item.QuestionCode,
+                        Explanation = item.Explanation,
+                        ExtraInformation = item.ExtraInformation,
+                        IsActive = item.IsActive,
+                      //  QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+                        //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
+                        //Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
+                        //AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
+                        MatchPairs = item.QuestionTypeId == 6 || item.QuestionTypeId == 12 ? GetMatchPairs(item.QuestionCode, item.QuestionId) : null,
+                        MatchThePairType2Answers = item.QuestionTypeId == 12 ? GetMatchThePairType2Answers(item.QuestionCode, item.QuestionId) : null,
+                       // Answersingleanswercategories = (item.QuestionTypeId != 6 && item.QuestionTypeId != 12) ? GetSingleAnswer(item.QuestionCode, item.QuestionId) : null,
+                        AnswerMultipleChoiceCategories = (item.QuestionTypeId != 12) ? GetMultipleAnswers(item.QuestionCode) : null
+                    };
+                }
+                //return new QuestionResponseDTO
+                //{
+                //    QuestionId = item.QuestionId,
+                //    QuestionDescription = item.QuestionDescription,
+                //    QuestionTypeId = item.QuestionTypeId,
+                //    Status = item.Status,
+                //    CreatedBy = item.CreatedBy,
+                //    CreatedOn = item.CreatedOn,
+                //    ModifiedBy = item.ModifiedBy,
+                //    ModifiedOn = item.ModifiedOn,
+                //    subjectID = item.subjectID,
+                //    SubjectName = item.SubjectName,
+                //    EmployeeId = item.EmployeeId,
+                //    // EmployeeName = item.EmpFirstName,
+                //    IndexTypeId = item.IndexTypeId,
+                //    IndexTypeName = item.IndexTypeName,
+                //    ContentIndexId = item.ContentIndexId,
+                //    ContentIndexName = item.ContentIndexName,
+                //    IsRejected = item.IsRejected,
+                //    IsApproved = item.IsApproved,
+                //    QuestionTypeName = item.QuestionTypeName,
+                //    QuestionCode = item.QuestionCode,
+                //    Explanation = item.Explanation,
+                //    ExtraInformation = item.ExtraInformation,
+                //    IsActive = item.IsActive,
+                //    DurationperQuestion = durationPerQuestion,
+                //    MatchPairs = item.QuestionTypeId == 6 || item.QuestionTypeId == 12 ? GetMatchPairs(item.QuestionCode, item.QuestionId) : null,
+                //    AnswerMultipleChoiceCategories = (item.QuestionTypeId != 12) ? GetMultipleAnswers(item.QuestionCode) : null
+                //};
             });
             // Step 10: Insert questions into tblCYOTQuestions
             var insertQuery = @"
@@ -443,7 +524,7 @@ namespace StudentApp_API.Repository.Implementations
         VALUES (@CYOTID, @QuestionID, @DisplayOrder)";
             await _connection.ExecuteAsync(insertQuery, questions.Select((q, index) => new
             {
-                CYOTID = cyotId,
+                CYOTID = request.cyotId,
                 QuestionID = q.QuestionId,
                 DisplayOrder = index + 1
             }));
@@ -619,6 +700,109 @@ ORDER BY
             else
             {
                 return new List<AnswerMultipleChoiceCategory>();
+            }
+        }
+        private List<MatchThePairAnswer> GetMatchThePairType2Answers(string questionCode, int questionId)
+        {
+            const string getAnswerIdQuery = @"
+        SELECT AnswerId 
+        FROM tblAnswerMaster
+        WHERE QuestionCode = @QuestionCode AND QuestionId = @QuestionId";
+
+            const string getAnswersQuery = @"
+        SELECT MatchThePair2Id, PairColumn, PairRow
+        FROM tblOptionsMatchThePair2
+        WHERE AnswerId = @AnswerId";
+
+
+            var answerId = _connection.QueryFirstOrDefault<int?>(getAnswerIdQuery, new { QuestionCode = questionCode, QuestionId = questionId });
+
+            if (answerId == null)
+            {
+                return new List<MatchThePairAnswer>();
+            }
+
+            return _connection.Query<MatchThePairAnswer>(getAnswersQuery, new { AnswerId = answerId }).ToList();
+
+        }
+        private List<ParagraphQuestions> GetChildQuestions(string QuestionCode)
+        {
+            string sql = @"
+                SELECT q.*, 
+                       c.CourseName, 
+                       b.BoardName, 
+                       cl.ClassName, 
+                       s.SubjectName,
+                       et.ExamTypeName,
+                       e.EmpFirstName,
+                       qt.QuestionType as QuestionTypeName,
+                       it.IndexType as IndexTypeName,
+                       CASE 
+                           WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
+                           WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
+                           WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+                       END AS ContentIndexName
+                FROM tblQuestion q
+                LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
+                LEFT JOIN tblCourse c ON q.courseid = c.CourseID
+                LEFT JOIN tblBoard b ON q.boardid = b.BoardID
+                LEFT JOIN tblClass cl ON q.classid = cl.ClassID
+                LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
+                LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
+                LEFT JOIN tblEmployee e ON q.EmployeeId = e.EmployeeId
+                LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
+                LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
+                LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
+                LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
+                WHERE q.ParentQCode = @QuestionCode AND q.IsActive = 1 AND IsLive = 0 AND q.IsConfigure = 1";
+            var parameters = new { QuestionCode = QuestionCode };
+            var item = _connection.Query<dynamic>(sql, parameters);
+            var response = item.Select(m => new ParagraphQuestions
+            {
+                QuestionId = m.QuestionId,
+                QuestionDescription = m.QuestionDescription,
+                ParentQId = m.ParentQId,
+                ParentQCode = m.ParentQCode,
+                QuestionTypeId = m.QuestionTypeId,
+                Status = m.Status,
+                CategoryId = m.CategoryId,
+                CreatedBy = m.CreatedBy,
+                CreatedOn = m.CreatedOn,
+                ModifiedBy = m.ModifiedBy,
+                ModifiedOn = m.ModifiedOn,
+                subjectID = m.SubjectID,
+                EmployeeId = m.EmployeeId,
+                ModifierId = m.ModifierId,
+                IndexTypeId = m.IndexTypeId,
+                ContentIndexId = m.ContentIndexId,
+                IsRejected = m.IsRejected,
+                IsApproved = m.IsApproved,
+                QuestionCode = m.QuestionCode,
+                Explanation = m.Explanation,
+                ExtraInformation = m.ExtraInformation,
+                IsActive = m.IsActive,
+                IsConfigure = m.IsConfigure,
+                AnswerMultipleChoiceCategories = GetMultipleAnswers(m.QuestionCode),
+                Answersingleanswercategories = GetSingleAnswer(m.QuestionCode, m.QuestionId)
+            }).ToList();
+            return response;
+        }
+        private Answersingleanswercategory GetSingleAnswer(string QuestionCode, int QuestionId)
+        {
+            var answerMaster = _connection.QueryFirstOrDefault<AnswerMaster>(@"
+        SELECT * FROM tblAnswerMaster WHERE QuestionCode = @QuestionCode and Questionid = @Questionid", new { QuestionCode, Questionid = QuestionId });
+
+            if (answerMaster != null)
+            {
+                string getQuery = @"
+            SELECT * FROM [tblAnswersingleanswercategory] WHERE [Answerid] = @Answerid";
+
+                var response = _connection.QueryFirstOrDefault<Answersingleanswercategory>(getQuery, new { answerMaster.Answerid });
+                return response ?? new Answersingleanswercategory();
+            }
+            else
+            {
+                return new Answersingleanswercategory();
             }
         }
     }

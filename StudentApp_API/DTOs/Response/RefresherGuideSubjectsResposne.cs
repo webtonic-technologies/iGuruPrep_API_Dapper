@@ -83,4 +83,9 @@
         public string ContentName_Topic { get; set; }
         public string ContentName_SubTopic { get; set; }
     }
+    public class QuestionStatusName
+    {
+        public int StatusId { get; set; }
+        public string StatusName { get; set; }
+    }
 }

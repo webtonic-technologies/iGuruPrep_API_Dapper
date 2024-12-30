@@ -16,7 +16,12 @@
         public int? BoardID { get; set; }
         public List<CYOTSyllabusDTO> CYOTSyllabus { get; set; }
     }
-
+    public class GetCYOTQuestionsRequest
+    {
+        public int cyotId { get; set; }
+        public int registrationId { get; set; }
+        public List<int>? QuestionTypeId { get; set; }
+    }
     public class CYOTSyllabusDTO
     {
         public int SubjectID { get; set; }

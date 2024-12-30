@@ -15,7 +15,12 @@
         public int TotalTime { get; set; }
         public List<SubjectRequest> Subjects { get; set; }
     }
-
+    public class GetScholarshipQuestionRequest
+    {
+        public int scholarshipTestId { get; set; }
+        public int studentId { get; set; }
+        public List<int>? QuestionTypeId { get; set; }
+    }
     public class SubjectRequest
     {
         public int SubjectId { get; set; }

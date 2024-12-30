@@ -14,12 +14,14 @@
     }
     public class GetQuestionRequest
     {
+        public int RegistrationId {  set; get; }
         public int PageNumber { get; set; }
         public int PageSize { get; set; }
         public int SubjectId { get; set; }        // The Subject ID to filter questions
         public int IndexTypeId { get; set; }      // Index Type (e.g., Chapter, Topic, Sub-Topic)
         public int ContentIndexId { get; set; }   // Content Index ID for filtering questions
         public List<int>? QuestionTypeId { get; set; }
+        public List<int>? QuestionStatus {  get; set; }
     }
     public class SaveQuestionRequest
     {
