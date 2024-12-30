@@ -11,7 +11,7 @@ public class JwtHelper
     {
         _config = configuration;
     }
-    public string GenerateJwtToken(int employeeId, bool IsLoginSuccessful)
+    public string GenerateJwtToken(int employeeId, string userType, string Username, bool IsLoginSuccessful)
     {
         try
         {
@@ -21,13 +21,15 @@ public class JwtHelper
             var claims = new[]
             {
                 new Claim("Id", employeeId.ToString()),
+                new Claim("Type",userType),
+                new Claim("Username",Username),
                 new Claim("IsLoginSuccessful", IsLoginSuccessful.ToString()),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
-    //        var claims = new List<Claim> {
-    //    new Claim(ClaimTypes.NameIdentifier, employeeId.ToString()),
-    //    new Claim("Role", role)
-    //};
+            //        var claims = new List<Claim> {
+            //    new Claim(ClaimTypes.NameIdentifier, employeeId.ToString()),
+            //    new Claim("Role", role)
+            //};
 
             //var token = new JwtSecurityToken(
             //    issuer: _config["Jwt:Issuer"],

@@ -1,4 +1,5 @@
 ﻿using StudentApp_API.DTOs.Requests;
+using StudentApp_API.DTOs.Response;
 using StudentApp_API.DTOs.Responses;
 using StudentApp_API.DTOs.ServiceResponse;
 using StudentApp_API.Repository.Interfaces;
@@ -74,6 +75,16 @@ namespace StudentApp_API.Services.Implementations
         public async Task<ServiceResponse<List<StateResponse>>> GetStatesByCountryId(int countryId)
         {
             return await _registrationRepository.GetStatesByCountryId(countryId);
+        }
+
+        public async Task<ServiceResponse<string>> UserLogout(UserLogoutRequest request)
+        {
+            return await _registrationRepository.UserLogout(request);
+        }
+
+        public async Task<ServiceResponse<ForgetPasswordResponse>> ForgetPasswordAsync(string userInput)
+        {
+            return await _registrationRepository.ForgetPasswordAsync(userInput);
         }
     }
 }

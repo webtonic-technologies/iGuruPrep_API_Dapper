@@ -1,10 +1,12 @@
 ﻿using Dapper;
 using StudentApp_API.DTOs.Requests;
+using StudentApp_API.DTOs.Response;
 using StudentApp_API.DTOs.Responses;
 using StudentApp_API.DTOs.ServiceResponse;
-using StudentApp_API.Models;
 using StudentApp_API.Repository.Interfaces;
 using System.Data;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace StudentApp_API.Repository.Implementations
 {
@@ -40,7 +42,6 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<List<StateResponse>>(false, ex.Message, null, 500);
             }
         }
-
         public async Task<ServiceResponse<List<CountryResponse>>> GetCountries()
         {
             try
@@ -64,7 +65,6 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<List<CountryResponse>>(false, ex.Message, null, 500);
             }
         }
-
         public async Task<ServiceResponse<int>> AddRegistrationAsync(RegistrationRequest request)
         {
             try
@@ -223,7 +223,7 @@ namespace StudentApp_API.Repository.Implementations
                 // Define the SQL insert query
                 string query = @"
             INSERT INTO [tblDeviceCapture] (
-                RegistrationId,
+                EmployeeId,
                 device,
                 fingerprint,
                 model,
@@ -246,7 +246,7 @@ namespace StudentApp_API.Repository.Implementations
                 computerName,
                 systemGUID
             ) VALUES (
-                @RegistrationId,
+                @EmployeeId,
                 @device,
                 @fingerprint,
                 @model,
@@ -267,12 +267,13 @@ namespace StudentApp_API.Repository.Implementations
                 @Platform,
                 @kernelVersion,
                 @computerName,
-                @systemGUID);";
+                @systemGUID
+            );";
 
                 // Execute the insert query
                 var result = await _connection.ExecuteAsync(query, new
                 {
-                    request.RegistrationId,
+                    request.UserId,
                     request.device,
                     request.fingerprint,
                     request.model,
@@ -311,262 +312,351 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, StatusCodes.Status500InternalServerError);
             }
         }
+        public async Task<ServiceResponse<bool>> ResetPasswordAsync(ResetPasswordRequest request)
+        {
+            request.NewPassword = EncryptionHelper.EncryptString(request.NewPassword);
+            if (request.UserId <= 0 || string.IsNullOrEmpty(request.UserName) || string.IsNullOrEmpty(request.UserType) || string.IsNullOrEmpty(request.NewPassword))
+            {
+                throw new ArgumentException("Invalid parameters.");
+            }
+
+            if (request.UserType.Equals("Employee", StringComparison.OrdinalIgnoreCase))
+            {
+              
+                // Update password for `tblEmployee`
+                var updateEmployeePasswordQuery = @"
+UPDATE 
+    tblEmployee
+SET 
+    Password = @NewPassword
+WHERE 
+    Employeeid = @UserId AND EmpEmail = @UserName OR EMPPhoneNumber = @UserName";
+
+                var rowsAffected = await _connection.ExecuteAsync(updateEmployeePasswordQuery,
+                    new { NewPassword = request.NewPassword, UserId = request.UserId, UserName = request.UserName });
+
+                return new ServiceResponse<bool>(true, "Operation successful", rowsAffected > 0, 200);
+            }
+            else if (request.UserType.Equals("Student", StringComparison.OrdinalIgnoreCase))
+            {
+                // Update password for `tblRegistration`
+                var updateStudentPasswordQuery = @"
+UPDATE 
+    tblRegistration
+SET 
+    Password = @NewPassword
+WHERE 
+    RegistrationID = @UserId AND  EmailID = @UserName OR MobileNumber = @UserName";
+
+                var rowsAffected = await _connection.ExecuteAsync(updateStudentPasswordQuery,
+                    new { NewPassword = request.NewPassword, UserId = request.UserId, UserName = request.UserName });
+
+                return new ServiceResponse<bool>(true, "Operation successful", rowsAffected > 0, 200);
+            }
+
+            return new ServiceResponse<bool>(false, "Operation Failed", false, 200);
+        }
+        public async Task<ServiceResponse<ForgetPasswordResponse>> ForgetPasswordAsync(string userInput)
+        {
+            if (string.IsNullOrEmpty(userInput))
+            {
+                throw new ArgumentException("User input cannot be null or empty.");
+            }
+
+            // Check `tblEmployee`
+            var employeeQuery = @"
+SELECT 
+    Employeeid AS UserId, 
+    CONCAT(EmpFirstName, ' ', EmpLastName) AS UserName, 
+    'Employee' AS UserType, 
+    EmpEmail AS Email
+FROM 
+    tblEmployee
+WHERE 
+    EmpEmail = @UserInput OR EMPPhoneNumber = @UserInput";
+
+            var employeeResult = await _connection.QueryFirstOrDefaultAsync<ForgetPasswordResponse>(
+                employeeQuery, new { UserInput = userInput });
+
+            if (employeeResult != null)
+            {
+                return new ServiceResponse<ForgetPasswordResponse>(true, "Operation Successful", employeeResult, 200);
+            }
+
+            // Check `tblRegistration`
+            var studentQuery = @"
+SELECT 
+    RegistrationID AS UserId, 
+    CONCAT(FirstName, ' ', LastName) AS UserName, 
+    'Student' AS UserType, 
+    EmailID AS Email
+FROM 
+    tblRegistration
+WHERE 
+    EmailID = @UserInput OR MobileNumber = @UserInput";
+
+            var studentResult = await _connection.QueryFirstOrDefaultAsync<ForgetPasswordResponse>(
+                studentQuery, new { UserInput = userInput });
+
+            return new ServiceResponse<ForgetPasswordResponse>(true, "Operation Successful", studentResult, 200);
+        }
+        public async Task<ServiceResponse<string>> UserLogout(UserLogoutRequest request)
+        {
+            try
+            {
+                // Check if the user has any active sessions
+                var activeSession = await _connection.QueryFirstOrDefaultAsync<UserSession>(
+                    "SELECT * FROM [tblUserSessions] WHERE UserId = @UserId AND IsActive = 1 AND DeviceId = @DeviceId and IsEmployee = @IsEmployee",
+                    new { UserId = request.UserId, DeviceId = request.DeviceId, request.IsEmployee });
+
+                if (activeSession == null)
+                {
+                    return new ServiceResponse<string>(false, "No active session found for the user", string.Empty, StatusCodes.Status404NotFound);
+                }
+
+                // Log out the user by updating the IsActive flag and setting LogoutTime
+                await _connection.ExecuteAsync(
+                    "UPDATE [tblUserSessions] SET IsActive = 0, LogoutTime = GETDATE() WHERE SessionId = @SessionId",
+                    new { SessionId = activeSession.SessionId });
+
+                return new ServiceResponse<string>(true, "Logout successful", string.Empty, StatusCodes.Status200OK);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, StatusCodes.Status500InternalServerError);
+            }
+        }
         public async Task<ServiceResponse<LoginResponse>> LoginAsync(LoginRequest request)
         {
             try
             {
-                string input = request.EmailIDOrPhoneNumberOrLicense;
-                string password = request.Password;
-                RegistrationRequest userWithPassword = null;
-                bool isLicenseLogin = false;
-                string schoolCode = null;
-
-                // Determine the type of login
-                if (IsEmail(input))
+                string query = @"
+                SELECT e.Employeeid, e.Password, e.EmpFirstName, e.EmpLastName, e.DesignationID, d.DesignationName, r.RoleName,e.EmpEmail, r.RoleCode,e.EMPPhoneNumber,
+                e.IsSuperAdmin, e.RoleID
+                FROM tblEmployee e
+                LEFT JOIN tblDesignation d ON e.DesignationID = d.DesgnID
+                LEFT JOIN tblRole r ON e.RoleID = r.RoleID
+                WHERE e.EmpEmail = @EmpEmailOrPhoneNumber OR e.EMPPhoneNumber = @EmpEmailOrPhoneNumber";
+                var employee = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new { EmpEmailOrPhoneNumber = request.EmailIDOrPhoneNumberOrLicense });
+                if (employee == null)
                 {
-                    // Login via email
-                    string userQuery = @"
+                    string input = request.EmailIDOrPhoneNumberOrLicense;
+                    string password = request.Password;
+                    RegistrationRequest userWithPassword = null;
+                    bool isLicenseLogin = false;
+                    string schoolCode = null;
+
+                    // Determine the type of login
+                    if (IsEmail(input))
+                    {
+                        // Login via email
+                        string userQuery = @"
                 SELECT RegistrationID, FirstName, LastName, EmailID, MobileNumber, Location, Password, CountryCodeID, StateId, CountryID, IsEmailAccess
                 FROM tblRegistration 
                 WHERE EmailID = @Input AND IsActive = 1";
 
-                    userWithPassword = await _connection.QueryFirstOrDefaultAsync<RegistrationRequest>(userQuery, new { Input = input });
+                        userWithPassword = await _connection.QueryFirstOrDefaultAsync<RegistrationRequest>(userQuery, new { Input = input });
 
-                    if (userWithPassword != null)
-                    {
-                        // Decrypt and validate password (case-sensitive comparison)
-                        string decryptedPassword = EncryptionHelper.DecryptString(userWithPassword.Password);
-                        if (decryptedPassword != password) // Case-sensitive check
+                        if (userWithPassword != null)
                         {
-                            return new ServiceResponse<LoginResponse>(false, "Invalid email or password.", null, 401);
-                        }
+                            // Decrypt and validate password (case-sensitive comparison)
+                            string decryptedPassword = EncryptionHelper.DecryptString(userWithPassword.Password);
+                            if (decryptedPassword != password) // Case-sensitive check
+                            {
+                                return new ServiceResponse<LoginResponse>(false, "Invalid email or password.", null, 401);
+                            }
 
-                        // Mark email login access
-                        string updateQuery = "UPDATE tblRegistration SET IsEmailAccess = 1 WHERE RegistrationID = @RegistrationID";
-                        await _connection.ExecuteAsync(updateQuery, new { RegistrationID = userWithPassword.RegistrationId });
+                            // Mark email login access
+                            string updateQuery = "UPDATE tblRegistration SET IsEmailAccess = 1 WHERE RegistrationID = @RegistrationID";
+                            await _connection.ExecuteAsync(updateQuery, new { RegistrationID = userWithPassword.RegistrationId });
+                        }
                     }
-                }
-                else if (IsPhoneNumber(input))
-                {
-                    // Login via phone number
-                    string userQuery = @"
+                    else if (IsPhoneNumber(input))
+                    {
+                        // Login via phone number
+                        string userQuery = @"
                 SELECT RegistrationID, FirstName, LastName, EmailID, MobileNumber, Location, Password, CountryCodeID, StateId, CountryID, IsMobileAccess
                 FROM tblRegistration 
                 WHERE MobileNumber = @Input AND IsActive = 1";
 
-                    userWithPassword = await _connection.QueryFirstOrDefaultAsync<RegistrationRequest>(userQuery, new { Input = input });
+                        userWithPassword = await _connection.QueryFirstOrDefaultAsync<RegistrationRequest>(userQuery, new { Input = input });
 
-                    if (userWithPassword != null)
-                    {
-                        // Decrypt and validate password (case-sensitive comparison)
-                        string decryptedPassword = EncryptionHelper.DecryptString(userWithPassword.Password);
-                        if (decryptedPassword != password) // Case-sensitive check
+                        if (userWithPassword != null)
                         {
-                            return new ServiceResponse<LoginResponse>(false, "Invalid phone number or password.", null, 401);
-                        }
+                            // Decrypt and validate password (case-sensitive comparison)
+                            string decryptedPassword = EncryptionHelper.DecryptString(userWithPassword.Password);
+                            if (decryptedPassword != password) // Case-sensitive check
+                            {
+                                return new ServiceResponse<LoginResponse>(false, "Invalid phone number or password.", null, 401);
+                            }
 
-                        // Mark mobile login access
-                        string updateQuery = "UPDATE tblRegistration SET IsMobileAccess = 1 WHERE RegistrationID = @RegistrationID";
-                        await _connection.ExecuteAsync(updateQuery, new { RegistrationID = userWithPassword.RegistrationId });
+                            // Mark mobile login access
+                            string updateQuery = "UPDATE tblRegistration SET IsMobileAccess = 1 WHERE RegistrationID = @RegistrationID";
+                            await _connection.ExecuteAsync(updateQuery, new { RegistrationID = userWithPassword.RegistrationId });
+                        }
                     }
-                }
-                else
-                {
-                    // Login via license number
-                    string licenseQuery = @"
+                    else
+                    {
+                        // Login via license number
+                        string licenseQuery = @"
                 SELECT ln.LicenseNumbersId, ln.LicensePassword, ld.GenerateLicenseID, gl.SchoolCode
                 FROM tblLicenseNumbers ln
                 INNER JOIN tblLicenseDetail ld ON ln.LicenseDetailID = ld.LicenseDetailID
                 INNER JOIN tblGenerateLicense gl ON ld.GenerateLicenseID = gl.GenerateLicenseID
                 WHERE ln.LicenseNo = @Input";
 
-                    var licenseDetails = await _connection.QueryFirstOrDefaultAsync<dynamic>(licenseQuery, new { Input = input });
+                        var licenseDetails = await _connection.QueryFirstOrDefaultAsync<dynamic>(licenseQuery, new { Input = input });
 
-                    if (licenseDetails != null)
-                    {
-                        // Validate password (case-sensitive comparison)
-                        if (licenseDetails.LicensePassword != password) // Case-sensitive check
+                        if (licenseDetails != null)
                         {
-                            return new ServiceResponse<LoginResponse>(false, "Invalid license number or password.", null, 401);
-                        }
+                            // Validate password (case-sensitive comparison)
+                            if (licenseDetails.LicensePassword != password) // Case-sensitive check
+                            {
+                                return new ServiceResponse<LoginResponse>(false, "Invalid license number or password.", null, 401);
+                            }
 
-                        isLicenseLogin = true;
-                        schoolCode = licenseDetails.SchoolCode;
+                            isLicenseLogin = true;
+                            schoolCode = licenseDetails.SchoolCode;
 
-                        // Update registration with SchoolCode and license access
-                        string updateQuery = @"
+                            // Update registration with SchoolCode and license access
+                            string updateQuery = @"
                     UPDATE tblRegistration 
                     SET IsLicenceAccess = 1, SchoolCode = @SchoolCode 
                     WHERE RegistrationID = @RegistrationID";
 
-                        await _connection.ExecuteAsync(updateQuery, new
-                        {
-                            SchoolCode = schoolCode,
-                            RegistrationID = userWithPassword?.RegistrationId
-                        });
+                            await _connection.ExecuteAsync(updateQuery, new
+                            {
+                                SchoolCode = schoolCode,
+                                RegistrationID = userWithPassword?.RegistrationId
+                            });
+                        }
                     }
+
+                    // If no valid login found
+                    if (userWithPassword == null && !isLicenseLogin)
+                    {
+                        return new ServiceResponse<LoginResponse>(false, "User not found.", null, 404);
+                    }
+
+                    // Calculate profile percentage for non-license login
+                    decimal profilePercentage = 0;
+                    if (!isLicenseLogin && userWithPassword != null)
+                    {
+                        profilePercentage = await CalculateProfilePercentageAsync(userWithPassword.RegistrationId, userWithPassword);
+                    }
+
+                    // Create response object
+                    var loginResponse = new LoginResponse
+                    {
+                        UserID = userWithPassword?.RegistrationId ?? 0,
+                        FirstName = userWithPassword?.FirstName,
+                        LastName = userWithPassword?.LastName,
+                        EmailID = userWithPassword?.EmailID,
+                        MobileNumber = userWithPassword?.MobileNumber,
+                        Location = userWithPassword?.Location,
+                        IsLoginSuccessful = true,
+                        ProfilePercentage = isLicenseLogin ? null : $"{profilePercentage}%",
+                        IsEmployee = false
+                    };
+                    //handle session 
+                    HandleSessionLogic(loginResponse.UserID, request.DeviceId, false, "ST", request.DeviceDetails);
+                    return new ServiceResponse<LoginResponse>(true, "Login successful.", loginResponse, 200);
                 }
-
-                // If no valid login found
-                if (userWithPassword == null && !isLicenseLogin)
+                else
                 {
-                    return new ServiceResponse<LoginResponse>(false, "User not found.", null, 404);
+                    var decryptedPassword = EncryptionHelper.DecryptString(employee.Password);
+
+                    if (!string.Equals(decryptedPassword.Trim().ToUpper(), request.Password.Trim().ToUpper(), StringComparison.OrdinalIgnoreCase))
+                    {
+                        return new ServiceResponse<LoginResponse>(false, "Invalid credentials", null, StatusCodes.Status401Unauthorized);
+                    }
+
+                    // Check if the employee's designation is active
+                    string designationStatusQuery = "SELECT Status FROM tblDesignation WHERE DesgnID = @DesignationID";
+                    var designationStatus = await _connection.QueryFirstOrDefaultAsync<bool>(designationStatusQuery, new { employee.DesignationID });
+
+                    if (!designationStatus)
+                    {
+                        return new ServiceResponse<LoginResponse>(false, "Contact the Administrator", null, StatusCodes.Status403Forbidden);
+                    }
+
+                    // Check if the employee's role is active
+                    string roleStatusQuery = "SELECT Status FROM tblRole WHERE RoleID = @RoleID";
+                    var roleStatus = await _connection.QueryFirstOrDefaultAsync<bool>(roleStatusQuery, new { employee.RoleID });
+
+                    if (!roleStatus)
+                    {
+                        return new ServiceResponse<LoginResponse>(false, "Contact the Administrator", null, StatusCodes.Status403Forbidden);
+                    }
+                    var loginResponse = new LoginResponse
+                    {
+                        UserID = employee?.Employeeid ?? 0,
+                        FirstName = employee?.EmpFirstName,
+                        LastName = employee?.EmpLastName,
+                        EmailID = employee?.EmpEmail,
+                        MobileNumber = employee?.EMPPhoneNumber,
+                        IsLoginSuccessful = true,
+                        IsEmployee = true
+                    };
+                    HandleSessionLogic(employee.Employeeid, request.DeviceId, true, employee.RoleCode, request.DeviceDetails);
+                    return new ServiceResponse<LoginResponse>(true, "Login successful.", loginResponse, 200);
                 }
-
-                // Calculate profile percentage for non-license login
-                decimal profilePercentage = 0;
-                if (!isLicenseLogin && userWithPassword != null)
-                {
-                    profilePercentage = await CalculateProfilePercentageAsync(userWithPassword.RegistrationId, userWithPassword);
-                }
-
-                // Create response object
-                var loginResponse = new LoginResponse
-                {
-                    RegistrationID = userWithPassword?.RegistrationId ?? 0,
-                    FirstName = userWithPassword?.FirstName,
-                    LastName = userWithPassword?.LastName,
-                    EmailID = userWithPassword?.EmailID,
-                    MobileNumber = userWithPassword?.MobileNumber,
-                    Location = userWithPassword?.Location,
-                    IsLoginSuccessful = true,
-                    ProfilePercentage = isLicenseLogin ? null : $"{profilePercentage}%"
-                };
-
-                return new ServiceResponse<LoginResponse>(true, "Login successful.", loginResponse, 200);
             }
             catch (Exception ex)
             {
                 return new ServiceResponse<LoginResponse>(false, ex.Message, null, 500);
             }
         }
-        //public async Task<ServiceResponse<LoginResponse>> LoginAsync(LoginRequest request)
-        //{
-        //    try
-        //    {
-        //        string input = request.EmailIDOrPhoneNumberOrLicense;
-        //        string password = request.Password;
-        //        RegistrationRequest userWithPassword = null;
-        //        bool isLicenseLogin = false;
-        //        string schoolCode = null;
+        private async Task HandleSessionLogic(int userId, string deviceId, bool isEmployee, string roleCode, string DeviceDetails)
+        {
+            // Get active sessions
+            var activeSessions = await _connection.QueryAsync<dynamic>(
+                "SELECT SessionId FROM tblUserSessions WHERE UserId = @UserId AND IsActive = 1",
+                new { UserId = userId });
 
-        //        // Determine the type of login
-        //        if (IsEmail(input))
-        //        {
-        //            // Login via email
-        //            string userQuery = @"
-        //    SELECT RegistrationID, FirstName, LastName, EmailID, MobileNumber, Location, Password, CountryCodeID, StateId, CountryID, IsEmailAccess
-        //    FROM tblRegistration 
-        //    WHERE EmailID = @Input AND IsActive = 1";
+            // Role-based session handling
+            if (isEmployee)
+            {
+                if (roleCode == "AD" || roleCode == "ST") // Admin or Student
+                {
+                    // Log out all active sessions
+                    foreach (var session in activeSessions)
+                    {
+                        await _connection.ExecuteAsync(
+                            "UPDATE tblUserSessions SET LogoutTime = @LogoutTime, IsActive = 0 WHERE SessionId = @SessionId",
+                            new { LogoutTime = DateTime.UtcNow, SessionId = session.SessionId });
+                    }
+                }
+                else if (roleCode == "SM" || roleCode == "PR" || roleCode == "TR") // SME, Proofer, Transcriber
+                {
+                    if (activeSessions.Count() >= 2)
+                    {
+                        // Log out oldest sessions
+                        foreach (var session in activeSessions)
+                        {
+                            await _connection.ExecuteAsync(
+                                "UPDATE tblUserSessions SET LogoutTime = @LogoutTime, IsActive = 0 WHERE SessionId = @SessionId",
+                                new { LogoutTime = DateTime.UtcNow, SessionId = session.SessionId });
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // Log out all active student sessions
+                foreach (var session in activeSessions)
+                {
+                    await _connection.ExecuteAsync(
+                        "UPDATE tblUserSessions SET LogoutTime = @LogoutTime, IsActive = 0 WHERE SessionId = @SessionId",
+                        new { LogoutTime = DateTime.UtcNow, SessionId = session.SessionId });
+                }
+            }
 
-        //            userWithPassword = await _connection.QueryFirstOrDefaultAsync<RegistrationRequest>(userQuery, new { Input = input });
-
-        //            if (userWithPassword != null)
-        //            {
-        //                // Decrypt and validate password
-        //                string decryptedPassword = EncryptionHelper.DecryptString(userWithPassword.Password);
-        //                if (decryptedPassword != password)
-        //                {
-        //                    return new ServiceResponse<LoginResponse>(false, "Invalid email or password.", null, 401);
-        //                }
-
-        //                // Mark email login access
-        //                string updateQuery = "UPDATE tblRegistration SET IsEmailAccess = 1 WHERE RegistrationID = @RegistrationID";
-        //                await _connection.ExecuteAsync(updateQuery, new { RegistrationID = userWithPassword.RegistrationId });
-        //            }
-        //        }
-        //        else if (IsPhoneNumber(input))
-        //        {
-        //            // Login via phone number
-        //            string userQuery = @"
-        //    SELECT RegistrationID, FirstName, LastName, EmailID, MobileNumber, Location, Password, CountryCodeID, StateId, CountryID, IsMobileAccess
-        //    FROM tblRegistration 
-        //    WHERE MobileNumber = @Input AND IsActive = 1";
-
-        //            userWithPassword = await _connection.QueryFirstOrDefaultAsync<RegistrationRequest>(userQuery, new { Input = input });
-
-        //            if (userWithPassword != null)
-        //            {
-        //                // Decrypt and validate password
-        //                string decryptedPassword = EncryptionHelper.DecryptString(userWithPassword.Password);
-        //                if (decryptedPassword != password)
-        //                {
-        //                    return new ServiceResponse<LoginResponse>(false, "Invalid phone number or password.", null, 401);
-        //                }
-
-        //                // Mark mobile login access
-        //                string updateQuery = "UPDATE tblRegistration SET IsMobileAccess = 1 WHERE RegistrationID = @RegistrationID";
-        //                await _connection.ExecuteAsync(updateQuery, new { RegistrationID = userWithPassword.RegistrationId });
-        //            }
-        //        }
-        //        else
-        //        {
-        //            // Login via license number
-        //            string licenseQuery = @"
-        //    SELECT ln.LicenseNumbersId, ln.LicensePassword, ld.GenerateLicenseID, gl.SchoolCode
-        //    FROM tblLicenseNumbers ln
-        //    INNER JOIN tblLicenseDetail ld ON ln.LicenseDetailID = ld.LicenseDetailID
-        //    INNER JOIN tblGenerateLicense gl ON ld.GenerateLicenseID = gl.GenerateLicenseID
-        //    WHERE ln.LicenseNo = @Input";
-
-        //            var licenseDetails = await _connection.QueryFirstOrDefaultAsync<dynamic>(licenseQuery, new { Input = input });
-
-        //            if (licenseDetails != null && licenseDetails.LicensePassword == password)
-        //            {
-        //                isLicenseLogin = true;
-        //                schoolCode = licenseDetails.SchoolCode;
-
-        //                // Update registration with SchoolCode and license access
-        //                string updateQuery = @"
-        //        UPDATE tblRegistration 
-        //        SET IsLicenceAccess = 1, SchoolCode = @SchoolCode 
-        //        WHERE RegistrationID = @RegistrationID";
-
-        //                await _connection.ExecuteAsync(updateQuery, new
-        //                {
-        //                    SchoolCode = schoolCode,
-        //                    RegistrationID = userWithPassword?.RegistrationId
-        //                });
-        //            }
-        //            else
-        //            {
-        //                return new ServiceResponse<LoginResponse>(false, "Invalid license number or password.", null, 401);
-        //            }
-        //        }
-
-        //        // If no valid login found
-        //        if (userWithPassword == null && !isLicenseLogin)
-        //        {
-        //            return new ServiceResponse<LoginResponse>(false, "User not found.", null, 404);
-        //        }
-
-        //        // Calculate profile percentage for non-license login
-        //        decimal profilePercentage = 0;
-        //        if (!isLicenseLogin && userWithPassword != null)
-        //        {
-        //            profilePercentage = await CalculateProfilePercentageAsync(userWithPassword.RegistrationId, userWithPassword);
-        //        }
-
-        //        // Create response object
-        //        var loginResponse = new LoginResponse
-        //        {
-        //            RegistrationID = userWithPassword?.RegistrationId ?? 0,
-        //            FirstName = userWithPassword?.FirstName,
-        //            LastName = userWithPassword?.LastName,
-        //            EmailID = userWithPassword?.EmailID,
-        //            MobileNumber = userWithPassword?.MobileNumber,
-        //            Location = userWithPassword?.Location,
-        //            IsLoginSuccessful = true,
-        //            ProfilePercentage = isLicenseLogin ? null : $"{profilePercentage}%"
-        //        };
-
-        //        return new ServiceResponse<LoginResponse>(true, "Login successful.", loginResponse, 200);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return new ServiceResponse<LoginResponse>(false, ex.Message, null, 500);
-        //    }
-        //}
+            // Insert new session
+            await _connection.ExecuteAsync(
+                "INSERT INTO tblUserSessions (UserId, DeviceId, IsActive, IsEmployee, DeviceDetails) VALUES (@UserId, @DeviceId, 1, @IsEmployee, @DeviceDetails)",
+                new { UserId = userId, DeviceId = deviceId, IsEmployee = isEmployee, DeviceDetails = DeviceDetails });
+        }
         private async Task<decimal> CalculateProfilePercentageAsync(int registrationId, RegistrationRequest userWithPassword)
         {
             // Determine the country type
@@ -941,7 +1031,6 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<string>(false, "Failure", ex.Message, 500);
             }
         }
-
         private string ImageUpload(string image)
         {
             if (string.IsNullOrEmpty(image) || image == "string")
@@ -1001,6 +1090,15 @@ namespace StudentApp_API.Repository.Implementations
         private bool IsPhoneNumber(string input)
         {
             return input.All(char.IsDigit) && input.Length >= 10;
+        }
+        private string HashPassword(string password)
+        {
+            using (var sha256 = SHA256.Create())
+            {
+                var bytes = Encoding.UTF8.GetBytes(password);
+                var hash = sha256.ComputeHash(bytes);
+                return Convert.ToBase64String(hash);
+            }
         }
     }
 }

@@ -4,6 +4,8 @@
     {
         public string EmailIDOrPhoneNumberOrLicense { get; set; }
         public string Password { get; set; }
+        public string DeviceId { get; set; } = string.Empty; // Device identifier (could be UUID, device name, etc.)
+        public string DeviceDetails { get; set; } = string.Empty; // Additional device information (optional)
     }
     public class GetAllClassCourseRequest
     {

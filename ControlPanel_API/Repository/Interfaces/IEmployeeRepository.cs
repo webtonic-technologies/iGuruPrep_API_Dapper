@@ -11,8 +11,8 @@ namespace ControlPanel_API.Repository.Interfaces
         Task<ServiceResponse<string>> AddUpdateEmployee(EmployeeDTO request);
         Task<ServiceResponse<bool>> StatusActiveInactive(int id);
         Task<ServiceResponse<EmployeeLoginResponse>> EmployeeLogin(EmployeeLoginRequest request);
-        Task<ServiceResponse<string>> DeviceCapture(DeviceCaptureRequest request);
-        Task<ServiceResponse<string>> UserLogout(UserLogoutRequest request);
-        Task<ServiceResponse<string>> UserLogin(UserLoginRequest request);
+       // Task<ServiceResponse<string>> DeviceCapture(DeviceCaptureRequest request);
+       // Task<ServiceResponse<string>> UserLogout(UserLogoutRequest request);
+       // Task<ServiceResponse<string>> UserLogin(UserLoginRequest request);
     }
 }

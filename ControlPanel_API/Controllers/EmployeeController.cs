@@ -2,7 +2,6 @@ using ControlPanel_API.DTOs.Requests;
 using ControlPanel_API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
 using System.Net;
 
 namespace ControlPanel_API.Controllers
@@ -140,61 +139,61 @@ namespace ControlPanel_API.Controllers
                 };
             }
         }
-        [HttpPost("DeviceCapture")]
-        public async Task<IActionResult> DeviceCapture(DeviceCaptureRequest request)
-        {
-            try
-            {
-                return new OkObjectResult(await _employeeServices.DeviceCapture(request));
-            }
-            catch (Exception ex)
-            {
-                return new JsonResult(ex.Message)
-                {
-                    StatusCode = (int)HttpStatusCode.NotAcceptable
-                };
-            }
+        //[HttpPost("DeviceCapture")]
+        //public async Task<IActionResult> DeviceCapture(DeviceCaptureRequest request)
+        //{
+        //    try
+        //    {
+        //        return new OkObjectResult(await _employeeServices.DeviceCapture(request));
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new JsonResult(ex.Message)
+        //        {
+        //            StatusCode = (int)HttpStatusCode.NotAcceptable
+        //        };
+        //    }
 
-        }
-        [HttpPut("UserLogout")]
-        public async Task<IActionResult> UserLogout(UserLogoutRequest request)
-        {
-            try
-            {
-                var data = await _employeeServices.UserLogout(request);
-                if (data != null)
-                {
-                    return Ok(data);
+        //}
+        //[HttpPut("UserLogout")]
+        //public async Task<IActionResult> UserLogout(UserLogoutRequest request)
+        //{
+        //    try
+        //    {
+        //        var data = await _employeeServices.UserLogout(request);
+        //        if (data != null)
+        //        {
+        //            return Ok(data);
 
-                }
-                else
-                {
-                    return BadRequest("Bad Request");
-                }
+        //        }
+        //        else
+        //        {
+        //            return BadRequest("Bad Request");
+        //        }
 
-            }
-            catch (Exception e)
-            {
-                return this.BadRequest(e.Message);
-            }
+        //    }
+        //    catch (Exception e)
+        //    {
+        //        return this.BadRequest(e.Message);
+        //    }
 
-        }
-        [AllowAnonymous]
-        [HttpPost("UserLogin")]
-        public async Task<IActionResult> UserLogin(UserLoginRequest request)
-        {
-            try
-            {
-                return new OkObjectResult(await _employeeServices.UserLogin(request));
-            }
-            catch (Exception ex)
-            {
-                return new JsonResult(ex.Message)
-                {
-                    StatusCode = (int)HttpStatusCode.NotAcceptable
-                };
-            }
+        //}
+        //[AllowAnonymous]
+        //[HttpPost("UserLogin")]
+        //public async Task<IActionResult> UserLogin(UserLoginRequest request)
+        //{
+        //    try
+        //    {
+        //        return new OkObjectResult(await _employeeServices.UserLogin(request));
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new JsonResult(ex.Message)
+        //        {
+        //            StatusCode = (int)HttpStatusCode.NotAcceptable
+        //        };
+        //    }
 
-        }
+        //}
     }
 }

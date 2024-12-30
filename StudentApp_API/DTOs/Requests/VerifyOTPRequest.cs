@@ -8,7 +8,7 @@
     public class DeviceCaptureRequest
     {
         public int DeviceCaptureId { get; set; }
-        public int RegistrationId { get; set; }
+        public int UserId { get; set; }
         public string device { get; set; } = string.Empty;
         public string fingerprint { get; set; } = string.Empty;
         public string model { get; set; } = string.Empty;
@@ -30,5 +30,27 @@
         public string kernelVersion { get; set; } = string.Empty;
         public string computerName { get; set; } = string.Empty;
         public string systemGUID { get; set; } = string.Empty;
+    }
+    public class UserLogoutRequest
+    {
+        public int UserId { get; set; }
+        public string DeviceId { get; set; } = string.Empty;
+        public bool IsEmployee {  get; set; }
+    }
+    public class UserSession
+    {
+        public int SessionId { get; set; }
+        public int UserId { get; set; }
+        public string DeviceId { get; set; } = string.Empty;
+        public DateTime LoginTime { get; set; }
+        public DateTime LogoutTime { get; set; }
+        public bool IsActive { get; set; }
+    }
+    public class ResetPasswordRequest
+    {
+        public int UserId { get; set; }
+        public string UserName { get; set; }
+        public string UserType { get; set; }
+        public string NewPassword { get; set; }
     }
 }

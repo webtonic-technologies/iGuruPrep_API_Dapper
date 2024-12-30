@@ -25,17 +25,17 @@ namespace ControlPanel_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<string>> DeviceCapture(DeviceCaptureRequest request)
-        {
-            try
-            {
-                return await _employeeRepository.DeviceCapture(request);
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
-            }
-        }
+        //public async Task<ServiceResponse<string>> DeviceCapture(DeviceCaptureRequest request)
+        //{
+        //    try
+        //    {
+        //        return await _employeeRepository.DeviceCapture(request);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+        //    }
+        //}
 
         public async Task<ServiceResponse<EmployeeLoginResponse>> EmployeeLogin(EmployeeLoginRequest request)
         {
@@ -85,28 +85,28 @@ namespace ControlPanel_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<string>> UserLogin(UserLoginRequest request)
-        {
-            try
-            {
-                return await _employeeRepository.UserLogin(request);
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
-            }
-        }
+        //public async Task<ServiceResponse<string>> UserLogin(UserLoginRequest request)
+        //{
+        //    try
+        //    {
+        //        return await _employeeRepository.UserLogin(request);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+        //    }
+        //}
 
-        public async Task<ServiceResponse<string>> UserLogout(UserLogoutRequest request)
-        {
-            try
-            {
-                return await _employeeRepository.UserLogout(request);
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
-            }
-        }
+        //public async Task<ServiceResponse<string>> UserLogout(UserLogoutRequest request)
+        //{
+        //    try
+        //    {
+        //        return await _employeeRepository.UserLogout(request);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+        //    }
+        //}
     }
 }

@@ -9,9 +9,10 @@ namespace StudentApp_API.Services.Interfaces
         Task<ServiceResponse<bool>> AssignScholarshipAsync(AssignScholarshipRequest request);
         Task<ServiceResponse<GetScholarshipTestResponseWrapper>> GetScholarshipTestAsync(GetScholarshipTestRequest request);
         Task<ServiceResponse<UpdateQuestionNavigationResponse>> UpdateQuestionNavigationAsync(UpdateQuestionNavigationRequest request);
-        Task<ServiceResponse<List<QuestionResponseDTO>>> GetQuestionsBySectionSettings(int scholarshipTestId);
+        Task<ServiceResponse<List<QuestionResponseDTO>>> GetQuestionsBySectionSettings(int scholarshipTestId, int studentId);
         Task<ServiceResponse<List<SubjectQuestionCountResponse>>> GetScholarshipSubjectQuestionCount(int scholarshipTestId);
         Task<ServiceResponse<ScholarshipTestResponse>> GetScholarshipTestByRegistrationId(int registrationId);
         Task<ServiceResponse<List<MarksAcquiredAfterAnswerSubmission>>> SubmitAnswer(List<AnswerSubmissionRequest> request);
+        Task<ServiceResponse<string>> MarkScholarshipQuestionAsSave(ScholarshipQuestionSaveRequest request);
     }
 }

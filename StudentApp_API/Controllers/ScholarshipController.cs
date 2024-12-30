@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using StudentApp_API.DTOs.Requests;
+using StudentApp_API.Services.Implementations;
 using StudentApp_API.Services.Interfaces;
 using System.Threading.Tasks;
 using static StudentApp_API.Repository.Implementations.ScholarshipRepository;
@@ -86,10 +87,10 @@ namespace StudentApp_API.Controllers
 
             return BadRequest(response);
         }
-        [HttpGet("GetQuestionsBySectionSettings/{scholarshipTestId}")]
-        public async Task<IActionResult> GetQuestionsBySectionSettings(int scholarshipTestId)
+        [HttpGet("GetQuestionsBySectionSettings/{scholarshipTestId}/{studentId}")]
+        public async Task<IActionResult> GetQuestionsBySectionSettings(int scholarshipTestId, int studentId)
         {
-            var response = await _scholarshipService.GetQuestionsBySectionSettings(scholarshipTestId);
+            var response = await _scholarshipService.GetQuestionsBySectionSettings(scholarshipTestId, studentId);
             if (response.Success)
             {
                 return Ok(response);
@@ -101,6 +102,17 @@ namespace StudentApp_API.Controllers
         public async Task<IActionResult> SubmitAnswer(List<AnswerSubmissionRequest> request)
         {
             var response = await _scholarshipService.SubmitAnswer(request);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+
+            return BadRequest(response);
+        }
+        [HttpPost("Save")]
+        public async Task<IActionResult> MarkQuestionAsSave(ScholarshipQuestionSaveRequest request)
+        {
+            var response = await _scholarshipService.MarkScholarshipQuestionAsSave(request);
             if (response.Success)
             {
                 return Ok(response);

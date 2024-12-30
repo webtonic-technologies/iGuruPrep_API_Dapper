@@ -176,7 +176,8 @@ namespace StudentApp_API.Controllers
                 {
                     var status = true;
                     var message = "Login successful";
-                    var token = jwtToken.GenerateJwtToken(result.Data.RegistrationID, result.Data.IsLoginSuccessful);
+                    string usertype = result.Data.IsEmployee == true ? "Employee" : "Student";
+                    var token = jwtToken.GenerateJwtToken(result.Data.UserID, usertype, string.Empty, result.Data.IsLoginSuccessful);
                     var data = result;
                     return this.Ok(new { status, message, data, token });
                 }
@@ -265,6 +266,62 @@ namespace StudentApp_API.Controllers
             }
 
             return BadRequest(response);
+        }
+        [HttpPut("UserLogout")]
+        public async Task<IActionResult> UserLogout(UserLogoutRequest request)
+        {
+            try
+            {
+                var data = await _registrationService.UserLogout(request);
+                if (data != null)
+                {
+                    return Ok(data);
+
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+
+        }
+        [HttpPost]
+        [Route("ForgotPassword")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ForgotPassword(string UserEmailOrPhoneOrUsername)
+        {
+            try
+            {
+                var result = await _registrationService.ForgetPasswordAsync(UserEmailOrPhoneOrUsername);
+                var jwtToken = new JwtHelper(_config);
+                if (result != null)
+                {
+
+                    var token = jwtToken.GenerateJwtToken(result.Data.UserId, result.Data.UserType, result.Data.UserName, true);
+                    var email = new SendEmail();
+                    result.Data.Token = token;
+                    var succes = email.SendEmailWithAttachmentAsync(result.Data.Email, token);
+                    return succes.Result.Success
+                     ? this.Ok(new { result })
+                     : this.BadRequest(new { result });
+
+                }
+                else
+                {
+                    var status = true;
+                    var message = "Email not verified ";
+                    return this.NotFound(new { status, message });
+                }
+            }
+            catch (Exception e)
+            {
+                throw new Exception(e.Message);
+            }
         }
     }
 }

@@ -35,6 +35,7 @@
     public class TestSeriesQuestionResponse
     {
         public int QuestionId { get; set; }
+        public string QuestionCode { get; set; }
         public string QuestionDescription { get; set; } = string.Empty;
         public string QuestionFormula { get; set; } = string.Empty;
         public string QuestionImage { get; set; } = string.Empty;

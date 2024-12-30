@@ -6,8 +6,8 @@
         public int ScholarshipID { get; set; }
         public int StudentID { get; set; }
         public int QuestionID { get; set; }
-        public string StartTime { get; set; }
-        public string EndTime { get; set; }
+        public DateTime StartTime { get; set; }
+        public DateTime EndTime { get; set; }
         public string Message { get; set; }
     }
     public class ScholarshipTestResponse
@@ -79,6 +79,9 @@
         public string ExtraInformation { get; set; } = string.Empty;
         public bool IsActive { get; set; } = true;
         public string userRole { get; set; } = string.Empty;
+        // New Properties
+        public string StudentAnswer { get; set; } = string.Empty; // Submitted answer
+        public bool? IsCorrect { get; set; } // True if correct, false otherwise
         public List<AnswerMultipleChoiceCategory>? AnswerMultipleChoiceCategories { get; set; }
         public Answersingleanswercategory? Answersingleanswercategories { get; set; }
     }
@@ -88,7 +91,7 @@
         public int Answermultiplechoicecategoryid { get; set; }
         public int? Answerid { get; set; }
         public string Answer { get; set; } = string.Empty;
-        public bool? Iscorrect { get; set; }
+        public bool Iscorrect { get; set; }
         public int? Matchid { get; set; }
     }
 

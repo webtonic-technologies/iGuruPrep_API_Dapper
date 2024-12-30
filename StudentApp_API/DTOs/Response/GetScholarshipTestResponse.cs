@@ -18,6 +18,8 @@ namespace StudentApp_API.DTOs.Responses
     {
         public int QuestionID { get; set; }
         public string Question { get; set; }
+        public int QuestionTypeId {  get; set; }
+        public string QuestionType {  get; set; }
         public List<AnswerDetail> Answers { get; set; }
     }
 

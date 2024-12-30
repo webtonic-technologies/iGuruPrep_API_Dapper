@@ -241,7 +241,7 @@ namespace StudentApp_API.Repository.Implementations
 
                 // Step 3: Fetch Descriptive Questions for each Section
                 string queryDescriptiveQuestions = @"
-        SELECT q.QuestionId, q.QuestionDescription, q.QuestionFormula, q.QuestionImage, q.DifficultyLevelId, 
+        SELECT q.QuestionId, q.QuestionDescription, q.QuestionFormula, q.QuestionImage,q.QuestionCode, q.DifficultyLevelId, 
                q.QuestionTypeId, q.Explanation
         FROM tblQuestion q
         WHERE q.QuestionId IN @QuestionIds

@@ -1,4 +1,5 @@
 ﻿using StudentApp_API.DTOs.Requests;
+using StudentApp_API.DTOs.Response;
 using StudentApp_API.DTOs.Responses;
 using StudentApp_API.DTOs.ServiceResponse;
 using StudentApp_API.Models;
@@ -20,5 +21,7 @@ namespace StudentApp_API.Repository.Interfaces
         Task<ServiceResponse<string>> DeleteProfile(int registrationId);
         Task<ServiceResponse<List<CountryResponse>>> GetCountries();
         Task<ServiceResponse<List<StateResponse>>> GetStatesByCountryId(int countryId);
+        Task<ServiceResponse<string>> UserLogout(UserLogoutRequest request);
+        Task<ServiceResponse<ForgetPasswordResponse>> ForgetPasswordAsync(string userInput);
     }
 }
