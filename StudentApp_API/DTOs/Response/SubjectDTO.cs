@@ -16,5 +16,16 @@
         public int DisplayOrder { get; set; }
         public int ConceptCount { get; set; }
     }
+    public class CYOTResponse
+    {
+        public int CYOTID { get; set; }
+        public string CYOTName { get; set; }
+        public int TotalQuestions { get; set; }
+        public string Duration { get; set; }
+        public int CYOTStatusID { get; set; }
+        public string CYOTStatus { get; set; }
+        public int Percentage { get; set; }
+        public bool IsChallengeApplicable { get; set; }
+    }
 
 }

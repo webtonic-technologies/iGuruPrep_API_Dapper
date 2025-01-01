@@ -1,4 +1,5 @@
 ﻿using Dapper;
+using Microsoft.AspNetCore.Connections;
 using StudentApp_API.DTOs.Requests;
 using StudentApp_API.DTOs.Response;
 using StudentApp_API.DTOs.ServiceResponse;
@@ -8,7 +9,7 @@ using System.Data;
 
 namespace StudentApp_API.Repository.Implementations
 {
-    public class CYOTRepository: ICYOTRepository
+    public class CYOTRepository : ICYOTRepository
     {
         private readonly IDbConnection _connection;
 
@@ -70,6 +71,80 @@ namespace StudentApp_API.Repository.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<List<SubjectDTO>>(false, ex.Message, new List<SubjectDTO>(), 500);
+            }
+        }
+        public async Task<ServiceResponse<bool>> MakeCYOTOpenChallenge(int CYOTId)
+        {
+            await _connection.ExecuteAsync(@"update [tblCYOT] set CYOTStatusID = 3 where CYOTID = @CYOTID", new { CYOTID = CYOTId });
+            return new ServiceResponse<bool>(true, "marked as open challenge", true, 200);
+        }
+        public async Task<ServiceResponse<List<CYOTResponse>>> GetCYOTListByStudent(CYOTListRequest request)
+        {
+            try
+            {
+                // Query to get CYOT details filtered by StudentID
+                var cyotQuery = @"
+            SELECT 
+                CYOTID,IsStarted,
+                ChallengeName AS CYOTName,
+                NoOfQuestions AS TotalQuestions,
+                Duration,
+                CYOTStatusID
+            FROM tblCYOT
+            WHERE CreatedBy = @StudentID";
+
+                // Query to get total questions per CYOTID
+                var totalQuestionsQuery = @"
+            SELECT CYOTID, COUNT(*) AS TotalQuestions
+            FROM tblCYOTQuestions
+            GROUP BY CYOTID";
+
+                // Query to get questions answered by the student
+                var attemptedQuestionsQuery = @"
+            SELECT CYOTID, COUNT(*) AS AttemptedQuestions
+            FROM tblCYOTAnswers
+            WHERE StudentID = @StudentID
+            GROUP BY CYOTID";
+
+
+                // Fetch CYOT data
+                var cyotList = (await _connection.QueryAsync<CYOTResponse>(cyotQuery, new { StudentID = request.RegistrationId })).ToList();
+
+                // Fetch total questions data
+                var totalQuestions = await _connection.QueryAsync<dynamic>(totalQuestionsQuery);
+
+                // Fetch attempted questions data
+                var attemptedQuestions = await _connection.QueryAsync<dynamic>(attemptedQuestionsQuery, new { StudentID = request.RegistrationId });
+
+                // Merge data
+                foreach (var cyot in cyotList)
+                {
+                    bool isStarted = await _connection.QueryFirstOrDefaultAsync<bool>(@"select IsStarted from [tblCYOT] where CYOTID = @CYOTID", new { CYOTID = cyot.CYOTID });
+                    var total = totalQuestions.FirstOrDefault(q => q.CYOTID == cyot.CYOTID)?.TotalQuestions ?? 0;
+                    var attempted = attemptedQuestions.FirstOrDefault(q => q.CYOTID == cyot.CYOTID)?.AttemptedQuestions ?? 0;
+
+                    cyot.Percentage = total > 0 ? (attempted * 100) / total : 0;
+                    cyot.IsChallengeApplicable = cyot.Percentage >= 80;
+                    if (cyot.IsChallengeApplicable)
+                    {
+                        cyot.CYOTStatus = "Challenged";
+                    }
+                    else if (isStarted)
+                    {
+                        cyot.CYOTStatus = "Complete";
+                    }
+                    else
+                    {
+                        cyot.CYOTStatus = "Pending";
+                    }
+                }
+                var response = cyotList.Where(m => m.CYOTStatusID == request.StatusId).ToList();
+                return new ServiceResponse<List<CYOTResponse>>(true, "CYOT list fetched successfully.", response, 200);
+
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<CYOTResponse>>(false, ex.Message, null, 500);
             }
         }
         public async Task<ServiceResponse<List<ChapterDTO>>> GetChaptersAsync(int registrationId, int subjectId)
@@ -431,10 +506,10 @@ namespace StudentApp_API.Repository.Implementations
                         QuestionId = item.QuestionId,
                         Paragraph = item.Paragraph,
                         SubjectName = item.SubjectName,
-                      //  EmployeeName = item.EmpFirstName,
+                        //  EmployeeName = item.EmpFirstName,
                         IndexTypeName = item.IndexTypeName,
                         ContentIndexName = item.ContentIndexName,
-                       // QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+                        // QIDCourses = GetListOfQIDCourse(item.QuestionCode),
                         ContentIndexId = item.ContentIndexId,
                         CreatedBy = item.CreatedBy,
                         CreatedOn = item.CreatedOn,
@@ -466,7 +541,7 @@ namespace StudentApp_API.Repository.Implementations
                         subjectID = item.subjectID,
                         SubjectName = item.SubjectName,
                         EmployeeId = item.EmployeeId,
-                       // EmployeeName = item.EmpFirstName,
+                        // EmployeeName = item.EmpFirstName,
                         IndexTypeId = item.IndexTypeId,
                         IndexTypeName = item.IndexTypeName,
                         ContentIndexId = item.ContentIndexId,
@@ -478,13 +553,13 @@ namespace StudentApp_API.Repository.Implementations
                         Explanation = item.Explanation,
                         ExtraInformation = item.ExtraInformation,
                         IsActive = item.IsActive,
-                      //  QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+                        //  QIDCourses = GetListOfQIDCourse(item.QuestionCode),
                         //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
                         //Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
                         //AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
                         MatchPairs = item.QuestionTypeId == 6 || item.QuestionTypeId == 12 ? GetMatchPairs(item.QuestionCode, item.QuestionId) : null,
                         MatchThePairType2Answers = item.QuestionTypeId == 12 ? GetMatchThePairType2Answers(item.QuestionCode, item.QuestionId) : null,
-                       // Answersingleanswercategories = (item.QuestionTypeId != 6 && item.QuestionTypeId != 12) ? GetSingleAnswer(item.QuestionCode, item.QuestionId) : null,
+                        // Answersingleanswercategories = (item.QuestionTypeId != 6 && item.QuestionTypeId != 12) ? GetSingleAnswer(item.QuestionCode, item.QuestionId) : null,
                         AnswerMultipleChoiceCategories = (item.QuestionTypeId != 12) ? GetMultipleAnswers(item.QuestionCode) : null
                     };
                 }
@@ -533,86 +608,269 @@ namespace StudentApp_API.Repository.Implementations
                 ? new ServiceResponse<List<QuestionResponseDTO>>(true, "Operation Successful", questions.ToList(), 200)
                 : new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
         }
-        public async Task<ServiceResponse<IEnumerable<AnswerPercentageResponse>>> SubmitCYOTAnswerAsync(SubmitAnswerRequest request)
+        public async Task<ServiceResponse<IEnumerable<AnswerPercentageResponse>>> SubmitCYOTAnswerAsync(List<SubmitAnswerRequest> requests)
         {
-            string checkCorrectAnswerQuery = @"
-    SELECT AMC.IsCorrect
-    FROM tblAnswerMaster AM
-    INNER JOIN tblAnswerMultipleChoiceCategory AMC
-    ON AM.AnswerID = AMC.AnswerID
-    WHERE AM.QuestionID = @QuestionID AND AMC.AnswerID = @AnswerID";
-
-            string checkExistingAnswerQuery = @"
-    SELECT COUNT(1)
-    FROM tblCYOTAnswers
-    WHERE CYOTID = @CYOTID AND QuestionID = @QuestionID AND StudentID = @StudentID";
-
-            string updateQuery = @"
-    UPDATE tblCYOTAnswers
-    SET AnswerID = @AnswerID, IsCorrect = @IsCorrect
-    WHERE CYOTID = @CYOTID AND QuestionID = @QuestionID AND StudentID = @StudentID";
-
-            string insertQuery = @"
-    INSERT INTO tblCYOTAnswers (CYOTID, StudentID, QuestionID, AnswerID, IsCorrect)
-    VALUES (@CYOTID, @StudentID, @QuestionID, @AnswerID, @IsCorrect)";
-
-            string answerCountQuery = @"
-    SELECT 
-        AnswerID,
-        COUNT(AnswerID) AS AnswerCount
-    FROM tblCYOTAnswers
-    WHERE CYOTID = @CYOTID AND QuestionID = @QuestionID
-    GROUP BY AnswerID";
-
-            // Check if the answer is correct
-            bool isCorrect = await _connection.ExecuteScalarAsync<bool>(checkCorrectAnswerQuery, new
+            try
             {
-                QuestionID = request.QuestionID,
-                AnswerID = request.AnswerID
-            });
+               
+                    // Step 1: Fetch correct answers for all QuestionIDs and AnswerIDs
+                    var correctAnswersQuery = @"
+                SELECT AM.QuestionID, AMC.AnswerID, AMC.IsCorrect
+                FROM tblAnswerMaster AM
+                INNER JOIN tblAnswerMultipleChoiceCategory AMC ON AM.AnswerID = AMC.AnswerID
+                WHERE AM.QuestionID IN @QuestionIDs AND AMC.AnswerID IN @AnswerIDs";
 
-            // Check if there is an existing answer for the student
-            bool hasExistingAnswer = await _connection.ExecuteScalarAsync<bool>(checkExistingAnswerQuery, new
-            {
-                CYOTID = request.QuizID, // Assuming QuizID maps to CYOTID
-                QuestionID = request.QuestionID,
-                StudentID = request.StudentID
-            });
+                    var correctAnswers = (await _connection.QueryAsync<(int QuestionID, int AnswerID, bool IsCorrect)>(
+                        correctAnswersQuery,
+                        new
+                        {
+                            QuestionIDs = requests.Select(r => r.QuestionID).Distinct(),
+                            AnswerIDs = requests.Select(r => r.AnswerID).Distinct()
+                        }
+                    )).ToList();
 
-            if (hasExistingAnswer)
-            {
-                // Update the existing answer
-                await _connection.ExecuteAsync(updateQuery, new
-                {
-                    CYOTID = request.QuizID,
-                    StudentID = request.StudentID,
-                    QuestionID = request.QuestionID,
-                    AnswerID = request.AnswerID,
-                    IsCorrect = isCorrect
-                });
+                    // Step 2: Process each request to insert or update answers
+                    foreach (var request in requests)
+                    {
+                        var isCorrect = correctAnswers
+                            .FirstOrDefault(ca => ca.QuestionID == request.QuestionID && ca.AnswerID == request.AnswerID)
+                            .IsCorrect;
+
+                        var existingAnswerQuery = @"
+                    SELECT COUNT(1)
+                    FROM tblCYOTAnswers
+                    WHERE CYOTID = @CYOTID AND QuestionID = @QuestionID AND StudentID = @StudentID";
+
+                        var hasExistingAnswer = await _connection.ExecuteScalarAsync<bool>(
+                            existingAnswerQuery,
+                            new
+                            {
+                                CYOTID = request.QuizID,
+                                QuestionID = request.QuestionID,
+                                StudentID = request.StudentID
+                            }
+                        );
+
+                        if (hasExistingAnswer)
+                        {
+                            // Update existing answer
+                            var updateQuery = @"
+                        UPDATE tblCYOTAnswers
+                        SET AnswerID = @AnswerID, IsCorrect = @IsCorrect
+                        WHERE CYOTID = @CYOTID AND QuestionID = @QuestionID AND StudentID = @StudentID";
+
+                            await _connection.ExecuteAsync(
+                                updateQuery,
+                                new
+                                {
+                                    CYOTID = request.QuizID,
+                                    StudentID = request.StudentID,
+                                    QuestionID = request.QuestionID,
+                                    AnswerID = request.AnswerID,
+                                    IsCorrect = isCorrect
+                                }
+                            );
+                        }
+                        else
+                        {
+                            // Insert new answer
+                            var insertQuery = @"
+                        INSERT INTO tblCYOTAnswers (CYOTID, StudentID, QuestionID, AnswerID, IsCorrect)
+                        VALUES (@CYOTID, @StudentID, @QuestionID, @AnswerID, @IsCorrect)";
+
+                            await _connection.ExecuteAsync(
+                                insertQuery,
+                                new
+                                {
+                                    CYOTID = request.QuizID,
+                                    StudentID = request.StudentID,
+                                    QuestionID = request.QuestionID,
+                                    AnswerID = request.AnswerID,
+                                    IsCorrect = isCorrect
+                                }
+                            );
+                        }
+                    }
+
+                    // Step 3: Fetch answer counts for all questions
+                    var answerCountQuery = @"
+                SELECT 
+                    QuestionID,
+                    AnswerID,
+                    COUNT(AnswerID) AS AnswerCount
+                FROM tblCYOTAnswers
+                WHERE CYOTID = @CYOTID AND QuestionID IN @QuestionIDs
+                GROUP BY QuestionID, AnswerID";
+
+                    var answerCounts = await _connection.QueryAsync<AnswerPercentageResponse>(
+                        answerCountQuery,
+                        new
+                        {
+                            CYOTID = requests.First().QuizID,
+                            QuestionIDs = requests.Select(r => r.QuestionID).Distinct()
+                        }
+                    );
+
+                    // Step 4: Fetch total and attempted questions for the quiz
+                    var totalQuestionsQuery = @"
+                SELECT COUNT(*) AS TotalQuestions 
+                FROM tblCYOTQuestions 
+                WHERE CYOTID = @CYOTID";
+
+                    var attemptedQuestionsQuery = @"
+                SELECT COUNT(DISTINCT QuestionID) AS AttemptedQuestions
+                FROM tblCYOTAnswers
+                WHERE CYOTID = @CYOTID AND StudentID = @StudentID";
+
+                    var totalQuestions = await _connection.QueryFirstOrDefaultAsync<int>(
+                        totalQuestionsQuery,
+                        new { CYOTID = requests.First().QuizID }
+                    );
+
+                    var attemptedQuestions = await _connection.QueryFirstOrDefaultAsync<int>(
+                        attemptedQuestionsQuery,
+                        new
+                        {
+                            CYOTID = requests.First().QuizID,
+                            StudentID = requests.First().StudentID
+                        }
+                    );
+
+                    // Step 5: Calculate percentage and update quiz status
+                    var percentage = totalQuestions > 0 ? (attemptedQuestions * 100) / totalQuestions : 0;
+                    var statusId = percentage >= 80 ? 3 : 2;
+
+                    await _connection.ExecuteAsync(
+                        @"UPDATE [tblCYOT] SET CYOTStatusID = @StatusID WHERE CYOTID = @CYOTID",
+                        new
+                        {
+                            CYOTID = requests.First().QuizID,
+                            StatusID = statusId
+                        }
+                    );
+
+                    return new ServiceResponse<IEnumerable<AnswerPercentageResponse>>(
+                        true,
+                        "Operation successful",
+                        answerCounts,
+                        200
+                    );
+                
             }
-            else
+            catch (Exception ex)
             {
-                // Insert a new answer
-                await _connection.ExecuteAsync(insertQuery, new
-                {
-                    CYOTID = request.QuizID,
-                    StudentID = request.StudentID,
-                    QuestionID = request.QuestionID,
-                    AnswerID = request.AnswerID,
-                    IsCorrect = isCorrect
-                });
+                return new ServiceResponse<IEnumerable<AnswerPercentageResponse>>(
+                    false,
+                    $"Error: {ex.Message}",
+                    null,
+                    500
+                );
             }
-
-            // Fetch updated answer counts
-            var answerCounts = await _connection.QueryAsync<AnswerPercentageResponse>(answerCountQuery, new
-            {
-                CYOTID = request.QuizID,
-                QuestionID = request.QuestionID
-            });
-
-            return new ServiceResponse<IEnumerable<AnswerPercentageResponse>>(true, "operation successful", answerCounts, 200);
         }
+        //    public async Task<ServiceResponse<IEnumerable<AnswerPercentageResponse>>> SubmitCYOTAnswerAsync(List<SubmitAnswerRequest> request)
+        //    {
+
+        //        string checkCorrectAnswerQuery = @"
+        //SELECT AMC.IsCorrect
+        //FROM tblAnswerMaster AM
+        //INNER JOIN tblAnswerMultipleChoiceCategory AMC
+        //ON AM.AnswerID = AMC.AnswerID
+        //WHERE AM.QuestionID = @QuestionID AND AMC.AnswerID = @AnswerID";
+
+        //        string checkExistingAnswerQuery = @"
+        //SELECT COUNT(1)
+        //FROM tblCYOTAnswers
+        //WHERE CYOTID = @CYOTID AND QuestionID = @QuestionID AND StudentID = @StudentID";
+
+        //        string updateQuery = @"
+        //UPDATE tblCYOTAnswers
+        //SET AnswerID = @AnswerID, IsCorrect = @IsCorrect
+        //WHERE CYOTID = @CYOTID AND QuestionID = @QuestionID AND StudentID = @StudentID";
+
+        //        string insertQuery = @"
+        //INSERT INTO tblCYOTAnswers (CYOTID, StudentID, QuestionID, AnswerID, IsCorrect)
+        //VALUES (@CYOTID, @StudentID, @QuestionID, @AnswerID, @IsCorrect)";
+
+        //        string answerCountQuery = @"
+        //SELECT 
+        //    AnswerID,
+        //    COUNT(AnswerID) AS AnswerCount
+        //FROM tblCYOTAnswers
+        //WHERE CYOTID = @CYOTID AND QuestionID = @QuestionID
+        //GROUP BY AnswerID";
+
+        //        // Check if the answer is correct
+        //        bool isCorrect = await _connection.ExecuteScalarAsync<bool>(checkCorrectAnswerQuery, new
+        //        {
+        //            QuestionID = request.QuestionID,
+        //            AnswerID = request.AnswerID
+        //        });
+
+        //        // Check if there is an existing answer for the student
+        //        bool hasExistingAnswer = await _connection.ExecuteScalarAsync<bool>(checkExistingAnswerQuery, new
+        //        {
+        //            CYOTID = request.QuizID, // Assuming QuizID maps to CYOTID
+        //            QuestionID = request.QuestionID,
+        //            StudentID = request.StudentID
+        //        });
+
+        //        if (hasExistingAnswer)
+        //        {
+        //            // Update the existing answer
+        //            await _connection.ExecuteAsync(updateQuery, new
+        //            {
+        //                CYOTID = request.QuizID,
+        //                StudentID = request.StudentID,
+        //                QuestionID = request.QuestionID,
+        //                AnswerID = request.AnswerID,
+        //                IsCorrect = isCorrect
+        //            });
+        //        }
+        //        else
+        //        {
+        //            // Insert a new answer
+        //            await _connection.ExecuteAsync(insertQuery, new
+        //            {
+        //                CYOTID = request.QuizID,
+        //                StudentID = request.StudentID,
+        //                QuestionID = request.QuestionID,
+        //                AnswerID = request.AnswerID,
+        //                IsCorrect = isCorrect
+        //            });
+        //        }
+
+        //        // Fetch updated answer counts
+        //        var answerCounts = await _connection.QueryAsync<AnswerPercentageResponse>(answerCountQuery, new
+        //        {
+        //            CYOTID = request.QuizID,
+        //            QuestionID = request.QuestionID
+        //        });
+        //        // Query to get total questions per CYOTID
+        //        var totalQuestionsQuery = @"SELECT COUNT(*) AS TotalQuestions FROM tblCYOTQuestions WHERE CYOTID = @CYOTID";
+
+        //        // Query to get questions answered by the student
+        //        var attemptedQuestionsQuery = @"SELECT COUNT(*) AS AttemptedQuestions FROM tblCYOTAnswers WHERE StudentID = @StudentID
+        //        AND CYOTID = @CYOTID";
+
+        //        // Fetch total questions count
+        //        var totalQuestions = await _connection.QueryFirstOrDefaultAsync<int>(totalQuestionsQuery, new { CYOTID = request.QuizID });
+
+        //        // Fetch attempted questions count
+        //        var attemptedQuestions = await _connection.QueryFirstOrDefaultAsync<int>(attemptedQuestionsQuery, new { StudentID = request.StudentID, CYOTID = request.QuizID });
+
+        //        // Calculate percentage
+        //        int percentage = totalQuestions > 0 ? (attemptedQuestions * 100) / totalQuestions : 0;
+
+        //        if (percentage >= 80)
+        //        {
+        //            await _connection.ExecuteAsync(@"update [tblCYOT] set CYOTStatusID = 3 where CYOTID = @CYOTID", new { CYOTID = request.QuizID });
+        //        }
+        //        else
+        //        {
+        //            await _connection.ExecuteAsync(@"update [tblCYOT] set CYOTStatusID = 2 where CYOTID = @CYOTID", new { CYOTID = request.QuizID });
+        //        }
+        //        return new ServiceResponse<IEnumerable<AnswerPercentageResponse>>(true, "operation successful", answerCounts, 200);
+        //    }
         public async Task<ServiceResponse<List<CYOTQuestionWithAnswersDTO>>> GetCYOTQuestionsWithOptionsAsync(int cyotId)
         {
             // SQL query to fetch questions with all answer options
@@ -672,6 +930,42 @@ ORDER BY
                 groupedData,
                 200
             );
+        }
+        public async Task<ServiceResponse<bool>> UpsertCYOTParticipantsAsync(List<CYOTParticipantRequest> requests)
+        {
+            try
+            {
+                var query = @"
+        IF EXISTS (SELECT 1 FROM tblCYOTParticipant WHERE StudentID = @StudentID AND CYOTID = @CYOTID)
+        BEGIN
+            -- Update existing record
+            UPDATE tblCYOTParticipant
+            SET 
+                IsCompleted = @IsCompleted,
+                IsStarted = @IsStarted,
+                CYOTStatusID = @CYOTStatusID
+            WHERE 
+                StudentID = @StudentID AND CYOTID = @CYOTID;
+        END
+        ELSE
+        BEGIN
+            -- Insert new record
+            INSERT INTO tblCYOTParticipant (StudentID, CYOTID, IsCompleted, IsStarted, CYOTStatusID)
+            VALUES (@StudentID, @CYOTID, @IsCompleted, @IsStarted, @CYOTStatusID);
+        END"
+                ;
+                foreach (var request in requests)
+                {
+                    // Execute the query for each request
+                    await _connection.ExecuteAsync(query, request);
+                }
+
+                return new ServiceResponse<bool>(true, "All participant records processed successfully.", true, 200);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<bool>(false, $"Error: {ex.Message}", false, 500);
+            }
         }
         private List<MatchPair> GetMatchPairs(string questionCode, int questionId)
         {

@@ -16,6 +16,11 @@
         public int? BoardID { get; set; }
         public List<CYOTSyllabusDTO> CYOTSyllabus { get; set; }
     }
+    public class CYOTListRequest
+    {
+        public int RegistrationId { get; set; }
+        public int StatusId { get; set; }
+    }
     public class GetCYOTQuestionsRequest
     {
         public int cyotId { get; set; }
@@ -32,6 +37,14 @@
     {
         public int QuestionID { get; set; }
         public int DisplayOrder { get; set; }
+    }
+    public class CYOTParticipantRequest
+    {
+        public int StudentID { get; set; }
+        public int CYOTID { get; set; }
+        public bool IsCompleted { get; set; }
+        public bool IsStarted { get; set; }
+        public int CYOTStatusID { get; set; }
     }
 
 }
