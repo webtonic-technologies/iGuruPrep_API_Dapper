@@ -79,7 +79,7 @@ namespace StudentApp_API.Controllers
             return StatusCode(result.StatusCode, result);
         }
         [HttpPost("SubmitCYOTAnswerAsync")]
-        public async Task<IActionResult> SubmitCYOTAnswerAsync(SubmitAnswerRequest request)
+        public async Task<IActionResult> SubmitCYOTAnswerAsync(List<SubmitAnswerRequest> request)
         {
             var result = await _cYOTServices.SubmitCYOTAnswerAsync(request);
 
@@ -102,6 +102,30 @@ namespace StudentApp_API.Controllers
             }
 
             return BadRequest(response);
+        }
+        [HttpPost("AddUpdateCYOTParticipants")]
+        public async Task<IActionResult> UpsertCYOTParticipantsAsync(List<CYOTParticipantRequest> request)
+        {
+            var result = await _cYOTServices.UpsertCYOTParticipantsAsync(request);
+            if (result.Success)
+                return Ok(result);
+            return StatusCode(result.StatusCode, result);
+        }
+        [HttpPost("MakeCYOTOpenChallenge/{CYOTId}")]
+        public async Task<IActionResult> MakeCYOTOpenChallenge(int CYOTId)
+        {
+            var result = await _cYOTServices.MakeCYOTOpenChallenge(CYOTId);
+            if (result.Success)
+                return Ok(result);
+            return StatusCode(result.StatusCode, result);
+        }
+        [HttpPost("GetCYOTListByStudent")]
+        public async Task<IActionResult> GetCYOTListByStudent(CYOTListRequest request)
+        {
+            var result = await _cYOTServices.GetCYOTListByStudent(request);
+            if (result.Success)
+                return Ok(result);
+            return StatusCode(result.StatusCode, result);
         }
     }
 }

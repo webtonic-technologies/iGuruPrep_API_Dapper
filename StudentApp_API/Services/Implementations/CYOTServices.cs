@@ -25,6 +25,11 @@ namespace StudentApp_API.Services.Implementations
             return await _cYOTRepository.GetCYOTByIdAsync(cyotId);
         }
 
+        public async Task<ServiceResponse<List<CYOTResponse>>> GetCYOTListByStudent(CYOTListRequest request)
+        {
+            return await _cYOTRepository.GetCYOTListByStudent(request);
+        }
+
         public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetCYOTQuestions(GetCYOTQuestionsRequest request)
         {
             return await _cYOTRepository.GetCYOTQuestions(request);
@@ -45,7 +50,12 @@ namespace StudentApp_API.Services.Implementations
             return await _cYOTRepository.InsertOrUpdateCYOTAsync(cyot);
         }
 
-        public async Task<ServiceResponse<IEnumerable<AnswerPercentageResponse>>> SubmitCYOTAnswerAsync(SubmitAnswerRequest request)
+        public async Task<ServiceResponse<bool>> MakeCYOTOpenChallenge(int CYOTId)
+        {
+            return await _cYOTRepository.MakeCYOTOpenChallenge(CYOTId);
+        }
+
+        public async Task<ServiceResponse<IEnumerable<AnswerPercentageResponse>>> SubmitCYOTAnswerAsync(List<SubmitAnswerRequest> request)
         {
             return await _cYOTRepository.SubmitCYOTAnswerAsync(request);
         }
@@ -53,6 +63,11 @@ namespace StudentApp_API.Services.Implementations
         public async Task<ServiceResponse<bool>> UpdateCYOTSyllabusAsync(int cyotId, List<CYOTSyllabusDTO> syllabusList)
         {
             return await _cYOTRepository.UpdateCYOTSyllabusAsync(cyotId, syllabusList);
+        }
+
+        public async Task<ServiceResponse<bool>> UpsertCYOTParticipantsAsync(List<CYOTParticipantRequest> requests)
+        {
+            return await _cYOTRepository.UpsertCYOTParticipantsAsync(requests);
         }
     }
 }
