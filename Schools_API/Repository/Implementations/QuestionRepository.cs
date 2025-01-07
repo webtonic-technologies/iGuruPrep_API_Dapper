@@ -670,7 +670,7 @@ namespace Schools_API.Repository.Implementations
             if (questTypedata != null)
             {
                 if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "MF" ||
-                    questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MF2" || questTypedata.Code.Trim() == "AR" || questTypedata.Code.Trim() == "FB"
+                    questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MF2" || questTypedata.Code.Trim() == "AR"
                     || questTypedata.Code.Trim() == "NT" || questTypedata.Code.Trim() == "T/F")
                 {
                     if (multiAnswerRequest != null)
@@ -739,7 +739,51 @@ namespace Schools_API.Repository.Implementations
             }
             return new ServiceResponse<int>(true, string.Empty, answer, 200);
         }
-        public async Task<ServiceResponse<int>> UpdateQIDCourseAsync(int qidCourseId, UpdateQIDCourseRequest request)
+        public async Task<ServiceResponse<bool>> DeleteQuestion(int QuestionId, string QuestionCode)
+        {
+            try
+            {
+                var delQuestion = await _connection.ExecuteAsync(
+                    @"delete from tblQuestion where QuestionId = @QuestionId and QuestionCode = @QuestionCode and IsActive = 1",
+                    new { QuestionId = QuestionId, QuestionCode = QuestionCode });
+
+                if (delQuestion != 0)
+                {
+                    await _connection.ExecuteAsync(
+                        @"Delete from tblQIDCourse where QID = @QuestionId and QuestionCode = @QuestionCode",
+                        new { QuestionId = QuestionId, QuestionCode = QuestionCode });
+
+                    int AnswerId = await _connection.QueryFirstOrDefaultAsync<int>(
+                        @"select AnswerId from tblAnswerMaster where QuestionId = @QuestionId and QuestionCode = @QuestionCode",
+                        new { QuestionId = QuestionId, QuestionCode = QuestionCode });
+
+                    await _connection.ExecuteAsync(
+                        @"Delete from tblAnswerMaster where QuestionId = @QuestionId and QuestionCode = @QuestionCode",
+                        new { QuestionId = QuestionId, QuestionCode = QuestionCode });
+
+                    if (AnswerId != 0)
+                    {
+                        await _connection.ExecuteAsync(
+                            @"delete from tblAnswerMultipleChoiceCategory where AnswerId = @AnswerId",
+                            new { AnswerId });
+
+                        await _connection.ExecuteAsync(
+                            @"Delete from tblAnswerSingleAnswerCategory where AnswerId = @AnswerId",
+                            new { AnswerId });
+                    }
+
+                    return new ServiceResponse<bool>(true, "Operation successful", true, 200);
+                }
+
+                // If the question was not found or not deleted, return an appropriate response
+                return new ServiceResponse<bool>(false, "Question not found or inactive", false, 404);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<bool>(false, ex.Message, false, 500);
+            }
+        }
+        public async Task<ServiceResponse<int>> UpdateQIDCourseAsync(int qidCourseId, List<UpdateQIDCourseRequest> requests)
         {
             if (_connection.State != ConnectionState.Open)
             {
@@ -750,17 +794,18 @@ namespace Schools_API.Repository.Implementations
             {
                 // Update query for tblQIDCourse
                 string updateQuery = @"
-            UPDATE tblQIDCourse
-            SET QID = @QID,
-                CourseID = @CourseID,
-                LevelId = @LevelId,
-                Status = @Status,
-                ModifiedBy = @ModifiedBy,
-                ModifiedDate = GETDATE(),
-                QuestionCode = @QuestionCode
-            WHERE QIDCourseID = @QIDCourseID";
+        UPDATE tblQIDCourse
+        SET QID = @QID,
+            CourseID = @CourseID,
+            LevelId = @LevelId,
+            Status = @Status,
+            ModifiedBy = @ModifiedBy,
+            ModifiedDate = GETDATE(),
+            QuestionCode = @QuestionCode
+        WHERE QIDCourseID = @QIDCourseID";
 
-                var rowsAffected = await _connection.ExecuteAsync(updateQuery, new
+                // Map the list of requests into parameters
+                var parameters = requests.Select(request => new
                 {
                     QID = request.QID,
                     CourseID = request.CourseID,
@@ -769,14 +814,17 @@ namespace Schools_API.Repository.Implementations
                     ModifiedBy = request.ModifiedBy,
                     QuestionCode = request.QuestionCode,
                     QIDCourseID = qidCourseId
-                });
+                }).ToList();
+
+                // Execute the update for all requests in a single batch
+                var rowsAffected = await _connection.ExecuteAsync(updateQuery, parameters);
 
                 if (rowsAffected > 0)
                 {
-                    return new ServiceResponse<int>(true, "Record updated successfully.", qidCourseId, 200);
+                    return new ServiceResponse<int>(true, $"{rowsAffected} record(s) updated successfully.", qidCourseId, 200);
                 }
 
-                return new ServiceResponse<int>(false, "No record found to update.", 0, 404);
+                return new ServiceResponse<int>(false, "No records found to update.", 0, 404);
             }
             catch (Exception ex)
             {

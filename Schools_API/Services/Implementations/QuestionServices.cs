@@ -1,7 +1,6 @@
 ﻿using Schools_API.DTOs.Requests;
 using Schools_API.DTOs.Response;
 using Schools_API.DTOs.ServiceResponse;
-using Schools_API.Models;
 using Schools_API.Repository.Interfaces;
 using Schools_API.Services.Interfaces;
 
@@ -30,7 +29,6 @@ namespace Schools_API.Services.Implementations
         {
             return await _questionRepository.AddUpdateComprehensiveQuestion(request);
         }
-
         public async Task<ServiceResponse<string>> AddUpdateQuestion(QuestionDTO request)
         {
             try
@@ -87,6 +85,11 @@ namespace Schools_API.Services.Implementations
             }
         }
 
+        public async Task<ServiceResponse<bool>> DeleteQuestion(int QuestionId, string QuestionCode)
+        {
+            return await _questionRepository.DeleteQuestion(QuestionId, QuestionCode);
+
+        }
         public async Task<ServiceResponse<byte[]>> GenerateExcelFile(DownExcelRequest request)
         {
             try
@@ -95,10 +98,9 @@ namespace Schools_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<byte[]> (false, ex.Message, [], 500);
+                return new ServiceResponse<byte[]>(false, ex.Message, [], 500);
             }
         }
-
         public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetAllLiveQuestionsList(int SubjectId)
         {
             try
@@ -221,7 +223,7 @@ namespace Schools_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<int>> UpdateQIDCourseAsync(int qidCourseId, UpdateQIDCourseRequest request)
+        public async Task<ServiceResponse<int>> UpdateQIDCourseAsync(int qidCourseId, List<UpdateQIDCourseRequest> request)
         {
             return await _questionRepository.UpdateQIDCourseAsync(qidCourseId, request);
         }

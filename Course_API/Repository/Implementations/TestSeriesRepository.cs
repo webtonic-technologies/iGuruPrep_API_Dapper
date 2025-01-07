@@ -2792,7 +2792,7 @@ WHERE TestSeriesId != @TestSeriesId
                 tsqs.NoofQuestionsforChoice, 
                 tsqs.SubjectId
             FROM 
-                [iGuruPrep].[dbo].[tbltestseriesQuestionSection] tsqs
+               [tbltestseriesQuestionSection] tsqs
             WHERE 
                 tsqs.TestSeriesid = @TestSeriesid";
                     var sections = await _connection.QueryAsync<TestSeriesSection>(sectionQuery, new { TestSeriesid = request.TestSeriesId });
@@ -2810,7 +2810,7 @@ WHERE TestSeriesId != @TestSeriesId
                 tsqd.DifficultyLevelId, 
                 tsqd.QuesPerDiffiLevel
             FROM 
-                [iGuruPrep].[dbo].[tblTestSeriesQuestionDifficulty] tsqd
+                [tblTestSeriesQuestionDifficulty] tsqd
             WHERE 
                 tsqd.QuestionSectionId IN @QuestionSectionIds";
                     var difficultyLevels = await _connection.QueryAsync<dynamic>(difficultyQuery, new { QuestionSectionIds = sections.Select(s => s.testseriesQuestionSectionid) });
@@ -3697,7 +3697,7 @@ WHERE TestSeriesId != @TestSeriesId
             if (questTypedata != null)
             {
                 if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "MF" ||
-                    questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MF2" || questTypedata.Code.Trim() == "AR" || questTypedata.Code.Trim() == "FB"
+                    questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MF2" || questTypedata.Code.Trim() == "AR" 
                     || questTypedata.Code.Trim() == "NT" || questTypedata.Code.Trim() == "T/F")
                 {
                     if (multiAnswerRequest != null)
@@ -4237,33 +4237,93 @@ WHERE TestSeriesId != @TestSeriesId
             var data = _connection.Query<TestSeriesCourseResponse>(query, new { TestSeriesID = TestSeriesId });
             return data != null ? data.AsList() : new List<TestSeriesCourseResponse>();
         }
-        private List<TestSeriesContentIndexResponse> GetListOfTestSeriesSubjectIndex(int TestSeriesId)
+        public List<ContentIndexResponse> GetListOfTestSeriesSubjectIndex(int TestSeriesId)
         {
             string query = @"
-            SELECT 
-                tsci.TestSeriesContentIndexId,
-                tsci.IndexTypeId,
-                it.IndexType AS IndexTypeName,
-                tsci.SubjectId,
-                s.SubjectName as SubjectName,
-                tsci.ContentIndexId,
-                CASE 
-                    WHEN tsci.IndexTypeId = 1 THEN ci.ContentName_Chapter
-                    WHEN tsci.IndexTypeId = 2 THEN ct.ContentName_Topic
-                    WHEN tsci.IndexTypeId = 3 THEN cst.ContentName_SubTopic
-                END AS ContentIndexName,
-                tsci.TestSeriesID
-            FROM tblTestSeriesContentIndex tsci
-            LEFT JOIN tblSubject s ON tsci.SubjectId = s.SubjectId
-            LEFT JOIN tblQBIndexType it ON tsci.IndexTypeId = it.IndexId
-            LEFT JOIN tblContentIndexChapters ci ON tsci.ContentIndexId = ci.ContentIndexId AND tsci.IndexTypeId = 1
-            LEFT JOIN tblContentIndexTopics ct ON tsci.ContentIndexId = ct.ContInIdTopic AND tsci.IndexTypeId = 2
-            LEFT JOIN tblContentIndexSubTopics cst ON tsci.ContentIndexId = cst.ContInIdSubTopic AND tsci.IndexTypeId = 3
-            WHERE tsci.TestSeriesID = @TestSeriesID";
+SELECT 
+    tsci.TestSeriesContentIndexId,
+    tsci.IndexTypeId,
+    it.IndexType AS IndexTypeName,
+    tsci.ContentIndexId,
+    ci.SubjectId,
+    CASE 
+        WHEN tsci.IndexTypeId = 1 THEN ci.ContentName_Chapter
+        WHEN tsci.IndexTypeId = 2 THEN ct.ContentName_Topic
+        WHEN tsci.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+    END AS ContentIndexName,
+    ci.ChapterCode,
+    ct.TopicCode,
+    cst.SubTopicCode,
+    tsci.TestSeriesID
+FROM tblTestSeriesContentIndex tsci
+LEFT JOIN tblQBIndexType it ON tsci.IndexTypeId = it.IndexId
+LEFT JOIN tblContentIndexChapters ci ON tsci.ContentIndexId = ci.ContentIndexId AND tsci.IndexTypeId = 1
+LEFT JOIN tblContentIndexTopics ct ON tsci.ContentIndexId = ct.ContInIdTopic AND tsci.IndexTypeId = 2
+LEFT JOIN tblContentIndexSubTopics cst ON tsci.ContentIndexId = cst.ContInIdSubTopic AND tsci.IndexTypeId = 3
+WHERE tsci.TestSeriesID = @TestSeriesID";
 
-            var data = _connection.Query<TestSeriesContentIndexResponse>(query, new { TestSeriesID = TestSeriesId });
-            return data != null ? data.AsList() : new List<TestSeriesContentIndexResponse>();
+            // Fetch raw data using the query
+            var rawData = _connection.Query<dynamic>(query, new { TestSeriesID = TestSeriesId }).ToList();
+
+            // Map data into hierarchical structure
+            var groupedData = rawData
+                .Where(x => x.IndexTypeId == 1) // Filter for chapters
+                .Select(chapter => new ContentIndexResponse
+                {
+                    ContentIndexId = chapter.ContentIndexId,
+                    ContentName_Chapter = chapter.ContentIndexName,
+                    ChapterCode = chapter.ChapterCode,
+                    SubjectId = chapter.SubjectId,
+                    IndexTypeId = chapter.IndexTypeId,
+                    ContentIndexTopics = rawData
+                        .Where(x => x.IndexTypeId == 2 && x.ContentIndexId == chapter.ContentIndexId) // Filter topics by chapter ID
+                        .Select(topic => new ContentIndexTopics
+                        {
+                            ContInIdTopic = topic.ContentIndexId,
+                            ContentName_Topic = topic.ContentIndexName,
+                            TopicCode = topic.TopicCode,
+                            IndexTypeId = topic.IndexTypeId,
+                            ContentIndexSubTopics = rawData
+                                .Where(x => x.IndexTypeId == 3 && x.ContentIndexId == topic.ContentIndexId) // Filter subtopics by topic ID
+                                .Select(subTopic => new ContentIndexSubTopic
+                                {
+                                    ContInIdSubTopic = subTopic.ContentIndexId,
+                                    ContentName_SubTopic = subTopic.ContentIndexName,
+                                    SubTopicCode = subTopic.SubTopicCode,
+                                    IndexTypeId = subTopic.IndexTypeId
+                                }).ToList()
+                        }).ToList()
+                }).ToList();
+
+            return groupedData;
         }
+        //private List<TestSeriesContentIndexResponse> GetListOfTestSeriesSubjectIndex(int TestSeriesId)
+        //{
+        //    string query = @"
+        //    SELECT 
+        //        tsci.TestSeriesContentIndexId,
+        //        tsci.IndexTypeId,
+        //        it.IndexType AS IndexTypeName,
+        //        tsci.SubjectId,
+        //        s.SubjectName as SubjectName,
+        //        tsci.ContentIndexId,
+        //        CASE 
+        //            WHEN tsci.IndexTypeId = 1 THEN ci.ContentName_Chapter
+        //            WHEN tsci.IndexTypeId = 2 THEN ct.ContentName_Topic
+        //            WHEN tsci.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+        //        END AS ContentIndexName,
+        //        tsci.TestSeriesID
+        //    FROM tblTestSeriesContentIndex tsci
+        //    LEFT JOIN tblSubject s ON tsci.SubjectId = s.SubjectId
+        //    LEFT JOIN tblQBIndexType it ON tsci.IndexTypeId = it.IndexId
+        //    LEFT JOIN tblContentIndexChapters ci ON tsci.ContentIndexId = ci.ContentIndexId AND tsci.IndexTypeId = 1
+        //    LEFT JOIN tblContentIndexTopics ct ON tsci.ContentIndexId = ct.ContInIdTopic AND tsci.IndexTypeId = 2
+        //    LEFT JOIN tblContentIndexSubTopics cst ON tsci.ContentIndexId = cst.ContInIdSubTopic AND tsci.IndexTypeId = 3
+        //    WHERE tsci.TestSeriesID = @TestSeriesID";
+
+        //    var data = _connection.Query<TestSeriesContentIndexResponse>(query, new { TestSeriesID = TestSeriesId });
+        //    return data != null ? data.AsList() : new List<TestSeriesContentIndexResponse>();
+        //}
         private List<TestSeriesQuestionSection> GetTestSeriesQuestionSection(int TestSeriesId)
         {
             string query = @"

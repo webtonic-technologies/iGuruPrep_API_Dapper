@@ -32,11 +32,11 @@ namespace Course_API.DTOs.Response
         public DateTime RepeatExamEndDate { get; set; }
         public string RepeatExamStarttime { get; set; } = string.Empty;
         public int RepeatExamResulttimeId { get; set; }
-        public string RepeatedExamResultTime {  set; get; } = string.Empty;
-        public string RepeatedExamEndTime {  get; set; } = string.Empty;
-        public string ExamStatus {  get; set; }
-        public bool IsAdmin {  get; set; }
-        public int DownloadStatusId {  get; set; }
+        public string RepeatedExamResultTime { set; get; } = string.Empty;
+        public string RepeatedExamEndTime { get; set; } = string.Empty;
+        public string ExamStatus { get; set; }
+        public bool IsAdmin { get; set; }
+        public int DownloadStatusId { get; set; }
         public List<TestSeriesBoardsResponse>? TestSeriesBoard { get; set; }
         public List<TestSeriesClassResponse>? TestSeriesClasses { get; set; }
         public List<TestSeriesCourseResponse>? TestSeriesCourses { get; set; }
@@ -73,22 +73,38 @@ namespace Course_API.DTOs.Response
         public int TestSeriesID { get; set; }
         public string SubjectName { get; set; } = string.Empty;
     }
+
     public class TestSeriesContentIndexResponse
     {
-        public int TestSeriesSubjectIndexId { get; set; }
+        public int TestSeriesContentIndexId { get; set; }
         public int IndexTypeId { get; set; }
         public string IndexTypeName { get; set; } = string.Empty;
-        public int ContentIndexId { get; set; }
-        public string ContentIndexName { get; set; } = string.Empty;
-        public int TestSeriesID { get; set; }
         public int SubjectId { get; set; }
         public string SubjectName { get; set; } = string.Empty;
+        public int ContentIndexId { get; set; }
+        public string ContentIndexName { get; set; } = string.Empty;
+        public string ChapterCode { get; set; } = string.Empty;
+        public string TopicCode { get; set; } = string.Empty;
+        public string SubTopicCode { get; set; } = string.Empty;
+        public int TestSeriesID { get; set; }
     }
+
+    //public class TestSeriesContentIndexResponse
+    //{
+    //    public int TestSeriesSubjectIndexId { get; set; }
+    //    public int IndexTypeId { get; set; }
+    //    public string IndexTypeName { get; set; } = string.Empty;
+    //    public int ContentIndexId { get; set; }
+    //    public string ContentIndexName { get; set; } = string.Empty;
+    //    public int TestSeriesID { get; set; }
+    //    public int SubjectId { get; set; }
+    //    public string SubjectName { get; set; } = string.Empty;
+    //}
     public class TestSeriesSubjectDetails
     {
         public int SubjectID { get; set; }
         public string SubjectName { get; set; } = string.Empty;
-        public List<TestSeriesContentIndexResponse>? TestSeriesContentIndexes { get; set; }
+        public List<ContentIndexResponse>? TestSeriesContentIndexes { get; set; }
         public List<TestSeriesQuestionSection>? TestSeriesQuestionsSection { get; set; }
     }
 }

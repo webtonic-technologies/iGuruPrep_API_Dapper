@@ -40,7 +40,7 @@ namespace Schools_API.Controllers
             }
         }
         [HttpPut("UpdateQIDCourseAsync/{qidCourseId}")]
-        public async Task<IActionResult> UpdateQIDCourseAsync(int qidCourseId, UpdateQIDCourseRequest request)
+        public async Task<IActionResult> UpdateQIDCourseAsync(int qidCourseId, List<UpdateQIDCourseRequest> request)
         {
             try
             {
@@ -353,6 +353,24 @@ namespace Schools_API.Controllers
                     return StatusCode(500, "A problem happened while handling your request.");
                 }
 
+                return Ok(data);
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
+        [HttpDelete("DeleteQuestion")]
+        public async Task<IActionResult> DeleteQuestion(int QuestionId, string QuestionCode)
+        {
+            try
+            {
+                var data = await _questionServices.DeleteQuestion(QuestionId, QuestionCode);
+
+                if (data == null)
+                {
+                    return StatusCode(500, "A problem happened while handling your request.");
+                }
                 return Ok(data);
             }
             catch (Exception e)

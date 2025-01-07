@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using StudentApp_API.DTOs.Requests;
 using StudentApp_API.Services.Interfaces;
 using System.Net;
-using System.Threading.Tasks;
 
 namespace StudentApp_API.Controllers
 {
@@ -315,6 +314,34 @@ namespace StudentApp_API.Controllers
                 {
                     var status = true;
                     var message = "Email not verified ";
+                    return this.NotFound(new { status, message });
+                }
+            }
+            catch (Exception e)
+            {
+                throw new Exception(e.Message);
+            }
+        }
+        [HttpPost]
+        [Route("ResetPasswordAsync")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ResetPasswordAsync(ResetPasswordRequest request)
+        {
+            try
+            {
+                var result = await _registrationService.ResetPasswordAsync(request);
+                var jwtToken = new JwtHelper(_config);
+                if (result != null)
+                {
+                    return result.Success
+                     ? this.Ok(new { result })
+                     : this.BadRequest(new { result });
+
+                }
+                else
+                {
+                    var status = false;
+                    var message = "Some error occured ";
                     return this.NotFound(new { status, message });
                 }
             }

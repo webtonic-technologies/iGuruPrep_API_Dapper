@@ -23,5 +23,6 @@ namespace StudentApp_API.Repository.Interfaces
         Task<ServiceResponse<List<StateResponse>>> GetStatesByCountryId(int countryId);
         Task<ServiceResponse<string>> UserLogout(UserLogoutRequest request);
         Task<ServiceResponse<ForgetPasswordResponse>> ForgetPasswordAsync(string userInput);
+        Task<ServiceResponse<bool>> ResetPasswordAsync(ResetPasswordRequest request);
     }
 }

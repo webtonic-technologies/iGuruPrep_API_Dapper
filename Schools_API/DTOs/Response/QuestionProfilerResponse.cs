@@ -2,14 +2,25 @@
 {
     public class QuestionProfilerResponse
     {
-
         public int QPID { get; set; }
+        public int SubjectId {  get; set; }
+        public string SubjectName { get; set; } = string.Empty;
+        public int QuestionTypeId { get; set; }
+        public string QuestionTypeName { get; set; } = string.Empty;
+        public List<QuestionContentDetails>? QuestionContentDetails { get; set; }
         public int Questionid { get; set; }
         public string QuestionCode { get; set; } = string.Empty;
         public bool? ApprovedStatus { get; set; }
         public List<ProoferList>? Proofers { get; set; }
         public List<QIDCourseResponse>? QIDCourses { get; set; }
         public List<QuestionRejectionResponseDTO>? QuestionRejectionResponseDTOs { get; set; }
+    }
+    public class QuestionContentDetails
+    {
+        public int IndexTypeId { get; set; }
+        public string IndexTypeName {  get; set; } = string.Empty;
+        public int ContentIndexId {  get; set; }
+        public string ContentIndexName { get; set; } = string.Empty;
     }
     public class QuestionRejectionResponseDTO
     {

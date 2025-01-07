@@ -86,5 +86,10 @@ namespace StudentApp_API.Services.Implementations
         {
             return await _registrationRepository.ForgetPasswordAsync(userInput);
         }
+
+        public async Task<ServiceResponse<bool>> ResetPasswordAsync(ResetPasswordRequest request)
+        {
+            return await _registrationRepository.ResetPasswordAsync(request);
+        }
     }
 }
