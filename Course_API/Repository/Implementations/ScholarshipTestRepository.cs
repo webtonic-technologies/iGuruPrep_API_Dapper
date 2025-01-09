@@ -527,20 +527,20 @@ namespace Course_API.Repository.Implementations
                 }
 
                 // Step 2: Retrieve the total number of questions for the scholarship
-                var scholarshipQuery = "SELECT TotalNoOfQuestions FROM tblScholarship WHERE ScholarshipId = @ScholarshipId";
+                var scholarshipQuery = "SELECT TotalNumberOfQuestions FROM [tblScholarshipTest] WHERE ScholarshipTestId = @ScholarshipId";
                 int totalNoOfQuestionsForScholarship = await _connection.QueryFirstOrDefaultAsync<int>(scholarshipQuery, new { ScholarshipId });
 
                 // Step 3: Retrieve existing sections and difficulty levels for the scholarship
-                var existingSectionsQuery = "SELECT TotalNoofQuestions FROM tblScholarshipQuestionSection WHERE ScholarshipId = @ScholarshipId";
+                var existingSectionsQuery = "SELECT TotalNumberOfQuestions FROM tblSSQuestionSection WHERE ScholarshipTestId = @ScholarshipId";
                 var existingSections = await _connection.QueryAsync<int>(existingSectionsQuery, new { ScholarshipId });
 
                 var existingDifficultyLevelsQuery = @"
             SELECT DifficultyLevelId, SUM(QuesPerDiffiLevel) AS TotalQuestions
             FROM tblScholarshipQuestionDifficulty
-            WHERE QuestionSectionId IN (
-                SELECT ScholarshipQuestionSectionId
-                FROM tblScholarshipQuestionSection
-                WHERE ScholarshipId = @ScholarshipId
+            WHERE SectionId IN (
+                SELECT SSTSectionId
+                FROM tblSSQuestionSection
+                WHERE ScholarshipTestId = @ScholarshipId
             )
             GROUP BY DifficultyLevelId";
                 var existingDifficultyLevels = await _connection.QueryAsync<(int DifficultyLevelId, int TotalQuestions)>(existingDifficultyLevelsQuery, new { ScholarshipId });
@@ -590,26 +590,25 @@ namespace Course_API.Repository.Implementations
                 // Step 9: Perform Insert or Update operations
                 string checkExistenceQuery = @"
             SELECT COUNT(1) 
-            FROM tblScholarshipQuestionSection 
-            WHERE ScholarshipQuestionSectionId = @ScholarshipQuestionSectionId";
+            FROM tblSSQuestionSection 
+            WHERE SSTSectionId = @ScholarshipQuestionSectionId";
 
                 string updateQuery = @"
-            UPDATE tblScholarshipQuestionSection
+            UPDATE tblSSQuestionSection
             SET 
-                Status = @Status,
-                QuestionTypeID = @QuestionTypeID,
-                EntermarksperCorrectAnswer = @EntermarksperCorrectAnswer,
-                EnterNegativeMarks = @EnterNegativeMarks,
-                TotalNoofQuestions = @TotalNoofQuestions,
-                NoofQuestionsforChoice = @NoofQuestionsforChoice,
-                SubjectId = @SubjectId
-            WHERE ScholarshipId = @ScholarshipId";
+                QuestionTypeId = @QuestionTypeId,
+                MarksPerQuestion = @MarksPerQuestion,
+                NegativeMarks = @NegativeMarks,
+                TotalNumberOfQuestions = @TotalNumberOfQuestions,
+                NoOfQuestionsPerChoice = @NoOfQuestionsPerChoice,
+                SubjectId = @SubjectId, PartialMarkRuleId = @PartialMarkRuleId
+            WHERE SSTSectionId = @SSTSectionId";
 
                 string insertQuery = @"
-            INSERT INTO tblScholarshipQuestionSection 
-            (ScholarshipId, DisplayOrder, SectionName, Status, QuestionTypeID, EntermarksperCorrectAnswer, EnterNegativeMarks, TotalNoofQuestions, NoofQuestionsforChoice, SubjectId)
+            INSERT INTO tblSSQuestionSection 
+            (ScholarshipTestId,DisplayOrder, SectionName, QuestionTypeId,PartialMarkRuleId, MarksPerQuestion, NegativeMarks, TotalNumberOfQuestions, NoOfQuestionsPerChoice, SubjectId)
             VALUES 
-            (@ScholarshipId, @DisplayOrder, @SectionName, @Status, @QuestionTypeID, @EntermarksperCorrectAnswer, @EnterNegativeMarks, @TotalNoofQuestions, @NoofQuestionsforChoice, @SubjectId);
+            (@ScholarshipTestId,@DisplayOrder, @SectionName, @QuestionTypeId, @PartialMarkRuleId,@MarksPerQuestion, @NegativeMarks, @TotalNumberOfQuestions, @NoOfQuestionsPerChoice, @SubjectId);
             SELECT CAST(SCOPE_IDENTITY() as int);";
 
                 foreach (var section in request)
@@ -630,7 +629,7 @@ namespace Course_API.Repository.Implementations
 
                     foreach (var record in section.ScholarshipSectionQuestionDifficulties)
                     {
-                        record.SSTSectionId = section.SSTSectionId;
+                        record.SectionId = section.SSTSectionId;
                     }
 
                     // Handle difficulties for the section
@@ -653,24 +652,24 @@ namespace Course_API.Repository.Implementations
                 string checkExistenceQuery = @"
             SELECT COUNT(1)
             FROM tblScholarshipQuestionDifficulty
-            WHERE SSTSectionId = @SSTSectionId AND DifficultyLevelId = @DifficultyLevelId";
+            WHERE SectionId = @SectionId AND DifficultyLevelId = @DifficultyLevelId";
 
                 string updateQuery = @"
             UPDATE tblScholarshipQuestionDifficulty
             SET QuesPerDiffiLevel = @QuesPerDiffiLevel
-            WHERE SSTSectionId = @SSTSectionId AND DifficultyLevelId = @DifficultyLevelId";
+            WHERE SectionId = @SectionId AND DifficultyLevelId = @DifficultyLevelId";
 
                 string insertQuery = @"
             INSERT INTO tblScholarshipQuestionDifficulty
-            (SSTSectionId, DifficultyLevelId, QuesPerDiffiLevel)
+            (SectionId, DifficultyLevelId, QuesPerDiffiLevel)
             VALUES
-            (@SSTSectionId, @DifficultyLevelId, @QuesPerDiffiLevel)";
+            (@SectionId, @DifficultyLevelId, @QuesPerDiffiLevel)";
 
                 foreach (var difficulty in difficulties)
                 {
                     int recordExists = await _connection.ExecuteScalarAsync<int>(checkExistenceQuery, new
                     {
-                        difficulty.SSTSectionId,
+                        difficulty.SectionId,
                         difficulty.DifficultyLevelId
                     });
 

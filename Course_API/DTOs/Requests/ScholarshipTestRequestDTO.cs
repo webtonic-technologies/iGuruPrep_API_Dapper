@@ -70,12 +70,13 @@ namespace Course_API.DTOs.Requests
         public int TotalNumberOfQuestions { get; set; }
         public int NoOfQuestionsPerChoice { get; set; }
         public int SubjectId { get; set; }
+        public int PartialMarkRuleId {  get; set; }
         public List<ScholarshipSectionQuestionDifficulty>? ScholarshipSectionQuestionDifficulties { get; set; }
     }
     public class ScholarshipSectionQuestionDifficulty
     {
         public int Id { get; set; }
-        public int SSTSectionId { get; set; }
+        public int SectionId { get; set; }
         public int DifficultyLevelId { get; set; }
         public int QuesPerDiffiLevel { get; set; }
     }

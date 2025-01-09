@@ -3648,21 +3648,64 @@ namespace Schools_API.Repository.Implementations
         {
             try
             {
-
                 string fetchQuestionIdSql = @"
-            SELECT QuestionId
-            FROM tblQuestion
-            WHERE QuestionCode = @QuestionCode AND IsActive = 1 AND IsConfigure = 1 "
-                ;
+        SELECT QuestionId, IndexTypeId, ContentIndexId
+        FROM tblQuestion
+        WHERE QuestionCode = @QuestionCode AND IsActive = 1 AND IsConfigure = 1";
 
-                var questionId = await _connection.QueryFirstOrDefaultAsync<int?>(fetchQuestionIdSql, new { QuestionCode });
+                var questionData = await _connection.QueryFirstOrDefaultAsync<(int QuestionId, int IndexTypeId, int ContentIndexId)?>(fetchQuestionIdSql, new { QuestionCode });
 
-                if (!questionId.HasValue)
+                if (!questionData.HasValue)
                 {
                     return new ServiceResponse<QuestionProfilerResponse>(false, "Question not found or inactive", new QuestionProfilerResponse(), 404);
                 }
 
-                string sql = @"
+                var (questionId, indexTypeId, contentIndexId) = questionData.Value;
+
+                string fetchContentDetailsSql = indexTypeId switch
+                {
+                    1 => @"
+                SELECT c.SubjectId, s.SubjectName, c.ContentName_Chapter AS ContentIndexName, c.ContentIndexId, 1 AS IndexTypeId, 'Chapter' AS IndexTypeName
+                FROM tblContentIndexChapters c
+                INNER JOIN tblSubject s ON c.SubjectId = s.SubjectId
+                WHERE c.ContentIndexId = @ContentIndexId AND c.IsActive = 1",
+
+                    2 => @"
+                SELECT c.SubjectId, s.SubjectName, ch.ContentName_Chapter AS ParentName, t.ContentName_Topic AS ContentIndexName, 
+                       t.ContentIndexId, 2 AS IndexTypeId, 'Topic' AS IndexTypeName
+                FROM tblContentIndexTopics t
+                INNER JOIN tblContentIndexChapters ch ON t.ChapterCode = ch.ChapterCode
+                INNER JOIN tblSubject s ON ch.SubjectId = s.SubjectId
+                WHERE t.ContentIndexId = @ContentIndexId AND t.IsActive = 1",
+
+                    3 => @"
+                SELECT c.SubjectId, s.SubjectName, ch.ContentName_Chapter AS ChapterName, t.ContentName_Topic AS TopicName, 
+                       st.ContentName_SubTopic AS ContentIndexName, st.ContentIndexId, 3 AS IndexTypeId, 'SubTopic' AS IndexTypeName
+                FROM tblContentIndexSubTopics st
+                INNER JOIN tblContentIndexTopics t ON st.TopicCode = t.TopicCode
+                INNER JOIN tblContentIndexChapters ch ON t.ChapterCode = ch.ChapterCode
+                INNER JOIN tblSubject s ON ch.SubjectId = s.SubjectId
+                WHERE st.ContentIndexId = @ContentIndexId AND st.IsActive = 1",
+
+                    _ => null
+                };
+
+                List<QuestionContentDetails> contentDetails = new();
+
+                if (!string.IsNullOrEmpty(fetchContentDetailsSql))
+                {
+                    var contentData = await _connection.QueryAsync(fetchContentDetailsSql, new { ContentIndexId = contentIndexId });
+
+                    contentDetails = contentData.Select(c => new QuestionContentDetails
+                    {
+                        IndexTypeId = c.IndexTypeId,
+                        IndexTypeName = c.IndexTypeName,
+                        ContentIndexId = c.ContentIndexId,
+                        ContentIndexName = c.ContentIndexName,
+                    }).ToList();
+                }
+
+                string fetchQuestionProfilerSql = @"
         SELECT qp.QPID, qp.Questionid, qp.EmpId, qp.ApprovedStatus, qp.AssignedDate,
                e.EmpFirstName + ' ' + e.EmpLastName AS EmpName, r.RoleName AS Role, r.RoleID,
                qr.QuestionProfilerRejectionsid AS RejectionId, qr.CreatedDate AS RejectedDate, 
@@ -3680,7 +3723,7 @@ namespace Schools_API.Repository.Implementations
 
                 var parameters = new { QuestionCode };
 
-                var data = (await _connection.QueryAsync<dynamic>(sql, parameters)).ToList();
+                var data = (await _connection.QueryAsync<dynamic>(fetchQuestionProfilerSql, parameters)).ToList();
 
                 if (data != null && data.Any())
                 {
@@ -3691,6 +3734,7 @@ namespace Schools_API.Repository.Implementations
                         QPID = firstRecord.QPID,
                         Questionid = firstRecord.Questionid,
                         ApprovedStatus = firstRecord.ApprovedStatus,
+                        QuestionContentDetails = contentDetails,
                         Proofers = data.GroupBy(d => new { d.EmpId, d.EmpName, d.Role, d.RoleID })
                                        .Select(g => g.First())
                                        .Select(g => new ProoferList
@@ -3747,6 +3791,109 @@ namespace Schools_API.Repository.Implementations
                 return new ServiceResponse<QuestionProfilerResponse>(false, ex.Message, new QuestionProfilerResponse(), 500);
             }
         }
+        //public async Task<ServiceResponse<QuestionProfilerResponse>> GetQuestionProfilerDetails(string QuestionCode)
+        //{
+        //    try
+        //    {
+
+        //        string fetchQuestionIdSql = @"
+        //    SELECT QuestionId
+        //    FROM tblQuestion
+        //    WHERE QuestionCode = @QuestionCode AND IsActive = 1 AND IsConfigure = 1 "
+        //        ;
+
+        //        var questionId = await _connection.QueryFirstOrDefaultAsync<int?>(fetchQuestionIdSql, new { QuestionCode });
+
+        //        if (!questionId.HasValue)
+        //        {
+        //            return new ServiceResponse<QuestionProfilerResponse>(false, "Question not found or inactive", new QuestionProfilerResponse(), 404);
+        //        }
+
+        //        string sql = @"
+        //SELECT qp.QPID, qp.Questionid, qp.EmpId, qp.ApprovedStatus, qp.AssignedDate,
+        //       e.EmpFirstName + ' ' + e.EmpLastName AS EmpName, r.RoleName AS Role, r.RoleID,
+        //       qr.QuestionProfilerRejectionsid AS RejectionId, qr.CreatedDate AS RejectedDate, 
+        //       qr.QuestionRejectReason AS RejectedReason, qr.RejectedBy,
+        //       c.CourseName, c.CourseId, qc.QIDCourseID, qc.LevelId, l.LevelName,
+        //       qc.Status, qc.CreatedBy, qc.CreatedDate, qc.ModifiedBy, qc.ModifiedDate
+        //FROM tblQuestionProfiler qp
+        //LEFT JOIN tblEmployee e ON qp.EmpId = e.Employeeid
+        //LEFT JOIN tblRole r ON e.RoleID = r.RoleID
+        //LEFT JOIN tblQuestionProfilerRejections qr ON qp.Questionid = qr.Questionid
+        //LEFT JOIN tblQIDCourse qc ON qp.Questionid = qc.QID
+        //LEFT JOIN tblCourse c ON qc.CourseID = c.CourseId
+        //LEFT JOIN tbldifficultylevel l ON qc.LevelId = l.LevelId
+        //WHERE qp.QuestionCode = @QuestionCode";
+
+        //        var parameters = new { QuestionCode };
+
+        //        var data = (await _connection.QueryAsync<dynamic>(sql, parameters)).ToList();
+
+        //        if (data != null && data.Any())
+        //        {
+        //            var firstRecord = data.First();
+
+        //            var response = new QuestionProfilerResponse
+        //            {
+        //                QPID = firstRecord.QPID,
+        //                Questionid = firstRecord.Questionid,
+        //                ApprovedStatus = firstRecord.ApprovedStatus,
+        //                Proofers = data.GroupBy(d => new { d.EmpId, d.EmpName, d.Role, d.RoleID })
+        //                               .Select(g => g.First())
+        //                               .Select(g => new ProoferList
+        //                               {
+        //                                   QPId = g.QPID,
+        //                                   EmpId = g.EmpId,
+        //                                   EmpName = g.EmpName,
+        //                                   Role = g.Role,
+        //                                   RoleId = g.RoleID,
+        //                                   QuestionCode = g.QuestionCode,
+        //                                   AssignedDate = g.AssignedDate,
+        //                               }).ToList(),
+        //                QIDCourses = data.GroupBy(d => new { d.QIDCourseID, d.CourseId, d.CourseName, d.LevelId, d.LevelName, d.Status, d.CreatedBy, d.CreatedDate, d.ModifiedBy, d.ModifiedDate })
+        //                                 .Select(g => g.First())
+        //                                 .Select(g => new QIDCourseResponse
+        //                                 {
+        //                                     QIDCourseID = g.QIDCourseID,
+        //                                     QID = firstRecord.QPID,
+        //                                     CourseID = g.CourseId,
+        //                                     CourseName = g.CourseName,
+        //                                     LevelId = g.LevelId,
+        //                                     LevelName = g.LevelName,
+        //                                     Status = g.Status,
+        //                                     CreatedBy = g.CreatedBy,
+        //                                     CreatedDate = g.CreatedDate,
+        //                                     ModifiedBy = g.ModifiedBy,
+        //                                     ModifiedDate = g.ModifiedDate,
+        //                                     QuestionCode = g.QuestionsCode
+        //                                 }).ToList(),
+        //                QuestionRejectionResponseDTOs = data.Where(d => d.RejectionId != null)
+        //                                                    .GroupBy(d => new { d.RejectionId, d.Questionid, d.RejectedBy, d.RejectedDate, d.RejectedReason })
+        //                                                    .Select(g => g.First())
+        //                                                    .Select(g => new QuestionRejectionResponseDTO
+        //                                                    {
+        //                                                        RejectionId = g.RejectionId,
+        //                                                        QuestionId = g.Questionid,
+        //                                                        EmpId = g.RejectedBy,
+        //                                                        EmpName = g.EmpName,
+        //                                                        RejectedDate = g.RejectedDate,
+        //                                                        RejectedReason = g.RejectedReason,
+        //                                                        QuestionCode = g.QuestionCode,
+        //                                                    }).ToList()
+        //            };
+
+        //            return new ServiceResponse<QuestionProfilerResponse>(true, "Operation Successful", response, 200);
+        //        }
+        //        else
+        //        {
+        //            return new ServiceResponse<QuestionProfilerResponse>(false, "No records found", new QuestionProfilerResponse(), 404);
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new ServiceResponse<QuestionProfilerResponse>(false, ex.Message, new QuestionProfilerResponse(), 500);
+        //    }
+        //}
         public async Task<ServiceResponse<object>> CompareQuestionVersions(string questionCode)
         {
             try

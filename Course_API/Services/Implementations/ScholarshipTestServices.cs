@@ -173,7 +173,7 @@ namespace Course_API.Services.Implementations
                             SubjectId = data.SubjectId,
                             ScholarshipSectionQuestionDifficulties = m.ScholarshipSectionQuestionDifficulties?.Select(d => new ScholarshipSectionQuestionDifficulty
                             {
-                                SSTSectionId = m.SSTSectionId, // Map the parent section ID
+                                SectionId = m.SSTSectionId, // Map the parent section ID
                                 DifficultyLevelId = d.DifficultyLevelId,
                                 QuesPerDiffiLevel = d.QuesPerDiffiLevel
                             }).ToList()// Map the SubjectId from the parent QuestionSection
