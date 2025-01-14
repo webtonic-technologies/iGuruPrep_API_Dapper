@@ -42,13 +42,13 @@ namespace Course_API.Repository.Implementations
                     INSERT INTO tblTestSeries 
                     (
                         TestPatternName, Duration, Status, APID, TotalNoOfQuestions, ExamTypeID, 
-                        EmployeeID, TypeOfTestSeries, 
+                        EmployeeID, TypeOfTestSeries, TotalMarks,
                         createdon, createdby, IsAdmin, DownloadStatusId
                     ) 
                     VALUES 
                     (
                         @TestPatternName, @Duration, @Status, @APID, @TotalNoOfQuestions, @ExamTypeID,
-                        @EmployeeID, @TypeOfTestSeries, 
+                        @EmployeeID, @TypeOfTestSeries, @TotalMarks,
                         @createdon, @createdby, @IsAdmin, @DownloadStatusId
                     ); 
                     SELECT CAST(SCOPE_IDENTITY() as int);";
@@ -60,6 +60,7 @@ namespace Course_API.Repository.Implementations
                         request.APID,
                         request.TotalNoOfQuestions,
                         request.EmployeeID,
+                        request.TotalMarks,
                         request.TypeOfTestSeries,
                         createdon = DateTime.Now,
                         request.createdby,
@@ -100,6 +101,7 @@ namespace Course_API.Repository.Implementations
                     UPDATE tblTestSeries
                     SET
                         TestPatternName = @TestPatternName,
+                        TotalMarks = @TotalMarks,
                         Duration = @Duration,
                         Status = @Status,
                         APID = @APID,
@@ -116,6 +118,7 @@ namespace Course_API.Repository.Implementations
                         request.Duration,
                         request.Status,
                         request.APID,
+                        request.TotalMarks,
                         request.TotalNoOfQuestions,
                         request.EmployeeID,
                         request.TypeOfTestSeries,
@@ -189,7 +192,7 @@ namespace Course_API.Repository.Implementations
                         data.Data.TotalNoOfQuestions,
                         data.Data.EmployeeID,
                         data.Data.TypeOfTestSeries,
-                        DateTime.Now,
+                        createdon = DateTime.Now,
                         data.Data.createdby,
                         data.Data.ExamTypeID,
                         data.Data.IsAdmin,
@@ -464,6 +467,7 @@ WHERE TestSeriesId != @TestSeriesId
                 ts.ManualQuestionSelect,
                 ts.StartDate,
                 ts.StartTime,
+                ts.TotalMarks,
                 ts.ResultDate,
                 ts.ResultTime,
                 ts.EmployeeID,
@@ -482,6 +486,7 @@ WHERE TestSeriesId != @TestSeriesId
                 ts.RepeatExamEndDate,
                 ts.RepeatExamStarttime,
                 ts.RepeatExamResulttimeId,
+                ts.DownloadStatusId,
                 ts.IsAdmin,
                 rt.ResultTime as RepeatedExamResultTime
             FROM tblTestSeries ts
@@ -701,7 +706,7 @@ WHERE TestSeriesId != @TestSeriesId
         LEFT JOIN tblTestSeriesClass tc ON ts.TestSeriesId = tc.TestSeriesId
         LEFT JOIN tblTestSeriesCourse tco ON ts.TestSeriesId = tco.TestSeriesId
         LEFT JOIN tblTestSeriesBoards tb ON ts.TestSeriesId = tb.TestSeriesId
-        WHERE ts.EmployeeID = @EmployeeId AND ts.IsAdmin = @IsAdmin";
+        WHERE ts.EmployeeID = @EmployeeId AND ts.IsAdmin = @IsAdmin and ts.DownloadStatusId > 1";
 
                 // Query for test series assigned to employee
                 var assignedTestSeriesQuery = @"
@@ -958,7 +963,7 @@ WHERE TestSeriesId != @TestSeriesId
                     }
                 }
                 // Return the paginated result
-                return new ServiceResponse<List<TestSeriesResponseDTO>>(true, "Test series retrieved successfully", paginatedTestSeriesList, 200);
+                return new ServiceResponse<List<TestSeriesResponseDTO>>(true, "Test series retrieved successfully", paginatedTestSeriesList, 200, totalRecords);
             }
             catch (Exception ex)
             {
@@ -1159,6 +1164,27 @@ WHERE TestSeriesId != @TestSeriesId
                 StatusCodes.Status400BadRequest
             );
         }
+
+                //total marks calculation logic
+                // Step X: Validate the total marks for the test series
+                // Retrieve the total marks for the test series from the database
+                var totalMarksQuery = "SELECT TotalMarks FROM tblTestSeries WHERE TestSeriesId = @TestSeriesId";
+                decimal totalMarksForTestSeries = await _connection.QueryFirstOrDefaultAsync<decimal>(totalMarksQuery, new { TestSeriesId });
+
+                // Calculate the total marks for the incoming request
+                decimal totalRequestedMarks = request.Sum(section => section.TotalNoofQuestions * section.EntermarksperCorrectAnswer);
+
+                // Validate the total marks
+                if (totalRequestedMarks != totalMarksForTestSeries)
+                {
+                    return new ServiceResponse<string>(
+                        false,
+                        $"The total marks assigned ({totalRequestedMarks}) must be exactly equal to the limit of {totalMarksForTestSeries} for the test series.",
+                        null,
+                        StatusCodes.Status400BadRequest
+                    );
+                }
+
                 // Step 1: Retrieve the total number of questions for the test series
                 var testSeriesQuery = "SELECT TotalNoOfQuestions FROM tblTestSeries WHERE TestSeriesId = @TestSeriesId";
                 int totalNoOfQuestionsForTestSeries = await _connection.QueryFirstOrDefaultAsync<int>(testSeriesQuery, new { TestSeriesId });
@@ -4466,6 +4492,15 @@ WHERE tsci.TestSeriesID = @TestSeriesID";
                         question.Answersingleanswercategories = singleAnswerCategory;
                     }
                 }
+                // Check if the question is rejected
+                string rejectedQuery = @"
+                SELECT 1 
+                FROM tblTestSeriesRejectedRemarks 
+                WHERE TestSeriesId = @TestSeriesId AND QuestionId = @QuestionId";
+
+                var isRejected = _connection.ExecuteScalar<int?>(rejectedQuery, new { TestSeriesId, QuestionId = question.Questionid }) != null;
+
+                question.IsRejected = isRejected;
             }
 
             return questions;

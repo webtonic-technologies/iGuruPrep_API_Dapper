@@ -1,6 +1,4 @@
 ﻿using Course_API.Models;
-using Microsoft.AspNetCore.DataProtection.KeyManagement;
-using Microsoft.AspNetCore.Http.HttpResults;
 using System.ComponentModel.DataAnnotations;
 
 namespace Course_API.DTOs.Requests
@@ -32,6 +30,7 @@ namespace Course_API.DTOs.Requests
         public int? EmployeeID { get; set; }
         public int? TypeOfTestSeries { get; set; }
         public int? ExamTypeID { get; set; }
+        public decimal? TotalMarks { get; set; }
         public List<TestSeriesBoards>? TestSeriesBoard { get; set; }
         public List<TestSeriesClass>? TestSeriesClasses { get; set; }
         public List<TestSeriesCourse>? TestSeriesCourses { get; set; }

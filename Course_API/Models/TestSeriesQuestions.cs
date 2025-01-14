@@ -13,6 +13,7 @@
         public int QuestionTypeId { get; set; }
         public List<AnswerMultipleChoiceCategorys>? AnswerMultipleChoiceCategories { get; set; }
         public Answersingleanswercategorys? Answersingleanswercategories { get; set; }
+        public bool? IsRejected {  get; set; }
     }
     public class AnswerMultipleChoiceCategorys
     {
