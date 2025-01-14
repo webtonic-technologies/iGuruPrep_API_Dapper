@@ -671,7 +671,7 @@ namespace Schools_API.Repository.Implementations
             {
                 if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "MF" ||
                     questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MF2" || questTypedata.Code.Trim() == "AR"
-                    || questTypedata.Code.Trim() == "NT" || questTypedata.Code.Trim() == "T/F")
+                    || questTypedata.Code.Trim() == "FBMA" || questTypedata.Code.Trim() == "T/F" || questTypedata.Code.Trim() == "NMA")
                 {
                     if (multiAnswerRequest != null)
                     {
@@ -3735,16 +3735,17 @@ namespace Schools_API.Repository.Implementations
                         Questionid = firstRecord.Questionid,
                         ApprovedStatus = firstRecord.ApprovedStatus,
                         QuestionContentDetails = contentDetails,
+                        QuestionCode = QuestionCode,
                         Proofers = data.GroupBy(d => new { d.EmpId, d.EmpName, d.Role, d.RoleID })
                                        .Select(g => g.First())
                                        .Select(g => new ProoferList
                                        {
                                            QPId = g.QPID,
-                                           EmpId = g.EmpId,
-                                           EmpName = g.EmpName,
-                                           Role = g.Role,
-                                           RoleId = g.RoleID,
-                                           QuestionCode = g.QuestionCode,
+                                           AssignedToEmpId = g.EmpId,
+                                           AssignedToEmpName = g.EmpName,
+                                           AssignedToRole = g.Role,
+                                           AssignedToRoleId = g.RoleID,
+                                           QuestionCode = QuestionCode,
                                            AssignedDate = g.AssignedDate,
                                        }).ToList(),
                         QIDCourses = data.GroupBy(d => new { d.QIDCourseID, d.CourseId, d.CourseName, d.LevelId, d.LevelName, d.Status, d.CreatedBy, d.CreatedDate, d.ModifiedBy, d.ModifiedDate })
@@ -3778,6 +3779,44 @@ namespace Schools_API.Repository.Implementations
                                                                 QuestionCode = g.QuestionCode,
                                                             }).ToList()
                     };
+                    var ownerDataQuery = @"select q.subjectID, s.SubjectName,q.EmployeeId,e.EmpFirstName + e.EmpLastName as EmpName,q.CreatedOn,
+                    e.RoleID,r.RoleName,
+                    q.QuestionTypeId, qt.QuestionType 
+                    from tblQuestion q
+                    left join tblSubject s on q.subjectID = s.SubjectId 
+                    left join tblQBQuestionType qt on q.QuestionTypeId = qt.QuestionTypeID
+                    left join tblEmployee e on q.EmployeeId = e.Employeeid
+                    left join tblRole r on e.RoleID = r.RoleID
+                    where QuestionCode = @QuestionCode";
+                    var OwnerData = await _connection.QueryFirstOrDefaultAsync<dynamic>(ownerDataQuery, new { QuestionCode = QuestionCode });
+                    response.SubjectId = OwnerData?.subjectID;
+                    response.SubjectName = OwnerData?.SubjectName;
+                    response.QuestionTypeId = OwnerData?.QuestionTypeId;
+                    response.QuestionTypeName = OwnerData.QuestionTypeName;
+                    response.Proofers.Add(new ProoferList
+                    {
+                        AssignedToEmpId = OwnerData.EmployeeId,
+                        AssignedToEmpName = OwnerData.EmpName,
+                        AssignedToRole = OwnerData.RoleName,
+                        AssignedToRoleId = OwnerData.RoleID,
+                        QuestionCode = QuestionCode,
+                        AssignedDate = OwnerData.CreatedOn,
+                    });
+                    if (response.Proofers != null && response.Proofers.Count > 1)
+                    {
+                        var lastProofer = response.Proofers.Last();
+                        response.Proofers.RemoveAt(response.Proofers.Count - 1);
+                        response.Proofers.Insert(0, lastProofer);
+                    }
+                    // Set AssignedByEmpId and AssignedByEmpName for each record except the first
+                    if (response.Proofers != null && response.Proofers.Count > 1)
+                    {
+                        for (int i = 1; i < response.Proofers.Count; i++)
+                        {
+                            response.Proofers[i].AssignedByEmpId = response.Proofers[i - 1].AssignedToEmpId;
+                            response.Proofers[i].AssignedByEmpName = response.Proofers[i - 1].AssignedToEmpName;
+                        }
+                    }
 
                     return new ServiceResponse<QuestionProfilerResponse>(true, "Operation Successful", response, 200);
                 }
@@ -6038,10 +6077,7 @@ VALUES
             }
             return new ServiceResponse<string>(true, "All questions uploaded successfully.", "Data uploaded successfully.", 200);
         }
-        private List<QIDCourse> ExtractQIDCourses(
-    ExcelWorksheet paragraphSheet,
-    Dictionary<string, int> courseCodeDictionary,
-    int paragraphRow)
+        private List<QIDCourse> ExtractQIDCourses(ExcelWorksheet paragraphSheet, Dictionary<string, int> courseCodeDictionary, int paragraphRow)
         {
 
             // Step 2: Identify the starting column for dynamic course data
@@ -6223,7 +6259,7 @@ VALUES
                 var question = new ParagraphQuestionDTO
                 {
                     QuestionDescription = worksheet.Cells[row, 7].Text,
-                    QuestionTypeId = Convert.ToInt32(worksheet.Cells[row, 4].Text),
+                    QuestionTypeId = Convert.ToInt32(worksheet.Cells[row, 6].Text),
                     // subjectID = Convert.ToInt32(worksheet.Cells[row, 2].Text),
                     // IndexTypeId = indexTypeId,
                     Explanation = explanation,
@@ -6339,7 +6375,7 @@ VALUES
         {
             string answer = null;
             // Define which question types are considered descriptive
-            if (questionTypeId == 7 || questionTypeId == 8 || questionTypeId == 3)
+            if (questionTypeId == 7 || questionTypeId == 8 || questionTypeId == 3 || questionTypeId == 4 || questionTypeId == 9)
             {
 
                 //// Loop through the columns to find the "Explanation" column

@@ -34,12 +34,14 @@
     }
     public class ProoferList
     {
-        public int QPId { get; set; }
+        public int? QPId { get; set; }
         public string QuestionCode { get; set; }=string.Empty;
-        public int EmpId { get; set; }
-        public string EmpName { get; set; } = string.Empty;
-        public string Role { get; set; } = string.Empty;
-        public int RoleId { get; set; }
+        public int? AssignedToEmpId { get; set; }
+        public string AssignedToEmpName { get; set; } = string.Empty;
+        public string AssignedToRole { get; set; } = string.Empty;
+        public int? AssignedToRoleId { get; set; }
+        public int? AssignedByEmpId { get; set; }
+        public string AssignedByEmpName { get; set; } = string.Empty;
         public DateTime? AssignedDate {  get; set; }
     }
     public class QuestionComparisonResponse

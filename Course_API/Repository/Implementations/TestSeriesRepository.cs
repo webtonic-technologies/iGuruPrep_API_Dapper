@@ -3697,8 +3697,8 @@ WHERE TestSeriesId != @TestSeriesId
             if (questTypedata != null)
             {
                 if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "MF" ||
-                    questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MF2" || questTypedata.Code.Trim() == "AR" 
-                    || questTypedata.Code.Trim() == "NT" || questTypedata.Code.Trim() == "T/F")
+                    questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MF2" || questTypedata.Code.Trim() == "AR"
+                    || questTypedata.Code.Trim() == "FBMA" || questTypedata.Code.Trim() == "T/F" || questTypedata.Code.Trim() == "NMA")
                 {
                     if (multiAnswerRequest != null)
                     {
@@ -3824,7 +3824,7 @@ WHERE TestSeriesId != @TestSeriesId
         }
         private DTOs.Requests.Answersingleanswercategory GetAnswerSingleAnswerCategories(ExcelWorksheet worksheet, int row, int questionTypeId)
         {
-            if (questionTypeId == 7 || questionTypeId == 8 || questionTypeId == 3)
+            if (questionTypeId == 7 || questionTypeId == 8 || questionTypeId == 3 || questionTypeId == 4 || questionTypeId == 9)
             {
                // var answer = worksheet.Cells[row, 9].Text; // Single answer category in column 15
                                                            // Find the column with the header "Explanation" and stop before that
@@ -4428,9 +4428,10 @@ WHERE tsci.TestSeriesID = @TestSeriesID";
                 if (answerMaster != null)
                 {
                     // Handle Multiple Choice Questions (QuestionTypeId = X, assuming a value for multiple choice)
-                    if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "MT" ||
-                                questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MT2" || questTypedata.Code.Trim() == "AR" || questTypedata.Code.Trim() == "C")  // Replace X with actual ID representing multiple-choice questions
-                    {
+                   if (questTypedata.Code.Trim() == "MCQ" || questTypedata.Code.Trim() == "TF" || questTypedata.Code.Trim() == "MF" ||
+                      questTypedata.Code.Trim() == "MAQ" || questTypedata.Code.Trim() == "MF2" || questTypedata.Code.Trim() == "AR"
+                      || questTypedata.Code.Trim() == "FBMA" || questTypedata.Code.Trim() == "T/F" || questTypedata.Code.Trim() == "NMA")
+                      {
                         string multipleChoiceQuery = @"
                 SELECT 
                     Answermultiplechoicecategoryid,
