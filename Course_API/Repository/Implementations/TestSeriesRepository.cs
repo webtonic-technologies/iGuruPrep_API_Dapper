@@ -4288,10 +4288,10 @@ LEFT JOIN tblContentIndexTopics ct ON tsci.ContentIndexId = ct.ContInIdTopic AND
 LEFT JOIN tblContentIndexSubTopics cst ON tsci.ContentIndexId = cst.ContInIdSubTopic AND tsci.IndexTypeId = 3
 WHERE tsci.TestSeriesID = @TestSeriesID";
 
-            // Fetch raw data using the query
+            // Fetch raw data
             var rawData = _connection.Query<dynamic>(query, new { TestSeriesID = TestSeriesId }).ToList();
 
-            // Map data into hierarchical structure
+            // Map chapters
             var groupedData = rawData
                 .Where(x => x.IndexTypeId == 1) // Filter for chapters
                 .Select(chapter => new ContentIndexResponse
@@ -4301,25 +4301,83 @@ WHERE tsci.TestSeriesID = @TestSeriesID";
                     ChapterCode = chapter.ChapterCode,
                     SubjectId = chapter.SubjectId,
                     IndexTypeId = chapter.IndexTypeId,
+
+                    // Map topics under the chapter
                     ContentIndexTopics = rawData
-                        .Where(x => x.IndexTypeId == 2 && x.ContentIndexId == chapter.ContentIndexId) // Filter topics by chapter ID
+                        .Where(x => x.IndexTypeId == 2 && x.TopicCode.StartsWith(chapter.ChapterCode)) // Match parent chapter code
                         .Select(topic => new ContentIndexTopics
                         {
                             ContInIdTopic = topic.ContentIndexId,
                             ContentName_Topic = topic.ContentIndexName,
                             TopicCode = topic.TopicCode,
                             IndexTypeId = topic.IndexTypeId,
+
+                            // Map subtopics under the topic
                             ContentIndexSubTopics = rawData
-                                .Where(x => x.IndexTypeId == 3 && x.ContentIndexId == topic.ContentIndexId) // Filter subtopics by topic ID
+                                .Where(x => x.IndexTypeId == 3 && x.SubTopicCode.StartsWith(topic.TopicCode)) // Match parent topic code
                                 .Select(subTopic => new ContentIndexSubTopic
                                 {
                                     ContInIdSubTopic = subTopic.ContentIndexId,
                                     ContentName_SubTopic = subTopic.ContentIndexName,
                                     SubTopicCode = subTopic.SubTopicCode,
                                     IndexTypeId = subTopic.IndexTypeId
-                                }).ToList()
-                        }).ToList()
-                }).ToList();
+                                })
+                                .ToList()
+                        })
+                        .ToList()
+                })
+                .ToList();
+
+            // Add unmapped topics and subtopics (if parent is not mapped, keep null)
+            var unmappedTopics = rawData
+                .Where(x => x.IndexTypeId == 2 && !groupedData.Any(chapter => x.TopicCode.StartsWith(chapter.ChapterCode)))
+                .Select(topic => new ContentIndexTopics
+                {
+                    ContInIdTopic = topic.ContentIndexId,
+                    ContentName_Topic = topic.ContentIndexName,
+                    TopicCode = topic.TopicCode,
+                    IndexTypeId = topic.IndexTypeId,
+                    ContentIndexSubTopics = rawData
+                        .Where(x => x.IndexTypeId == 3 && x.SubTopicCode.StartsWith(topic.TopicCode))
+                        .Select(subTopic => new ContentIndexSubTopic
+                        {
+                            ContInIdSubTopic = subTopic.ContentIndexId,
+                            ContentName_SubTopic = subTopic.ContentIndexName,
+                            SubTopicCode = subTopic.SubTopicCode,
+                            IndexTypeId = subTopic.IndexTypeId
+                        })
+                        .ToList()
+                })
+                .ToList();
+
+            var unmappedSubTopics = rawData
+                .Where(x => x.IndexTypeId == 3 && !groupedData.Any(chapter =>
+                    chapter.ContentIndexTopics.Any(topic => x.SubTopicCode.StartsWith(topic.TopicCode))))
+                .Select(subTopic => new ContentIndexSubTopic
+                {
+                    ContInIdSubTopic = subTopic.ContentIndexId,
+                    ContentName_SubTopic = subTopic.ContentIndexName,
+                    SubTopicCode = subTopic.SubTopicCode,
+                    IndexTypeId = subTopic.IndexTypeId
+                })
+                .ToList();
+
+            // Attach unmapped topics and subtopics as root-level entries
+            groupedData.AddRange(unmappedTopics.Select(topic => new ContentIndexResponse
+            {
+                ContentIndexTopics = new List<ContentIndexTopics> { topic }
+            }));
+
+            groupedData.AddRange(unmappedSubTopics.Select(subTopic => new ContentIndexResponse
+            {
+                ContentIndexTopics = new List<ContentIndexTopics>
+        {
+            new ContentIndexTopics
+            {
+                ContentIndexSubTopics = new List<ContentIndexSubTopic> { subTopic }
+            }
+        }
+            }));
 
             return groupedData;
         }
