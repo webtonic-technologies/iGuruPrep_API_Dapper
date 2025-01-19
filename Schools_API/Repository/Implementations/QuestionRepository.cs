@@ -3671,7 +3671,7 @@ namespace Schools_API.Repository.Implementations
                 WHERE c.ContentIndexId = @ContentIndexId AND c.IsActive = 1",
 
                     2 => @"
-                SELECT c.SubjectId, s.SubjectName, ch.ContentName_Chapter AS ParentName, t.ContentName_Topic AS ContentIndexName, 
+                SELECT ch.SubjectId, s.SubjectName, ch.ContentName_Chapter AS ParentName, t.ContentName_Topic AS ContentIndexName, 
                        t.ContentIndexId, 2 AS IndexTypeId, 'Topic' AS IndexTypeName
                 FROM tblContentIndexTopics t
                 INNER JOIN tblContentIndexChapters ch ON t.ChapterCode = ch.ChapterCode
@@ -3679,7 +3679,7 @@ namespace Schools_API.Repository.Implementations
                 WHERE t.ContentIndexId = @ContentIndexId AND t.IsActive = 1",
 
                     3 => @"
-                SELECT c.SubjectId, s.SubjectName, ch.ContentName_Chapter AS ChapterName, t.ContentName_Topic AS TopicName, 
+                SELECT ch.SubjectId, s.SubjectName, ch.ContentName_Chapter AS ChapterName, t.ContentName_Topic AS TopicName, 
                        st.ContentName_SubTopic AS ContentIndexName, st.ContentIndexId, 3 AS IndexTypeId, 'SubTopic' AS IndexTypeName
                 FROM tblContentIndexSubTopics st
                 INNER JOIN tblContentIndexTopics t ON st.TopicCode = t.TopicCode
@@ -6289,7 +6289,7 @@ VALUES
         }
         private async Task<int> GetTopicIdByCode(string topicCode)
         {
-            string query = "SELECT TOP 1 ContentIndexId FROM tblContentIndexTopics WHERE TopicCode = @TopicCode AND IsActive = 1";
+            string query = "SELECT TOP 1 ContInIdTopic FROM tblContentIndexTopics WHERE TopicCode = @TopicCode AND IsActive = 1";
             return await _connection.QueryFirstOrDefaultAsync<int>(query, new { TopicCode = topicCode });
         }
         private async Task<int> GetSubTopicIdByCode(string subTopicCode)
@@ -6369,6 +6369,12 @@ VALUES
                 optionColumn++; // Move to the next column
             }
 
+            var orderedCorrectAnswers = new List<string>(); // Maintain the correct sequen
+            // Ensure the correct answers are in the sequence as they appear in options
+            categories = categories
+                .Where(c => orderedCorrectAnswers.Contains(c.Answer))
+                .OrderBy(c => orderedCorrectAnswers.IndexOf(c.Answer))
+                .ToList();
             return categories;
         }
         private Answersingleanswercategory GetAnswerSingleAnswerCategories(ExcelWorksheet worksheet, int row, int questionTypeId)

@@ -394,5 +394,45 @@ namespace Course_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
+        [HttpGet("GetRepeatedExamQuestions/{testSeriesId}")]
+        public async Task<IActionResult> GetRepeatedExamQuestions(int testSeriesId)
+        {
+            try
+            {
+                var data = await _testSeriesServices.GetRepeatedExamQuestions(testSeriesId);
+                if (data != null)
+                {
+                    return Ok(data);
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
+        [HttpGet("GetSingleExamQuestions/{testSeriesId}")]
+        public async Task<IActionResult> GetSingleExamQuestions(int testSeriesId)
+        {
+            try
+            {
+                var data = await _testSeriesServices.GetSingleExamQuestions(testSeriesId);
+                if (data != null)
+                {
+                    return Ok(data);
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
     }
 }
