@@ -195,7 +195,95 @@ namespace Course_API.Controllers
             {
                 return this.BadRequest(e.Message);
             }
+        }
+        [HttpPost("GetSyllabusDetailsBySubject")]
+        public async Task<IActionResult> GetSyllabusDetailsBySubject(SyllabusDetailsRequestScholarship request)
+        {
+            try
+            {
+                var data = await _scholarshipTestServices.GetSyllabusDetailsBySubject(request);
+                if (data != null)
+                {
+                    return Ok(data);
 
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
+        [HttpGet("GetScholarshipDetails/{scholarshipTestId}")]
+        public async Task<IActionResult> GetScholarshipDetails(int scholarshipTestId)
+        {
+            try
+            {
+                var data = await _scholarshipTestServices.GetScholarshipDetails(scholarshipTestId);
+                if (data != null)
+                {
+                    return Ok(data);
+
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+
+        }
+        [HttpPut("ToggleScholarshipTestStatus/{scholarshipTestId}")]
+        public async Task<IActionResult> ToggleScholarshipTestStatus(int scholarshipTestId)
+        {
+            try
+            {
+                var data = await _scholarshipTestServices.ToggleScholarshipTestStatus(scholarshipTestId);
+                if (data != null)
+                {
+                    return Ok(data);
+
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
+        [HttpPost("ScholarshipQuestions/{scholarshipTestId}")]
+        public async Task<IActionResult> AssignScholarshipQuestionsAsync(int scholarshipTestId)
+        {
+            try
+            {
+                var data = await _scholarshipTestServices.AssignScholarshipQuestionsAsync(scholarshipTestId);
+                if (data != null)
+                {
+                    return Ok(data);
+
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
         }
     }
 }

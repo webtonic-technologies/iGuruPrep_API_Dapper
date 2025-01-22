@@ -14,5 +14,9 @@ namespace Course_API.Services.Interfaces
         Task<ServiceResponse<string>> ScholarshipQuestionSectionMapping(List<QuestionSectionScholarship> request, int ScholarshipTestId);
         Task<ServiceResponse<string>> ScholarshipInstructionsMapping(ScholarshipTestInstructions? request, int ScholarshipTestId);
         Task<ServiceResponse<string>> ScholarshipDiscountSchemeMapping(List<ScholarshipTestDiscountScheme>? request, int ScholarshipTestId);
+        Task<ServiceResponse<ScholarshipDetailsDTO>> GetScholarshipDetails(int scholarshipTestId);
+        Task<ServiceResponse<List<ContentIndexResponses>>> GetSyllabusDetailsBySubject(SyllabusDetailsRequestScholarship request);
+        Task<ServiceResponse<string>> ToggleScholarshipTestStatus(int scholarshipTestId);
+        Task<ServiceResponse<string>> AssignScholarshipQuestionsAsync(int scholarshipTestId);
     }
 }

@@ -15,7 +15,218 @@ namespace Course_API.Repository.Implementations
         {
             _connection = connection;
         }
+        public async Task<ServiceResponse<string>> AssignScholarshipQuestionsAsync(int scholarshipTestId)
+        {
+            try
+            {
+                // Fetch sections for the scholarship test
+                var sections = await _connection.QueryAsync<dynamic>(
+                    @"SELECT SSTSectionId, ScholarshipTestId, SectionName, QuestionTypeId, TotalNumberOfQuestions, SubjectId
+              FROM tblSSQuestionSection WHERE ScholarshipTestId = @ScholarshipTestId;",
+                    new { ScholarshipTestId = scholarshipTestId });
 
+                foreach (var section in sections)
+                {
+                    int sectionId = section.SSTSectionId;
+                    int totalQuestions = section.TotalNumberOfQuestions;
+                    int questionTypeId = section.QuestionTypeId;
+                    int subjectId = section.SubjectId;
+
+                    // Fetch difficulty-level configuration for the section
+                    var difficulties = await _connection.QueryAsync<dynamic>(
+                        @"SELECT DifficultyLevelId, QuesPerDiffiLevel
+                  FROM tblScholarshipQuestionDifficulty WHERE SectionId = @SectionId;",
+                        new { SectionId = sectionId });
+
+                    foreach (var difficulty in difficulties)
+                    {
+                        int difficultyLevelId = difficulty.DifficultyLevelId;
+                        int quesPerDiffLevel = difficulty.QuesPerDiffiLevel;
+
+                        // Fetch questions for the given difficulty level and section criteria
+                        var questions = await _connection.QueryAsync<dynamic>(
+                            @"WITH FilteredQuestions AS (
+                          SELECT q.QuestionId, q.SubjectId, q.QuestionTypeId, qc.LevelId AS DifficultyLevelId, q.ContentIndexId, q.IsLive
+                          FROM tblQuestion q
+                          INNER JOIN tblQIDCourse qc 
+                              ON q.QuestionId = qc.QID
+                          WHERE q.SubjectId = @SubjectId
+                            AND q.QuestionTypeId = @QuestionTypeId
+                            AND qc.LevelId = @DifficultyLevelId
+                            AND q.IsLive = 1
+                      )
+                      SELECT TOP (@Limit) * FROM FilteredQuestions ORDER BY NEWID();",
+                            new
+                            {
+                                SubjectId = subjectId,
+                                QuestionTypeId = questionTypeId,
+                                DifficultyLevelId = difficultyLevelId,
+                                Limit = quesPerDiffLevel
+                            });
+
+                        // Insert selected questions into tblScholarshipQuestions
+                        foreach (var question in questions)
+                        {
+                            await _connection.ExecuteAsync(
+                                "INSERT INTO tblScholarshipQuestions (ScholarshipTestId, SubjectId, QuestionId, QuestionCode) VALUES (@ScholarshipTestId, @SubjectId, @QuestionId, @QuestionCode);",
+                                new
+                                {
+                                    ScholarshipTestId = scholarshipTestId,
+                                    SubjectId = question.SubjectId,
+                                    QuestionId = question.QuestionId,
+                                    QuestionCode = $"Q-{question.QuestionId}"
+                                });
+                        }
+                    }
+                }
+
+                return new ServiceResponse<string>(true, "Questions assigned successfully", string.Empty, 200);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+            }
+        }
+        public async Task<ServiceResponse<string>> ToggleScholarshipTestStatus(int scholarshipTestId)
+        {
+            if (scholarshipTestId <= 0)
+            {
+                return new ServiceResponse<string>(false, "Invalid ScholarshipTestId", string.Empty, 400);
+            }
+
+            try
+            {
+                string toggleStatusQuery = @"
+        UPDATE tblScholarshipTest
+        SET Status = CASE 
+            WHEN Status = 1 THEN 0
+            ELSE 1
+        END
+        WHERE ScholarshipTestId = @ScholarshipTestId;
+
+        SELECT Status 
+        FROM tblScholarshipTest 
+        WHERE ScholarshipTestId = @ScholarshipTestId;";
+
+             
+                    var status = await _connection.QueryFirstOrDefaultAsync<int?>(
+                        toggleStatusQuery,
+                        new { ScholarshipTestId = scholarshipTestId }
+                    );
+
+                    if (status.HasValue)
+                    {
+                        string statusMessage = status.Value == 1 ? "Active" : "Inactive";
+                        return new ServiceResponse<string>(
+                            true,
+                            "Status toggled successfully",
+                            $"ScholarshipTestId {scholarshipTestId} is now {statusMessage}.",
+                            200
+                        );
+                    }
+                    else
+                    {
+                        return new ServiceResponse<string>(
+                            false,
+                            "ScholarshipTestId not found",
+                            string.Empty,
+                            404
+                        );
+                    }
+                
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(
+                    false,
+                    "An error occurred while toggling status",
+                    ex.Message,
+                    500
+                );
+            }
+        }
+        public async Task<ServiceResponse<ScholarshipDetailsDTO>> GetScholarshipDetails(int scholarshipTestId)
+        {
+            var response = new ServiceResponse<ScholarshipDetailsDTO>(true, string.Empty, null, 200);
+            try
+            {
+                // Fetch Scholarship Details
+                var scholarshipQuery = @"
+                WITH ScholarshipDetails AS (
+                    SELECT 
+                        st.ScholarshipTestId,
+                        st.PatternName,
+                        st.TotalNumberOfQuestions,
+                        st.Duration,
+                        cat.APName,
+                        STRING_AGG(b.BoardName, ', ') AS BoardNames,
+                        STRING_AGG(cl.ClassName, ', ') AS ClassNames,
+                        STRING_AGG(c.CourseName, ', ') AS CourseNames
+                    FROM 
+                        tblScholarshipTest st
+                    LEFT JOIN 
+                        tblScholarshipBoards sb ON st.ScholarshipTestId = sb.ScholarshipTestId
+                    LEFT JOIN 
+                        tblBoards b ON sb.BoardId = b.BoardId
+                    LEFT JOIN 
+                        tblScholarshipClass sc ON st.ScholarshipTestId = sc.ScholarshipTestId
+                    LEFT JOIN 
+                        tblClasses cl ON sc.ClassId = cl.ClassId
+                    LEFT JOIN 
+                        tblScholarshipCourse scs ON st.ScholarshipTestId = scs.ScholarshipTestId
+                    LEFT JOIN 
+                        tblCourses c ON scs.CourseId = c.CourseId
+                    LEFT JOIN 
+                        tblCategory cat ON st.APID = cat.APId
+                    WHERE 
+                        st.ScholarshipTestId = @ScholarshipTestId
+                    GROUP BY 
+                        st.ScholarshipTestId, st.PatternName, st.TotalNumberOfQuestions, st.Duration, cat.APName
+                )
+                SELECT * FROM ScholarshipDetails";
+
+                var scholarshipDetails = await _connection.QueryFirstOrDefaultAsync<ScholarshipDetailsDTO>(
+                    scholarshipQuery, new { ScholarshipTestId = scholarshipTestId });
+
+                // Fetch Student Details
+                var studentQuery = @"
+                SELECT 
+                    r.FirstName,
+                    r.LastName,
+                    r.EmailID,
+                    r.MobileNumber
+                FROM 
+                    tblStudentScholarship ss
+                INNER JOIN 
+                    tblRegistration r ON ss.StudentID = r.RegistrationID
+                WHERE 
+                    ss.ScholarshipID = @ScholarshipTestId";
+
+                var studentDetails = (await _connection.QueryAsync<StudentDetailsDTO>(
+                    studentQuery, new { ScholarshipTestId = scholarshipTestId })).ToList();
+
+                // Combine Data
+                if (scholarshipDetails != null)
+                {
+                    scholarshipDetails.Students = studentDetails;
+                    response.Data = scholarshipDetails;
+                    response.Success = true;
+                    response.Message = "Scholarship details fetched successfully.";
+                }
+                else
+                {
+                    response.Success = false;
+                    response.Message = "Scholarship not found.";
+                }
+            }
+            catch (Exception ex)
+            {
+                response.Success = false;
+                response.Message = $"An error occurred: {ex.Message}";
+            }
+
+            return response;
+        }
         public async Task<ServiceResponse<int>> AddUpdateScholarshipTest(ScholarshipTestRequestDTO request)
         {
             try
@@ -643,7 +854,6 @@ namespace Course_API.Repository.Implementations
                 throw new Exception("An error occurred while mapping scholarship sections", ex);
             }
         }
-
         private async Task AddUpdateScholarshipQuestionDifficultyAsync(List<ScholarshipSectionQuestionDifficulty> difficulties)
         {
             try
@@ -688,7 +898,6 @@ namespace Course_API.Repository.Implementations
                 throw new Exception("An error occurred while updating scholarship question difficulties", ex);
             }
         }
-
         private async Task DeleteScholarshipQuestionSections(int ScholarshipTestId)
         {
             try
@@ -832,7 +1041,6 @@ namespace Course_API.Repository.Implementations
         {
             try
             {
-                // Base query
                 string baseQuery = @"
         SELECT DISTINCT
             st.ScholarshipTestId,
@@ -850,7 +1058,11 @@ namespace Course_API.Repository.Implementations
         FROM tblScholarshipTest st
         LEFT JOIN tblCategory ap ON st.APID = ap.APID
         LEFT JOIN tblExamType et ON st.ExamTypeId = et.ExamTypeID
-        WHERE 1=1";
+        WHERE EXISTS (
+            SELECT 1 
+            FROM tblSSTDiscountScheme ds 
+            WHERE ds.ScholarshipTestId = st.ScholarshipTestId
+        )    ORDER BY st.createdon DESC";
 
                 // Applying filters
                 if (request.APId > 0)
@@ -859,7 +1071,7 @@ namespace Course_API.Repository.Implementations
                 }
                 if (request.BoardId > 0)
                 {
-                    baseQuery += " AND EXISTS (SELECT 1 FROM tblScholarshipBoard sb WHERE st.ScholarshipTestId = sb.ScholarshipTestId AND sb.BoardId = @BoardId)";
+                    baseQuery += " AND EXISTS (SELECT 1 FROM tblScholarshipBoards sb WHERE st.ScholarshipTestId = sb.ScholarshipTestId AND sb.BoardId = @BoardId)";
                 }
                 if (request.ClassId > 0)
                 {
@@ -884,11 +1096,51 @@ namespace Course_API.Repository.Implementations
                     ExamTypeId = request.ExamTypeId
                 };
 
-                // Fetch all matching records
+                // Fetch all matching Scholarship Tests
                 var scholarshipTests = (await _connection.QueryAsync<ScholarshipTestResponseDTO>(baseQuery, parameters)).ToList();
 
                 // Total count before pagination
                 int totalCount = scholarshipTests.Count;
+
+                // Fetch related data (Board, Class, Course, Subject) for each Scholarship Test
+                foreach (var test in scholarshipTests)
+                {
+                    // Fetch related boards
+                    test.ScholarshipBoards = (await _connection.QueryAsync<ScholarshipBoardsResponse>(
+                        @"SELECT sb.SSTBoardId, sb.ScholarshipTestId, sb.BoardId, b.BoardName AS Name
+                  FROM tblScholarshipBoards sb
+                  JOIN tblBoard b ON sb.BoardId = b.BoardId
+                  WHERE sb.ScholarshipTestId = @ScholarshipTestId",
+                        new { ScholarshipTestId = test.ScholarshipTestId }
+                    )).ToList();
+
+                    // Fetch related classes
+                    test.ScholarshipClasses = (await _connection.QueryAsync<ScholarshipClassResponse>(
+                        @"SELECT sc.SSTClassId, sc.ScholarshipTestId, sc.ClassId, c.ClassName AS Name
+                  FROM tblScholarshipClass sc
+                  JOIN tblClass c ON sc.ClassId = c.ClassId
+                  WHERE sc.ScholarshipTestId = @ScholarshipTestId",
+                        new { ScholarshipTestId = test.ScholarshipTestId }
+                    )).ToList();
+
+                    // Fetch related courses
+                    test.ScholarshipCourses = (await _connection.QueryAsync<ScholarshipCourseResponse>(
+                        @"SELECT sc.SSTCourseId, sc.ScholarshipTestId, sc.CourseId, c.CourseName AS Name
+                  FROM tblScholarshipCourse sc
+                  JOIN tblCourse c ON sc.CourseId = c.CourseId
+                  WHERE sc.ScholarshipTestId = @ScholarshipTestId",
+                        new { ScholarshipTestId = test.ScholarshipTestId }
+                    )).ToList();
+
+                    // Fetch related subjects
+                    test.ScholarshipSubjects = (await _connection.QueryAsync<ScholarshipSubjectsResponse>(
+                        @"SELECT ss.SSTSubjectId, ss.ScholarshipTestId, ss.SubjectId, s.SubjectName AS SubjectName
+                  FROM tblScholarshipSubject ss
+                  JOIN tblSubject s ON ss.SubjectId = s.SubjectId
+                  WHERE ss.ScholarshipTestId = @ScholarshipTestId",
+                        new { ScholarshipTestId = test.ScholarshipTestId }
+                    )).ToList();
+                }
 
                 // Apply logical pagination
                 var paginatedResponse = scholarshipTests

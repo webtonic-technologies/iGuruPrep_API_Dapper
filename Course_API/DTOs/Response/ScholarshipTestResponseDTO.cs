@@ -76,4 +76,30 @@ namespace Course_API.DTOs.Response
         public List<ScholarshipContentIndexResponse>? ScholarshipContentIndexResponses { get; set; }
         public List<ScholarshipQuestionSection>? ScholarshipQuestionSections { get; set; }
     }
+    public class ScholarshipDetailsDTO
+    {
+        public int ScholarshipTestId { get; set; }
+        public string PatternName { get; set; }
+        public int TotalNumberOfQuestions { get; set; }
+        public int Duration { get; set; } // In minutes
+        public string APName { get; set; }
+        public string BoardNames { get; set; }
+        public string ClassNames { get; set; }
+        public string CourseNames { get; set; }
+        public List<StudentDetailsDTO> Students { get; set; }
+    }
+
+    public class StudentDetailsDTO
+    {
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public string EmailID { get; set; }
+        public string MobileNumber { get; set; }
+    }
+    public class ScholarshipTestStatusResponse
+    {
+        public int ScholarshipTestId { get; set; }
+        public bool Status { get; set; }
+    }
+
 }

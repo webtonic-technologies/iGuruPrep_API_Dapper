@@ -7,7 +7,7 @@ using Course_API.Services.Interfaces;
 
 namespace Course_API.Services.Implementations
 {
-    public class ScholarshipTestServices: IScholarshipTestServices
+    public class ScholarshipTestServices : IScholarshipTestServices
     {
         private readonly IScholarshipTestRepository _scholarshipTestRepository;
 
@@ -28,6 +28,16 @@ namespace Course_API.Services.Implementations
             }
         }
 
+        public async Task<ServiceResponse<string>> AssignScholarshipQuestionsAsync(int scholarshipTestId)
+        {
+            return await _scholarshipTestRepository.AssignScholarshipQuestionsAsync(scholarshipTestId);
+        }
+
+        public async Task<ServiceResponse<ScholarshipDetailsDTO>> GetScholarshipDetails(int scholarshipTestId)
+        {
+            return await _scholarshipTestRepository.GetScholarshipDetails(scholarshipTestId);
+        }
+
         public async Task<ServiceResponse<ScholarshipTestResponseDTO>> GetScholarshipTestById(int ScholarshipTestId)
         {
 
@@ -37,7 +47,7 @@ namespace Course_API.Services.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<ScholarshipTestResponseDTO>(false, ex.Message,  new ScholarshipTestResponseDTO(), 500);
+                return new ServiceResponse<ScholarshipTestResponseDTO>(false, ex.Message, new ScholarshipTestResponseDTO(), 500);
             }
         }
 
@@ -51,6 +61,11 @@ namespace Course_API.Services.Implementations
             {
                 return new ServiceResponse<List<ScholarshipTestResponseDTO>>(false, ex.Message, [], 500);
             }
+        }
+
+        public async Task<ServiceResponse<List<ContentIndexResponses>>> GetSyllabusDetailsBySubject(SyllabusDetailsRequestScholarship request)
+        {
+            return await _scholarshipTestRepository.GetSyllabusDetailsBySubject(request);
         }
 
         public async Task<ServiceResponse<string>> ScholarshipContentIndexMapping(ContentIndexRequest request, int ScholarshipTestId)
@@ -201,6 +216,11 @@ namespace Course_API.Services.Implementations
             {
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
+        }
+
+        public async Task<ServiceResponse<string>> ToggleScholarshipTestStatus(int scholarshipTestId)
+        {
+            return await _scholarshipTestRepository.ToggleScholarshipTestStatus(scholarshipTestId);
         }
     }
 }
