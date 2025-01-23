@@ -48,41 +48,88 @@ namespace Course_API.Repository.Implementations
 
                 // Step 2: Fetch Questions (Including Repetition)
                 var questionsQuery = @"
-                SELECT 
-                    q.[QuestionId],
-                    q.[QuestionTypeId],
-                    q.[QuestionCode],
-                    q.[Paragraph],
-                    q.[Status],
-                    q.[CreatedOn],
-                    q.[CreatedBy],
-                    q.[ModifiedOn],
-                    q.[ModifiedBy],
-                    q.[SubjectId],
-                    tsq.[testseriesquestionsid],
-                    tsq.[TestSeriesid],
-                    tsq.[DisplayOrder],
-                    tsq.[Status] AS TestSeriesQuestionStatus,
-                    tsq.[testseriesQuestionSectionid] AS TestSeriesQuestionSectionId,
-                    tsq.[IsRepetitive],
-                    tsq.[RepetitiveExamDate],
-                    s.SubjectName,
-                    e.EmployeeName,
-                    ci.IndexTypeName,
-                    ci.ContentIndexName
-                FROM 
-                    [tbltestseriesQuestions] tsq
-                INNER JOIN 
-                    [tblQuestion] q ON tsq.[Questionid] = q.[QuestionId]
-                LEFT JOIN 
-                    [tblSubject] s ON q.[SubjectId] = s.[SubjectId]
-                LEFT JOIN 
-                    [tblEmployee] e ON q.[CreatedBy] = e.[EmployeeId]
-                LEFT JOIN 
-                    [tblContentIndex] ci ON q.[ContentIndexId] = ci.[ContentIndexId]
-                WHERE 
-                    tsq.[TestSeriesid] = @TestSeriesId 
-                    AND tsq.[Status] = 1";
+SELECT 
+    q.[QuestionId],
+    q.[QuestionTypeId],
+    q.[QuestionCode],
+    q.[Paragraph],
+    q.[Status],
+    q.[CreatedOn],
+    q.[CreatedBy],
+    q.[ModifiedOn],
+    q.[ModifiedBy],
+    q.[SubjectId],
+    tsq.[testseriesquestionsid],
+    tsq.[TestSeriesid],
+    tsq.[DisplayOrder],
+    tsq.[Status] AS TestSeriesQuestionStatus,
+    tsq.[testseriesQuestionSectionid] AS TestSeriesQuestionSectionId,
+    tsq.[IsRepetitive],
+    tsq.[RepetitiveExamDate],
+    s.SubjectName,
+   e.EmpFirstName as EmployeeName,
+    it.IndexType AS IndexTypeName,
+    CASE 
+        WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
+        WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
+        WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+    END AS ContentIndexName
+FROM 
+    [tbltestseriesQuestions] tsq
+INNER JOIN 
+    [tblQuestion] q ON tsq.[Questionid] = q.[QuestionId]
+LEFT JOIN 
+    [tblSubject] s ON q.[SubjectId] = s.[SubjectId]
+LEFT JOIN 
+    [tblEmployee] e ON q.[CreatedBy] = e.[EmployeeId]
+LEFT JOIN 
+    [tblQBIndexType] it ON q.[IndexTypeId] = it.[IndexId]
+LEFT JOIN 
+    [tblContentIndexChapters] ci ON q.[ContentIndexId] = ci.[ContentIndexId] AND q.[IndexTypeId] = 1
+LEFT JOIN 
+    [tblContentIndexTopics] ct ON q.[ContentIndexId] = ct.[ContInIdTopic] AND q.[IndexTypeId] = 2
+LEFT JOIN 
+    [tblContentIndexSubTopics] cst ON q.[ContentIndexId] = cst.[ContInIdSubTopic] AND q.[IndexTypeId] = 3
+WHERE 
+    tsq.[TestSeriesid] = @TestSeriesId 
+    AND tsq.[Status] = 1";
+
+                //var questionsQuery = @"
+                //SELECT 
+                //    q.[QuestionId],
+                //    q.[QuestionTypeId],
+                //    q.[QuestionCode],
+                //    q.[Paragraph],
+                //    q.[Status],
+                //    q.[CreatedOn],
+                //    q.[CreatedBy],
+                //    q.[ModifiedOn],
+                //    q.[ModifiedBy],
+                //    q.[SubjectId],
+                //    tsq.[testseriesquestionsid],
+                //    tsq.[TestSeriesid],
+                //    tsq.[DisplayOrder],
+                //    tsq.[Status] AS TestSeriesQuestionStatus,
+                //    tsq.[testseriesQuestionSectionid] AS TestSeriesQuestionSectionId,
+                //    tsq.[IsRepetitive],
+                //    tsq.[RepetitiveExamDate],
+                //    s.SubjectName,
+                //    e.EmployeeName,
+                //    ci.IndexTypeName,
+                //    ci.ContentIndexName
+                //FROM 
+                //    [tbltestseriesQuestions] tsq
+                //INNER JOIN 
+                //    [tblQuestion] q ON tsq.[Questionid] = q.[QuestionId]
+                //LEFT JOIN 
+                //    [tblSubject] s ON q.[SubjectId] = s.[SubjectId]
+                //LEFT JOIN 
+                //    [tblEmployee] e ON q.[CreatedBy] = e.[EmployeeId]
+                //LEFT JOIN 
+                //    [tblContentIndex] ci ON q.[ContentIndexId] = ci.[ContentIndexId]
+                //WHERE 
+                //    tsq.[TestSeriesid] = @TestSeriesId 
+                //    AND tsq.[Status] = 1";
 
                 var questions = (await _connection.QueryAsync<dynamic>(questionsQuery, new { TestSeriesId = testSeriesId })).ToList();
 
@@ -103,7 +150,7 @@ namespace Course_API.Repository.Implementations
                         Sections = sections.Select(section =>
                         {
                             var sectionQuestions = dateGroup.Value
-                                .Where(q => q.TestSeriesQuestionSectionId == section.SectionId)
+                                .Where(q => q.QuestionTypeId == section.QuestionTypeID)
                                 .Select(q =>
                                 {
                                     if (q.QuestionTypeId == 11) // Comprehensive Type
@@ -129,7 +176,7 @@ namespace Course_API.Repository.Implementations
                                             QuestionCode = q.QuestionCode,
                                             Explanation = q.Explanation,
                                             ExtraInformation = q.ExtraInformation,
-                                            IsActive = q.Status == 1,
+                                            IsActive = q.Status,
                                             ComprehensiveChildQuestions = GetChildQuestions(q.QuestionCode)
                                         };
                                     }
@@ -157,7 +204,7 @@ namespace Course_API.Repository.Implementations
                                             QuestionCode = q.QuestionCode,
                                             Explanation = q.Explanation,
                                             ExtraInformation = q.ExtraInformation,
-                                            IsActive = q.Status == 1,
+                                            IsActive = q.Status,
                                             QIDCourses = GetListOfQIDCourse(q.QuestionCode),
                                             Answersingleanswercategories = GetSingleAnswer(q.QuestionCode),
                                             AnswerMultipleChoiceCategories = GetMultipleAnswers(q.QuestionCode)
@@ -221,40 +268,86 @@ namespace Course_API.Repository.Implementations
                 var sections = (await _connection.QueryAsync<dynamic>(sectionsQuery, new { TestSeriesId = testSeriesId })).ToList();
 
                 // Step 2: Fetch Questions
+                //var questionsQuery = @"
+                //SELECT 
+                //    q.[QuestionId],
+                //    q.[QuestionTypeId],
+                //    q.[QuestionCode],
+                //    q.[Paragraph],
+                //    q.[Status],
+                //    q.[CreatedOn],
+                //    q.[CreatedBy],
+                //    q.[ModifiedOn],
+                //    q.[ModifiedBy],
+                //    q.[SubjectId],
+                //    tsq.[testseriesquestionsid],
+                //    tsq.[TestSeriesid],
+                //    tsq.[DisplayOrder],
+                //    tsq.[Status] AS TestSeriesQuestionStatus,
+                //    tsq.[testseriesQuestionSectionid] AS TestSeriesQuestionSectionId,
+                //    s.SubjectName,
+                //    e.EmployeeName,
+                //    ci.IndexTypeName,
+                //    ci.ContentIndexName
+                //FROM 
+                //    [tbltestseriesQuestions] tsq
+                //INNER JOIN 
+                //    [tblQuestion] q ON tsq.[Questionid] = q.[QuestionId]
+                //LEFT JOIN 
+                //    [tblSubject] s ON q.[SubjectId] = s.[SubjectId]
+                //LEFT JOIN 
+                //    [tblEmployee] e ON q.[CreatedBy] = e.[EmployeeId]
+                //LEFT JOIN 
+                //    [tblContentIndex] ci ON q.[ContentIndexId] = ci.[ContentIndexId]
+                //WHERE 
+                //    tsq.[TestSeriesid] = @TestSeriesId 
+                //    AND tsq.[Status] = 1";
                 var questionsQuery = @"
-                SELECT 
-                    q.[QuestionId],
-                    q.[QuestionTypeId],
-                    q.[QuestionCode],
-                    q.[Paragraph],
-                    q.[Status],
-                    q.[CreatedOn],
-                    q.[CreatedBy],
-                    q.[ModifiedOn],
-                    q.[ModifiedBy],
-                    q.[SubjectId],
-                    tsq.[testseriesquestionsid],
-                    tsq.[TestSeriesid],
-                    tsq.[DisplayOrder],
-                    tsq.[Status] AS TestSeriesQuestionStatus,
-                    tsq.[testseriesQuestionSectionid] AS TestSeriesQuestionSectionId,
-                    s.SubjectName,
-                    e.EmployeeName,
-                    ci.IndexTypeName,
-                    ci.ContentIndexName
-                FROM 
-                    [tbltestseriesQuestions] tsq
-                INNER JOIN 
-                    [tblQuestion] q ON tsq.[Questionid] = q.[QuestionId]
-                LEFT JOIN 
-                    [tblSubject] s ON q.[SubjectId] = s.[SubjectId]
-                LEFT JOIN 
-                    [tblEmployee] e ON q.[CreatedBy] = e.[EmployeeId]
-                LEFT JOIN 
-                    [tblContentIndex] ci ON q.[ContentIndexId] = ci.[ContentIndexId]
-                WHERE 
-                    tsq.[TestSeriesid] = @TestSeriesId 
-                    AND tsq.[Status] = 1";
+SELECT 
+    q.[QuestionId],
+    q.[QuestionTypeId],
+    q.[QuestionCode],
+    q.[Paragraph],
+    q.[Status],
+    q.[CreatedOn],
+    q.[CreatedBy],
+    q.[ModifiedOn],
+    q.[ModifiedBy],
+    q.[SubjectId],
+    tsq.[testseriesquestionsid],
+    tsq.[TestSeriesid],
+    tsq.[DisplayOrder],
+    tsq.[Status] AS TestSeriesQuestionStatus,
+    tsq.[testseriesQuestionSectionid] AS TestSeriesQuestionSectionId,
+    tsq.[IsRepetitive],
+    tsq.[RepetitiveExamDate],
+    s.SubjectName,
+    e.EmpFirstName as EmployeeName,
+    it.IndexType AS IndexTypeName,
+    CASE 
+        WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
+        WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
+        WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+    END AS ContentIndexName
+FROM 
+    [tbltestseriesQuestions] tsq
+INNER JOIN 
+    [tblQuestion] q ON tsq.[Questionid] = q.[QuestionId]
+LEFT JOIN 
+    [tblSubject] s ON q.[SubjectId] = s.[SubjectId]
+LEFT JOIN 
+    [tblEmployee] e ON q.[CreatedBy] = e.[EmployeeId]
+LEFT JOIN 
+    [tblQBIndexType] it ON q.[IndexTypeId] = it.[IndexId]
+LEFT JOIN 
+    [tblContentIndexChapters] ci ON q.[ContentIndexId] = ci.[ContentIndexId] AND q.[IndexTypeId] = 1
+LEFT JOIN 
+    [tblContentIndexTopics] ct ON q.[ContentIndexId] = ct.[ContInIdTopic] AND q.[IndexTypeId] = 2
+LEFT JOIN 
+    [tblContentIndexSubTopics] cst ON q.[ContentIndexId] = cst.[ContInIdSubTopic] AND q.[IndexTypeId] = 3
+WHERE 
+    tsq.[TestSeriesid] = @TestSeriesId 
+    AND tsq.[Status] = 1";
 
                 var questions = (await _connection.QueryAsync<dynamic>(questionsQuery, new { TestSeriesId = testSeriesId })).ToList();
 
@@ -262,7 +355,7 @@ namespace Course_API.Repository.Implementations
                 var result = sections.Select(section =>
                 {
                     var sectionQuestions = questions
-                        .Where(q => q.TestSeriesQuestionSectionId == section.SectionId)
+                        .Where(q => q.QuestionTypeId == section.QuestionTypeID)
                         .Select(q =>
                         {
                             if (q.QuestionTypeId == 11) // Comprehensive Type
@@ -288,7 +381,7 @@ namespace Course_API.Repository.Implementations
                                     QuestionCode = q.QuestionCode,
                                     Explanation = q.Explanation,
                                     ExtraInformation = q.ExtraInformation,
-                                    IsActive = q.Status == 1,
+                                    IsActive = q.Status,
                                     ComprehensiveChildQuestions = GetChildQuestions(q.QuestionCode)
                                 };
                             }
@@ -316,7 +409,7 @@ namespace Course_API.Repository.Implementations
                                     QuestionCode = q.QuestionCode,
                                     Explanation = q.Explanation,
                                     ExtraInformation = q.ExtraInformation,
-                                    IsActive = q.Status == 1,
+                                    IsActive = q.Status,
                                     QIDCourses = GetListOfQIDCourse(q.QuestionCode),
                                     Answersingleanswercategories = GetSingleAnswer(q.QuestionCode),
                                     AnswerMultipleChoiceCategories = GetMultipleAnswers(q.QuestionCode)
@@ -602,7 +695,7 @@ FROM tblTestSeries
 WHERE TestSeriesId != @TestSeriesId 
   AND APID = @APID";  // Fetch test papers for the same APID
 
-                var existingTestPapers = await _connection.QueryAsync<(DateTime StartDate, string StartTime, string Duration, bool RepeatedExams, DateTime? RepeatExamStartDate, DateTime? RepeatExamEndDate)>(timeValidationQuery,
+                var existingTestPapers = await _connection.QueryAsync<(DateTime? StartDate, string StartTime, string Duration, bool RepeatedExams, DateTime? RepeatExamStartDate, DateTime? RepeatExamEndDate)>(timeValidationQuery,
                     new
                     {
                         TestSeriesId = request.TestSeriesId,
@@ -612,39 +705,37 @@ WHERE TestSeriesId != @TestSeriesId
                 // Check if RepeatedExams is false (Non-repeated test case)
                 if (request.RepeatedExams == false)
                 {
-                        DateTime requestedStartDateTime;
+                    DateTime requestedStartDateTime;
                     if (DateTime.TryParse(request.StartTime, out DateTime parsedStartTime))
                     {
-                        // Combine StartDate with parsed StartTime (the date part of parsedStartTime will be ignored)
-                        requestedStartDateTime = request.StartDate.Value.Add(parsedStartTime.TimeOfDay);
-
-                        // Now you can proceed with the rest of your logic using requestedStartDateTime
+                        if (request.StartDate.HasValue)
+                        {
+                            // Combine StartDate with parsed StartTime
+                            requestedStartDateTime = request.StartDate.Value.Add(parsedStartTime.TimeOfDay);
+                        }
+                        else
+                        {
+                            return new ServiceResponse<string>(false, "StartDate cannot be null.", string.Empty, 400);
+                        }
                     }
                     else
                     {
-                        // Handle invalid time format
                         return new ServiceResponse<string>(false, "Invalid StartTime format.", string.Empty, 400);
                     }
 
                     foreach (var testPaper in existingTestPapers)
                     {
-                        // Check for overlap with other regular tests
-                        if (!testPaper.RepeatedExams)
+                        if (testPaper.StartDate.HasValue && !string.IsNullOrWhiteSpace(testPaper.StartTime))
                         {
-                            // Assuming testPaper.StartTime is a string in the format "HH:mm:ss"
                             if (TimeSpan.TryParse(testPaper.StartTime, out TimeSpan startTimeSpan))
                             {
-                                // Combine StartDate with StartTime to create the full DateTime for the test start
-                                DateTime existingStartDateTime = testPaper.StartDate.Add(startTimeSpan);
+                                DateTime existingStartDateTime = testPaper.StartDate.Value.Add(startTimeSpan);
 
-                                // Extract numeric value from testPaper.Duration (e.g., "120 minutes")
                                 if (!string.IsNullOrWhiteSpace(testPaper.Duration) &&
                                     double.TryParse(new string(testPaper.Duration.TakeWhile(char.IsDigit).ToArray()), out double durationInMinutes))
                                 {
-                                    // Calculate the end time of the existing test
                                     DateTime existingEndDateTime = existingStartDateTime.AddMinutes(durationInMinutes);
 
-                                    // Ensure the requested test does not overlap or is less than 15 minutes apart
                                     if (requestedStartDateTime < existingEndDateTime.AddMinutes(15))
                                     {
                                         return new ServiceResponse<string>(false, "Test papers cannot overlap or be less than 15 minutes apart.", string.Empty, 400);
@@ -652,20 +743,21 @@ WHERE TestSeriesId != @TestSeriesId
                                 }
                                 else
                                 {
-                                    // Handle invalid or missing duration
                                     return new ServiceResponse<string>(false, "Invalid test duration.", string.Empty, 400);
                                 }
-
                             }
                             else
                             {
                                 return new ServiceResponse<string>(false, "Invalid StartTime format.", string.Empty, 400);
                             }
                         }
-                        // Check for overlap with repeated exams' time window
-                        if (testPaper.RepeatedExams && testPaper.RepeatExamStartDate.HasValue && testPaper.RepeatExamEndDate.HasValue)
+
+                        if (testPaper.RepeatedExams &&
+                            testPaper.RepeatExamStartDate.HasValue &&
+                            testPaper.RepeatExamEndDate.HasValue)
                         {
-                            if (request.StartDate >= testPaper.RepeatExamStartDate && request.StartDate <= testPaper.RepeatExamEndDate)
+                            if (request.StartDate >= testPaper.RepeatExamStartDate &&
+                                request.StartDate <= testPaper.RepeatExamEndDate)
                             {
                                 return new ServiceResponse<string>(false, "The test cannot overlap with an existing repeated exam period.", string.Empty, 400);
                             }
@@ -674,38 +766,39 @@ WHERE TestSeriesId != @TestSeriesId
                 }
                 else // Repeated exam case
                 {
-                    // Ensure no overlap with other repeated exams' time windows
                     if (request.RepeatExamStartDate.HasValue && request.RepeatExamEndDate.HasValue)
                     {
                         foreach (var testPaper in existingTestPapers)
                         {
-                            // Check for overlap with other repeated exams
-                            if (testPaper.RepeatedExams)
+                            if (testPaper.RepeatedExams &&
+                                testPaper.RepeatExamStartDate.HasValue &&
+                                testPaper.RepeatExamEndDate.HasValue)
                             {
-                                if ((request.RepeatExamStartDate <= testPaper.RepeatExamEndDate && request.RepeatExamStartDate >= testPaper.RepeatExamStartDate) ||
-                                    (request.RepeatExamEndDate <= testPaper.RepeatExamEndDate && request.RepeatExamEndDate >= testPaper.RepeatExamStartDate))
+                                if ((request.RepeatExamStartDate <= testPaper.RepeatExamEndDate &&
+                                     request.RepeatExamStartDate >= testPaper.RepeatExamStartDate) ||
+                                    (request.RepeatExamEndDate <= testPaper.RepeatExamEndDate &&
+                                     request.RepeatExamEndDate >= testPaper.RepeatExamStartDate))
                                 {
                                     return new ServiceResponse<string>(false, "Repeated exams cannot overlap with each other.", string.Empty, 400);
                                 }
                             }
 
-                            // Check for overlap with regular test timings during repeat exam period
-                            if (!testPaper.RepeatedExams)
+                            if (!testPaper.RepeatedExams &&
+                                testPaper.StartDate.HasValue &&
+                                !string.IsNullOrWhiteSpace(testPaper.StartTime))
                             {
-                                // Assuming testPaper.StartTime is a string in the format "HH:mm:ss"
                                 if (TimeSpan.TryParse(testPaper.StartTime, out TimeSpan startTimeSpan))
                                 {
-                                    // Combine StartDate with StartTime to create the full DateTime for the test start
-                                    DateTime existingStartDateTime = testPaper.StartDate.Add(startTimeSpan);
+                                    DateTime existingStartDateTime = testPaper.StartDate.Value.Add(startTimeSpan);
 
-                                    // Convert testPaper.Duration to double if necessary
-                                    if (double.TryParse(testPaper.Duration.ToString(), out double durationInMinutes))
+                                    if (double.TryParse(new string(testPaper.Duration.TakeWhile(char.IsDigit).ToArray()), out double durationInMinutes))
                                     {
                                         DateTime existingEndDateTime = existingStartDateTime.AddMinutes(durationInMinutes);
 
-                                        // Ensure repeated test's repeat period does not overlap with non-repeated test timings
-                                        if ((existingStartDateTime >= request.RepeatExamStartDate && existingStartDateTime <= request.RepeatExamEndDate) ||
-                                            (existingEndDateTime >= request.RepeatExamStartDate && existingEndDateTime <= request.RepeatExamEndDate))
+                                        if ((existingStartDateTime >= request.RepeatExamStartDate &&
+                                             existingStartDateTime <= request.RepeatExamEndDate) ||
+                                            (existingEndDateTime >= request.RepeatExamStartDate &&
+                                             existingEndDateTime <= request.RepeatExamEndDate))
                                         {
                                             return new ServiceResponse<string>(false, "Regular test timings cannot overlap with the repeated exam period.", string.Empty, 400);
                                         }
@@ -727,24 +820,26 @@ WHERE TestSeriesId != @TestSeriesId
                         return new ServiceResponse<string>(false, "Invalid repeat exam period provided.", string.Empty, 400);
                     }
                 }
+
+                // Update the test series details
                 string updateQuery = @"
-                    UPDATE tblTestSeries
-                    SET
-                        APID = @APID,
-                        ManualQuestionSelect = @ManualQuestionSelect,
-                        StartDate = @StartDate,
-                        StartTime = @StartTime,
-                        ResultDate = @ResultDate,
-                        ResultTime = @ResultTime,
-                        NameOfExam = @NameOfExam,
-                        RepeatedExams = @RepeatedExams,
-                        modifiedon = @modifiedon,
-                        modifiedby = @modifiedby,
-                        RepeatExamEndDate = @RepeatExamEndDate,
-                        RepeatExamStartDate = @RepeatExamStartDate,
-                        RepeatExamStarttime = @RepeatExamStarttime,
-                        RepeatExamResulttimeId = @RepeatExamResulttimeId
-                    WHERE TestSeriesId = @TestSeriesId;";
+            UPDATE tblTestSeries
+            SET
+                APID = @APID,
+                ManualQuestionSelect = @ManualQuestionSelect,
+                StartDate = @StartDate,
+                StartTime = @StartTime,
+                ResultDate = @ResultDate,
+                ResultTime = @ResultTime,
+                NameOfExam = @NameOfExam,
+                RepeatedExams = @RepeatedExams,
+                modifiedon = @modifiedon,
+                modifiedby = @modifiedby,
+                RepeatExamEndDate = @RepeatExamEndDate,
+                RepeatExamStartDate = @RepeatExamStartDate,
+                RepeatExamStarttime = @RepeatExamStarttime,
+                RepeatExamResulttimeId = @RepeatExamResulttimeId
+            WHERE TestSeriesId = @TestSeriesId;";
                 var parameters = new
                 {
                     request.APID,
@@ -761,17 +856,16 @@ WHERE TestSeriesId != @TestSeriesId
                     request.RepeatExamEndDate,
                     request.RepeatExamStartDate,
                     request.RepeatExamStarttime,
-                    request.RepeatExamResulttimeId,
-                    // request.IsAdmin
+                    request.RepeatExamResulttimeId
                 };
                 int rowsAffected = await _connection.ExecuteAsync(updateQuery, parameters);
                 if (rowsAffected > 0)
                 {
-                    return new ServiceResponse<string>(true, "operation successful", string.Empty, 200);
+                    return new ServiceResponse<string>(true, "Operation successful", string.Empty, 200);
                 }
                 else
                 {
-                    return new ServiceResponse<string>(false, "Some error occured", string.Empty, 500);
+                    return new ServiceResponse<string>(false, "Some error occurred", string.Empty, 500);
                 }
             }
             catch (Exception ex)
@@ -779,6 +873,194 @@ WHERE TestSeriesId != @TestSeriesId
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
+        //        public async Task<ServiceResponse<string>> AddUpdateTestSeriesDateAndTime(TestSeriesDateAndTimeRequest request)
+        //        {
+        //            try
+        //            {
+        //                // Fetch existing test papers for the test series (both regular and repeated exams)
+        //                string timeValidationQuery = @"
+        //SELECT StartDate, StartTime, Duration, RepeatedExams, RepeatExamStartDate, RepeatExamEndDate
+        //FROM tblTestSeries 
+        //WHERE TestSeriesId != @TestSeriesId 
+        //  AND APID = @APID";  // Fetch test papers for the same APID
+
+        //                var existingTestPapers = await _connection.QueryAsync<(DateTime StartDate, string StartTime, string Duration, bool RepeatedExams, DateTime? RepeatExamStartDate, DateTime? RepeatExamEndDate)>(timeValidationQuery,
+        //                    new
+        //                    {
+        //                        TestSeriesId = request.TestSeriesId,
+        //                        APID = request.APID
+        //                    });
+
+        //                // Check if RepeatedExams is false (Non-repeated test case)
+        //                if (request.RepeatedExams == false)
+        //                {
+        //                        DateTime requestedStartDateTime;
+        //                    if (DateTime.TryParse(request.StartTime, out DateTime parsedStartTime))
+        //                    {
+        //                        // Combine StartDate with parsed StartTime (the date part of parsedStartTime will be ignored)
+        //                        requestedStartDateTime = request.StartDate.Value.Add(parsedStartTime.TimeOfDay);
+
+        //                        // Now you can proceed with the rest of your logic using requestedStartDateTime
+        //                    }
+        //                    else
+        //                    {
+        //                        // Handle invalid time format
+        //                        return new ServiceResponse<string>(false, "Invalid StartTime format.", string.Empty, 400);
+        //                    }
+
+        //                    foreach (var testPaper in existingTestPapers)
+        //                    {
+        //                        // Check for overlap with other regular tests
+        //                        if (!testPaper.RepeatedExams)
+        //                        {
+        //                            // Assuming testPaper.StartTime is a string in the format "HH:mm:ss"
+        //                            if (TimeSpan.TryParse(testPaper.StartTime, out TimeSpan startTimeSpan))
+        //                            {
+        //                                // Combine StartDate with StartTime to create the full DateTime for the test start
+        //                                DateTime existingStartDateTime = testPaper.StartDate.Add(startTimeSpan);
+
+        //                                // Extract numeric value from testPaper.Duration (e.g., "120 minutes")
+        //                                if (!string.IsNullOrWhiteSpace(testPaper.Duration) &&
+        //                                    double.TryParse(new string(testPaper.Duration.TakeWhile(char.IsDigit).ToArray()), out double durationInMinutes))
+        //                                {
+        //                                    // Calculate the end time of the existing test
+        //                                    DateTime existingEndDateTime = existingStartDateTime.AddMinutes(durationInMinutes);
+
+        //                                    // Ensure the requested test does not overlap or is less than 15 minutes apart
+        //                                    if (requestedStartDateTime < existingEndDateTime.AddMinutes(15))
+        //                                    {
+        //                                        return new ServiceResponse<string>(false, "Test papers cannot overlap or be less than 15 minutes apart.", string.Empty, 400);
+        //                                    }
+        //                                }
+        //                                else
+        //                                {
+        //                                    // Handle invalid or missing duration
+        //                                    return new ServiceResponse<string>(false, "Invalid test duration.", string.Empty, 400);
+        //                                }
+
+        //                            }
+        //                            else
+        //                            {
+        //                                return new ServiceResponse<string>(false, "Invalid StartTime format.", string.Empty, 400);
+        //                            }
+        //                        }
+        //                        // Check for overlap with repeated exams' time window
+        //                        if (testPaper.RepeatedExams && testPaper.RepeatExamStartDate.HasValue && testPaper.RepeatExamEndDate.HasValue)
+        //                        {
+        //                            if (request.StartDate >= testPaper.RepeatExamStartDate && request.StartDate <= testPaper.RepeatExamEndDate)
+        //                            {
+        //                                return new ServiceResponse<string>(false, "The test cannot overlap with an existing repeated exam period.", string.Empty, 400);
+        //                            }
+        //                        }
+        //                    }
+        //                }
+        //                else // Repeated exam case
+        //                {
+        //                    // Ensure no overlap with other repeated exams' time windows
+        //                    if (request.RepeatExamStartDate.HasValue && request.RepeatExamEndDate.HasValue)
+        //                    {
+        //                        foreach (var testPaper in existingTestPapers)
+        //                        {
+        //                            // Check for overlap with other repeated exams
+        //                            if (testPaper.RepeatedExams)
+        //                            {
+        //                                if ((request.RepeatExamStartDate <= testPaper.RepeatExamEndDate && request.RepeatExamStartDate >= testPaper.RepeatExamStartDate) ||
+        //                                    (request.RepeatExamEndDate <= testPaper.RepeatExamEndDate && request.RepeatExamEndDate >= testPaper.RepeatExamStartDate))
+        //                                {
+        //                                    return new ServiceResponse<string>(false, "Repeated exams cannot overlap with each other.", string.Empty, 400);
+        //                                }
+        //                            }
+
+        //                            // Check for overlap with regular test timings during repeat exam period
+        //                            if (!testPaper.RepeatedExams)
+        //                            {
+        //                                // Assuming testPaper.StartTime is a string in the format "HH:mm:ss"
+        //                                if (TimeSpan.TryParse(testPaper.StartTime, out TimeSpan startTimeSpan))
+        //                                {
+        //                                    // Combine StartDate with StartTime to create the full DateTime for the test start
+        //                                    DateTime existingStartDateTime = testPaper.StartDate.Add(startTimeSpan);
+
+        //                                    // Convert testPaper.Duration to double if necessary
+        //                                    if (double.TryParse(testPaper.Duration.ToString(), out double durationInMinutes))
+        //                                    {
+        //                                        DateTime existingEndDateTime = existingStartDateTime.AddMinutes(durationInMinutes);
+
+        //                                        // Ensure repeated test's repeat period does not overlap with non-repeated test timings
+        //                                        if ((existingStartDateTime >= request.RepeatExamStartDate && existingStartDateTime <= request.RepeatExamEndDate) ||
+        //                                            (existingEndDateTime >= request.RepeatExamStartDate && existingEndDateTime <= request.RepeatExamEndDate))
+        //                                        {
+        //                                            return new ServiceResponse<string>(false, "Regular test timings cannot overlap with the repeated exam period.", string.Empty, 400);
+        //                                        }
+        //                                    }
+        //                                    else
+        //                                    {
+        //                                        return new ServiceResponse<string>(false, "Invalid test duration.", string.Empty, 400);
+        //                                    }
+        //                                }
+        //                                else
+        //                                {
+        //                                    return new ServiceResponse<string>(false, "Invalid StartTime format.", string.Empty, 400);
+        //                                }
+        //                            }
+        //                        }
+        //                    }
+        //                    else
+        //                    {
+        //                        return new ServiceResponse<string>(false, "Invalid repeat exam period provided.", string.Empty, 400);
+        //                    }
+        //                }
+        //                string updateQuery = @"
+        //                    UPDATE tblTestSeries
+        //                    SET
+        //                        APID = @APID,
+        //                        ManualQuestionSelect = @ManualQuestionSelect,
+        //                        StartDate = @StartDate,
+        //                        StartTime = @StartTime,
+        //                        ResultDate = @ResultDate,
+        //                        ResultTime = @ResultTime,
+        //                        NameOfExam = @NameOfExam,
+        //                        RepeatedExams = @RepeatedExams,
+        //                        modifiedon = @modifiedon,
+        //                        modifiedby = @modifiedby,
+        //                        RepeatExamEndDate = @RepeatExamEndDate,
+        //                        RepeatExamStartDate = @RepeatExamStartDate,
+        //                        RepeatExamStarttime = @RepeatExamStarttime,
+        //                        RepeatExamResulttimeId = @RepeatExamResulttimeId
+        //                    WHERE TestSeriesId = @TestSeriesId;";
+        //                var parameters = new
+        //                {
+        //                    request.APID,
+        //                    request.ManualQuestionSelect,
+        //                    request.StartDate,
+        //                    request.StartTime,
+        //                    request.ResultDate,
+        //                    request.ResultTime,
+        //                    request.NameOfExam,
+        //                    request.RepeatedExams,
+        //                    modifiedon = DateTime.Now,
+        //                    request.modifiedby,
+        //                    request.TestSeriesId,
+        //                    request.RepeatExamEndDate,
+        //                    request.RepeatExamStartDate,
+        //                    request.RepeatExamStarttime,
+        //                    request.RepeatExamResulttimeId,
+        //                    // request.IsAdmin
+        //                };
+        //                int rowsAffected = await _connection.ExecuteAsync(updateQuery, parameters);
+        //                if (rowsAffected > 0)
+        //                {
+        //                    return new ServiceResponse<string>(true, "operation successful", string.Empty, 200);
+        //                }
+        //                else
+        //                {
+        //                    return new ServiceResponse<string>(false, "Some error occured", string.Empty, 500);
+        //                }
+        //            }
+        //            catch (Exception ex)
+        //            {
+        //                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
+        //            }
+        //        }
         public async Task<ServiceResponse<TestSeriesResponseDTO>> GetTestSeriesById(int TestSeriesId)
         {
             try
