@@ -1545,6 +1545,23 @@ WHERE TestSeriesId != @TestSeriesId
         {
             try
             {
+               // Step 1: Validate that each subject has at least one question
+               var subjectsWithNoQuestions = request
+                   .GroupBy(section => section.SubjectId)
+                   .Where(group => group.Sum(section => section.TotalNoofQuestions) == 0)
+                   .Select(group => group.Key)
+                   .ToList();
+
+                if (subjectsWithNoQuestions.Any())
+                {
+                    string missingSubjects = string.Join(", ", subjectsWithNoQuestions);
+                    return new ServiceResponse<string>(
+                        false,
+                        $"The following subjects must have at least one question: {missingSubjects}.",
+                        null,
+                        StatusCodes.Status400BadRequest
+                    );
+                }
                 // Step 1: Retrieve the total marks and total number of questions for the test series
                 var testSeriesQuery = "SELECT TotalMarks, TotalNoOfQuestions FROM tblTestSeries WHERE TestSeriesId = @TestSeriesId";
                 var testSeriesData = await _connection.QueryFirstOrDefaultAsync<(decimal TotalMarks, int TotalNoOfQuestions)>(testSeriesQuery, new { TestSeriesId });
@@ -1570,7 +1587,7 @@ WHERE TestSeriesId != @TestSeriesId
                 decimal totalRequestedMarks = request.Sum(section => section.TotalNoofQuestions * section.EntermarksperCorrectAnswer);
                 int totalRequestedQuestions = request.Sum(section => section.TotalNoofQuestions);
 
-                if (totalRequestedMarks > totalMarksForTestSeries || totalRequestedQuestions > totalNoOfQuestionsForTestSeries)
+                if (totalRequestedMarks != totalMarksForTestSeries || totalRequestedQuestions != totalNoOfQuestionsForTestSeries)
                 {
                     return new ServiceResponse<string>(
                         false,
@@ -1595,8 +1612,10 @@ WHERE TestSeriesId != @TestSeriesId
                 EnterNegativeMarks = @EnterNegativeMarks,
                 TotalNoofQuestions = @TotalNoofQuestions,
                 NoofQuestionsforChoice = @NoofQuestionsforChoice,
-                SubjectId = @SubjectId
-            WHERE TestSeriesid = @TestSeriesid";
+                SubjectId = @SubjectId,
+                SectionName = @SectionName,
+                DisplayOrder = @DisplayOrder
+            WHERE testseriesQuestionSectionid = @testseriesQuestionSectionid";
 
                 string insertQuery = @"
             INSERT INTO tbltestseriesQuestionSection 
