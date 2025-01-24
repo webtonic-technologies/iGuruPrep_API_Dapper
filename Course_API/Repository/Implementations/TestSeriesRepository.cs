@@ -2058,7 +2058,7 @@ WHERE TestSeriesId != @TestSeriesId
                 }
             }
         }
-        public async Task<ServiceResponse<string>> TestSeriesQuestionsMapping(List<TestSeriesQuestions> request, int TestSeriesId, int sectionId)
+        public async Task<ServiceResponse<string>> TestSeriesQuestionsMapping(List<TestSeriesQuestionsMapping> request, int TestSeriesId, int sectionId)
         {
             // Step 1: Assign TestSeriesId and sectionId to each question in the request
             foreach (var data in request)
@@ -4102,7 +4102,7 @@ WHERE TestSeriesId != @TestSeriesId
         {
             Dictionary<string, int> subjectDictionary = new Dictionary<string, int>();
             var quesionsList = new List<int>();
-            List<TestSeriesQuestions> testSeriesQuestionsList = new List<TestSeriesQuestions>();
+            List<TestSeriesQuestionsMapping> testSeriesQuestionsList = new List<TestSeriesQuestionsMapping>();
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
             var questions = new List<QuestionDTO>();
             using (var stream = new MemoryStream())
@@ -4252,7 +4252,7 @@ WHERE TestSeriesId != @TestSeriesId
             }
             foreach (int questionId in quesionsList)
             {
-                TestSeriesQuestions testSeriesQuestion = new TestSeriesQuestions
+                TestSeriesQuestionsMapping testSeriesQuestion = new TestSeriesQuestionsMapping
                 {
                     TestSeriesid = testSeriesId,
                     testseriesQuestionSectionid = 0,

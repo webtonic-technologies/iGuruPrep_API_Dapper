@@ -118,7 +118,7 @@ namespace Course_API.Controllers
             }
         }
         [HttpPost("TestSeriesQuestionsMapping")]
-        public async Task<IActionResult> TestSeriesQuestionsMapping(List<TestSeriesQuestions> request, int TestSeriesId, int sectionId)
+        public async Task<IActionResult> TestSeriesQuestionsMapping(List<TestSeriesQuestionsMapping> request, int TestSeriesId, int sectionId)
         {
             try
             {

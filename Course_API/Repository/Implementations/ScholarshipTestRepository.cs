@@ -812,7 +812,7 @@ namespace Course_API.Repository.Implementations
                 NegativeMarks = @NegativeMarks,
                 TotalNumberOfQuestions = @TotalNumberOfQuestions,
                 NoOfQuestionsPerChoice = @NoOfQuestionsPerChoice,
-                SubjectId = @SubjectId, PartialMarkRuleId = @PartialMarkRuleId
+                SubjectId = @SubjectId, PartialMarkRuleId = @PartialMarkRuleId, SectionName = @SectionName, DisplayOrder = @DisplayOrder
             WHERE SSTSectionId = @SSTSectionId";
 
                 string insertQuery = @"

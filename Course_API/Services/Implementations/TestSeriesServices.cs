@@ -284,7 +284,7 @@ namespace Course_API.Services.Implementations
             }
         }
 
-        public async Task<ServiceResponse<string>> TestSeriesQuestionsMapping(List<TestSeriesQuestions> request, int TestSeriesId, int sectionId)
+        public async Task<ServiceResponse<string>> TestSeriesQuestionsMapping(List<TestSeriesQuestionsMapping> request, int TestSeriesId, int sectionId)
         {
             try
             {

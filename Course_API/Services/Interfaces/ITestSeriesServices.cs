@@ -11,7 +11,7 @@ namespace Course_API.Services.Interfaces
         Task<ServiceResponse<TestSeriesResponseDTO>> GetTestSeriesById(int TestSeriesId);
         Task<ServiceResponse<string>> TestSeriesContentIndexMapping(ContentIndexRequest request, int TestSeriesId);
         Task<ServiceResponse<List<QuestionResponseDTO>>> GetQuestionsList(GetAllQuestionListRequest request);
-        Task<ServiceResponse<string>> TestSeriesQuestionsMapping(List<TestSeriesQuestions> request, int TestSeriesId, int sectionId);
+        Task<ServiceResponse<string>> TestSeriesQuestionsMapping(List<TestSeriesQuestionsMapping> request, int TestSeriesId, int sectionId);
         Task<ServiceResponse<string>> TestSeriesQuestionSectionMapping(List<QuestionSection> request, int TestSeriesId);
         Task<ServiceResponse<string>> TestSeriesInstructionsMapping(TestSeriesInstructions request, int TestSeriesId);
         Task<ServiceResponse<List<ContentIndexResponses>>> GetSyllabusDetailsBySubject(SyllabusDetailsRequest request);

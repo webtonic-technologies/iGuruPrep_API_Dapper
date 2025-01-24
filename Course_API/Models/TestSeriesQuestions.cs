@@ -15,6 +15,17 @@
         public Answersingleanswercategorys? Answersingleanswercategories { get; set; }
         public bool? IsRejected {  get; set; }
     }
+    public class TestSeriesQuestionsMapping
+    {
+        public int TestSeriesQuestionsId { get; set; }
+        public int TestSeriesid { get; set; }
+        public int Questionid { get; set; }
+        public int DisplayOrder { get; set; }
+        public int Status { get; set; }
+        public int testseriesQuestionSectionid { get; set; }
+        public string QuestionCode { get; set; }
+    }
+
     public class AnswerMultipleChoiceCategorys
     {
         public int Answermultiplechoicecategoryid { get; set; }
