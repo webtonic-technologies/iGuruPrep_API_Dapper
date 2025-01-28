@@ -24,4 +24,10 @@
         public int RegistrationId { get; set; }
         public decimal Percentage { get; set; }
     }
+    public class ConceptwiseAnswerResponse
+    {
+        public int QuestionID { get; set; }
+        public string AnswerID { get; set; }
+        public bool IsAnswerCorrect { get; set; }
+    }
 }

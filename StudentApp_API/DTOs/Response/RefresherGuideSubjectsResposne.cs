@@ -63,12 +63,7 @@
         public string Answer { get; set; }                    // Answer text for single-answer questions
         public string QuestionCode { get; set; }              // Code associated with the question
     }
-    public class ConceptwiseAnswerResponse
-    {
-        public int QuestionID { get; set; }
-        public int AnswerID { get; set; }
-        public bool IsAnswerCorrect { get; set; }
-    }
+  
     public class PercentageResponse
     {
         public int SubjectId { get; set; }

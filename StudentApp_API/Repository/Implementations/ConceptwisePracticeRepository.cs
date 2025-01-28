@@ -828,32 +828,47 @@ namespace StudentApp_API.Repository.Implementations
         }
         private async Task<ConceptwiseAnswerResponse> HandleSingleAnswerAsync(ConceptwisePracticeSubmitAnswerRequest request)
         {
+            // Query the question type for the given QuestionID
+            const string answerIdQuery = @"
+                SELECT Answerid 
+                FROM tblAnswerMaster
+                WHERE Questionid = @QuestionID";
+
+            var answerId = await _connection.ExecuteScalarAsync<int>(answerIdQuery, new { request.QuestionID });
             const string singleAnswerQuery = @"
-        SELECT Answerid 
+        SELECT Answersingleanswercategoryid 
         FROM tblAnswersingleanswercategory
-        WHERE Answerid = @AnswerID AND Questionid = @QuestionID";
+        WHERE Answerid = @AnswerID ";
 
             var correctAnswerId = await _connection.ExecuteScalarAsync<int?>(singleAnswerQuery, new
             {
-                AnswerID = request.AnswerID,
-                QuestionID = request.QuestionID
+                answerId
             });
 
             return new ConceptwiseAnswerResponse
             {
                 QuestionID = request.QuestionID,
-                AnswerID = int.Parse(request.AnswerID),
+              //  AnswerID = int.Parse(request.AnswerID),
                 IsAnswerCorrect = correctAnswerId.HasValue
             };
         }
         private async Task<ConceptwiseAnswerResponse> HandleMultipleChoiceAnswerAsync(ConceptwisePracticeSubmitAnswerRequest request)
         {
-            const string multipleChoiceQuery = @"
-        SELECT Answerid
-        FROM tblAnswerMultipleChoiceCategory
-        WHERE Questionid = @QuestionID AND Iscorrect = 1";
 
-            var correctAnswers = (await _connection.QueryAsync<int>(multipleChoiceQuery, new { request.QuestionID })).ToList();
+            // Query the question type for the given QuestionID
+            const string answerIdQuery = @"
+                SELECT Answerid 
+                FROM tblAnswerMaster
+                WHERE Questionid = @QuestionID";
+
+            var answerId = await _connection.ExecuteScalarAsync<int>(answerIdQuery, new { request.QuestionID });
+
+            const string multipleChoiceQuery = @"
+        SELECT Answermultiplechoicecategoryid
+        FROM tblAnswerMultipleChoiceCategory
+        WHERE Answerid = @Answerid AND Iscorrect = 1";
+
+            var correctAnswers = (await _connection.QueryAsync<int>(multipleChoiceQuery, new { answerId })).ToList();
 
             var studentAnswers = request.AnswerID.Split(',')
                                                  .Select(int.Parse)
@@ -864,7 +879,7 @@ namespace StudentApp_API.Repository.Implementations
             return new ConceptwiseAnswerResponse
             {
                 QuestionID = request.QuestionID,
-                AnswerID = 0, // For multiple answers, AnswerID is not relevant
+              //  AnswerID = , // For multiple answers, AnswerID is not relevant
                 IsAnswerCorrect = isCorrect
             };
         }
@@ -885,18 +900,25 @@ namespace StudentApp_API.Repository.Implementations
             return new ConceptwiseAnswerResponse
             {
                 QuestionID = request.QuestionID,
-                AnswerID = 0, // Not relevant for pair questions
+               // AnswerID = 0, // Not relevant for pair questions
                 IsAnswerCorrect = isCorrect
             };
         }
         private async Task<ConceptwiseAnswerResponse> HandleMatchThePair2Async(ConceptwisePracticeSubmitAnswerRequest request)
         {
-            const string matchThePair2Query = @"
-        SELECT AnswerId
-        FROM tblOptionsMatchThePair2
-        WHERE QuestionId = @QuestionID";
+            // Query the question type for the given QuestionID
+            const string answerIdQuery = @"
+                SELECT Answerid 
+                FROM tblAnswerMaster
+                WHERE Questionid = @QuestionID";
 
-            var correctAnswers = (await _connection.QueryAsync<int>(matchThePair2Query, new { request.QuestionID })).ToList();
+            var answerId = await _connection.ExecuteScalarAsync<int>(answerIdQuery, new { request.QuestionID });
+            const string matchThePair2Query = @"
+        SELECT MatchThePair2Id
+        FROM tblOptionsMatchThePair2
+        WHERE AnswerId = @AnswerId";
+
+            var correctAnswers = (await _connection.QueryAsync<int>(matchThePair2Query, new { answerId })).ToList();
 
             var studentAnswers = request.AnswerID.Split(',')
                                                  .Select(int.Parse)
@@ -907,7 +929,7 @@ namespace StudentApp_API.Repository.Implementations
             return new ConceptwiseAnswerResponse
             {
                 QuestionID = request.QuestionID,
-                AnswerID = 0, // Not relevant for pair questions
+                //AnswerID = 0, // Not relevant for pair questions
                 IsAnswerCorrect = isCorrect
             };
         }
