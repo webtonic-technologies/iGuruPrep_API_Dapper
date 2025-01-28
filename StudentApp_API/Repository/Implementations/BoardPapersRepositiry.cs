@@ -173,7 +173,7 @@ namespace StudentApp_API.Repository.Implementations
         FROM tblQuestion q
         WHERE q.QuestionId IN @QuestionIds
           AND q.SubjectID = @SubjectId
-          AND q.IsActive = 1";
+          AND q.IsActive = 1 and q.IsLive = 1";
 
                 if (request.QuestionTypeId != null && request.QuestionTypeId.Any())
                 {

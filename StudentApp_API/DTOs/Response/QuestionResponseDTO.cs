@@ -31,6 +31,7 @@
         public string? ParentQCode { get; set; } = string.Empty;
         public List<MatchPair>? MatchPairs { get; set; }
         public List<MatchThePairAnswer>? MatchThePairType2Answers { get; set; }
+        public Answersingleanswercategory? Answersingleanswercategories { get; set; }
         public List<AnswerMultipleChoiceCategory>? AnswerMultipleChoiceCategories { get; set; }
         public List<ParagraphQuestions>? ComprehensiveChildQuestions { get; set; }
         public int DurationperQuestion {  get; set; }
@@ -91,13 +92,6 @@
         public string PairValue { get; set; }
     }
 
-    //public class QuestionResponse
-    //{
-    //    public int QuestionID { get; set; }
-    //    public int AnswerID { get; set; }
-    //    public int AnswerCount { get; set; }
-    //    public double AnswerPercentage { get; set; }
-    //}
     public class AnswerPercentageResponse
     {
         public int QuizID { get; set; }
@@ -148,5 +142,17 @@
         public string Answer { get; set; }
         public bool IsCorrect { get; set; }
     }
-
+    public class AnswerMasters
+    {
+        public int Answerid { get; set; }
+        public int Questionid { get; set; }
+        public int QuestionTypeid { get; set; }
+    }
+    // DTOs for the queries
+    public class DifficultyLevelDTO
+    {
+        public int LevelId { get; set; }
+        public string LevelName { get; set; }
+        public int NoofQperLevel { get; set; }
+    }
 }
