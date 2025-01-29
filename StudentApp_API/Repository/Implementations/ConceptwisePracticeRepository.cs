@@ -171,7 +171,7 @@ namespace StudentApp_API.Repository.Implementations
     WHERE q.SubjectId = @SubjectId
     AND q.IndexTypeId = @IndexTypeId
     AND q.ContentIndexId = @ContentIndexId
-    AND qc.LevelId = @DifficultyLevelId
+    AND qc.LevelId = @DifficultyLevelId AND qc.CourseID = @CourseID
     AND q.IsActive = 1 
     AND q.IsLive = 1
     ORDER BY q.QuestionId";
@@ -191,7 +191,8 @@ namespace StudentApp_API.Repository.Implementations
                     SubjectId = request.subjectId,
                     IndexTypeId = request.indexTypeId,
                     ContentIndexId = request.contentId,
-                    DifficultyLevelId = level.LevelId
+                    DifficultyLevelId = level.LevelId,
+                    CourseID = request.CourseId
                 });
 
                 // Take only the number of questions specified for this difficulty level

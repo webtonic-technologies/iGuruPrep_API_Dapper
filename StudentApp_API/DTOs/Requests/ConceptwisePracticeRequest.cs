@@ -23,6 +23,7 @@
         public int indexTypeId { get; set; }
         public int contentId { get; set; }
         public int SyllabusId {  get; set; }
+        public int CourseId {  get; set; }
         public int pageNumber { get; set; }
         public int pageSize { get; set; }
     }

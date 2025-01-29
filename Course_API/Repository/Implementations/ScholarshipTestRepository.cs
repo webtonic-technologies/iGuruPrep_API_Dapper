@@ -52,7 +52,7 @@ namespace Course_API.Repository.Implementations
                               ON q.QuestionId = qc.QID
                           WHERE q.SubjectId = @SubjectId
                             AND q.QuestionTypeId = @QuestionTypeId
-                            AND qc.LevelId = @DifficultyLevelId
+                            AND qc.LevelId = @DifficultyLevelId AND qc.CourseID = @CourseID
                             AND q.IsLive = 1
                       )
                       SELECT TOP (@Limit) * FROM FilteredQuestions ORDER BY NEWID();",
@@ -61,7 +61,8 @@ namespace Course_API.Repository.Implementations
                                 SubjectId = subjectId,
                                 QuestionTypeId = questionTypeId,
                                 DifficultyLevelId = difficultyLevelId,
-                                Limit = quesPerDiffLevel
+                                Limit = quesPerDiffLevel,
+                                CourseID = 
                             });
 
                         // Insert selected questions into tblScholarshipQuestions

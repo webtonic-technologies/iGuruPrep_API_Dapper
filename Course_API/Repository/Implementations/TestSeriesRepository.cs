@@ -2356,6 +2356,14 @@ WHERE TestSeriesId != @TestSeriesId
                 // Create a list to store all selected questions
                 var selectedQuestions = new List<QuestionResponseDTO>();
 
+                string testSeriesIdQuery = @"
+            SELECT TestSeriesid
+            FROM tbltestseriesQuestionSection 
+            WHERE [testseriesQuestionSectionid] = @SectionId";
+
+                int testSeriesId = await _connection.QueryFirstOrDefaultAsync<int>(testSeriesIdQuery, new { SectionId = request.SectionId });
+
+                var coureId = _connection.QueryFirstOrDefaultAsync<int>(@"select CourseId from tblTestSeriesCourse where TestSeriesId = @TestSeriesId", new { TestSeriesId = testSeriesId });
                 // Query to fetch questions based on the parameters
                 string sql = @"
             SELECT 
@@ -2383,7 +2391,7 @@ WHERE TestSeriesId != @TestSeriesId
               AND (@IndexTypeId = 0 OR q.IndexTypeId = @IndexTypeId)
               AND (@ContentId = 0 OR q.ContentIndexId = @ContentId)
               AND (@QuestionTypeId = 0 OR q.QuestionTypeId = @QuestionTypeId)
-              AND EXISTS (SELECT 1 FROM tblQIDCourse qc WHERE qc.QuestionCode = q.QuestionCode AND qc.LevelId = @DifficultyLevelId)
+              AND EXISTS (SELECT 1 FROM tblQIDCourse qc WHERE qc.QuestionCode = q.QuestionCode AND qc.LevelId = @DifficultyLevelId AND qc.CourseID = @CourseID)
               AND q.IsLive = 1"; // Randomly select questions
 
                 // Fetch questions for each difficulty level dynamically
@@ -2398,7 +2406,8 @@ WHERE TestSeriesId != @TestSeriesId
                         IndexTypeId = request.IndexTypeId,
                         ContentId = request.ContentId,
                         QuestionTypeId = request.QuestionTypeId,
-                        DifficultyLevelId = request.DifficultyLevelId
+                        DifficultyLevelId = request.DifficultyLevelId,
+                        CourseID = coureId
                     })).ToList();
 
                     selectedQuestions.AddRange(difficultyQuestions);
@@ -2860,7 +2869,6 @@ WHERE TestSeriesId != @TestSeriesId
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-
         private async Task FetchAndSaveQuestions(
             QuestionListRequest request,
             List<dynamic> contentIndexIds,
@@ -2893,10 +2901,10 @@ WHERE TestSeriesId != @TestSeriesId
               SELECT 1 
               FROM tblQIDCourse qc 
               WHERE qc.QuestionCode = q.QuestionCode 
-                AND qc.LevelId = @DifficultyLevelId
+                AND qc.LevelId = @DifficultyLevelId AND qc.CourseID = @CourseID
           )
           AND q.IsLive = 1";
-
+            var coureId = _connection.QueryFirstOrDefaultAsync<int>(@"select CourseId from tblTestSeriesCourse where TestSeriesId = @TestSeriesId", new { TestSeriesId = request.TestSeriesId });
             var selectedQuestions = new List<QuestionResponseDTO>();
             foreach (var difficultyLimit in difficultyLimits)
             {
@@ -2909,7 +2917,8 @@ WHERE TestSeriesId != @TestSeriesId
                     IndexTypeIds = indexTypeIds,
                     ContentIndexIds = contentIndexIds,
                     QuestionTypeId = totalQuestionsAllowed.QuestionTypeID,
-                    DifficultyLevelId = difficultyLevelId
+                    DifficultyLevelId = difficultyLevelId,
+                    CourseID = coureId
                 })).ToList();
 
                 var randomQuestions = difficultyQuestions
