@@ -15,9 +15,35 @@ namespace StudentApp_API.Services.Implementations
         {
             _conceptwisePracticeRepository = conceptwisePracticeRepository;
         }
+
+        public async Task<ServiceResponse<double>> GetAverageTimeSpentByOtherStudents(int studentId, int questionId)
+        {
+            return await _conceptwisePracticeRepository.GetAverageTimeSpentByOtherStudents(studentId, questionId);
+        }
+
+        public async Task<ServiceResponse<double>> GetAverageTimeSpentOnQuestion(int studentId, int questionId)
+        {
+            return await _conceptwisePracticeRepository.GetAverageTimeSpentOnQuestion(studentId, questionId);
+        }
+
+        public async Task<ServiceResponse<QuestionAttemptStatsResponse>> GetQuestionAttemptStatsForGroupAsync(int studentId, int questionId)
+        {
+            return await _conceptwisePracticeRepository.GetQuestionAttemptStatsForGroupAsync(studentId, questionId);
+        }
+
         public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetQuestionsAsync(GetQuestionsList request)
         {
             return await _conceptwisePracticeRepository.GetQuestionsAsync(request);
+        }
+
+        public async Task<ServiceResponse<decimal>> GetStudentGroupAccuracyForQuestionAsync(int studentId, int questionId)
+        {
+            return await _conceptwisePracticeRepository.GetStudentGroupAccuracyForQuestionAsync(studentId, questionId);
+        }
+
+        public async Task<ServiceResponse<decimal>> GetStudentQuestionAccuracyAsync(int studentId, int questionId)
+        {
+            return await _conceptwisePracticeRepository.GetStudentQuestionAccuracyAsync(studentId, questionId);
         }
 
         public async Task<ServiceResponse<List<ConceptwisePracticeContentResponse>>> GetSyllabusContentDetails(SyllabusDetailsRequest request)

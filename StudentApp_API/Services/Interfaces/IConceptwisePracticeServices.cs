@@ -10,5 +10,10 @@ namespace StudentApp_API.Services.Interfaces
         Task<ServiceResponse<List<QuestionResponseDTO>>> GetQuestionsAsync(GetQuestionsList request);
         Task<ServiceResponse<string>> MarkQuestionAsSave(SaveQuestionConceptwisePracticeRequest request);
         Task<ServiceResponse<ConceptwiseAnswerResponse>> SubmitAnswerAsync(ConceptwisePracticeSubmitAnswerRequest request);
+        Task<ServiceResponse<decimal>> GetStudentQuestionAccuracyAsync(int studentId, int questionId);
+        Task<ServiceResponse<decimal>> GetStudentGroupAccuracyForQuestionAsync(int studentId, int questionId);
+        Task<ServiceResponse<double>> GetAverageTimeSpentByOtherStudents(int studentId, int questionId);
+        Task<ServiceResponse<QuestionAttemptStatsResponse>> GetQuestionAttemptStatsForGroupAsync(int studentId, int questionId);
+        Task<ServiceResponse<double>> GetAverageTimeSpentOnQuestion(int studentId, int questionId);
     }
 }

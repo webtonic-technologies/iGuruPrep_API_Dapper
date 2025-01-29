@@ -16,6 +16,8 @@
         public int StudentID { get; set; }
         public int QuestionID { get; set; }
         public string AnswerID { get; set; }
+        public DateTime? StaTime { get; set; }
+        public DateTime? EndTime {  get; set; }
     }
     public class GetQuestionsList
     {

@@ -381,14 +381,15 @@ namespace StudentApp_API.Repository.Implementations
 
             try
             {
-
-                // Query the question type for the given QuestionID
+                // Fetch QuestionTypeId for the given QuestionID
                 const string questionTypeQuery = @"
-                SELECT QuestionTypeid 
-                FROM tblAnswerMaster
-                WHERE Questionid = @QuestionID";
+        SELECT QuestionTypeid 
+        FROM tblAnswerMaster
+        WHERE Questionid = @QuestionID";
 
                 var questionTypeId = await _connection.ExecuteScalarAsync<int>(questionTypeQuery, new { request.QuestionID });
+
+                bool isCorrect = false;
 
                 switch (questionTypeId)
                 {
@@ -399,6 +400,7 @@ namespace StudentApp_API.Repository.Implementations
                     case 13:
                     case 15: // Multi-choice types
                         response = await HandleMultipleChoiceAnswerAsync(request);
+                        isCorrect = response.IsAnswerCorrect;
                         break;
 
                     case 3:
@@ -407,30 +409,44 @@ namespace StudentApp_API.Repository.Implementations
                     case 8:
                     case 9: // Single-answer types
                         response = await HandleSingleAnswerAsync(request);
+                        isCorrect = response.IsAnswerCorrect;
                         break;
 
                     case 6: // Match the Pair
                         response = await HandleMatchThePairAsync(request);
+                        isCorrect = response.IsAnswerCorrect;
                         break;
 
                     case 12: // Match the Pair 2
                         response = await HandleMatchThePair2Async(request);
+                        isCorrect = response.IsAnswerCorrect;
                         break;
 
                     default:
                         throw new Exception("Unsupported question type.");
                 }
-                // Step 3: Insert answer submission into tblConceptwisePracticeAnswers
+
+                // Calculate time taken in seconds with decimal precision
+                decimal? timeTaken = (request.StaTime.HasValue && request.EndTime.HasValue)
+                    ? (decimal?)(request.EndTime.Value - request.StaTime.Value).TotalSeconds
+                    : null;
+
+                // Insert answer submission into tblConceptwisePracticeAnswers
                 const string insertAnswerQuery = @"
-                INSERT INTO tblConceptwisePracticeAnswers (StudentId, QuestionId, AnswerIds)
-                VALUES (@StudentId, @QuestionId, @AnswerIds)";
+        INSERT INTO tblConceptwisePracticeAnswers (StudentId, QuestionId, AnswerIds, StaTime, EndTime, TimeTaken, IsCorrect)
+        VALUES (@StudentId, @QuestionId, @AnswerIds, @StaTime, @EndTime, @TimeTaken, @IsCorrect)";
 
                 await _connection.ExecuteAsync(insertAnswerQuery, new
                 {
                     StudentId = request.StudentID,
                     QuestionId = request.QuestionID,
-                    AnswerIds = request.AnswerID // Store directly without parsing
+                    AnswerIds = request.AnswerID,
+                    StaTime = request.StaTime,
+                    EndTime = request.EndTime,
+                    TimeTaken = timeTaken,  // Now stores decimal values like 5.23
+                    IsCorrect = isCorrect
                 });
+
                 return new ServiceResponse<ConceptwiseAnswerResponse>(true, "Answer processed successfully", response, 200);
 
             }
@@ -439,6 +455,305 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<ConceptwiseAnswerResponse>(false, ex.Message, null, 500);
             }
         }
+        public async Task<ServiceResponse<decimal>> GetStudentQuestionAccuracyAsync(int studentId, int questionId)
+        {
+            try
+            {
+                const string query = @"
+        WITH Attempts AS (
+            SELECT 
+                QuestionId, 
+                StudentId, 
+                COUNT(*) AS TotalAttempts,  -- Count all attempts (correct & incorrect)
+                MIN(CPAId) AS FirstCorrectAttempt  -- First correct attempt
+            FROM tblConceptwisePracticeAnswers
+            WHERE StudentId = @StudentId AND QuestionId = @QuestionId  
+            GROUP BY QuestionId, StudentId
+        )
+        SELECT 
+            CAST(100.0 / TotalAttempts AS DECIMAL(10,2)) AS AccuracyRate
+        FROM Attempts;";
+
+                var accuracyRate = await _connection.ExecuteScalarAsync<decimal?>(query, new { StudentId = studentId, QuestionId = questionId });
+
+                return new ServiceResponse<decimal>(true, "Accuracy calculated successfully", accuracyRate ?? 0, 200);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<decimal>(false, ex.Message, 0, 500);
+            }
+        }
+        public async Task<ServiceResponse<decimal>> GetStudentGroupAccuracyForQuestionAsync(int studentId, int questionId)
+        {
+            try
+            {
+                const string query = @"
+        WITH StudentGroup AS (
+            SELECT BoardId, ClassID, CourseID
+            FROM tblStudentClassCourseMapping
+            WHERE RegistrationID = @StudentID
+        ),
+        MatchedStudents AS (
+            SELECT RegistrationID AS StudentID
+            FROM tblStudentClassCourseMapping
+            WHERE (BoardId, ClassID, CourseID) IN (SELECT BoardId, ClassID, CourseID FROM StudentGroup)
+            AND RegistrationID <> @StudentID  -- Exclude the given student
+        ),
+        Attempts AS (
+            SELECT 
+                c.StudentId,
+                c.QuestionId,
+                COUNT(*) AS TotalAttempts
+            FROM tblConceptwisePracticeAnswers c
+            JOIN MatchedStudents s ON c.StudentId = s.StudentID
+            WHERE c.IsCorrect = 1 AND c.QuestionId = @QuestionID  -- Filter for the given question
+            GROUP BY c.StudentId, c.QuestionId
+        ),
+        StudentAccuracy AS (
+            SELECT 
+                StudentID,
+                CAST(100.0 / TotalAttempts AS DECIMAL(10,2)) AS AccuracyRate
+            FROM Attempts
+        )
+        SELECT 
+            COALESCE(AVG(AccuracyRate), 0) AS AverageAccuracy
+        FROM StudentAccuracy;";
+
+                decimal accuracy = await _connection.ExecuteScalarAsync<decimal>(query, new { StudentID = studentId, QuestionID = questionId });
+
+                return new ServiceResponse<decimal>(true, "Average accuracy calculated successfully", accuracy, 200);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<decimal>(false, ex.Message, 0, 500);
+            }
+        }
+        public async Task<ServiceResponse<double>> GetAverageTimeSpentByOtherStudents(int studentId, int questionId)
+        {
+            // Step 1: Fetch the BoardId, ClassID, and CourseID for the given student
+            string studentQuery = @"
+        SELECT BoardId, ClassID, CourseID
+        FROM tblStudentClassCourseMapping
+        WHERE RegistrationID = @StudentID";
+
+            var studentMapping = await _connection.QuerySingleOrDefaultAsync(studentQuery, new { StudentID = studentId });
+
+            if (studentMapping == null)
+            {
+                return new ServiceResponse<double>(false, "Student not found.", 0, 500);
+            }
+
+            // Step 2: Fetch other students in the same BoardId, ClassID, CourseID
+            string classCourseQuery = @"
+        SELECT RegistrationID
+        FROM tblStudentClassCourseMapping
+        WHERE BoardId = @BoardId AND ClassID = @ClassID AND CourseID = @CourseID AND RegistrationID != @StudentID";
+
+            var otherStudents = await _connection.QueryAsync<int>(classCourseQuery, new
+            {
+                BoardId = studentMapping.BoardId,
+                ClassID = studentMapping.ClassID,
+                CourseID = studentMapping.CourseID,
+                StudentID = studentId
+            });
+
+            if (!otherStudents.Any())
+            {
+                return new ServiceResponse<double>(true, "No other students found for the same board, class, and course.", 0, 200);
+            }
+
+            // Step 3: Fetch TimeTaken for other students on the same question
+            string timeQuery = @"
+        SELECT TimeTaken 
+        FROM tblConceptwisePracticeAnswers cpa
+        WHERE cpa.StudentId IN @StudentIds AND cpa.QuestionId = @QuestionId";
+
+            var records = await _connection.QueryAsync<double?>(timeQuery, new
+            {
+                StudentIds = otherStudents,
+                QuestionId = questionId
+            });
+
+            // Step 4: Calculate the average time
+            double totalTimeTaken = 0;
+            int count = 0;
+
+            foreach (var record in records)
+            {
+                if (record.HasValue)
+                {
+                    totalTimeTaken += record.Value;
+                    count++;
+                }
+            }
+
+            if (count == 0)
+            {
+                return new ServiceResponse<double>(true, "No time records found for other students on this question.", 0, 200);
+            }
+
+            // Calculate average time
+            double averageTime = totalTimeTaken / count;
+
+            // Return the service response with the calculated average time
+            return new ServiceResponse<double>(true, "Average time calculated successfully for other students.", averageTime, 200);
+        }
+        public async Task<ServiceResponse<QuestionAttemptStatsResponse>> GetQuestionAttemptStatsForGroupAsync(int studentId, int questionId)
+        {
+            try
+            {
+                const string query = @"
+        WITH StudentGroup AS (
+            SELECT BoardId, ClassID, CourseID
+            FROM tblStudentClassCourseMapping
+            WHERE RegistrationID = @StudentID
+        ),
+        MatchedStudents AS (
+            SELECT RegistrationID AS StudentID
+            FROM tblStudentClassCourseMapping
+            WHERE (BoardId, ClassID, CourseID) IN (SELECT BoardId, ClassID, CourseID FROM StudentGroup)
+            AND RegistrationID <> @StudentID  -- Exclude the given student
+        )
+        SELECT 
+            COUNT(DISTINCT c.StudentId) AS TotalAttempts,
+            COUNT(DISTINCT CASE WHEN c.IsCorrect = 1 THEN c.StudentId END) AS CorrectAnswers
+        FROM tblConceptwisePracticeAnswers c
+        JOIN MatchedStudents s ON c.StudentId = s.StudentID
+        WHERE c.QuestionId = @QuestionID;";
+
+                var result = await _connection.QueryFirstOrDefaultAsync<QuestionAttemptStatsResponse>(
+                    query, new { StudentID = studentId, QuestionID = questionId });
+
+                if (result == null)
+                    result = new QuestionAttemptStatsResponse { TotalAttempts = 0, CorrectAnswers = 0 };
+
+                return new ServiceResponse<QuestionAttemptStatsResponse>(
+                    true, "Question attempt stats retrieved successfully", result, 200);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<QuestionAttemptStatsResponse>(false, ex.Message, null, 500);
+            }
+        }
+        public async Task<ServiceResponse<double>> GetAverageTimeSpentOnQuestion(int studentId, int questionId)
+        {
+            // Define the query to fetch relevant records
+            string query = @"
+        SELECT StaTime, EndTime, TimeTaken 
+        FROM tblConceptwisePracticeAnswers
+        WHERE StudentId = @StudentId AND QuestionId = @QuestionId";
+
+            try
+            {
+                // Fetch data using Dapper
+                var records = await _connection.QueryAsync(query, new { StudentId = studentId, QuestionId = questionId });
+
+                // Calculate the total time taken
+                double totalTimeTaken = 0;
+                int count = 0;
+
+                foreach (var record in records)
+                {
+                    // If TimeTaken is already available, use it directly
+                    if (record.TimeTaken.HasValue)
+                    {
+                        totalTimeTaken += record.TimeTaken.Value;
+                    }
+                    else
+                    {
+                        // If TimeTaken is not available, calculate based on StaTime and EndTime
+                        if (record.StaTime.HasValue && record.EndTime.HasValue)
+                        {
+                            totalTimeTaken += (record.EndTime.Value - record.StaTime.Value).TotalSeconds;
+                        }
+                    }
+                    count++;
+                }
+
+                // If there are no records, return 0 or appropriate message
+                if (count == 0)
+                {
+                    return new ServiceResponse<double>(false, "no records found", 0, 500);
+                }
+
+                // Calculate average time
+                double averageTime = totalTimeTaken / count;
+
+                // Return the response with average time in seconds
+                return new ServiceResponse<double>(true, " records found", averageTime, 200);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<double>(false, ex.Message, 0, 500);
+            }
+        }
+        //public async Task<ServiceResponse<ConceptwiseAnswerResponse>> SubmitAnswerAsync(ConceptwisePracticeSubmitAnswerRequest request)
+        //{
+        //    var response = new ConceptwiseAnswerResponse
+        //    {
+        //        QuestionID = request.QuestionID
+        //    };
+
+        //    try
+        //    {
+
+        //        // Query the question type for the given QuestionID
+        //        const string questionTypeQuery = @"
+        //        SELECT QuestionTypeid 
+        //        FROM tblAnswerMaster
+        //        WHERE Questionid = @QuestionID";
+
+        //        var questionTypeId = await _connection.ExecuteScalarAsync<int>(questionTypeQuery, new { request.QuestionID });
+
+        //        switch (questionTypeId)
+        //        {
+        //            case 1:
+        //            case 2:
+        //            case 5:
+        //            case 10:
+        //            case 13:
+        //            case 15: // Multi-choice types
+        //                response = await HandleMultipleChoiceAnswerAsync(request);
+        //                break;
+
+        //            case 3:
+        //            case 4:
+        //            case 7:
+        //            case 8:
+        //            case 9: // Single-answer types
+        //                response = await HandleSingleAnswerAsync(request);
+        //                break;
+
+        //            case 6: // Match the Pair
+        //                response = await HandleMatchThePairAsync(request);
+        //                break;
+
+        //            case 12: // Match the Pair 2
+        //                response = await HandleMatchThePair2Async(request);
+        //                break;
+
+        //            default:
+        //                throw new Exception("Unsupported question type.");
+        //        }
+        //        // Step 3: Insert answer submission into tblConceptwisePracticeAnswers
+        //        const string insertAnswerQuery = @"
+        //        INSERT INTO tblConceptwisePracticeAnswers (StudentId, QuestionId, AnswerIds)
+        //        VALUES (@StudentId, @QuestionId, @AnswerIds)";
+
+        //        await _connection.ExecuteAsync(insertAnswerQuery, new
+        //        {
+        //            StudentId = request.StudentID,
+        //            QuestionId = request.QuestionID,
+        //            AnswerIds = request.AnswerID // Store directly without parsing
+        //        });
+        //        return new ServiceResponse<ConceptwiseAnswerResponse>(true, "Answer processed successfully", response, 200);
+
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new ServiceResponse<ConceptwiseAnswerResponse>(false, ex.Message, null, 500);
+        //    }
+        //}
         private decimal PercentageCalculation(int indexTypeId, int? contentIndexId, int registrationId, int? subjectid, int? SyllabusId)
         {
             if (contentIndexId == null)

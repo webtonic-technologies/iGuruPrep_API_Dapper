@@ -30,4 +30,10 @@
         public string AnswerID { get; set; }
         public bool IsAnswerCorrect { get; set; }
     }
+    public class QuestionAttemptStatsResponse
+    {
+        public int TotalAttempts { get; set; }  // Total students who attempted the question
+        public int CorrectAnswers { get; set; } // Total students who answered correctly
+    }
+
 }

@@ -5,21 +5,21 @@ using StudentApp_API.Services.Interfaces;
 
 namespace StudentApp_API.Controllers
 {
-    [Route("iGuru/StudentApp/BoardPapers")]
+    [Route("iGuru/StudentApp/ConceptwisePractice")]
     [ApiController]
-    public class BoardPapersController : ControllerBase
+    public class ConceptwisePracticeController : ControllerBase
     {
-        private readonly IBoardPapersServices _boardPapersServices;
+        private readonly IConceptwisePracticeServices _conceptwisePracticeServices;
 
-        public BoardPapersController(IBoardPapersServices boardPapersServices) // Inject the class course service
+        public ConceptwisePracticeController(IConceptwisePracticeServices conceptwisePracticeServices) // Inject the class course service
         {
-            _boardPapersServices = boardPapersServices;
+            _conceptwisePracticeServices = conceptwisePracticeServices;
 
         }
-        [HttpGet("GetAllTestSeriesSubjects/{RegistrationId}")]
-        public async Task<IActionResult> GetAllTestSeriesSubjects(int RegistrationId)
+        [HttpGet("GetSyllabusSubjects/{RegistrationId}")]
+        public async Task<IActionResult> GetSyllabusSubjects(int RegistrationId)
         {
-            var response = await _boardPapersServices.GetAllTestSeriesSubjects(RegistrationId);
+            var response = await _conceptwisePracticeServices.GetSyllabusSubjects(RegistrationId);
             if (response.Success)
             {
                 return Ok(response);
@@ -27,10 +27,10 @@ namespace StudentApp_API.Controllers
 
             return BadRequest(response);
         }
-        [HttpPost("GetTestSeriesBySubjectId")]
-        public async Task<IActionResult> GetTestSeriesBySubjectId(GetTestseriesSubjects request)
+        [HttpPost("GetSyllabusContentDetails")]
+        public async Task<IActionResult> GetSyllabusContentDetails(SyllabusDetailsRequest request)
         {
-            var response = await _boardPapersServices.GetTestSeriesBySubjectId(request);
+            var response = await _conceptwisePracticeServices.GetSyllabusContentDetails(request);
             if (response.Success)
             {
                 return Ok(response);
@@ -38,10 +38,10 @@ namespace StudentApp_API.Controllers
 
             return BadRequest(response);
         }
-        [HttpPost("GetTestSeriesQuestions")]
-        public async Task<IActionResult> GetTestSeriesDescriptiveQuestions(TestSeriesQuestionRequest request)
+        [HttpPost("GetQuestions")]
+        public async Task<IActionResult> GetQuestionsAsync(GetQuestionsList request)
         {
-            var response = await _boardPapersServices.GetTestSeriesDescriptiveQuestions(request);
+            var response = await _conceptwisePracticeServices.GetQuestionsAsync(request);
             if (response.Success)
             {
                 return Ok(response);
@@ -50,9 +50,9 @@ namespace StudentApp_API.Controllers
             return BadRequest(response);
         }
         [HttpPost("Save")]
-        public async Task<IActionResult> MarkQuestionAsSave(SaveQuestionRequest request)
+        public async Task<IActionResult> MarkQuestionAsSave(SaveQuestionConceptwisePracticeRequest request)
         {
-            var response = await _boardPapersServices.MarkQuestionAsSave(request);
+            var response = await _conceptwisePracticeServices.MarkQuestionAsSave(request);
             if (response.Success)
             {
                 return Ok(response);
@@ -60,10 +60,10 @@ namespace StudentApp_API.Controllers
 
             return BadRequest(response);
         }
-        [HttpPost("MarkAsRead")]
-        public async Task<IActionResult> MarkQuestionAsRead(SaveQuestionRequest request)
+        [HttpPost("SubmitAnswer")]
+        public async Task<IActionResult> SubmitAnswerAsync(ConceptwisePracticeSubmitAnswerRequest request)
         {
-            var response = await _boardPapersServices.MarkQuestionAsRead(request);
+            var response = await _conceptwisePracticeServices.SubmitAnswerAsync(request);
             if (response.Success)
             {
                 return Ok(response);
@@ -71,27 +71,60 @@ namespace StudentApp_API.Controllers
 
             return BadRequest(response);
         }
-        [HttpGet("GetQuestionTypesByTestSeries/{testSeriesId}")]
-        public async Task<IActionResult> GetQuestionTypesByTestSeries(int testSeriesId)
+        [HttpGet("GetStudentQuestionAccuracy/{studentId}/{questionId}")]
+        public async Task<IActionResult> GetStudentQuestionAccuracyAsync(int studentId, int questionId)
         {
-            var result = await _boardPapersServices.GetQuestionTypesByTestSeriesIdAsync(testSeriesId);
-            if (result.Success)
-                return Ok(result);
-            return StatusCode(result.StatusCode, result);
-        }
-        [HttpGet("GetTestSeriesPercentageBySubject/{RegistrationId}")]
-        public async Task<IActionResult> GetTestSeriesPercentageBySubject(int RegistrationId)
-        {
-            var result = await _boardPapersServices.GetTestSeriesPercentageBySubject(RegistrationId);
+            var response = await _conceptwisePracticeServices.GetStudentQuestionAccuracyAsync(studentId, questionId);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
 
-            if (result.Success)
+            return BadRequest(response);
+        }
+        [HttpGet("GetStudentGroupAccuracyForQuestion/{studentId}/{questionId}")]
+        public async Task<IActionResult> GetStudentGroupAccuracyForQuestionAsync(int studentId, int questionId)
+        {
+            var response = await _conceptwisePracticeServices.GetStudentGroupAccuracyForQuestionAsync(studentId, questionId);
+            if (response.Success)
             {
-                return Ok(result.Data); // Return 200 OK with the data (distinct Question Types)
+                return Ok(response);
             }
-            else
+
+            return BadRequest(response);
+        }
+        [HttpGet("GetAverageTimeSpentByOtherStudents/{studentId}/{questionId}")]
+        public async Task<IActionResult> GetAverageTimeSpentByOtherStudents(int studentId, int questionId)
+        {
+            var response = await _conceptwisePracticeServices.GetAverageTimeSpentByOtherStudents(studentId, questionId);
+            if (response.Success)
             {
-                return NotFound(result.Message); // Return 404 if no data found
+                return Ok(response);
             }
+
+            return BadRequest(response);
+        }
+        [HttpGet("GetQuestionAttemptStatsForGroup/{studentId}/{questionId}")]
+        public async Task<IActionResult> GetQuestionAttemptStatsForGroupAsync(int studentId, int questionId)
+        {
+            var response = await _conceptwisePracticeServices.GetQuestionAttemptStatsForGroupAsync(studentId, questionId);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+
+            return BadRequest(response);
+        }
+        [HttpGet("GetAverageTimeSpentOnQuestion/{studentId}/{questionId}")]
+        public async Task<IActionResult> GetAverageTimeSpentOnQuestion(int studentId, int questionId)
+        {
+            var response = await _conceptwisePracticeServices.GetAverageTimeSpentOnQuestion(studentId, questionId);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+
+            return BadRequest(response);
         }
     }
 }
