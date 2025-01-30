@@ -487,37 +487,40 @@ namespace StudentApp_API.Repository.Implementations
         {
             try
             {
-                const string query = @"
-        WITH StudentGroup AS (
-            SELECT BoardId, ClassID, CourseID
-            FROM tblStudentClassCourseMapping
-            WHERE RegistrationID = @StudentID
-        ),
-        MatchedStudents AS (
-            SELECT RegistrationID AS StudentID
-            FROM tblStudentClassCourseMapping
-            WHERE (BoardId, ClassID, CourseID) IN (SELECT BoardId, ClassID, CourseID FROM StudentGroup)
-            AND RegistrationID <> @StudentID  -- Exclude the given student
-        ),
-        Attempts AS (
-            SELECT 
-                c.StudentId,
-                c.QuestionId,
-                COUNT(*) AS TotalAttempts
-            FROM tblConceptwisePracticeAnswers c
-            JOIN MatchedStudents s ON c.StudentId = s.StudentID
-            WHERE c.IsCorrect = 1 AND c.QuestionId = @QuestionID  -- Filter for the given question
-            GROUP BY c.StudentId, c.QuestionId
-        ),
-        StudentAccuracy AS (
-            SELECT 
-                StudentID,
-                CAST(100.0 / TotalAttempts AS DECIMAL(10,2)) AS AccuracyRate
-            FROM Attempts
-        )
-        SELECT 
-            COALESCE(AVG(AccuracyRate), 0) AS AverageAccuracy
-        FROM StudentAccuracy;";
+                string query = @"WITH StudentGroup AS (
+    SELECT BoardId, ClassID, CourseID
+    FROM tblStudentClassCourseMapping
+    WHERE RegistrationID = @StudentID
+),
+MatchedStudents AS (
+    SELECT RegistrationID AS StudentID
+    FROM tblStudentClassCourseMapping
+    WHERE BoardId = (SELECT BoardId FROM StudentGroup)
+    AND ClassID = (SELECT ClassID FROM StudentGroup)
+    AND CourseID = (SELECT CourseID FROM StudentGroup)
+    AND RegistrationID <> @StudentID  -- Exclude the given student
+),
+Attempts AS (
+    SELECT 
+        c.StudentId,
+        c.QuestionId,
+        SUM(CASE WHEN c.IsCorrect = 1 THEN 1 ELSE 0 END) AS CorrectAttempts,
+        COUNT(*) AS TotalAttempts
+    FROM tblConceptwisePracticeAnswers c
+    JOIN MatchedStudents s ON c.StudentId = s.StudentID
+    WHERE c.QuestionId = @QuestionId  -- Filter for the given question
+    GROUP BY c.StudentId, c.QuestionId
+),
+StudentAccuracy AS (
+    SELECT 
+        StudentID,
+        CAST((CorrectAttempts * 100.0) / TotalAttempts AS DECIMAL(10,2)) AS AccuracyRate
+    FROM Attempts
+)
+SELECT 
+    COALESCE(AVG(AccuracyRate), 0) AS AverageAccuracy
+FROM StudentAccuracy;
+";
 
                 decimal accuracy = await _connection.ExecuteScalarAsync<decimal>(query, new { StudentID = studentId, QuestionID = questionId });
 
@@ -602,25 +605,26 @@ namespace StudentApp_API.Repository.Implementations
         {
             try
             {
-                const string query = @"
-        WITH StudentGroup AS (
-            SELECT BoardId, ClassID, CourseID
-            FROM tblStudentClassCourseMapping
-            WHERE RegistrationID = @StudentID
-        ),
-        MatchedStudents AS (
-            SELECT RegistrationID AS StudentID
-            FROM tblStudentClassCourseMapping
-            WHERE (BoardId, ClassID, CourseID) IN (SELECT BoardId, ClassID, CourseID FROM StudentGroup)
-            AND RegistrationID <> @StudentID  -- Exclude the given student
-        )
-        SELECT 
-            COUNT(DISTINCT c.StudentId) AS TotalAttempts,
-            COUNT(DISTINCT CASE WHEN c.IsCorrect = 1 THEN c.StudentId END) AS CorrectAnswers
-        FROM tblConceptwisePracticeAnswers c
-        JOIN MatchedStudents s ON c.StudentId = s.StudentID
-        WHERE c.QuestionId = @QuestionID;";
-
+                string query = @"WITH StudentGroup AS (
+    SELECT BoardId, ClassID, CourseID
+    FROM tblStudentClassCourseMapping
+    WHERE RegistrationID = @StudentID
+),
+MatchedStudents AS (
+    SELECT RegistrationID AS StudentID
+    FROM tblStudentClassCourseMapping
+    WHERE BoardId = (SELECT BoardId FROM StudentGroup)
+      AND ClassID = (SELECT ClassID FROM StudentGroup)
+      AND CourseID = (SELECT CourseID FROM StudentGroup)
+      AND RegistrationID <> @StudentID  -- Exclude the given student
+)
+SELECT 
+    COUNT(DISTINCT c.StudentId) AS TotalAttempts,
+    COUNT(DISTINCT CASE WHEN c.IsCorrect = 1 THEN c.StudentId END) AS CorrectAnswers
+FROM tblConceptwisePracticeAnswers c
+JOIN MatchedStudents s ON c.StudentId = s.StudentID
+WHERE c.QuestionId = @QuestionID;
+";
                 var result = await _connection.QueryFirstOrDefaultAsync<QuestionAttemptStatsResponse>(
                     query, new { StudentID = studentId, QuestionID = questionId });
 
@@ -637,50 +641,41 @@ namespace StudentApp_API.Repository.Implementations
         }
         public async Task<ServiceResponse<double>> GetAverageTimeSpentOnQuestion(int studentId, int questionId)
         {
-            // Define the query to fetch relevant records
             string query = @"
-        SELECT StaTime, EndTime, TimeTaken 
-        FROM tblConceptwisePracticeAnswers
-        WHERE StudentId = @StudentId AND QuestionId = @QuestionId";
+    SELECT StaTime, EndTime, TimeTaken 
+    FROM tblConceptwisePracticeAnswers
+    WHERE StudentId = @StudentId AND QuestionId = @QuestionId";
 
             try
             {
-                // Fetch data using Dapper
                 var records = await _connection.QueryAsync(query, new { StudentId = studentId, QuestionId = questionId });
 
-                // Calculate the total time taken
                 double totalTimeTaken = 0;
                 int count = 0;
 
                 foreach (var record in records)
                 {
-                    // If TimeTaken is already available, use it directly
-                    if (record.TimeTaken.HasValue)
+                    // Check if TimeTaken is not NULL
+                    if (record.TimeTaken != null)
                     {
-                        totalTimeTaken += record.TimeTaken.Value;
+                        totalTimeTaken += Convert.ToDouble(record.TimeTaken); // Convert to double
                     }
-                    else
+                    else if (record.StaTime != null && record.EndTime != null)
                     {
-                        // If TimeTaken is not available, calculate based on StaTime and EndTime
-                        if (record.StaTime.HasValue && record.EndTime.HasValue)
-                        {
-                            totalTimeTaken += (record.EndTime.Value - record.StaTime.Value).TotalSeconds;
-                        }
+                        // If TimeTaken is NULL, calculate from StaTime and EndTime
+                        totalTimeTaken += ((DateTime)record.EndTime - (DateTime)record.StaTime).TotalSeconds;
                     }
                     count++;
                 }
 
-                // If there are no records, return 0 or appropriate message
                 if (count == 0)
                 {
-                    return new ServiceResponse<double>(false, "no records found", 0, 500);
+                    return new ServiceResponse<double>(false, "No records found", 0, 500);
                 }
 
-                // Calculate average time
                 double averageTime = totalTimeTaken / count;
 
-                // Return the response with average time in seconds
-                return new ServiceResponse<double>(true, " records found", averageTime, 200);
+                return new ServiceResponse<double>(true, "Records found", averageTime, 200);
             }
             catch (Exception ex)
             {
