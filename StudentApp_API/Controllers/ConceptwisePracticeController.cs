@@ -126,5 +126,71 @@ namespace StudentApp_API.Controllers
 
             return BadRequest(response);
         }
+        [HttpGet("GetAnswerTimeStats")]
+        public async Task<IActionResult> GetAnswerTimeStats(int studentId, int indexTypeId, int contentId, int syllabusId)
+        {
+            var response = await _conceptwisePracticeServices.GetAnswerTimeStats(studentId, indexTypeId, contentId, syllabusId);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+
+            return BadRequest(response);
+        }
+        [HttpGet("GetTotalAndAverageTimeSpent")]
+        public async Task<IActionResult> GetTotalAndAverageTimeSpent(int studentId, int indexTypeId, int contentId, int syllabusId)
+        {
+            var response = await _conceptwisePracticeServices.GetTotalAndAverageTimeSpent(studentId, indexTypeId, contentId, syllabusId);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+
+            return BadRequest(response);
+        }
+        [HttpGet("GetStudentAndClassmatesAccuracyRate")]
+        public async Task<IActionResult> GetStudentAndClassmatesAccuracyRate(int studentId, int indexTypeId, int contentId, int syllabusId)
+        {
+            var response = await _conceptwisePracticeServices.GetStudentAndClassmatesAccuracyRate(studentId, indexTypeId, contentId, syllabusId);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+
+            return BadRequest(response);
+        }
+        [HttpGet("GetPracticeQuestionStats")]
+        public async Task<IActionResult> GetPracticeQuestionStats(int studentId, int indexTypeId, int contentId, int syllabusId)
+        {
+            var response = await _conceptwisePracticeServices.GetPracticeQuestionStats(studentId, indexTypeId, contentId, syllabusId);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+
+            return BadRequest(response);
+        }
+        [HttpGet("GetAccuracyRates")]
+        public async Task<IActionResult> GetAccuracyRates(int studentId, int indexTypeId, int contentId, int syllabusId)
+        {
+            var response = await _conceptwisePracticeServices.GetAccuracyRates(studentId, indexTypeId, contentId, syllabusId);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+
+            return BadRequest(response);
+        }
+        [HttpGet("GetClassmatesAccuracyRate")]
+        public async Task<IActionResult> GetClassmatesAccuracyRate(int studentId, int indexTypeId, int contentId, int syllabusId)
+        {
+            var response = await _conceptwisePracticeServices.GetClassmatesAccuracyRate(studentId, indexTypeId, contentId, syllabusId);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+
+            return BadRequest(response);
+        }
     }
 }

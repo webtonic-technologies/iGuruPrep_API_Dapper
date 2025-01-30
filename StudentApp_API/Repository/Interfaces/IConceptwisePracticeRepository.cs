@@ -1,6 +1,7 @@
 ﻿using StudentApp_API.DTOs.Requests;
 using StudentApp_API.DTOs.Response;
 using StudentApp_API.DTOs.ServiceResponse;
+using System.Threading.Tasks;
 namespace StudentApp_API.Repository.Interfaces
 {
     public interface IConceptwisePracticeRepository
@@ -15,5 +16,11 @@ namespace StudentApp_API.Repository.Interfaces
         Task<ServiceResponse<double>> GetAverageTimeSpentByOtherStudents(int studentId, int questionId);
         Task<ServiceResponse<QuestionAttemptStatsResponse>> GetQuestionAttemptStatsForGroupAsync(int studentId, int questionId);
         Task<ServiceResponse<double>> GetAverageTimeSpentOnQuestion(int studentId, int questionId);
+        Task<ServiceResponse<AnswerTimeStatsDto>> GetAnswerTimeStats(int studentId, int indexTypeId, int contentId, int syllabusId);
+        Task<ServiceResponse<TimeSpentDto>> GetTotalAndAverageTimeSpent(int studentId, int indexTypeId, int contentId, int syllabusId);
+        Task<ServiceResponse<AccuracyRateDto>> GetStudentAndClassmatesAccuracyRate(int studentId, int indexTypeId, int contentId, int syllabusId);
+        Task<ServiceResponse<PracticeStatsDto>> GetPracticeQuestionStats(int studentId, int indexTypeId, int contentId, int syllabusId);
+        Task<ServiceResponse<AccuracyRateDtoComparison>> GetAccuracyRates(int studentId, int indexTypeId, int contentId, int syllabusId);
+        Task<ServiceResponse<List<StudentAccuracyDto>>> GetClassmatesAccuracyRate(int studentId, int indexTypeId, int contentId, int syllabusId);
     }
 }
