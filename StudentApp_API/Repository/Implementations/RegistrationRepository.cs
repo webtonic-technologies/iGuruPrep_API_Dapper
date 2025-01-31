@@ -5,6 +5,7 @@ using StudentApp_API.DTOs.Responses;
 using StudentApp_API.DTOs.ServiceResponse;
 using StudentApp_API.Repository.Interfaces;
 using System.Data;
+using System.Data.SqlClient;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -14,10 +15,12 @@ namespace StudentApp_API.Repository.Implementations
     {
         private readonly IDbConnection _connection;
         private readonly IWebHostEnvironment _hostingEnvironment;
-        public RegistrationRepository(IDbConnection connection, IWebHostEnvironment hostingEnvironment)
+        private readonly string _connectionString;
+        public RegistrationRepository(IDbConnection connection, IWebHostEnvironment hostingEnvironment, IConfiguration configuration)
         {
             _connection = connection;
             _hostingEnvironment = hostingEnvironment;
+            _connectionString = configuration.GetConnectionString("DefaultConnection")!;
         }
         public async Task<ServiceResponse<List<StateResponse>>> GetStatesByCountryId(int countryId)
         {
@@ -96,10 +99,10 @@ namespace StudentApp_API.Repository.Implementations
                 string insertQuery = @"
             INSERT INTO tblRegistration 
             (FirstName, LastName, CountryCodeID, MobileNumber, EmailID, Password, CountryID, Location, ReferralCode, StateId, 
-             SchoolCode, RegistrationDate, IsActive, IsTermsAgreed, Photo, IsOTPVerified, IsBoardClassCourseSelected) 
+             SchoolCode, RegistrationDate, IsActive, IsTermsAgreed, Photo, IsOTPVerified, IsBoardClassCourseSelected, RoleId) 
             VALUES 
             (@FirstName, @LastName, @CountryCodeID, @MobileNumber, @EmailID, @Password, @CountryID, @Location, @ReferralCode, 
-             @StateId, @SchoolCode, GETDATE(), 1, @IsTermsAgreed, @Photo, 0, 0);
+             @StateId, @SchoolCode, GETDATE(), 1, @IsTermsAgreed, @Photo, 0, 0, 8);
             SELECT CAST(SCOPE_IDENTITY() as int)";
 
                 // Encrypt the password
@@ -314,15 +317,20 @@ namespace StudentApp_API.Repository.Implementations
         }
         public async Task<ServiceResponse<bool>> ResetPasswordAsync(ResetPasswordRequest request)
         {
+            if (!string.Equals(request.ConfirmPassword, request.NewPassword, StringComparison.Ordinal))
+            {
+                throw new ArgumentException("Passwords do not match");
+            }
+
             request.NewPassword = EncryptionHelper.EncryptString(request.NewPassword);
-            if (request.UserId <= 0 || string.IsNullOrEmpty(request.UserName) || string.IsNullOrEmpty(request.UserType) || string.IsNullOrEmpty(request.NewPassword))
+            if (request.UserId <= 0 || string.IsNullOrEmpty(request.UserType) || string.IsNullOrEmpty(request.NewPassword))
             {
                 throw new ArgumentException("Invalid parameters.");
             }
 
             if (request.UserType.Equals("Employee", StringComparison.OrdinalIgnoreCase))
             {
-              
+
                 // Update password for `tblEmployee`
                 var updateEmployeePasswordQuery = @"
 UPDATE 
@@ -330,10 +338,10 @@ UPDATE
 SET 
     Password = @NewPassword
 WHERE 
-    Employeeid = @UserId AND EmpEmail = @UserName OR EMPPhoneNumber = @UserName";
+    Employeeid = @UserId ";
 
                 var rowsAffected = await _connection.ExecuteAsync(updateEmployeePasswordQuery,
-                    new { NewPassword = request.NewPassword, UserId = request.UserId, UserName = request.UserName });
+                    new { NewPassword = request.NewPassword, UserId = request.UserId });
 
                 return new ServiceResponse<bool>(true, "Operation successful", rowsAffected > 0, 200);
             }
@@ -346,10 +354,10 @@ UPDATE
 SET 
     Password = @NewPassword
 WHERE 
-    RegistrationID = @UserId AND  EmailID = @UserName OR MobileNumber = @UserName";
+    RegistrationID = @UserId";
 
                 var rowsAffected = await _connection.ExecuteAsync(updateStudentPasswordQuery,
-                    new { NewPassword = request.NewPassword, UserId = request.UserId, UserName = request.UserName });
+                    new { NewPassword = request.NewPassword, UserId = request.UserId });
 
                 return new ServiceResponse<bool>(true, "Operation successful", rowsAffected > 0, 200);
             }
@@ -369,7 +377,7 @@ SELECT
     Employeeid AS UserId, 
     CONCAT(EmpFirstName, ' ', EmpLastName) AS UserName, 
     'Employee' AS UserType, 
-    EmpEmail AS Email
+    EmpEmail AS Email, EMPPhoneNumber as PhoneNumber
 FROM 
     tblEmployee
 WHERE 
@@ -389,7 +397,7 @@ SELECT
     RegistrationID AS UserId, 
     CONCAT(FirstName, ' ', LastName) AS UserName, 
     'Student' AS UserType, 
-    EmailID AS Email
+    EmailID AS Email, MobileNumber as PhoneNumber
 FROM 
     tblRegistration
 WHERE 
@@ -556,7 +564,13 @@ WHERE
                         Location = userWithPassword?.Location,
                         IsLoginSuccessful = true,
                         ProfilePercentage = isLicenseLogin ? null : $"{profilePercentage}%",
-                        IsEmployee = false
+                        IsEmployee = false,
+                        Role = "Student",
+                        LicenseDetails = new LicenseDetails
+                        {
+                            ReferralCode = "",
+                            SchoolCode = schoolCode
+                        }
                     };
                     //handle session 
                     HandleSessionLogic(loginResponse.UserID, request.DeviceId, false, "ST", request.DeviceDetails);
@@ -596,7 +610,8 @@ WHERE
                         EmailID = employee?.EmpEmail,
                         MobileNumber = employee?.EMPPhoneNumber,
                         IsLoginSuccessful = true,
-                        IsEmployee = true
+                        IsEmployee = true,
+                        Role = employee.RoleName
                     };
                     HandleSessionLogic(employee.Employeeid, request.DeviceId, true, employee.RoleCode, request.DeviceDetails);
                     return new ServiceResponse<LoginResponse>(true, "Login successful.", loginResponse, 200);
@@ -609,54 +624,125 @@ WHERE
         }
         private async Task HandleSessionLogic(int userId, string deviceId, bool isEmployee, string roleCode, string DeviceDetails)
         {
-            // Get active sessions
-            var activeSessions = await _connection.QueryAsync<dynamic>(
-                "SELECT SessionId FROM tblUserSessions WHERE UserId = @UserId AND IsActive = 1",
-                new { UserId = userId });
-
-            // Role-based session handling
-            if (isEmployee)
+            try
             {
-                if (roleCode == "AD" || roleCode == "ST") // Admin or Student
+                using (var connection = new SqlConnection(_connectionString)) // Always use a fresh connection
                 {
-                    // Log out all active sessions
-                    foreach (var session in activeSessions)
+                    await connection.OpenAsync();
+
+                    // Get active sessions
+                    var activeSessions = (await connection.QueryAsync<dynamic>(
+                        "SELECT SessionId FROM tblUserSessions WHERE UserId = @UserId AND IsActive = 1",
+                        new { UserId = userId })).ToList();
+
+                    // Role-based session handling
+                    if (isEmployee)
                     {
-                        await _connection.ExecuteAsync(
-                            "UPDATE tblUserSessions SET LogoutTime = @LogoutTime, IsActive = 0 WHERE SessionId = @SessionId",
-                            new { LogoutTime = DateTime.UtcNow, SessionId = session.SessionId });
+                        if (roleCode == "AD" || roleCode == "ST") // Admin or Student (Only 1 session allowed)
+                        {
+                            foreach (var session in activeSessions)
+                            {
+                                await connection.ExecuteAsync(
+                                    "UPDATE tblUserSessions SET LogoutTime = @LogoutTime, IsActive = 0 WHERE SessionId = @SessionId",
+                                    new { LogoutTime = DateTime.UtcNow, SessionId = session.SessionId });
+                            }
+                        }
+                        else if (roleCode == "SM" || roleCode == "PR" || roleCode == "TR") // SME, Proofer, Transcriber (Max 2 sessions)
+                        {
+                            if (activeSessions.Count >= 2)
+                            {
+                                var oldestSession = activeSessions.FirstOrDefault(); // Get the oldest session
+                                if (oldestSession != null)
+                                {
+                                    await connection.ExecuteAsync(
+                                        "UPDATE tblUserSessions SET LogoutTime = @LogoutTime, IsActive = 0 WHERE SessionId = @SessionId",
+                                        new { LogoutTime = DateTime.UtcNow, SessionId = oldestSession.SessionId });
+                                }
+                            }
+                        }
                     }
-                }
-                else if (roleCode == "SM" || roleCode == "PR" || roleCode == "TR") // SME, Proofer, Transcriber
-                {
-                    if (activeSessions.Count() >= 2)
+                    else
                     {
-                        // Log out oldest sessions
+                        // Log out all active student sessions
                         foreach (var session in activeSessions)
                         {
-                            await _connection.ExecuteAsync(
+                            await connection.ExecuteAsync(
                                 "UPDATE tblUserSessions SET LogoutTime = @LogoutTime, IsActive = 0 WHERE SessionId = @SessionId",
                                 new { LogoutTime = DateTime.UtcNow, SessionId = session.SessionId });
                         }
                     }
-                }
-            }
-            else
-            {
-                // Log out all active student sessions
-                foreach (var session in activeSessions)
-                {
-                    await _connection.ExecuteAsync(
-                        "UPDATE tblUserSessions SET LogoutTime = @LogoutTime, IsActive = 0 WHERE SessionId = @SessionId",
-                        new { LogoutTime = DateTime.UtcNow, SessionId = session.SessionId });
-                }
-            }
 
-            // Insert new session
-            await _connection.ExecuteAsync(
-                "INSERT INTO tblUserSessions (UserId, DeviceId, IsActive, IsEmployee, DeviceDetails) VALUES (@UserId, @DeviceId, 1, @IsEmployee, @DeviceDetails)",
-                new { UserId = userId, DeviceId = deviceId, IsEmployee = isEmployee, DeviceDetails = DeviceDetails });
+                    // Insert new session
+                    await connection.ExecuteAsync(
+                        "INSERT INTO tblUserSessions (UserId, DeviceId, IsActive, IsEmployee) VALUES (@UserId, @DeviceId, 1, @IsEmployee)",
+                        new { UserId = userId, DeviceId = deviceId, IsEmployee = isEmployee });
+                } // ✅ Connection is closed automatically here due to 'using'
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error in HandleSessionLogic: " + ex.Message, ex);
+            }
         }
+        //private async Task HandleSessionLogic(int userId, string deviceId, bool isEmployee, string roleCode, string DeviceDetails)
+        //{
+        //    try
+        //    {
+        //        // Get active sessions
+        //        var activeSessions = await _connection.QueryAsync<dynamic>(
+        //            "SELECT SessionId FROM tblUserSessions WHERE UserId = @UserId AND IsActive = 1",
+        //            new { UserId = userId });
+
+        //        // Role-based session handling
+        //        if (isEmployee)
+        //        {
+        //            if (roleCode == "AD" || roleCode == "ST") // Admin or Student
+        //            {
+        //                // Log out all active sessions
+        //                foreach (var session in activeSessions)
+        //                {
+        //                    await _connection.ExecuteAsync(
+        //                        "UPDATE tblUserSessions SET LogoutTime = @LogoutTime, IsActive = 0 WHERE SessionId = @SessionId",
+        //                        new { LogoutTime = DateTime.UtcNow, SessionId = session.SessionId });
+        //                }
+        //            }
+        //            else if (roleCode == "SM" || roleCode == "PR" || roleCode == "TR") // SME, Proofer, Transcriber
+        //            {
+        //                if (activeSessions.Count() >= 2)
+        //                {
+        //                    // Log out oldest sessions
+        //                    foreach (var session in activeSessions)
+        //                    {
+        //                        await _connection.ExecuteAsync(
+        //                            "UPDATE tblUserSessions SET LogoutTime = @LogoutTime, IsActive = 0 WHERE SessionId = @SessionId",
+        //                            new { LogoutTime = DateTime.UtcNow, SessionId = session.SessionId });
+        //                    }
+        //                }
+        //            }
+        //        }
+        //        else
+        //        {
+        //            var connection = new SqlConnection(_connectionString);
+        //            connection.Open();
+        //            // Log out all active student sessions
+        //            foreach (var session in activeSessions)
+        //            {
+        //                 connection.Execute(
+        //                    "UPDATE tblUserSessions SET LogoutTime = @LogoutTime, IsActive = 0 WHERE SessionId = @SessionId",
+        //                    new { LogoutTime = DateTime.UtcNow, SessionId = session.SessionId });
+        //            }
+        //            connection.Close();
+        //        }
+
+        //        // Insert new session
+        //        await _connection.ExecuteAsync(
+        //            "INSERT INTO tblUserSessions (UserId, DeviceId, IsActive, IsEmployee) VALUES (@UserId, @DeviceId, 1, @IsEmployee)",
+        //            new { UserId = userId, DeviceId = deviceId, IsEmployee = isEmployee });
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        throw new Exception(ex.Message);
+        //    }
+        //}
         private async Task<decimal> CalculateProfilePercentageAsync(int registrationId, RegistrationRequest userWithPassword)
         {
             // Determine the country type
@@ -1010,9 +1096,12 @@ WHERE
         {
             try
             {
-                string query = @"UPDATE tblUsers 
-                             SET IsDeleted = 1, StatusID = 0 
-                             WHERE RegistrationID = @RegistrationID AND IsDeleted = 0";
+                string query = @"DELETE FROM tblUsers 
+                WHERE RegistrationID = @RegistrationID AND IsDeleted = 0";
+
+                //string query = @"UPDATE tblUsers 
+                //             SET IsDeleted = 1, StatusID = 0 
+                //             WHERE RegistrationID = @RegistrationID AND IsDeleted = 0";
 
                 var rowsAffected = await _connection.ExecuteAsync(query, new { RegistrationID = registrationId });
 

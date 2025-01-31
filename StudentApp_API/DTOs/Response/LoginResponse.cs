@@ -11,7 +11,14 @@
         public bool IsLoginSuccessful { get; set; }
         public bool IsTermsAgreed {  get; set; }
         public bool IsEmployee {  get; set; }
+        public string Role {  get; set; }
         public string ProfilePercentage { get; set; } = string.Empty;
+        public LicenseDetails? LicenseDetails {  get; set; }
+    }
+    public class LicenseDetails
+    {
+        public string SchoolCode { get; set; }
+        public string ReferralCode {  get; set; }
     }
     public class ClassCourseMappingResponse
     {

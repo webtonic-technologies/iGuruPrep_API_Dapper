@@ -347,8 +347,9 @@ namespace StudentApp_API.Repository.Implementations
             string queryScholarshipTest = @"
             SELECT TOP 1 st.[ScholarshipTestId], st.[APID], st.[ExamTypeId], st.[PatternName], 
                          st.[TotalNumberOfQuestions], st.[Duration], st.[Status], st.[createdon], 
-                         st.[createdby], st.[modifiedon], st.[modifiedby], st.[EmployeeID]
+                         st.[createdby], st.[modifiedon], st.[modifiedby], st.[EmployeeID], ds.Discount as Discount
             FROM [tblScholarshipTest] st
+            Left join tblSSTDiscountScheme ds on st.ScholarshipTestId = ds.ScholarshipTestId
             INNER JOIN [tblScholarshipBoards] sb ON st.[ScholarshipTestId] = sb.[ScholarshipTestId]
             INNER JOIN [tblScholarshipClass] sc ON st.[ScholarshipTestId] = sc.[ScholarshipTestId]
             INNER JOIN [tblScholarshipCourse] scc ON st.[ScholarshipTestId] = scc.[ScholarshipTestId]

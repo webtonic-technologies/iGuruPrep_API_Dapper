@@ -30,6 +30,8 @@
         public DateTime? ModifiedOn { get; set; }
         public string ModifiedBy { get; set; }
         public int EmployeeID { get; set; }
+        public int TotalMarks {  get; set; }
+        public string Discount {  get; set; }
     }
 
     public class ScholarshipTestInstruction
