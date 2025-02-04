@@ -7,7 +7,7 @@ namespace StudentApp_API
 {
     public class SendEmail
     {
-        public async Task<ServiceResponse<string>> SendEmailWithAttachmentAsync(string recipientEmail, string token)
+        public async Task<ServiceResponse<string>> SendEmailWithAttachmentAsync(string recipientEmail, string subject, string body)
         {
             try
             {
@@ -19,8 +19,8 @@ namespace StudentApp_API
                 MailMessage mail = new MailMessage();
                 mail.From = new MailAddress(senderEmail);
                 mail.To.Add(new MailAddress(recipientEmail));
-                mail.Subject = "Forget Password Link";
-                mail.Body = "http://localhost:53715/api/Accounts/ResetPassword/" + token;
+                mail.Subject = subject;
+                mail.Body = body;
 
                 //if (!string.IsNullOrEmpty(attachmentPath))
                 //{

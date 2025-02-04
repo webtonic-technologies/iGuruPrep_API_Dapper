@@ -91,5 +91,30 @@ namespace StudentApp_API.Services.Implementations
         {
             return await _registrationRepository.ResetPasswordAsync(request);
         }
+
+        public async Task<ServiceResponse<bool>> VerifyOtpAndUpdateEmailAsync(VerifyEmailOtpRequest request)
+        {
+            return await _registrationRepository.VerifyOtpAndUpdateEmailAsync(request);
+        }
+
+        public async Task<ServiceResponse<bool>> VerifyOtpAndUpdateMobileAsync(VerifyMobileOtpRequest request)
+        {
+            return await _registrationRepository.VerifyOtpAndUpdateMobileAsync(request);
+        }
+
+        public async Task<ServiceResponse<SendOTPResponse>> ChangeEmailAsync(ChangeEmailRequest request)
+        {
+            return await _registrationRepository.ChangeEmailAsync(request);
+        }
+
+        public async Task<ServiceResponse<SendOTPResponse>> ChangeMobileAsync(ChangeMobileRequest request)
+        {
+            return await _registrationRepository.ChangeMobileAsync(request);
+        }
+
+        public async Task<ServiceResponse<string>> GmailLogin(GmailLoginRequest request)
+        {
+            return await _registrationRepository.GmailLogin(request);
+        }
     }
 }

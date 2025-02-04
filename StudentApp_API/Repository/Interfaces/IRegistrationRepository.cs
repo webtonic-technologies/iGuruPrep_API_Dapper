@@ -24,5 +24,10 @@ namespace StudentApp_API.Repository.Interfaces
         Task<ServiceResponse<string>> UserLogout(UserLogoutRequest request);
         Task<ServiceResponse<ForgetPasswordResponse>> ForgetPasswordAsync(string userInput);
         Task<ServiceResponse<bool>> ResetPasswordAsync(ResetPasswordRequest request);
+        Task<ServiceResponse<bool>> VerifyOtpAndUpdateEmailAsync(VerifyEmailOtpRequest request);
+        Task<ServiceResponse<bool>> VerifyOtpAndUpdateMobileAsync(VerifyMobileOtpRequest request);
+        Task<ServiceResponse<SendOTPResponse>> ChangeEmailAsync(ChangeEmailRequest request);
+        Task<ServiceResponse<SendOTPResponse>> ChangeMobileAsync(ChangeMobileRequest request);
+        Task<ServiceResponse<string>> GmailLogin(GmailLoginRequest request);
     }
 }

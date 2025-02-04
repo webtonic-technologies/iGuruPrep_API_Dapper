@@ -6,6 +6,8 @@ using StudentApp_API.DTOs.ServiceResponse;
 using StudentApp_API.Repository.Interfaces;
 using System.Data;
 using System.Data.SqlClient;
+using System.Net.Mail;
+using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -125,30 +127,79 @@ namespace StudentApp_API.Repository.Implementations
         {
             try
             {
-                // Generate a random OTP
+                // 1. Generate a random 6-digit OTP.
                 var otp = new Random().Next(100000, 999999).ToString();
 
-                // Update the OTP in the database
-                string updateQuery = @"UPDATE tblRegistration 
-                                       SET OTP = @OTP 
-                                       WHERE RegistrationID = @RegistrationID";
+                // 2. Update the OTP in the database (tblRegistration).
+                string updateQuery = @"
+                UPDATE tblRegistration 
+                SET OTP = @OTP 
+                WHERE RegistrationID = @RegistrationID";
 
-                var result = await _connection.ExecuteAsync(updateQuery, new { OTP = otp, request.RegistrationID });
-
-                if (result > 0)
+                int updateResult = await _connection.ExecuteAsync(updateQuery, new { OTP = otp, RegistrationID = request.RegistrationID });
+                if (updateResult <= 0)
                 {
-                    // Simulate sending the OTP (in production, integrate with SMS service)
-                    var response = new SendOTPResponse
-                    {
-                        RegistrationID = request.RegistrationID,
-                        OTP = otp,
-                        IsOTPSent = true
-                    };
-
-                    return new ServiceResponse<SendOTPResponse>(true, "OTP sent successfully.", response, 200);
+                    return new ServiceResponse<SendOTPResponse>(false, "Failed to update OTP in the database.", null, 400);
                 }
 
-                return new ServiceResponse<SendOTPResponse>(false, "Failed to send OTP.", null, 400);
+                // 3. Build the SMS API URL.
+                // Demo SMS URL example:
+                // http://pointsms.in/API/sms.php?username=Webtonics&password=Aaamtweb
+                // &from=AAAMTT&to=8805324655&msg=Your OTP is 111111 for your registration on XMTopper. This OTP is valid for 5 minutes. 
+                // Please do not share it with anyone.
+                // Happy Learning - XMTopper
+                // AAAMT&type=1&dnd_check=0&template_id=1707173209921459358
+
+                // Use the mobile number from the request for sending the SMS.
+                string mobileNumber = request.MobileNumber;
+                string smsUsername = "Webtonics";
+                string smsPassword = "Aaamtweb";
+                string smsFrom = "AAAMTT";
+                string smsType = "1";
+                string dndCheck = "0";
+                string templateId = "1707173209921459358";
+
+                // Compose the message.
+                string message = $"Your OTP is {otp} for your registration on XMTopper. This OTP is valid for 5 minutes. " +
+                                 "Please do not share it with anyone.\nHappy Learning - XMTopper";
+
+                // Build the URL with proper URL encoding for the message.
+                string smsApiUrl = $"http://pointsms.in/API/sms.php?username={smsUsername}" +
+                                   $"&password={smsPassword}" +
+                                   $"&from={smsFrom}" +
+                                   $"&to={mobileNumber}" +
+                                   $"&msg={Uri.EscapeDataString(message)}" +
+                                   $"&type={smsType}" +
+                                   $"&dnd_check={dndCheck}" +
+                                   $"&template_id={templateId}";
+
+                // 4. Send the OTP via SMS using HttpClient.
+                using (var httpClient = new HttpClient())
+                {
+                    var smsResponse = await httpClient.GetAsync(smsApiUrl);
+                    // Optionally, check smsResponse.IsSuccessStatusCode or log the response.
+                }
+
+                // 5. Optionally, send the OTP via email.
+                try
+                {
+                    var email = new SendEmail();
+                    var succes = email.SendEmailWithAttachmentAsync(request.Email, "OTP Verification", message);
+                }
+                catch (Exception emailEx)
+                {
+                    // Log email error. Do not fail the process if email sending fails.
+                }
+
+                // 6. Return the response.
+                var responseData = new SendOTPResponse
+                {
+                    RegistrationID = request.RegistrationID,
+                    OTP = otp,
+                    IsOTPSent = true
+                };
+
+                return new ServiceResponse<SendOTPResponse>(true, "OTP sent successfully.", responseData, 200);
             }
             catch (Exception ex)
             {
@@ -622,6 +673,301 @@ WHERE
                 return new ServiceResponse<LoginResponse>(false, ex.Message, null, 500);
             }
         }
+        public async Task<ServiceResponse<string>> GmailLogin(GmailLoginRequest request)
+        {
+            try
+            {
+                using (var connection = _connection)  // _connection should be injected & opened appropriately
+                {
+                    // 1. Check if the email already exists
+                    string emailCheckQuery = @"
+                SELECT COUNT(*) 
+                FROM tblRegistration 
+                WHERE EmailID = @Email";
+
+                    int emailCount = await connection.ExecuteScalarAsync<int>(emailCheckQuery, new { Email = request.Email });
+
+                    if (emailCount > 0)
+                    {
+                        // Email exists – return a response indicating so.
+                        return new ServiceResponse<string>(
+                            false,
+                            "Email ID already exists.",
+                            "Operation failed",
+                            400);
+                    }
+
+                    // 2. Proceed with registration if email does not exist.
+                    var registrationRequest = new RegistrationRequest
+                    {
+                        FirstName = request.DisplayName,
+                        EmailID = request.Email,
+                        Photo = request.PhotoUrl
+                    };
+                    var registrationId = await AddRegistrationAsync(registrationRequest);
+
+                    // 3. Check if class courses are mapped for this user.
+                    // (This check can vary. Here we assume that if there is any record in tblStudentClassCourseMapping for the new user,
+                    // then the courses are mapped.)
+                    string mappingQuery = @"
+                SELECT COUNT(*) 
+                FROM tblStudentClassCourseMapping 
+                WHERE RegistrationID = @RegistrationID;";
+
+                    int mappingCount = await connection.ExecuteScalarAsync<int>(mappingQuery, new { RegistrationID = registrationId.Data });
+                    bool isClassCourseMapped = mappingCount > 0;
+
+                    return new ServiceResponse<string>(
+                        true,
+                        "Registration successful.",
+                        "Operation successful",
+                        200);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(
+                    false,
+                    ex.Message,
+                    string.Empty,
+                    500);
+            }
+        }
+        public async Task<ServiceResponse<SendOTPResponse>> ChangeMobileAsync(ChangeMobileRequest request)
+        {
+            try
+            {
+                // 1. Verify that the provided old mobile number matches the DB.
+                string mobileCheckQuery = @"
+            SELECT MobileNumber 
+            FROM tblRegistration 
+            WHERE RegistrationID = @RegistrationID";
+
+                var existingMobile = await _connection.QueryFirstOrDefaultAsync<string>(
+                    mobileCheckQuery, new { RegistrationID = request.RegistrationID });
+
+                if (string.IsNullOrEmpty(existingMobile) || !existingMobile.Equals(request.OldMobileNumber))
+                {
+                    return new ServiceResponse<SendOTPResponse>(
+                        false, "Old mobile number does not match our records.", null, 400);
+                }
+
+                // 2. Generate a random 6-digit OTP.
+                var otp = new Random().Next(100000, 999999).ToString();
+
+                // 3. Update the OTP (and optionally, store the new mobile number in a temporary field) in tblRegistration.
+                string updateQuery = @"
+            UPDATE tblRegistration 
+            SET OTP = @OTP 
+            WHERE RegistrationID = @RegistrationID";
+                int updateResult = await _connection.ExecuteAsync(updateQuery, new { OTP = otp, RegistrationID = request.RegistrationID });
+                if (updateResult <= 0)
+                {
+                    return new ServiceResponse<SendOTPResponse>(
+                        false, "Failed to update OTP.", null, 400);
+                }
+
+                // 4. Build the SMS API URL using your demo SMS API.
+                // Example demo URL:
+                // http://pointsms.in/API/sms.php?username=Webtonics&password=Aaamtweb
+                // &from=AAAMTT&to=8805324655&msg=Your OTP is 111111 for your registration on XMTopper. This OTP is valid for 5 minutes.
+                // Please do not share it with anyone.
+                // Happy Learning - XMTopper
+                // AAAMT&type=1&dnd_check=0&template_id=1707173209921459358
+
+                string smsUsername = "Webtonics";
+                string smsPassword = "Aaamtweb";
+                string smsFrom = "AAAMTT";
+                string smsType = "1";
+                string dndCheck = "0";
+                string templateId = "1707173209921459358";
+                string smsMsg = $"Your OTP is {otp} for your registration on XMTopper. This OTP is valid for 5 minutes. Please do not share it with anyone. \nHappy Learning - XMTopper";
+                // Use the new mobile number for sending the OTP.
+                string smsTo = request.NewMobileNumber;
+
+                string smsApiUrl = $"http://pointsms.in/API/sms.php?username={smsUsername}" +
+                                   $"&password={smsPassword}" +
+                                   $"&from={smsFrom}" +
+                                   $"&to={smsTo}" +
+                                   $"&msg={Uri.EscapeDataString(smsMsg)}" +
+                                   $"&type={smsType}" +
+                                   $"&dnd_check={dndCheck}" +
+                                   $"&template_id={templateId}";
+
+                // 5. Send SMS using HttpClient.
+                using (var httpClient = new HttpClient())
+                {
+                    var smsResponse = await httpClient.GetAsync(smsApiUrl);
+                    // Optionally check smsResponse.IsSuccessStatusCode or log the response.
+                }
+
+                // 6. Return success response.
+                var responseData = new SendOTPResponse
+                {
+                    RegistrationID = request.RegistrationID,
+                    OTP = otp,
+                    IsOTPSent = true
+                };
+
+                return new ServiceResponse<SendOTPResponse>(true, "OTP sent to new mobile number.", responseData, 200);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<SendOTPResponse>(false, ex.Message, null, 500);
+            }
+        }
+        public async Task<ServiceResponse<SendOTPResponse>> ChangeEmailAsync(ChangeEmailRequest request)
+        {
+            try
+            {
+                // 1. Verify that the provided old email matches the DB.
+                string emailCheckQuery = @"
+            SELECT EmailID 
+            FROM tblRegistration 
+            WHERE RegistrationID = @RegistrationID";
+
+                var existingEmail = await _connection.QueryFirstOrDefaultAsync<string>(
+                    emailCheckQuery, new { RegistrationID = request.RegistrationID });
+
+                if (string.IsNullOrEmpty(existingEmail) || !existingEmail.Equals(request.OldEmail, StringComparison.OrdinalIgnoreCase))
+                {
+                    return new ServiceResponse<SendOTPResponse>(
+                        false, "Old email does not match our records.", null, 400);
+                }
+
+                // 2. Generate a random 6-digit OTP.
+                var otp = new Random().Next(100000, 999999).ToString();
+
+                // 3. Update the OTP in tblRegistration.
+                string updateQuery = @"
+            UPDATE tblRegistration 
+            SET OTP = @OTP 
+            WHERE RegistrationID = @RegistrationID";
+                int updateResult = await _connection.ExecuteAsync(updateQuery, new { OTP = otp, RegistrationID = request.RegistrationID });
+                if (updateResult <= 0)
+                {
+                    return new ServiceResponse<SendOTPResponse>(
+                        false, "Failed to update OTP.", null, 400);
+                }
+
+                // 4. Send the OTP via email.
+                try
+                {
+                    string Body = $"Your OTP is {otp} for changing your email address. This OTP is valid for 5 minutes. " +
+                        $"Please do not share it with anyone.";
+                    var email = new SendEmail();
+                    var succes = email.SendEmailWithAttachmentAsync(request.NewEmail, "OTP Verification", Body);
+                }
+                catch (Exception emailEx)
+                {
+                    // Log the email error. You might decide not to fail the API if email sending fails.
+                }
+
+                // 5. Return success response.
+                var responseData = new SendOTPResponse
+                {
+                    RegistrationID = request.RegistrationID,
+                    OTP = otp,
+                    IsOTPSent = true
+                };
+
+                return new ServiceResponse<SendOTPResponse>(true, "OTP sent to new email address.", responseData, 200);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<SendOTPResponse>(false, ex.Message, null, 500);
+            }
+        }
+        public async Task<ServiceResponse<bool>> VerifyOtpAndUpdateMobileAsync(VerifyMobileOtpRequest request)
+        {
+            try
+            {
+                // 1. Check if OTP matches the one stored in the database.
+                string otpCheckQuery = @"
+        SELECT OTP 
+        FROM tblRegistration 
+        WHERE RegistrationID = @RegistrationID";
+
+                var storedOtp = await _connection.QueryFirstOrDefaultAsync<string>(
+                    otpCheckQuery, new { RegistrationID = request.RegistrationID });
+
+                if (string.IsNullOrEmpty(storedOtp) || !storedOtp.Equals(request.OTP))
+                {
+                    return new ServiceResponse<bool>(
+                        false, "Invalid OTP or OTP expired.", false, 400);
+                }
+
+                // 2. Update the mobile number in tblRegistration.
+                string updateQuery = @"
+        UPDATE tblRegistration 
+        SET MobileNumber = @NewMobileNumber, OTP = NULL
+        WHERE RegistrationID = @RegistrationID";
+
+                int updateResult = await _connection.ExecuteAsync(updateQuery, new
+                {
+                    NewMobileNumber = request.NewMobileNumber,
+                    RegistrationID = request.RegistrationID
+                });
+
+                if (updateResult <= 0)
+                {
+                    return new ServiceResponse<bool>(
+                        false, "Failed to update mobile number.", false, 400);
+                }
+
+                return new ServiceResponse<bool>(
+                    true, "Mobile number updated successfully.", true, 200);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<bool>(false, ex.Message, false, 500);
+            }
+        }
+        public async Task<ServiceResponse<bool>> VerifyOtpAndUpdateEmailAsync(VerifyEmailOtpRequest request)
+        {
+            try
+            {
+                // 1. Check if OTP matches the one stored in the database.
+                string otpCheckQuery = @"
+        SELECT OTP 
+        FROM tblRegistration 
+        WHERE RegistrationID = @RegistrationID";
+
+                var storedOtp = await _connection.QueryFirstOrDefaultAsync<string>(
+                    otpCheckQuery, new { RegistrationID = request.RegistrationID });
+
+                if (string.IsNullOrEmpty(storedOtp) || !storedOtp.Equals(request.OTP))
+                {
+                    return new ServiceResponse<bool>(
+                        false, "Invalid OTP or OTP expired.", false, 400);
+                }
+
+                // 2. Update the email in tblRegistration.
+                string updateQuery = @"
+        UPDATE tblRegistration 
+        SET EmailID = @NewEmail, OTP = NULL
+        WHERE RegistrationID = @RegistrationID";
+
+                int updateResult = await _connection.ExecuteAsync(updateQuery, new
+                {
+                    NewEmail = request.NewEmail,
+                    RegistrationID = request.RegistrationID
+                });
+
+                if (updateResult <= 0)
+                {
+                    return new ServiceResponse<bool>(
+                        false, "Failed to update email.", false, 400);
+                }
+
+                return new ServiceResponse<bool>(
+                    true, "Email updated successfully.", true, 200);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<bool>(false, ex.Message, false, 500);
+            }
+        }
         private async Task HandleSessionLogic(int userId, string deviceId, bool isEmployee, string roleCode, string DeviceDetails)
         {
             try
@@ -676,7 +1022,7 @@ WHERE
                     await connection.ExecuteAsync(
                         "INSERT INTO tblUserSessions (UserId, DeviceId, IsActive, IsEmployee) VALUES (@UserId, @DeviceId, 1, @IsEmployee)",
                         new { UserId = userId, DeviceId = deviceId, IsEmployee = isEmployee });
-                } // ✅ Connection is closed automatically here due to 'using'
+                } // Connection is closed automatically here due to 'using'
             }
             catch (Exception ex)
             {

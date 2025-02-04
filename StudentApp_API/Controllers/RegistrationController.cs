@@ -304,7 +304,7 @@ namespace StudentApp_API.Controllers
                     var token = jwtToken.GenerateJwtToken(result.Data.UserId, result.Data.UserType, result.Data.UserName, true);
                     var email = new SendEmail();
                     result.Data.Token = token;
-                    var succes = email.SendEmailWithAttachmentAsync(result.Data.Email, token);
+                    var succes = email.SendEmailWithAttachmentAsync(result.Data.Email, "Forget Password Link", "http://localhost:53715/api/Accounts/ResetPassword/" + token);
                     return succes.Result.Success
                      ? this.Ok(new { result })
                      : this.BadRequest(new { result });
@@ -323,7 +323,7 @@ namespace StudentApp_API.Controllers
             }
         }
         [HttpPost]
-        [Route("ResetPasswordAsync")]
+        [Route("ResetPassword")]
         [AllowAnonymous]
         public async Task<IActionResult> ResetPasswordAsync(ResetPasswordRequest request)
         {
@@ -348,6 +348,116 @@ namespace StudentApp_API.Controllers
             catch (Exception e)
             {
                 throw new Exception(e.Message);
+            }
+        }
+        [HttpPost("VerifyOtpAndUpdateEmail")]
+        [AllowAnonymous]
+        public async Task<IActionResult> VerifyOtpAndUpdateEmailAsync(VerifyEmailOtpRequest request)
+        {
+            try
+            {
+                var response = await _registrationService.VerifyOtpAndUpdateEmailAsync(request);
+                if (response.Success)
+                {
+                    return Ok(response);
+                }
+
+                return BadRequest(response);
+            }
+            catch (Exception ex)
+            {
+                return new JsonResult(ex.Message)
+                {
+                    StatusCode = (int)HttpStatusCode.NotFound
+                };
+            }
+        }
+        [HttpPost("VerifyOtpAndUpdateMobile")]
+        [AllowAnonymous]
+        public async Task<IActionResult> VerifyOtpAndUpdateMobileAsync(VerifyMobileOtpRequest request)
+        {
+            try
+            {
+                var response = await _registrationService.VerifyOtpAndUpdateMobileAsync(request);
+                if (response.Success)
+                {
+                    return Ok(response);
+                }
+
+                return BadRequest(response);
+            }
+            catch (Exception ex)
+            {
+                return new JsonResult(ex.Message)
+                {
+                    StatusCode = (int)HttpStatusCode.NotFound
+                };
+            }
+        }
+        [HttpPost("ChangeEmail")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ChangeEmailAsync(ChangeEmailRequest request)
+        {
+            try
+            {
+                var response = await _registrationService.ChangeEmailAsync(request);
+                if (response.Success)
+                {
+                    return Ok(response);
+                }
+
+                return BadRequest(response);
+            }
+            catch (Exception ex)
+            {
+                return new JsonResult(ex.Message)
+                {
+                    StatusCode = (int)HttpStatusCode.NotFound
+                };
+            }
+        }
+        [HttpPost("ChangeMobile")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ChangeMobileAsync(ChangeMobileRequest request)
+        {
+            try
+            {
+                var response = await _registrationService.ChangeMobileAsync(request);
+                if (response.Success)
+                {
+                    return Ok(response);
+                }
+
+                return BadRequest(response);
+            }
+            catch (Exception ex)
+            {
+                return new JsonResult(ex.Message)
+                {
+                    StatusCode = (int)HttpStatusCode.NotFound
+                };
+            }
+        }
+        [HttpPost("GmailLogin")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GmailLogin(GmailLoginRequest request)
+        {
+            try
+            {
+                var response = await _registrationService.GmailLogin(request);
+                if (response.Success)
+                {
+                    return Ok(response);
+                }
+
+                return BadRequest(response);
+            }
+            catch (Exception ex)
+            {
+                return new JsonResult(ex.Message)
+                {
+                    StatusCode = (int)HttpStatusCode.NotFound
+                };
             }
         }
     }
