@@ -6368,13 +6368,6 @@ VALUES
 
                 optionColumn++; // Move to the next column
             }
-
-            var orderedCorrectAnswers = new List<string>(); // Maintain the correct sequen
-            // Ensure the correct answers are in the sequence as they appear in options
-            categories = categories
-                .Where(c => orderedCorrectAnswers.Contains(c.Answer))
-                .OrderBy(c => orderedCorrectAnswers.IndexOf(c.Answer))
-                .ToList();
             return categories;
         }
         private Answersingleanswercategory GetAnswerSingleAnswerCategories(ExcelWorksheet worksheet, int row, int questionTypeId)

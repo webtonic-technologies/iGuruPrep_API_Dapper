@@ -2363,7 +2363,7 @@ WHERE TestSeriesId != @TestSeriesId
 
                 int testSeriesId = await _connection.QueryFirstOrDefaultAsync<int>(testSeriesIdQuery, new { SectionId = request.SectionId });
 
-                var coureId = _connection.QueryFirstOrDefaultAsync<int>(@"select CourseId from tblTestSeriesCourse where TestSeriesId = @TestSeriesId", new { TestSeriesId = testSeriesId });
+                var coureId = _connection.QueryFirstOrDefault<int>(@"select CourseId from tblTestSeriesCourse where TestSeriesId = @TestSeriesId", new { TestSeriesId = testSeriesId });
                 // Query to fetch questions based on the parameters
                 string sql = @"
             SELECT 
@@ -2833,7 +2833,7 @@ WHERE TestSeriesId != @TestSeriesId
 
                 // Step 4: Check if the test series is repetitive
                 string testSeriesQuery = @"
-            SELECT IsRepeated, RepeatExamStartDate, RepeatExamEndDate
+            SELECT RepeatedExams, RepeatExamStartDate, RepeatExamEndDate
             FROM tblTestSeries
             WHERE TestSeriesId = @TestSeriesId";
 
@@ -2842,7 +2842,7 @@ WHERE TestSeriesId != @TestSeriesId
                     TestSeriesId = request.TestSeriesId
                 });
 
-                bool isRepeated = testSeriesDetails?.IsRepeated ?? false;
+                bool isRepeated = testSeriesDetails?.RepeatedExams ?? false;
                 DateTime? repeatStartDate = testSeriesDetails?.RepeatExamStartDate;
                 DateTime? repeatEndDate = testSeriesDetails?.RepeatExamEndDate;
 
@@ -2869,11 +2869,7 @@ WHERE TestSeriesId != @TestSeriesId
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-        private async Task FetchAndSaveQuestions(
-            QuestionListRequest request,
-            List<dynamic> contentIndexIds,
-            List<dynamic> indexTypeIds,
-            dynamic totalQuestionsAllowed,
+        private async Task FetchAndSaveQuestions(QuestionListRequest request, List<dynamic> contentIndexIds, List<dynamic> indexTypeIds, dynamic totalQuestionsAllowed,
             Dictionary<int, int> difficultyLimits,
             DateTime? repetitiveDate = null)
         {
@@ -2893,6 +2889,10 @@ WHERE TestSeriesId != @TestSeriesId
         LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
         LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
         LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
+     LEFT JOIN tblSubject s ON q.subjectID = s.SubjectId
+     LEFT JOIN tblEmployee emp ON q.EmployeeId = emp.Employeeid
+     LEFT JOIN tblExamType e ON q.ExamTypeId = e.ExamTypeID
+     LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
         WHERE q.SubjectID = @SubjectId
           AND q.IndexTypeId IN @IndexTypeIds
           AND q.ContentIndexId IN @ContentIndexIds
@@ -2904,7 +2904,7 @@ WHERE TestSeriesId != @TestSeriesId
                 AND qc.LevelId = @DifficultyLevelId AND qc.CourseID = @CourseID
           )
           AND q.IsLive = 1";
-            var coureId = _connection.QueryFirstOrDefaultAsync<int>(@"select CourseId from tblTestSeriesCourse where TestSeriesId = @TestSeriesId", new { TestSeriesId = request.TestSeriesId });
+            var coureId = _connection.QueryFirstOrDefault<int>(@"select CourseId from tblTestSeriesCourse where TestSeriesId = @TestSeriesId", new { TestSeriesId = request.TestSeriesId });
             var selectedQuestions = new List<QuestionResponseDTO>();
             foreach (var difficultyLimit in difficultyLimits)
             {
@@ -4121,6 +4121,7 @@ WHERE TestSeriesId != @TestSeriesId
 
                 using (var package = new ExcelPackage(stream))
                 {
+                    int courseId = _connection.QueryFirstOrDefault<int>(@"select CourseId from tblTestSeriesCourse where TestSeriesId = @TestSeriesId", new { TestSeriesId = testSeriesId });
                     // Process main worksheet for questions
                     var worksheet = package.Workbook.Worksheets["Questions"];
                     var rowCount = worksheet.Dimension.Rows;
@@ -4163,7 +4164,7 @@ WHERE TestSeriesId != @TestSeriesId
                                 QIDCourseID = 0, // Assuming you want to set this later or handle it in the AddUpdateQuestion method
                                 QID = 0, // Populate this as needed
                                 QuestionCode = "string",
-                                CourseID = 0,
+                                CourseID = courseId,
                                 LevelId = int.Parse(worksheet.Cells[row, 4].Text), // Set this based on your logic or fetch from another source
                                 Status = true, // Set as needed
                                 CreatedBy = "YourUsername", // Set the creator's username or similar info
@@ -4216,7 +4217,7 @@ WHERE TestSeriesId != @TestSeriesId
                                 QIDCourseID = 0, // Assuming you want to set this later or handle it in the AddUpdateQuestion method
                                 QID = 0, // Populate this as needed
                                 QuestionCode = "string",
-                                CourseID = 0,
+                                CourseID = courseId,
                                 LevelId = int.Parse(worksheet.Cells[row, 4].Text), // Set this based on your logic or fetch from another source
                                 Status = true, // Set as needed
                                 CreatedBy = "YourUsername", // Set the creator's username or similar info
@@ -4241,7 +4242,7 @@ WHERE TestSeriesId != @TestSeriesId
                                 IsActive = true,
                                 IsConfigure = false,
                                 ExtraInformation = worksheet.Cells[row, 15].Text,
-                                DifficultyLevel = int.Parse(worksheet.Cells[row, 4].Text),
+                               // DifficultyLevel = int.Parse(worksheet.Cells[row, 4].Text),
                                 EmployeeId = EmployeeId
                             };
 
@@ -4311,7 +4312,7 @@ WHERE TestSeriesId != @TestSeriesId
                     ExtraInformation = request.ExtraInformation,
                     IsActive = true,
                     IsConfigure = false,
-                    DifficultyLevelId = request.DifficultyLevel
+                   // DifficultyLevelId = request.DifficultyLevel
                 };
                 string insertQuery = @"
               INSERT INTO tblQuestion (
@@ -4330,8 +4331,7 @@ WHERE TestSeriesId != @TestSeriesId
                   Explanation,
                   ExtraInformation,
                   IsActive,
-                  IsConfigure,
-                  DifficultyLevelId
+                  IsConfigure
               ) VALUES (
                   @QuestionDescription,
                   @QuestionTypeId,
@@ -4347,7 +4347,7 @@ WHERE TestSeriesId != @TestSeriesId
                   @QuestionCode,
                   @Explanation,
                   @ExtraInformation,
-                  @IsActive, @IsConfigure, @DifficultyLevelId
+                  @IsActive, @IsConfigure
               );
   
               -- Fetch the QuestionId of the newly inserted row
@@ -4549,12 +4549,6 @@ WHERE TestSeriesId != @TestSeriesId
                     });
                 }
             }
-            var orderedCorrectAnswers = new List<string>(); // Maintain the correct sequen
-            // Ensure the correct answers are in the sequence as they appear in options
-            categories = categories
-                .Where(c => orderedCorrectAnswers.Contains(c.Answer))
-                .OrderBy(c => orderedCorrectAnswers.IndexOf(c.Answer))
-                .ToList();
             return categories;
         }
         private DTOs.Requests.Answersingleanswercategory GetAnswerSingleAnswerCategories(ExcelWorksheet worksheet, int row, int questionTypeId)
@@ -4980,7 +4974,7 @@ SELECT
     tsci.IndexTypeId,
     it.IndexType AS IndexTypeName,
     tsci.ContentIndexId,
-    ci.SubjectId,
+    tsci.SubjectId,
     CASE 
         WHEN tsci.IndexTypeId = 1 THEN ci.ContentName_Chapter
         WHEN tsci.IndexTypeId = 2 THEN ct.ContentName_Topic
@@ -5074,18 +5068,20 @@ WHERE tsci.TestSeriesID = @TestSeriesID";
             // Attach unmapped topics and subtopics as root-level entries
             groupedData.AddRange(unmappedTopics.Select(topic => new ContentIndexResponse
             {
-                ContentIndexTopics = new List<ContentIndexTopics> { topic }
+                ContentIndexTopics = new List<ContentIndexTopics> { topic },
+                SubjectId = rawData.FirstOrDefault(x => x.IndexTypeId == 2 && x.TopicCode == topic.TopicCode)?.SubjectId ?? 0
             }));
 
             groupedData.AddRange(unmappedSubTopics.Select(subTopic => new ContentIndexResponse
             {
                 ContentIndexTopics = new List<ContentIndexTopics>
+    {
+        new ContentIndexTopics
         {
-            new ContentIndexTopics
-            {
-                ContentIndexSubTopics = new List<ContentIndexSubTopic> { subTopic }
-            }
+            ContentIndexSubTopics = new List<ContentIndexSubTopic> { subTopic }
         }
+    },
+                SubjectId = rawData.FirstOrDefault(x => x.IndexTypeId == 3 && x.SubTopicCode == subTopic.SubTopicCode)?.SubjectId ?? 0
             }));
 
             return groupedData;
