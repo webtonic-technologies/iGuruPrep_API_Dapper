@@ -19,7 +19,7 @@ namespace Course_API.Repository.Implementations
         {
             try
             {
-                var courseId = _connection.QueryFirstOrDefaultAsync<int>(@"select CourseId from tblScholarshipCourse where ScholarshipTestId =
+                var courseId = _connection.QueryFirstOrDefault<int>(@"select CourseId from tblScholarshipCourse where ScholarshipTestId =
 @ScholarshipTestId", new { ScholarshipTestId = scholarshipTestId });
                 // Fetch sections for the scholarship test
                 var sections = await _connection.QueryAsync<dynamic>(

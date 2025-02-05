@@ -7,7 +7,6 @@ using Schools_API.DTOs.ServiceResponse;
 using Schools_API.Models;
 using Schools_API.Repository.Interfaces;
 using System.Data;
-using System.Data.SqlClient;
 using System.Drawing;
 
 namespace Schools_API.Repository.Implementations
