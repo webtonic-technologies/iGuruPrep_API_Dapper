@@ -30,5 +30,7 @@ namespace Course_API.Services.Interfaces
         Task<ServiceResponse<string>> ApproveRejectedQuestion(int testSeriesId, int QuestionId);
         Task<ServiceResponse<List<RepetitiveTestSeriesResponseDTO>>> GetRepeatedExamQuestions(int testSeriesId);
         Task<ServiceResponse<List<TestSeriesResponseDTOs>>> GetSingleExamQuestions(int testSeriesId);
+        Task<ServiceResponse<List<RepetitiveTestSeriesResponseDTOs>>> GetQuestionsByTestSeriesAndDateAsync(int testSeriesId, DateTime examDate);
+        Task<ServiceResponse<List<DateTime>>> GetRepetitiveExamDates(int testSeriesId);
     }
 }

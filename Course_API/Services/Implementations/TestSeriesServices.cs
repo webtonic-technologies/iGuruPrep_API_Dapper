@@ -72,6 +72,11 @@ namespace Course_API.Services.Implementations
             return await _testSeriesRepository.GetDifficultyLevelsBySectionId(sectionId);
         }
 
+        public async Task<ServiceResponse<List<RepetitiveTestSeriesResponseDTOs>>> GetQuestionsByTestSeriesAndDateAsync(int testSeriesId, DateTime examDate)
+        {
+            return await _testSeriesRepository.GetQuestionsByTestSeriesAndDateAsync(testSeriesId, examDate);
+        }
+
         public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetQuestionsList(GetAllQuestionListRequest request)
         {
             try
@@ -92,6 +97,11 @@ namespace Course_API.Services.Implementations
         public async Task<ServiceResponse<List<RepetitiveTestSeriesResponseDTO>>> GetRepeatedExamQuestions(int testSeriesId)
         {
             return await _testSeriesRepository.GetRepeatedExamQuestions(testSeriesId);
+        }
+
+        public async Task<ServiceResponse<List<DateTime>>> GetRepetitiveExamDates(int testSeriesId)
+        {
+            return await _testSeriesRepository.GetRepetitiveExamDates(testSeriesId);
         }
 
         public async Task<ServiceResponse<List<TestSeriesSectionDTO>>> GetSectionsByTestSeriesId(int testSeriesId)

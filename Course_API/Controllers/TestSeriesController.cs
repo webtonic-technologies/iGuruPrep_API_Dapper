@@ -434,5 +434,29 @@ namespace Course_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
+        [HttpGet("GetQuestionsByTestSeriesAndDate/{testSeriesId}")]
+        public async Task<IActionResult> GetQuestionsByTestSeriesAndDateAsync(int testSeriesId, DateTime examDate)
+        {
+            var response = await _testSeriesServices.GetQuestionsByTestSeriesAndDateAsync(testSeriesId, examDate);
+
+            if (!response.Success)
+            {
+                return StatusCode(response.StatusCode, response);
+            }
+
+            return Ok(response);
+        }
+        [HttpGet("GetRepetitiveExamDates/{testSeriesId}")]
+        public async Task<IActionResult> GetRepetitiveExamDates(int testSeriesId)
+        {
+            var response = await _testSeriesServices.GetRepetitiveExamDates(testSeriesId);
+
+            if (!response.Success)
+            {
+                return StatusCode(response.StatusCode, response);
+            }
+
+            return Ok(response);
+        }
     }
 }

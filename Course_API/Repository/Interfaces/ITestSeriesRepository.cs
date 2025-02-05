@@ -31,5 +31,7 @@ namespace Course_API.Repository.Interfaces
         Task<ServiceResponse<string>> AddUpdateTestSeriesDateAndTime(TestSeriesDateAndTimeRequest request);
         Task<ServiceResponse<List<RepetitiveTestSeriesResponseDTO>>> GetRepeatedExamQuestions(int testSeriesId);
         Task<ServiceResponse<List<TestSeriesResponseDTOs>>> GetSingleExamQuestions(int testSeriesId);
+        Task<ServiceResponse<List<RepetitiveTestSeriesResponseDTOs>>> GetQuestionsByTestSeriesAndDateAsync(int testSeriesId, DateTime examDate);
+        Task<ServiceResponse<List<DateTime>>> GetRepetitiveExamDates(int testSeriesId);
     }
 }
