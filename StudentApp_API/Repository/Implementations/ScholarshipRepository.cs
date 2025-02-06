@@ -449,47 +449,89 @@ namespace StudentApp_API.Repository.Implementations
                 // Loop through each section to fetch the corresponding questions
                 foreach (var section in sections)
                 {
-                    var isSingleAnswer = section.QuestionTypeId == 3 || section.QuestionTypeId == 7 ||
-                                         section.QuestionTypeId == 8 || section.QuestionTypeId == 10;
+                    var contentIndices = (await _connection.QueryAsync<(int ContentIndexId, int IndexTypeId)>(
+               "SELECT [ContentIndexId], [IndexTypeId] FROM [tblScholarshipContentIndex] WHERE [ScholarshipTestId] = @ScholarshipTestId AND [SubjectId] = @SubjectId",
+               new { request.scholarshipTestId, section.SubjectId })).ToList();
 
-                    string questionQuery = @"
-            SELECT q.*, 
-                   c.CourseName, 
-                   b.BoardName, 
-                   cl.ClassName, 
-                   s.SubjectName,
-                   et.ExamTypeName,
-                   e.EmpFirstName,
-                   qt.QuestionType as QuestionTypeName,
-                   it.IndexType as IndexTypeName,
-                   CASE 
-                       WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
-                       WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
-                       WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
-                   END AS ContentIndexName
-            FROM tblQuestion q
-            LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
-            LEFT JOIN tblCourse c ON q.courseid = c.CourseID
-            LEFT JOIN tblBoard b ON q.boardid = b.BoardID
-            LEFT JOIN tblClass cl ON q.classid = cl.ClassID
-            LEFT JOIN tblSubject s ON q.subjectID = s.SubjectID
-            LEFT JOIN tblExamType et ON q.ExamTypeId = et.ExamTypeId
-            LEFT JOIN tblEmployee e ON q.EmployeeId = e.EmployeeId
-            LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
-            LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
-            LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
-            LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
-            WHERE q.IsActive = 1 
-              AND q.SubjectID = @SubjectId 
-              AND q.QuestionTypeId = @QuestionTypeId 
-              AND q.IsConfigure = 1
-            ORDER BY q.CreatedOn
-            OFFSET 0 ROWS FETCH NEXT @TotalNumberOfQuestions ROWS ONLY";
+                    if (!contentIndices.Any())
+                        return new ServiceResponse<List<QuestionResponseDTO>>(false, "No content indices found.", [], 500);
+                    var contentIndexIds = contentIndices.Select(ci => ci.ContentIndexId).ToList();
+                    var indexTypeIds = contentIndices.Select(ci => ci.IndexTypeId).Distinct().ToList();
 
-                    var questions = await _connection.QueryAsync<QuestionResponseDTO>(questionQuery,
-                        new { SubjectId = section.SubjectId, QuestionTypeId = section.QuestionTypeId, TotalNumberOfQuestions = section.TotalNumberOfQuestions });
+                    // Step 3: Fetch difficulty level limits
+                    string difficultyQuery = @"
+            SELECT DifficultyLevelId, QuesPerDiffiLevel
+            FROM tblScholarshipQuestionDifficulty
+            WHERE SectionId = @SectionId";
 
-                    foreach (var question in questions)
+                    var difficultyLimits = (await _connection.QueryAsync<dynamic>(difficultyQuery, new { SectionId = section.SSTSectionId }))
+                        .ToDictionary(dl => (int)dl.DifficultyLevelId, dl => (int)dl.QuesPerDiffiLevel);
+
+                    if (!difficultyLimits.Any())
+                    {
+                        return new ServiceResponse<List<QuestionResponseDTO>>(false, "No difficulty level limits found.", [], 404);
+                    }
+                    var isSingleAnswer = section.QuestionTypeId == 3 || section.QuestionTypeId == 4 ||
+                                         section.QuestionTypeId == 8 || section.QuestionTypeId == 7 || section.QuestionTypeId == 9;
+
+
+                    // Step 5: Fetch questions based on difficulty levels and limits
+                    string sql = @"
+        SELECT 
+            q.QuestionId, q.QuestionCode, q.QuestionDescription, q.QuestionFormula, q.IsLive, q.QuestionTypeId,
+            q.Status, q.CreatedBy, q.CreatedOn, q.ModifiedBy, q.ModifiedOn, q.SubjectID, s.SubjectName, 
+            q.ExamTypeId, e.ExamTypeName, q.EmployeeId, emp.EmpFirstName as EmployeeName,
+            q.IndexTypeId, it.IndexType as IndexTypeName, q.ContentIndexId,
+            CASE 
+                WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
+                WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
+                WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+            END AS ContentIndexName
+        FROM tblQuestion q
+        LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
+        LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
+        LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
+     LEFT JOIN tblSubject s ON q.subjectID = s.SubjectId
+     LEFT JOIN tblEmployee emp ON q.EmployeeId = emp.Employeeid
+     LEFT JOIN tblExamType e ON q.ExamTypeId = e.ExamTypeID
+     LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
+        WHERE q.SubjectID = @SubjectId
+          AND q.IndexTypeId IN @IndexTypeIds
+          AND q.ContentIndexId IN @ContentIndexIds
+          AND (@QuestionTypeId = 0 OR q.QuestionTypeId = @QuestionTypeId)
+          AND EXISTS (
+              SELECT 1 
+              FROM tblQIDCourse qc 
+              WHERE qc.QuestionCode = q.QuestionCode 
+                AND qc.LevelId = @DifficultyLevelId AND qc.CourseID = @CourseID
+          )
+          AND q.IsLive = 1";
+                    var coureId = _connection.QueryFirstOrDefault<int>(@"select CourseId from tblScholarshipCourse where ScholarshipTestId = @ScholarshipTestId", new { ScholarshipTestId = request.scholarshipTestId });
+                    var selectedQuestions = new List<QuestionResponseDTO>();
+                    foreach (var difficultyLimit in difficultyLimits)
+                    {
+                        int difficultyLevelId = difficultyLimit.Key;
+                        int questionsToFetch = difficultyLimit.Value;
+
+                        var difficultyQuestions = (await _connection.QueryAsync<QuestionResponseDTO>(sql, new
+                        {
+                            SubjectId = section.SubjectId,
+                            IndexTypeIds = indexTypeIds,
+                            ContentIndexIds = contentIndexIds,
+                            QuestionTypeId = section.QuestionTypeId,
+                            DifficultyLevelId = difficultyLevelId,
+                            CourseID = coureId
+                        })).ToList();
+
+                        var randomQuestions = difficultyQuestions
+                            .OrderBy(_ => Guid.NewGuid())
+                            .Take(questionsToFetch)
+                            .ToList();
+
+                        selectedQuestions.AddRange(randomQuestions);
+                    }
+
+                    foreach (var question in selectedQuestions)
                     {
                         // Fetch the student's submitted answer
                         string studentAnswerQuery = @"
@@ -564,7 +606,7 @@ namespace StudentApp_API.Repository.Implementations
                     }
 
                     // Add questions to the list
-                    questionsList.AddRange(questions);
+                    questionsList.AddRange(selectedQuestions);
                 }
                 // Apply the QuestionTypeId filter on the questionsList
                 if (request.QuestionTypeId != null && request.QuestionTypeId.Any())

@@ -81,7 +81,7 @@ namespace Course_API.DTOs.Response
         public int ScholarshipTestId { get; set; }
         public string PatternName { get; set; }
         public int TotalNumberOfQuestions { get; set; }
-        public int Duration { get; set; } // In minutes
+        public string Duration { get; set; } // In minutes
         public string APName { get; set; }
         public string BoardNames { get; set; }
         public string ClassNames { get; set; }

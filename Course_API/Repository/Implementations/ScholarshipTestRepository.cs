@@ -170,15 +170,15 @@ namespace Course_API.Repository.Implementations
                     LEFT JOIN 
                         tblScholarshipBoards sb ON st.ScholarshipTestId = sb.ScholarshipTestId
                     LEFT JOIN 
-                        tblBoards b ON sb.BoardId = b.BoardId
+                        tblBoard b ON sb.BoardId = b.BoardId
                     LEFT JOIN 
                         tblScholarshipClass sc ON st.ScholarshipTestId = sc.ScholarshipTestId
                     LEFT JOIN 
-                        tblClasses cl ON sc.ClassId = cl.ClassId
+                        tblClass cl ON sc.ClassId = cl.ClassId
                     LEFT JOIN 
                         tblScholarshipCourse scs ON st.ScholarshipTestId = scs.ScholarshipTestId
                     LEFT JOIN 
-                        tblCourses c ON scs.CourseId = c.CourseId
+                        tblCourse c ON scs.CourseId = c.CourseId
                     LEFT JOIN 
                         tblCategory cat ON st.APID = cat.APId
                     WHERE 
@@ -215,6 +215,7 @@ namespace Course_API.Repository.Implementations
                     response.Data = scholarshipDetails;
                     response.Success = true;
                     response.Message = "Scholarship details fetched successfully.";
+                    response.TotalCount = studentDetails.Count();
                 }
                 else
                 {
