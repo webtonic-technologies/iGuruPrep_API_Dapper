@@ -29,5 +29,6 @@ namespace StudentApp_API.Repository.Interfaces
         Task<ServiceResponse<SendOTPResponse>> ChangeEmailAsync(ChangeEmailRequest request);
         Task<ServiceResponse<SendOTPResponse>> ChangeMobileAsync(ChangeMobileRequest request);
         Task<ServiceResponse<string>> GmailLogin(GmailLoginRequest request);
+        Task<ServiceResponse<string>> HandleMultiDeviceLoginAsync(int userId, string deviceToken, bool isCancel);
     }
 }

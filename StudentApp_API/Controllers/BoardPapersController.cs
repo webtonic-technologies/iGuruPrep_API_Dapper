@@ -93,5 +93,16 @@ namespace StudentApp_API.Controllers
                 return NotFound(result.Message); // Return 404 if no data found
             }
         }
+        [HttpPost("ShareQuestion")]
+        public async Task<IActionResult> ShareQuestionAsync(int studentId, int questionId, int TestSeriesId)
+        {
+            var response = await _boardPapersServices.ShareQuestionAsync(studentId, questionId, TestSeriesId);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+
+            return BadRequest(response);
+        }
     }
 }

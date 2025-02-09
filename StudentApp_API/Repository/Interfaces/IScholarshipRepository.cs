@@ -15,5 +15,7 @@ namespace StudentApp_API.Repository.Interfaces
         Task<ServiceResponse<List<MarksAcquiredAfterAnswerSubmission>>> SubmitAnswer(List<AnswerSubmissionRequest> request);
         Task<ServiceResponse<string>> MarkScholarshipQuestionAsSave(ScholarshipQuestionSaveRequest request);
         Task<ServiceResponse<List<QuestionTypeResponse>>> GetQuestionTypesByScholarshipId(int scholarshipId);
+        Task<ServiceResponse<List<QuestionResponseDTO>>> GetQuestionsByStudentScholarship(GetScholarshipQuestionRequest request);
+        Task<ServiceResponse<StudentDiscountResponse>> GetStudentDiscountAsync(int studentId, int scholarshipTestId);
     }
 }

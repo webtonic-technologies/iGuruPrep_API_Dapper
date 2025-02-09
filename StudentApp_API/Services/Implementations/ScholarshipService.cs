@@ -25,6 +25,11 @@ namespace StudentApp_API.Services.Implementations
             return await _scholarshipRepository.GetQuestionsBySectionSettings(request);
         }
 
+        public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetQuestionsByStudentScholarship(GetScholarshipQuestionRequest request)
+        {
+            return await _scholarshipRepository.GetQuestionsByStudentScholarship(request);
+        }
+
         public async Task<ServiceResponse<List<QuestionTypeResponse>>> GetQuestionTypesByScholarshipId(int scholarshipId)
         {
             return await _scholarshipRepository.GetQuestionTypesByScholarshipId(scholarshipId);
@@ -43,6 +48,11 @@ namespace StudentApp_API.Services.Implementations
         public async Task<ServiceResponse<ScholarshipTestResponse>> GetScholarshipTestByRegistrationId(int registrationId)
         {
             return await _scholarshipRepository.GetScholarshipTestByRegistrationId(registrationId);
+        }
+
+        public async Task<ServiceResponse<StudentDiscountResponse>> GetStudentDiscountAsync(int studentId, int scholarshipTestId)
+        {
+            return await _scholarshipRepository.GetStudentDiscountAsync(studentId, scholarshipTestId);
         }
 
         public async Task<ServiceResponse<string>> MarkScholarshipQuestionAsSave(ScholarshipQuestionSaveRequest request)

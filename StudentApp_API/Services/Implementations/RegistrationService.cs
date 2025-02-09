@@ -116,5 +116,10 @@ namespace StudentApp_API.Services.Implementations
         {
             return await _registrationRepository.GmailLogin(request);
         }
+
+        public async Task<ServiceResponse<string>> HandleMultiDeviceLoginAsync(int userId, string deviceToken, bool isCancel)
+        {
+            return await _registrationRepository.HandleMultiDeviceLoginAsync(userId, deviceToken, isCancel);
+        }
     }
 }

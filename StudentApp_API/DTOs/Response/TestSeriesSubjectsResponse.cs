@@ -19,10 +19,15 @@
         public int TotalNoOfQuestions { get; set; }
         public decimal Percentage { get; set; }
     }
+    public class TestSeriesQuestionsListResponse
+    {
+        public int TestSeriesId { get; set; }
+        public List<TestSeriesQuestionsList>? TestSeriesQuestionsLists {  get; set; }
+    }
     public class TestSeriesQuestionsList
     {
-        public int TestSeriesid {  get; set; }
         public int testseriesQuestionSectionid {  get; set; }
+        public string SectionName {  get; set; }
         public int SubjectId { get; set; }
         public List<TestSeriesQuestionResponse>? TestSeriesQuestionResponses { get; set; }
     }

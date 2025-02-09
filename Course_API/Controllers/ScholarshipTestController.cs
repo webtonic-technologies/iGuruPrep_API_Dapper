@@ -263,6 +263,28 @@ namespace Course_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
+        [HttpGet("GetScholarshipQuestionsAsync/{scholarshipTestId}/{studentId}")]
+        public async Task<IActionResult> GetScholarshipQuestionsAsync(int scholarshipTestId, int studentId)
+        {
+            try
+            {
+                var data = await _scholarshipTestServices.GetScholarshipQuestionsAsync(scholarshipTestId, studentId);
+                if (data != null)
+                {
+                    return Ok(data);
+
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
         //[HttpPost("ScholarshipQuestions/{scholarshipTestId}")]
         //public async Task<IActionResult> AssignScholarshipQuestionsAsync(int scholarshipTestId)
         //{

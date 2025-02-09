@@ -460,5 +460,27 @@ namespace StudentApp_API.Controllers
                 };
             }
         }
+        [HttpPost("HandleMultiDeviceLogin")]
+        [AllowAnonymous]
+        public async Task<IActionResult> HandleMultiDeviceLoginAsync(int userId, string deviceToken, bool isCancel)
+        {
+            try
+            {
+                var response = await _registrationService.HandleMultiDeviceLoginAsync(userId, deviceToken, isCancel);
+                if (response.Success)
+                {
+                    return Ok(response);
+                }
+
+                return BadRequest(response);
+            }
+            catch (Exception ex)
+            {
+                return new JsonResult(ex.Message)
+                {
+                    StatusCode = (int)HttpStatusCode.NotFound
+                };
+            }
+        }
     }
 }

@@ -2244,9 +2244,9 @@ WHERE TestSeriesId != @TestSeriesId
                 string difficultyLevelQuery = @"
         SELECT qc.QID, qc.LevelId
         FROM tblQIDCourse qc
-        WHERE qc.QID IN @QuestionCodes";
-
-                var fetchedDifficultyLevels = await _connection.QueryAsync(difficultyLevelQuery, new { QuestionCodes = questionCodes });
+        WHERE qc.QID IN @QuestionCodes AND CourseID = @CourseID";
+                var coureId = _connection.QueryFirstOrDefault<int>(@"select CourseId from tblTestSeriesCourse where TestSeriesId = @TestSeriesId", new { TestSeriesId = TestSeriesId });
+                var fetchedDifficultyLevels = await _connection.QueryAsync(difficultyLevelQuery, new { QuestionCodes = questionCodes, CourseID = coureId });
 
                 var questionsGroupedByDifficulty = fetchedDifficultyLevels.GroupBy(q => q.LevelId)
                     .Select(g => new { LevelId = g.Key, QuestionCount = g.Count() })
@@ -3025,23 +3025,6 @@ WHERE TestSeriesId != @TestSeriesId
                 }
 
                 // **Proceed with question mapping**
-                if (isRepeated && repeatStartDate != null && repeatEndDate != null)
-                {
-                    var repetitiveDates = Enumerable.Range(0, (repeatEndDate.Value - repeatStartDate.Value).Days + 1)
-                                                    .Select(offset => repeatStartDate.Value.AddDays(offset))
-                                                    .ToList();
-
-                    foreach (var date in repetitiveDates)
-                    {
-                        await FetchAndSaveQuestions(request, contentIndexIds, indexTypeIds, totalQuestionsAllowed, difficultyLimits, date);
-                    }
-                }
-                else
-                {
-                    await FetchAndSaveQuestions(request, contentIndexIds, indexTypeIds, totalQuestionsAllowed, difficultyLimits);
-                }
-
-
                 if (isRepeated && repeatStartDate != null && repeatEndDate != null)
                 {
                     var repetitiveDates = Enumerable.Range(0, (repeatEndDate.Value - repeatStartDate.Value).Days + 1)

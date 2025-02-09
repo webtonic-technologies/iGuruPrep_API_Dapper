@@ -31,7 +31,7 @@ namespace StudentApp_API.Services.Implementations
             return await _boardPapersRepository.GetTestSeriesBySubjectId(request);
         }
 
-        public async Task<ServiceResponse<List<TestSeriesQuestionsList>>> GetTestSeriesDescriptiveQuestions(TestSeriesQuestionRequest request)
+        public async Task<ServiceResponse<TestSeriesQuestionsListResponse>> GetTestSeriesDescriptiveQuestions(TestSeriesQuestionRequest request)
         {
             return await _boardPapersRepository.GetTestSeriesDescriptiveQuestions(request);
         }
@@ -49,6 +49,11 @@ namespace StudentApp_API.Services.Implementations
         public async Task<ServiceResponse<string>> MarkQuestionAsSave(SaveQuestionRequest request)
         {
             return await _boardPapersRepository.MarkQuestionAsSave(request);
+        }
+
+        public async Task<ServiceResponse<string>> ShareQuestionAsync(int studentId, int questionId, int TestSeriesId)
+        {
+            return await _boardPapersRepository.ShareQuestionAsync(studentId, questionId, TestSeriesId);
         }
     }
 }

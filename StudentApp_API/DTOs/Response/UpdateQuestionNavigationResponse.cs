@@ -131,4 +131,11 @@
         public string SectionName { get; set; }
         public int QuestionTypeId { get; set; }
     }
+    public class StudentDiscountResponse
+    {
+        public decimal TotalMarksGained { get; set; }
+        public decimal TotalMarksPossible { get; set; }
+        public decimal Percentage { get; set; }
+        public decimal Discount { get; set; }
+    }
 }

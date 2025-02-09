@@ -18,5 +18,6 @@ namespace Course_API.Services.Interfaces
         Task<ServiceResponse<List<ContentIndexResponses>>> GetSyllabusDetailsBySubject(SyllabusDetailsRequestScholarship request);
         Task<ServiceResponse<string>> ToggleScholarshipTestStatus(int scholarshipTestId);
         Task<ServiceResponse<string>> AssignScholarshipQuestionsAsync(int scholarshipTestId);
+        Task<List<QuestionResponseDTO>> GetScholarshipQuestionsAsync(int scholarshipTestId, int studentId);
     }
 }

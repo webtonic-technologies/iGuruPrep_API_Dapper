@@ -968,36 +968,160 @@ WHERE
                 return new ServiceResponse<bool>(false, ex.Message, false, 500);
             }
         }
-        private async Task HandleSessionLogic(int userId, string deviceId, bool isEmployee, string roleCode, string DeviceDetails)
+        public async Task<ServiceResponse<string>> HandleMultiDeviceLoginAsync(int userId, string deviceToken, bool isCancel)
         {
             try
             {
-                using (var connection = new SqlConnection(_connectionString)) // Always use a fresh connection
+                if (!isCancel)
+                {
+                    // Scenario 1: User clicked "OK" → Log out Device 1 immediately and log in Device 2
+                    await LogoutDeviceAsync(userId, "Device1");
+                    return new ServiceResponse<string>(true, "Device 1 logged out. Device 2 logged in successfully.", null, 200);
+                }
+                else
+                {
+                    // Scenario 2: User clicked "Cancel" → Send OTP to Device 2
+                    var otp = RandomNumberGenerator.GetInt32(100000, 999999).ToString();
+
+                    // Update OTP in database
+                    string updateQuery = @"UPDATE tblRegistration SET OTP = @OTP, OTPExpiry = DATEADD(MINUTE, 5, GETUTCDATE()) 
+                                   WHERE RegistrationID = @UserID";
+
+                    int updateResult = await _connection.ExecuteAsync(updateQuery, new { OTP = otp, UserID = userId });
+                    if (updateResult <= 0)
+                    {
+                        return new ServiceResponse<string>(false, "Failed to update OTP in the database.", null, 400);
+                    }
+
+                    // Send OTP via SMS
+                    var mobileNumber = await GetUserMobileNumberAsync(userId);
+                    string message = $"Your OTP is {otp} for login verification. Please do not share it.";
+                    await SendSmsAsync(mobileNumber, message);
+
+                    return new ServiceResponse<string>(true, "OTP sent successfully. Please verify OTP to proceed.", otp, 200);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<string>(false, ex.Message, null, 500);
+            }
+        }
+        //private async Task HandleSessionLogic(int userId, string deviceId, bool isEmployee, string roleCode, string DeviceDetails)
+        //{
+        //    try
+        //    {
+        //        using (var connection = new SqlConnection(_connectionString)) // Always use a fresh connection
+        //        {
+        //            await connection.OpenAsync();
+
+        //            // Get active sessions
+        //            var activeSessions = (await connection.QueryAsync<dynamic>(
+        //                "SELECT * FROM tblUserSessions WHERE UserId = @UserId AND IsActive = 1",
+        //                new { UserId = userId })).ToList();
+
+        //            // Role-based session handling
+        //            if (isEmployee)
+        //            {
+        //                if (roleCode == "AD" || roleCode == "ST") // Admin or Student (Only 1 session allowed)
+        //                {
+        //                    foreach (var session in activeSessions)
+        //                    {
+        //                        await connection.ExecuteAsync(
+        //                            "UPDATE tblUserSessions SET LogoutTime = @LogoutTime, IsActive = 0 WHERE SessionId = @SessionId",
+        //                            new { LogoutTime = DateTime.UtcNow, SessionId = session.SessionId });
+        //                    }
+        //                }
+        //                else if (roleCode == "SM" || roleCode == "PR" || roleCode == "TR") // SME, Proofer, Transcriber (Max 2 sessions)
+        //                {
+        //                    if (activeSessions.Count >= 2)
+        //                    {
+        //                        var oldestSession = activeSessions.FirstOrDefault(); // Get the oldest session
+        //                        if (oldestSession != null)
+        //                        {
+        //                            await connection.ExecuteAsync(
+        //                                "UPDATE tblUserSessions SET LogoutTime = @LogoutTime, IsActive = 0 WHERE SessionId = @SessionId",
+        //                                new { LogoutTime = DateTime.UtcNow, SessionId = oldestSession.SessionId });
+        //                        }
+        //                    }
+        //                }
+        //            }
+        //            else
+        //            {
+        //                // Log out all active student sessions
+        //                foreach (var session in activeSessions)
+        //                {
+        //                    await connection.ExecuteAsync(
+        //                        "UPDATE tblUserSessions SET LogoutTime = @LogoutTime, IsActive = 0 WHERE SessionId = @SessionId",
+        //                        new { LogoutTime = DateTime.UtcNow, SessionId = session.SessionId });
+        //                }
+        //            }
+
+        //            // Insert new session
+        //            await connection.ExecuteAsync(
+        //                "INSERT INTO tblUserSessions (UserId, DeviceId, IsActive, IsEmployee) VALUES (@UserId, @DeviceId, 1, @IsEmployee)",
+        //                new { UserId = userId, DeviceId = deviceId, IsEmployee = isEmployee });
+        //        } // Connection is closed automatically here due to 'using'
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        throw new Exception("Error in HandleSessionLogic: " + ex.Message, ex);
+        //    }
+        //}
+        private async Task HandleSessionLogic(int userId, string deviceId, bool isEmployee, string roleCode, string deviceDetails)
+        {
+            try
+            {
+                using (var connection = new SqlConnection(_connectionString))
                 {
                     await connection.OpenAsync();
 
-                    // Get active sessions
-                    var activeSessions = (await connection.QueryAsync<dynamic>(
-                        "SELECT SessionId FROM tblUserSessions WHERE UserId = @UserId AND IsActive = 1",
-                        new { UserId = userId })).ToList();
+                    // Fetch last active session for the user
+                    var lastSession = await connection.QueryFirstOrDefaultAsync<dynamic>(
+                        "SELECT SessionId, DeviceId FROM tblUserSessions WHERE UserId = @UserId AND IsActive = 1 ORDER BY LoginTime DESC",
+                        new { UserId = userId });
 
-                    // Role-based session handling
-                    if (isEmployee)
+                    if (roleCode == "ST") // If Student
                     {
-                        if (roleCode == "AD" || roleCode == "ST") // Admin or Student (Only 1 session allowed)
+                        if (lastSession != null && lastSession.DeviceId != deviceId) // Logging in from a different device (Device 2)
                         {
-                            foreach (var session in activeSessions)
+                            var data = _connection.QueryFirstOrDefault<dynamic>(@"select * from tblRegistration where RegistrationID = @RegistrationID", new { RegistrationID = userId });
+
+                            var otpRequest = new SendOTPRequest
                             {
-                                await connection.ExecuteAsync(
-                                    "UPDATE tblUserSessions SET LogoutTime = @LogoutTime, IsActive = 0 WHERE SessionId = @SessionId",
-                                    new { LogoutTime = DateTime.UtcNow, SessionId = session.SessionId });
-                            }
+                                RegistrationID = userId,
+                                Email = data.EmailID,
+                                MobileNumber = data.MobileNumber
+                            };
+                           await SendOTPAsync(otpRequest);
+
+                            return; // Wait for OTP verification before proceeding
                         }
-                        else if (roleCode == "SM" || roleCode == "PR" || roleCode == "TR") // SME, Proofer, Transcriber (Max 2 sessions)
+                        else
                         {
+                            // Normal login, log out old session if same device
+                            await connection.ExecuteAsync(
+                                "UPDATE tblUserSessions SET LogoutTime = @LogoutTime, IsActive = 0 WHERE UserId = @UserId",
+                                new { LogoutTime = DateTime.UtcNow, UserId = userId });
+                        }
+                    }
+                    else if (isEmployee) // Employee handling
+                    {
+                        if (roleCode == "AD" || roleCode == "ST")
+                        {
+                            // Log out all previous sessions
+                            await connection.ExecuteAsync(
+                                "UPDATE tblUserSessions SET LogoutTime = @LogoutTime, IsActive = 0 WHERE UserId = @UserId",
+                                new { LogoutTime = DateTime.UtcNow, UserId = userId });
+                        }
+                        else if (roleCode == "SM" || roleCode == "PR" || roleCode == "TR")
+                        {
+                            var activeSessions = (await connection.QueryAsync<dynamic>(
+                                "SELECT SessionId FROM tblUserSessions WHERE UserId = @UserId AND IsActive = 1",
+                                new { UserId = userId })).ToList();
+
                             if (activeSessions.Count >= 2)
                             {
-                                var oldestSession = activeSessions.FirstOrDefault(); // Get the oldest session
+                                var oldestSession = activeSessions.FirstOrDefault();
                                 if (oldestSession != null)
                                 {
                                     await connection.ExecuteAsync(
@@ -1007,88 +1131,18 @@ WHERE
                             }
                         }
                     }
-                    else
-                    {
-                        // Log out all active student sessions
-                        foreach (var session in activeSessions)
-                        {
-                            await connection.ExecuteAsync(
-                                "UPDATE tblUserSessions SET LogoutTime = @LogoutTime, IsActive = 0 WHERE SessionId = @SessionId",
-                                new { LogoutTime = DateTime.UtcNow, SessionId = session.SessionId });
-                        }
-                    }
 
                     // Insert new session
                     await connection.ExecuteAsync(
                         "INSERT INTO tblUserSessions (UserId, DeviceId, IsActive, IsEmployee) VALUES (@UserId, @DeviceId, 1, @IsEmployee)",
                         new { UserId = userId, DeviceId = deviceId, IsEmployee = isEmployee });
-                } // Connection is closed automatically here due to 'using'
+                }
             }
             catch (Exception ex)
             {
                 throw new Exception("Error in HandleSessionLogic: " + ex.Message, ex);
             }
         }
-        //private async Task HandleSessionLogic(int userId, string deviceId, bool isEmployee, string roleCode, string DeviceDetails)
-        //{
-        //    try
-        //    {
-        //        // Get active sessions
-        //        var activeSessions = await _connection.QueryAsync<dynamic>(
-        //            "SELECT SessionId FROM tblUserSessions WHERE UserId = @UserId AND IsActive = 1",
-        //            new { UserId = userId });
-
-        //        // Role-based session handling
-        //        if (isEmployee)
-        //        {
-        //            if (roleCode == "AD" || roleCode == "ST") // Admin or Student
-        //            {
-        //                // Log out all active sessions
-        //                foreach (var session in activeSessions)
-        //                {
-        //                    await _connection.ExecuteAsync(
-        //                        "UPDATE tblUserSessions SET LogoutTime = @LogoutTime, IsActive = 0 WHERE SessionId = @SessionId",
-        //                        new { LogoutTime = DateTime.UtcNow, SessionId = session.SessionId });
-        //                }
-        //            }
-        //            else if (roleCode == "SM" || roleCode == "PR" || roleCode == "TR") // SME, Proofer, Transcriber
-        //            {
-        //                if (activeSessions.Count() >= 2)
-        //                {
-        //                    // Log out oldest sessions
-        //                    foreach (var session in activeSessions)
-        //                    {
-        //                        await _connection.ExecuteAsync(
-        //                            "UPDATE tblUserSessions SET LogoutTime = @LogoutTime, IsActive = 0 WHERE SessionId = @SessionId",
-        //                            new { LogoutTime = DateTime.UtcNow, SessionId = session.SessionId });
-        //                    }
-        //                }
-        //            }
-        //        }
-        //        else
-        //        {
-        //            var connection = new SqlConnection(_connectionString);
-        //            connection.Open();
-        //            // Log out all active student sessions
-        //            foreach (var session in activeSessions)
-        //            {
-        //                 connection.Execute(
-        //                    "UPDATE tblUserSessions SET LogoutTime = @LogoutTime, IsActive = 0 WHERE SessionId = @SessionId",
-        //                    new { LogoutTime = DateTime.UtcNow, SessionId = session.SessionId });
-        //            }
-        //            connection.Close();
-        //        }
-
-        //        // Insert new session
-        //        await _connection.ExecuteAsync(
-        //            "INSERT INTO tblUserSessions (UserId, DeviceId, IsActive, IsEmployee) VALUES (@UserId, @DeviceId, 1, @IsEmployee)",
-        //            new { UserId = userId, DeviceId = deviceId, IsEmployee = isEmployee });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        throw new Exception(ex.Message);
-        //    }
-        //}
         private async Task<decimal> CalculateProfilePercentageAsync(int registrationId, RegistrationRequest userWithPassword)
         {
             // Determine the country type
@@ -1535,5 +1589,32 @@ WHERE
                 return Convert.ToBase64String(hash);
             }
         }
+        // Function to log out a device
+        private async Task<bool> LogoutDeviceAsync(int userId, string deviceType)
+        {
+            string query = @"UPDATE tblUserDevices SET IsLoggedIn = 0 WHERE UserID = @UserID AND DeviceType = @DeviceType";
+            int result = await _connection.ExecuteAsync(query, new { UserID = userId, DeviceType = deviceType });
+            return result > 0;
+        }
+
+        // Function to get user mobile number
+        private async Task<string> GetUserMobileNumberAsync(int userId)
+        {
+            string query = @"SELECT MobileNumber FROM tblRegistration WHERE RegistrationID = @UserID";
+            return await _connection.ExecuteScalarAsync<string>(query, new { UserID = userId });
+        }
+
+        // Function to send SMS
+        private async Task SendSmsAsync(string mobileNumber, string message)
+        {
+            string smsApiUrl = $"http://pointsms.in/API/sms.php?username=Webtonics&password=Aaamtweb&from=AAAMTT" +
+                               $"&to={mobileNumber}&msg={Uri.EscapeDataString(message)}&type=1&dnd_check=0";
+
+            using (var httpClient = new HttpClient())
+            {
+                await httpClient.GetAsync(smsApiUrl);
+            }
+        }
+
     }
 }

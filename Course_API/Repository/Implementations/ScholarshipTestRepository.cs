@@ -15,6 +15,97 @@ namespace Course_API.Repository.Implementations
         {
             _connection = connection;
         }
+        public async Task<List<QuestionResponseDTO>> GetScholarshipQuestionsAsync(int scholarshipTestId, int studentId)
+        {
+            using (var connection = _connection)
+            {
+                // Step 1: Fetch mapped question IDs and codes
+                string questionMappingQuery = @"
+        SELECT QuestionId, QuestionCode
+        FROM tblScholarshipQuestions
+        WHERE ScholarshipTestId = @ScholarshipTestId AND RegistrationId = @StudentId";
+
+                var questionMappings = (await connection.QueryAsync<dynamic>(
+                    questionMappingQuery,
+                    new { ScholarshipTestId = scholarshipTestId, StudentId = studentId }
+                )).ToList();
+
+                if (!questionMappings.Any()) return new List<QuestionResponseDTO>();
+
+                // Step 2: Fetch question details
+                string questionDetailsQuery = @"
+        SELECT 
+            q.QuestionId, q.QuestionCode, q.QuestionDescription, q.QuestionFormula, q.IsLive, 
+            q.QuestionTypeId, q.Status, q.CreatedBy, q.CreatedOn, q.ModifiedBy, q.ModifiedOn, 
+            q.SubjectID, s.SubjectName, q.ExamTypeId, e.ExamTypeName, q.EmployeeId, 
+            emp.EmpFirstName as EmployeeName, q.IndexTypeId, it.IndexType as IndexTypeName, 
+            q.ContentIndexId,
+            CASE 
+                WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
+                WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
+                WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+            END AS ContentIndexName
+        FROM tblQuestion q
+        LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
+        LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
+        LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
+        LEFT JOIN tblSubject s ON q.subjectID = s.SubjectId
+        LEFT JOIN tblEmployee emp ON q.EmployeeId = emp.Employeeid
+        LEFT JOIN tblExamType e ON q.ExamTypeId = e.ExamTypeID
+        LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
+        WHERE q.QuestionId IN @QuestionIds";
+
+                var questions = (await connection.QueryAsync<QuestionResponseDTO>(
+                    questionDetailsQuery,
+                    new { QuestionIds = questionMappings.Select(q => q.QuestionId).ToList() }
+                )).ToList();
+
+                // Step 3: Fetch answers for each question
+                foreach (var question in questions)
+                {
+                    bool isSingleAnswer = question.QuestionTypeId == 3 || question.QuestionTypeId == 4 ||
+                                          question.QuestionTypeId == 8 || question.QuestionTypeId == 7 ||
+                                          question.QuestionTypeId == 9;
+
+                    if (isSingleAnswer)
+                    {
+                        string singleAnswerQuery = @"
+                SELECT 
+                    a.Answersingleanswercategoryid, 
+                    a.Answerid, 
+                    a.Answer 
+                FROM tblAnswersingleanswercategory a
+                INNER JOIN tblAnswerMaster am ON am.Answerid = a.Answerid
+                WHERE am.Questionid = @QuestionId";
+
+                        question.Answersingleanswercategories = await connection.QuerySingleOrDefaultAsync<DTOs.Response.Answersingleanswercategory>(
+                            singleAnswerQuery,
+                            new { QuestionId = question.QuestionId }
+                        );
+                    }
+                    else
+                    {
+                        string multipleAnswerQuery = @"
+                SELECT 
+                    a.Answermultiplechoicecategoryid, 
+                    a.Answerid, 
+                    a.Answer, 
+                    a.Iscorrect, 
+                    a.Matchid 
+                FROM tblAnswerMultipleChoiceCategory a
+                INNER JOIN tblAnswerMaster am ON am.Answerid = a.Answerid
+                WHERE am.Questionid = @QuestionId";
+
+                        question.AnswerMultipleChoiceCategories = (await connection.QueryAsync<DTOs.Response.AnswerMultipleChoiceCategory>(
+                            multipleAnswerQuery,
+                            new { QuestionId = question.QuestionId }
+                        )).ToList();
+                    }
+                }
+
+                return questions;
+            }
+        }
         public async Task<ServiceResponse<string>> AssignScholarshipQuestionsAsync(int scholarshipTestId)
         {
             try

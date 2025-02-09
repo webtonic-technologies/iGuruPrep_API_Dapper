@@ -38,6 +38,11 @@ namespace Course_API.Services.Implementations
             return await _scholarshipTestRepository.GetScholarshipDetails(scholarshipTestId);
         }
 
+        public async Task<List<QuestionResponseDTO>> GetScholarshipQuestionsAsync(int scholarshipTestId, int studentId)
+        {
+            return await _scholarshipTestRepository.GetScholarshipQuestionsAsync(scholarshipTestId, studentId);
+        }
+
         public async Task<ServiceResponse<ScholarshipTestResponseDTO>> GetScholarshipTestById(int ScholarshipTestId)
         {
 

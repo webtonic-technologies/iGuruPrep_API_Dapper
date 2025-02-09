@@ -29,8 +29,28 @@ namespace StudentApp_API.Controllers
 
             return BadRequest(response);
         }
+        [HttpPost("GetQuestionsByStudentScholarship")]
+        public async Task<IActionResult> GetQuestionsByStudentScholarship(GetScholarshipQuestionRequest request)
+        {
+            var response = await _scholarshipService.GetQuestionsByStudentScholarship(request);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
 
+            return BadRequest(response);
+        }
+        [HttpGet("GetStudentDiscount")]
+        public async Task<IActionResult> GetStudentDiscountAsync(int studentId, int scholarshipTestId)
+        {
+            var response = await _scholarshipService.GetStudentDiscountAsync(studentId, scholarshipTestId);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
 
+            return BadRequest(response);
+        }
         [HttpPost("GetScholarshipTest")]
         public async Task<IActionResult> GetScholarshipTest([FromBody] GetScholarshipTestRequest request)
         {
