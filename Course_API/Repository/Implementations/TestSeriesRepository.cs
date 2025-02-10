@@ -1384,13 +1384,18 @@ WHERE TestSeriesId != @TestSeriesId
                             await _connection.ExecuteAsync(updateDownloadstatus1, new { TestSeriesId = request.TestSeriesId });
                         }
                     }
-                    if(string.Equals(roledata, "Subject Matter Expert"))
+                    if (string.Equals(roledata, "Subject Matter Expert"))
                     {
                         int count = await _connection.QueryFirstOrDefaultAsync<int>(@"select count(*) from tblTestSeriesRejectedRemarks where TestSeriesId = @TestSeriesId", new { TestSeriesId = request.TestSeriesId });
                         if (count != 0)
                         {
                             string updateDownloadstatus1 = @"update tblTestSeries set DownloadStatusId = 7 where TestSeriesId = @TestSeriesId";
                             await _connection.ExecuteAsync(updateDownloadstatus1, new { TestSeriesId = request.TestSeriesId });
+                        }
+                        else
+                        {
+                            string updateDownloadstatus = @"update tblTestSeries set DownloadStatusId = 5 where TestSeriesId = @TestSeriesId";
+                            await _connection.ExecuteAsync(updateDownloadstatus, new { TestSeriesId = request.TestSeriesId });
                         }
                     }
                 }
