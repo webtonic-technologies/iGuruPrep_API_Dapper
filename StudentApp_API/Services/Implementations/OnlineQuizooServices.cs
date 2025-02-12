@@ -34,5 +34,10 @@ namespace StudentApp_API.Services.Implementations
         {
             return await _onlineQuizooRepository.SetForceExitAsync(qpid);
         }
+
+        public async Task<ServiceResponse<string>> ShareQuestionAsync(int studentId, int questionId, int QuizooId)
+        {
+            return await _onlineQuizooRepository.ShareQuestionAsync(studentId, questionId, QuizooId);
+        }
     }
 }

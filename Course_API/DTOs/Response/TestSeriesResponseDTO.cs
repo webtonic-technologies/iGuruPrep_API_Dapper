@@ -37,6 +37,7 @@ namespace Course_API.DTOs.Response
         public decimal TotalMarks {  get; set; } = decimal.Zero;
         public string ExamStatus { get; set; }
         public bool IsAdmin { get; set; }
+        public int AssignedTo { get; set; }
         public int DownloadStatusId { get; set; }
         public List<TestSeriesBoardsResponse>? TestSeriesBoard { get; set; }
         public List<TestSeriesClassResponse>? TestSeriesClasses { get; set; }
@@ -45,7 +46,7 @@ namespace Course_API.DTOs.Response
         public List<TestSeriesSubjectDetails>? TestSeriesSubjectDetails { get; set; }
         public TestSeriesInstructions? TestSeriesInstruction { get; set; }
         public List<TestSeriesQuestions>? TestSeriesQuestions { get; set; }
-        public int AssignedTo {  get; set; }
+      
     }
     public class TestSeriesBoardsResponse
     {

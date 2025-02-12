@@ -127,79 +127,83 @@ namespace StudentApp_API.Repository.Implementations
         {
             try
             {
-                // 1. Generate a random 6-digit OTP.
-                var otp = new Random().Next(100000, 999999).ToString();
+                using (var connection = new SqlConnection(_connectionString))
+                {
+                    await connection.OpenAsync();
+                    // 1. Generate a random 6-digit OTP.
+                    var otp = new Random().Next(100000, 999999).ToString();
 
-                // 2. Update the OTP in the database (tblRegistration).
-                string updateQuery = @"
+                    // 2. Update the OTP in the database (tblRegistration).
+                    string updateQuery = @"
                 UPDATE tblRegistration 
                 SET OTP = @OTP 
                 WHERE RegistrationID = @RegistrationID";
 
-                int updateResult = await _connection.ExecuteAsync(updateQuery, new { OTP = otp, RegistrationID = request.RegistrationID });
-                if (updateResult <= 0)
-                {
-                    return new ServiceResponse<SendOTPResponse>(false, "Failed to update OTP in the database.", null, 400);
+                    int updateResult = await connection.ExecuteAsync(updateQuery, new { OTP = otp, RegistrationID = request.RegistrationID });
+                    if (updateResult <= 0)
+                    {
+                        return new ServiceResponse<SendOTPResponse>(false, "Failed to update OTP in the database.", null, 400);
+                    }
+
+                    // 3. Build the SMS API URL.
+                    // Demo SMS URL example:
+                    // http://pointsms.in/API/sms.php?username=Webtonics&password=Aaamtweb
+                    // &from=AAAMTT&to=8805324655&msg=Your OTP is 111111 for your registration on XMTopper. This OTP is valid for 5 minutes. 
+                    // Please do not share it with anyone.
+                    // Happy Learning - XMTopper
+                    // AAAMT&type=1&dnd_check=0&template_id=1707173209921459358
+
+                    // Use the mobile number from the request for sending the SMS.
+                    string mobileNumber = request.MobileNumber;
+                    string smsUsername = "Webtonics";
+                    string smsPassword = "Aaamtweb";
+                    string smsFrom = "AAAMTT";
+                    string smsType = "1";
+                    string dndCheck = "0";
+                    string templateId = "1707173209921459358";
+
+                    // Compose the message.
+                    string message = $"Your OTP is {otp} for your registration on XMTopper. This OTP is valid for 5 minutes. " +
+                                     "Please do not share it with anyone. Happy Learning - XMTopper AAAMT";
+
+                    // Build the URL with proper URL encoding for the message.
+                    string smsApiUrl = $"http://pointsms.in/API/sms.php?username={smsUsername}" +
+                                       $"&password={smsPassword}" +
+                                       $"&from={smsFrom}" +
+                                       $"&to={mobileNumber}" +
+                                       $"&msg={Uri.EscapeDataString(message)}" +
+                                       $"&type={smsType}" +
+                                       $"&dnd_check={dndCheck}" +
+                                       $"&template_id={templateId}";
+
+                    // 4. Send the OTP via SMS using HttpClient.
+                    using (var httpClient = new HttpClient())
+                    {
+                        var smsResponse = await httpClient.GetAsync(smsApiUrl);
+                        // Optionally, check smsResponse.IsSuccessStatusCode or log the response.
+                    }
+
+                    // 5. Optionally, send the OTP via email.
+                    try
+                    {
+                        var email = new SendEmail();
+                        var succes = await email.SendEmailWithAttachmentAsync(request.Email, "OTP Verification", message);
+                    }
+                    catch (Exception emailEx)
+                    {
+                        // Log email error. Do not fail the process if email sending fails.
+                    }
+
+                    // 6. Return the response.
+                    var responseData = new SendOTPResponse
+                    {
+                        RegistrationID = request.RegistrationID,
+                        OTP = otp,
+                        IsOTPSent = true
+                    };
+
+                    return new ServiceResponse<SendOTPResponse>(true, "OTP sent successfully.", responseData, 200);
                 }
-
-                // 3. Build the SMS API URL.
-                // Demo SMS URL example:
-                // http://pointsms.in/API/sms.php?username=Webtonics&password=Aaamtweb
-                // &from=AAAMTT&to=8805324655&msg=Your OTP is 111111 for your registration on XMTopper. This OTP is valid for 5 minutes. 
-                // Please do not share it with anyone.
-                // Happy Learning - XMTopper
-                // AAAMT&type=1&dnd_check=0&template_id=1707173209921459358
-
-                // Use the mobile number from the request for sending the SMS.
-                string mobileNumber = request.MobileNumber;
-                string smsUsername = "Webtonics";
-                string smsPassword = "Aaamtweb";
-                string smsFrom = "AAAMTT";
-                string smsType = "1";
-                string dndCheck = "0";
-                string templateId = "1707173209921459358";
-
-                // Compose the message.
-                string message = $"Your OTP is {otp} for your registration on XMTopper. This OTP is valid for 5 minutes. " +
-                                 "Please do not share it with anyone.\nHappy Learning - XMTopper";
-
-                // Build the URL with proper URL encoding for the message.
-                string smsApiUrl = $"http://pointsms.in/API/sms.php?username={smsUsername}" +
-                                   $"&password={smsPassword}" +
-                                   $"&from={smsFrom}" +
-                                   $"&to={mobileNumber}" +
-                                   $"&msg={Uri.EscapeDataString(message)}" +
-                                   $"&type={smsType}" +
-                                   $"&dnd_check={dndCheck}" +
-                                   $"&template_id={templateId}";
-
-                // 4. Send the OTP via SMS using HttpClient.
-                using (var httpClient = new HttpClient())
-                {
-                    var smsResponse = await httpClient.GetAsync(smsApiUrl);
-                    // Optionally, check smsResponse.IsSuccessStatusCode or log the response.
-                }
-
-                // 5. Optionally, send the OTP via email.
-                try
-                {
-                    var email = new SendEmail();
-                    var succes = email.SendEmailWithAttachmentAsync(request.Email, "OTP Verification", message);
-                }
-                catch (Exception emailEx)
-                {
-                    // Log email error. Do not fail the process if email sending fails.
-                }
-
-                // 6. Return the response.
-                var responseData = new SendOTPResponse
-                {
-                    RegistrationID = request.RegistrationID,
-                    OTP = otp,
-                    IsOTPSent = true
-                };
-
-                return new ServiceResponse<SendOTPResponse>(true, "OTP sent successfully.", responseData, 200);
             }
             catch (Exception ex)
             {
@@ -781,7 +785,13 @@ WHERE
                 string smsType = "1";
                 string dndCheck = "0";
                 string templateId = "1707173209921459358";
-                string smsMsg = $"Your OTP is {otp} for your registration on XMTopper. This OTP is valid for 5 minutes. Please do not share it with anyone. \nHappy Learning - XMTopper";
+
+
+
+                // Compose the message.
+                string smsMsg = $"Your OTP is {otp} for your registration on XMTopper. This OTP is valid for 5 minutes. " +
+                                 "Please do not share it with anyone. Happy Learning - XMTopper AAAMT";
+  
                 // Use the new mobile number for sending the OTP.
                 string smsTo = request.NewMobileNumber;
 
@@ -1084,7 +1094,7 @@ WHERE
                     {
                         if (lastSession != null && lastSession.DeviceId != deviceId) // Logging in from a different device (Device 2)
                         {
-                            var data = _connection.QueryFirstOrDefault<dynamic>(@"select * from tblRegistration where RegistrationID = @RegistrationID", new { RegistrationID = userId });
+                            var data = await connection.QueryFirstOrDefaultAsync<dynamic>(@"select * from tblRegistration where RegistrationID = @RegistrationID", new { RegistrationID = userId });
 
                             var otpRequest = new SendOTPRequest
                             {
@@ -1496,7 +1506,7 @@ WHERE
         {
             try
             {
-                string query = @"DELETE FROM tblUsers 
+                string query = @"DELETE FROM tblRegistration 
                 WHERE RegistrationID = @RegistrationID AND IsDeleted = 0";
 
                 //string query = @"UPDATE tblUsers 

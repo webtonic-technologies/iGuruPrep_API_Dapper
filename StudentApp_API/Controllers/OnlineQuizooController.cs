@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using StudentApp_API.DTOs.Requests;
-using StudentApp_API.Services.Implementations;
 using StudentApp_API.Services.Interfaces;
 
 namespace StudentApp_API.Controllers
@@ -88,6 +87,27 @@ namespace StudentApp_API.Controllers
                 if (data != null)
                 {
                     return Ok(data);
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
+        [HttpGet("ShareQuestion")]
+        public async Task<IActionResult> ShareQuestionAsync(int studentId, int questionId, int QuizooId)
+        {
+            try
+            {
+                var data = await _onlineQuizooServices.ShareQuestionAsync(studentId, questionId, QuizooId);
+                if (data != null)
+                {
+                    return Ok(data);
+
                 }
                 else
                 {

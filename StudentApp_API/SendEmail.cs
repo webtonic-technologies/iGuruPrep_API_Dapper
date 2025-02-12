@@ -33,7 +33,7 @@ namespace StudentApp_API
                 smtpClient.EnableSsl = true;
                 smtpClient.UseDefaultCredentials = false;
                 smtpClient.Credentials = new NetworkCredential(senderEmail, senderPassword);
-
+                smtpClient.DeliveryMethod = SmtpDeliveryMethod.Network;
                 // Send the email asynchronously
                 await smtpClient.SendMailAsync(mail);
 

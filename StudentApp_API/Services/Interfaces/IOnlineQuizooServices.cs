@@ -10,5 +10,6 @@ namespace StudentApp_API.Services.Interfaces
         Task<ServiceResponse<List<QuestionWithCorrectAnswerDTO>>> GetQuestionsWithCorrectAnswersAsync(int quizooId);
         Task<ServiceResponse<List<StudentRankDTO>>> GetStudentRankListAsync(int quizooId, int userId);
         Task<ServiceResponse<int>> SetForceExitAsync(int qpid);
+        Task<ServiceResponse<string>> ShareQuestionAsync(int studentId, int questionId, int QuizooId);
     }
 }
