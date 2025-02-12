@@ -12,5 +12,6 @@ namespace StudentApp_API.Services.Interfaces
         Task<ServiceResponse<string>> MarkQuestionAsRead(SaveQuestionRefresherGuidwRequest request);
         Task<ServiceResponse<List<RefresherGuideContentResponse>>> GetSyllabusContentDetails(SyllabusDetailsRequest request);
         Task<ServiceResponse<List<QuestionTypeResponse>>> GetDistinctQuestionTypes(int subjectId);
+        Task<ServiceResponse<string>> ShareQuestionAsync(int studentId, int questionId);
     }
 }

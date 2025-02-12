@@ -100,7 +100,10 @@ namespace StudentApp_API.Repository.Implementations
 
             // Execute the query and map results to a list of QuestionWithCorrectAnswerDTO
             var result = await _connection.QueryAsync<QuestionWithCorrectAnswerDTO>(query, new { QuizooID = quizooId });
-
+            if (!result.Any())
+            {
+                return new ServiceResponse<List<QuestionWithCorrectAnswerDTO>>(false, "No records found", [], 404);
+            }
             // Return the result as a list
             return new ServiceResponse<List<QuestionWithCorrectAnswerDTO>>(true, "operation successful", result.ToList(), 200);
         }

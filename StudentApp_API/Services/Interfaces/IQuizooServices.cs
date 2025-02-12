@@ -12,5 +12,6 @@ namespace StudentApp_API.Services.Interfaces
         Task<ServiceResponse<List<QuizooDTOResponse>>> GetQuizoosByRegistrationIdAsync(int registrationId);
         Task<ServiceResponse<List<QuizooDTOResponse>>> GetInvitedQuizoosByRegistrationId(int registrationId);
         Task<ServiceResponse<QuizooDTOResponse>> GetQuizooByIdAsync(int quizooId);
+        Task<ServiceResponse<List<QuizooDTOResponse>>> GetOnlineQuizoosByRegistrationIdAsync(int registrationId);
     }
 }

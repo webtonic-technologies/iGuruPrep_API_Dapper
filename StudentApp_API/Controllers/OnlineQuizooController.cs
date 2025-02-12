@@ -15,7 +15,7 @@ namespace StudentApp_API.Controllers
         {
             _onlineQuizooServices = onlineQuizooServices;
         }
-        [HttpPost("InsertQuizoo/{quizoo}")]
+        [HttpPost("InsertQuizoo")]
         public async Task<IActionResult> InsertQuizooAsync(QuizooDTO quizoo)
         {
             try

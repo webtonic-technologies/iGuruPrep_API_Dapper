@@ -171,14 +171,14 @@ namespace StudentApp_API.Repository.Implementations
                     ClassID, CourseID, BoardID
                 ) VALUES (
                     @QuizooName, @QuizooDate, @QuizooStartTime, @Duration, @NoOfQuestions, 
-                    @NoOfPlayers, @QuizooLink, @CreatedBy, @QuizooDuration, @IsSystemGenerated, GETDATE()
+                    @NoOfPlayers, @QuizooLink, @CreatedBy, @QuizooDuration, @IsSystemGenerated, GETDATE(),
                     @ClassID, @CourseID, @BoardID
                 ); 
                 SELECT CAST(SCOPE_IDENTITY() as int)";
 
                     quizooId = await _connection.ExecuteScalarAsync<int>(insertQuery, quizoo);
                     quizoo.QuizooLink = $"iGuruQuizooLink/{quizooId}";
-                    await _connection.ExecuteAsync(@"update tblQuizoo set QuizooLink = @QuizooLink", new { QuizooLink  = quizoo.QuizooLink});
+                    await _connection.ExecuteAsync(@"update tblQuizoo set QuizooLink = @QuizooLink", new { QuizooLink = quizoo.QuizooLink });
                 }
                 else
                 {
@@ -275,7 +275,7 @@ namespace StudentApp_API.Repository.Implementations
                 BoardID,
                 CreatedOn
             FROM [tblQuizoo]
-            WHERE CreatedBy = @RegistrationId
+            WHERE CreatedBy = @RegistrationId AND IsSystemGenerated = 0
             ORDER BY CreatedOn DESC";
 
                 // Fetch the quizzes
@@ -302,6 +302,10 @@ namespace StudentApp_API.Repository.Implementations
                             {
                                 quizoo.QuizooStatus = "Ongoing"; // Quiz is currently ongoing
                             }
+                            else if ((quizoo.QuizooStartTime - currentTime).TotalMinutes <= 5)
+                            {
+                                quizoo.QuizooStatus = "Not joined"; // Quiz will start in a few minutes, but the user hasn't joined
+                            }
                             else
                             {
                                 quizoo.QuizooStatus = "Completed"; // Quiz has ended
@@ -317,11 +321,7 @@ namespace StudentApp_API.Repository.Implementations
 
                             if (playerAttempts == 0)
                             {
-                                if (currentTime < quizoo.QuizooStartTime)
-                                {
-                                    quizoo.QuizooStatus = "Not joined"; // The quiz hasn't started yet, and no attempts have been made
-                                }
-                                else
+                                if (currentTime > quizoo.QuizooStartTime)
                                 {
                                     quizoo.QuizooStatus = "Missed"; // The quiz has ended, and no attempts were made
                                 }
@@ -337,7 +337,10 @@ namespace StudentApp_API.Repository.Implementations
                         throw new Exception("Duration is null or in an unexpected format.");
                     }
                 }
-
+                if (!result.Any())
+                {
+                    return new ServiceResponse<List<QuizooDTOResponse>>(false, "No records found", [], 404);
+                }
                 return new ServiceResponse<List<QuizooDTOResponse>>(true, "Quizoos fetched successfully.", result.AsList(), 200);
             }
             catch (Exception ex)
@@ -479,6 +482,78 @@ namespace StudentApp_API.Repository.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<QuizooDTOResponse>(false, $"Error: {ex.Message}", null, 500);
+            }
+        }
+        public async Task<ServiceResponse<List<QuizooDTOResponse>>> GetOnlineQuizoosByRegistrationIdAsync(int registrationId)
+        {
+            try
+            {
+                var query = @"
+            SELECT 
+                QuizooID,
+                QuizooName,
+                QuizooDate,
+                QuizooStartTime,
+                Duration,
+                NoOfQuestions,
+                NoOfPlayers,
+                QuizooLink,
+                CreatedBy,
+                QuizooDuration,
+                IsSystemGenerated,
+                ClassID,
+                CourseID,
+                BoardID,
+                CreatedOn
+            FROM [tblQuizoo]
+            WHERE CreatedBy = @RegistrationId AND IsSystemGenerated = 1
+            ORDER BY CreatedOn DESC";
+
+                // Fetch the quizzes
+                var result = await _connection.QueryAsync<QuizooDTOResponse>(query, new { RegistrationId = registrationId });
+
+                // Loop through each quizoo to determine the status
+                foreach (var quizoo in result)
+                {
+                    // Extract numeric value from the Duration string
+                    if (!string.IsNullOrWhiteSpace(quizoo.Duration) && quizoo.Duration.Contains("min"))
+                    {
+                        var durationNumericPart = quizoo.Duration.Split(' ')[0];
+                        if (double.TryParse(durationNumericPart, out double durationInMinutes))
+                        {
+                            DateTime quizooEndTime = quizoo.QuizooStartTime.AddMinutes(durationInMinutes);
+                            DateTime currentTime = DateTime.Now;
+
+                            // Determine the quizoo status
+
+                            if (currentTime >= quizoo.QuizooStartTime && currentTime <= quizooEndTime)
+                            {
+                                quizoo.QuizooStatus = "Ongoing"; // Quiz is currently ongoing
+                            }
+                            else
+                            {
+                                quizoo.QuizooStatus = "Completed"; // Quiz has ended
+                            }
+                        }
+                        else
+                        {
+                            throw new Exception($"Invalid Duration format: {quizoo.Duration}");
+                        }
+                    }
+                    else
+                    {
+                        throw new Exception("Duration is null or in an unexpected format.");
+                    }
+                }
+                if (!result.Any())
+                {
+                    return new ServiceResponse<List<QuizooDTOResponse>>(false, "No records found", [], 404);
+                }
+                return new ServiceResponse<List<QuizooDTOResponse>>(true, "Quizoos fetched successfully.", result.AsList(), 200);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<QuizooDTOResponse>>(false, $"Error: {ex.Message}", new List<QuizooDTOResponse>(), 500);
             }
         }
     }

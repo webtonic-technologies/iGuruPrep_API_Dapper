@@ -50,5 +50,10 @@ namespace StudentApp_API.Services.Implementations
         {
             return await _refresherGuideRepository.MarkQuestionAsSave(request);
         }
+
+        public async Task<ServiceResponse<string>> ShareQuestionAsync(int studentId, int questionId)
+        {
+            return await _refresherGuideRepository.ShareQuestionAsync(studentId, questionId);
+        }
     }
 }

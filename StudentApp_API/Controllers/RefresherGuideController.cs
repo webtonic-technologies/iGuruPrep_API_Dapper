@@ -26,7 +26,17 @@ namespace StudentApp_API.Controllers
 
             return BadRequest(response);
         }
+        [HttpGet("ShareQuestion")]
+        public async Task<IActionResult> ShareQuestionAsync(int studentId, int questionId)
+        {
+            var response = await _refresherGuideServices.ShareQuestionAsync(studentId, questionId);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
 
+            return BadRequest(response);
+        }
         //[HttpPost("GetSyllabusContent")]
         //public async Task<IActionResult> GetSyllabusContent(GetContentRequest request)
         //{

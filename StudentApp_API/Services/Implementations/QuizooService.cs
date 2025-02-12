@@ -24,6 +24,11 @@ namespace StudentApp_API.Services.Implementations
             return await _quizooRepository.GetInvitedQuizoosByRegistrationId(registrationId);
         }
 
+        public async Task<ServiceResponse<List<QuizooDTOResponse>>> GetOnlineQuizoosByRegistrationIdAsync(int registrationId)
+        {
+            return await _quizooRepository.GetOnlineQuizoosByRegistrationIdAsync(registrationId);
+        }
+
         public async Task<ServiceResponse<QuizooDTOResponse>> GetQuizooByIdAsync(int quizooId)
         {
             return await _quizooRepository.GetQuizooByIdAsync(quizooId);

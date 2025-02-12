@@ -35,6 +35,27 @@ namespace Quizoo_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
+        [HttpGet("GetOnlineQuizoosByRegistrationId/{registrationId}")]
+        public async Task<IActionResult> GetOnlineQuizoosByRegistrationIdAsync(int registrationId)
+        {
+            try
+            {
+                var data = await _quizooServices.GetOnlineQuizoosByRegistrationIdAsync(registrationId);
+                if (data != null)
+                {
+                    return Ok(data);
+
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
         [HttpGet("GetQuizooByIdAsync/{quizooId}")]
         public async Task<IActionResult> GetQuizooByIdAsync(int quizooId)
         {

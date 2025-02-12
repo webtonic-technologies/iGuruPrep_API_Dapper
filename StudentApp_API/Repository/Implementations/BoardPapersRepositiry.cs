@@ -1017,17 +1017,6 @@ WHERE tsq.TestSeriesId = @TestSeriesId AND q.SubjectId = @SubjectId";
                 return null;
             }
         }
-        private List<int> GetActiveQuestionIds(string QuestionCode)
-        {
-            var query = @"
-            SELECT q.QuestionId
-            FROM tblQuestion q
-            WHERE q.QuestionCode = @QuestionCode
-              AND q.IsActive = 1 AND q.IsConfigure = 1";
-
-            var questionIds = _connection.Query<int>(query, new { QuestionCode });
-            return questionIds.ToList();
-        }
         private List<ParagraphQuestions> GetChildQuestions(string QuestionCode)
         {
             string sql = @"

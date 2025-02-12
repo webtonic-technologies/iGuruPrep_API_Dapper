@@ -1398,6 +1398,15 @@ WHERE TestSeriesId != @TestSeriesId
                             await _connection.ExecuteAsync(updateDownloadstatus, new { TestSeriesId = request.TestSeriesId });
                         }
                     }
+                    if (string.Equals(roledata, "Transcriptor"))
+                    {
+                        int count = await _connection.QueryFirstOrDefaultAsync<int>(@"select count(*) from tblTestSeriesRejectedRemarks where TestSeriesId = @TestSeriesId", new { TestSeriesId = request.TestSeriesId });
+                        if (count != 0)
+                        {
+                            string updateDownloadstatus1 = @"update tblTestSeries set DownloadStatusId = 6 where TestSeriesId = @TestSeriesId";
+                            await _connection.ExecuteAsync(updateDownloadstatus1, new { TestSeriesId = request.TestSeriesId });
+                        }
+                    }
                 }
                 else
                 {
@@ -1571,7 +1580,8 @@ WHERE TestSeriesId != @TestSeriesId
                 var assignedTestSeries = await _connection.QueryAsync<TestSeriesResponseDTO>(assignedTestSeriesQuery, parameters);
 
                 // Combine both results into a single list
-                var allTestSeries = createdTestSeries.Union(assignedTestSeries).ToList();
+                //var allTestSeries = createdTestSeries.Union(assignedTestSeries).ToList();
+                var allTestSeries = createdTestSeries.Concat(assignedTestSeries).GroupBy(ts => ts.TestSeriesId).Select(g => g.First()).ToList();
 
                 // Paginate the results
                 var totalRecords = allTestSeries.Count();
@@ -1583,6 +1593,7 @@ WHERE TestSeriesId != @TestSeriesId
                 // Fetch related data for each test series (Boards, Classes, Courses, etc.)
                 foreach (var testSeries in paginatedTestSeriesList)
                 {
+                    testSeries.AssignedTo = await _connection.QueryFirstOrDefaultAsync<int>(@"Select EmployeeId from tblTestSeriesProfiler where TestSeriesId = @TestSeriesId", new { TestSeriesId = testSeries.TestSeriesId });
                     var testSeriesBoards = GetListOfTestSeriesBoards(testSeries.TestSeriesId);
                     var testSeriesClasses = GetListOfTestSeriesClasses(testSeries.TestSeriesId);
                     var testSeriesCourses = GetListOfTestSeriesCourse(testSeries.TestSeriesId);
@@ -1660,7 +1671,7 @@ WHERE TestSeriesId != @TestSeriesId
                                 {
                                     data.ExamStatus = "Completed";
                                 }
-                            }  
+                            }
                         }
                         else
                         {
