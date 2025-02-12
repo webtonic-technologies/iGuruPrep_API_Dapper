@@ -1502,17 +1502,45 @@ WHERE TestSeriesId != @TestSeriesId
             tsp.EmployeeId,
             tsp.AssignedDate,
             tsp.IsActive,
+            ts.TestSeriesId,
             ts.TestPatternName,
             ts.Duration,
             ts.Status,
-            ts.NameOfExam,
+            ts.APID,
+            ap.APName AS APName,
+            ts.TotalNoOfQuestions,
+            ts.ManualQuestionSelect,
             ts.StartDate,
+            ts.IsMandatory,
+            ts.StartTime,
             ts.ResultDate,
+            ts.ResultTime,
+            ts.EmployeeID,
+            emp.EmpFirstName AS EmpFirstName,
+            ts.NameOfExam,
             ts.RepeatedExams,
+            ts.TypeOfTestSeries,
+            tts.TestSeriesName AS TypeOfTestSeriesName,
+            ts.ExamTypeID,
+            ttt.ExamTypeName AS ExamTypeName,
+            ts.createdon,
+            ts.createdby,
+            ts.modifiedon,
+            ts.modifiedby,
             ts.RepeatExamStartDate,
-            ts.RepeatExamEndDate
+            ts.DownloadStatusId,
+            ts.RepeatExamEndDate,
+            ts.RepeatExamStarttime,
+            ts.RepeatExamResulttimeId,
+            rt.ResultTime AS RepeatedExamResultTime,
+            ts.IsAdmin
         FROM tblTestSeriesProfiler tsp
         JOIN tblTestSeries ts ON tsp.TestSeriesId = ts.TestSeriesId
+        JOIN tblCategory ap ON ts.APID = ap.APID
+        JOIN tblEmployee emp ON ts.EmployeeID = emp.EmployeeID
+        JOIN tblTypeOfTestSeries tts ON ts.TypeOfTestSeries = tts.TTSId
+        LEFT JOIN tblExamType ttt ON ts.ExamTypeID = ttt.ExamTypeID
+        LEFT JOIN tblTestSeriesResultTime rt ON ts.RepeatExamResulttimeId = rt.ResultTimeId
         LEFT JOIN tblTestSeriesClass tc ON ts.TestSeriesId = tc.TestSeriesId
         LEFT JOIN tblTestSeriesCourse tco ON ts.TestSeriesId = tco.TestSeriesId
         LEFT JOIN tblTestSeriesBoards tb ON ts.TestSeriesId = tb.TestSeriesId
