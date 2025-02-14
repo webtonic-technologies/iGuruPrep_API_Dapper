@@ -17,6 +17,10 @@
     }
     public class LicenseDetails
     {
+        public int LicenseDetailId {  get; set; }
+        public int BoardId {  get; set; }
+        public int ClassId {  get; set; }
+        public int CourseId {  get; set; }
         public string SchoolCode { get; set; }
         public string ReferralCode {  get; set; }
     }

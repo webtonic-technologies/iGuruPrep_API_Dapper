@@ -184,15 +184,15 @@ namespace StudentApp_API.Repository.Implementations
                     }
 
                     // 5. Optionally, send the OTP via email.
-                    try
-                    {
-                        var email = new SendEmail();
-                        var succes = await email.SendEmailWithAttachmentAsync(request.Email, "OTP Verification", message);
-                    }
-                    catch (Exception emailEx)
-                    {
-                        // Log email error. Do not fail the process if email sending fails.
-                    }
+                    //try
+                    //{
+                    //    var email = new SendEmail();
+                    //    var succes = await email.SendEmailWithAttachmentAsync(request.Email, "OTP Verification", message);
+                    //}
+                    //catch (Exception emailEx)
+                    //{
+                    //    // Log email error. Do not fail the process if email sending fails.
+                    //}
 
                     // 6. Return the response.
                     var responseData = new SendOTPResponse
@@ -501,6 +501,7 @@ WHERE
                 LEFT JOIN tblRole r ON e.RoleID = r.RoleID
                 WHERE e.EmpEmail = @EmpEmailOrPhoneNumber OR e.EMPPhoneNumber = @EmpEmailOrPhoneNumber";
                 var employee = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new { EmpEmailOrPhoneNumber = request.EmailIDOrPhoneNumberOrLicense });
+                decimal profilePercentage = 0;
                 if (employee == null)
                 {
                     string input = request.EmailIDOrPhoneNumberOrLicense;
@@ -562,7 +563,8 @@ WHERE
                     {
                         // Login via license number
                         string licenseQuery = @"
-                SELECT ln.LicenseNumbersId, ln.LicensePassword, ld.GenerateLicenseID, gl.SchoolCode
+                SELECT ln.LicenseNo, ln.LicensePassword, ld.GenerateLicenseID, gl.SchoolCode as SchoolCode, ld.BoardID, ld.ClassID, ld.CourseID,
+                ln.IsLicenseNumberUsed
                 FROM tblLicenseNumbers ln
                 INNER JOIN tblLicenseDetail ld ON ln.LicenseDetailID = ld.LicenseDetailID
                 INNER JOIN tblGenerateLicense gl ON ld.GenerateLicenseID = gl.GenerateLicenseID
@@ -577,21 +579,53 @@ WHERE
                             {
                                 return new ServiceResponse<LoginResponse>(false, "Invalid license number or password.", null, 401);
                             }
-
-                            isLicenseLogin = true;
-                            schoolCode = licenseDetails.SchoolCode;
-
-                            // Update registration with SchoolCode and license access
-                            string updateQuery = @"
-                    UPDATE tblRegistration 
-                    SET IsLicenceAccess = 1, SchoolCode = @SchoolCode 
-                    WHERE RegistrationID = @RegistrationID";
-
-                            await _connection.ExecuteAsync(updateQuery, new
+                            if (!licenseDetails.IsLicenseNumberUsed)
                             {
-                                SchoolCode = schoolCode,
-                                RegistrationID = userWithPassword?.RegistrationId
-                            });
+                                string licenseNumberQuery = @"Update [tblLicenseNumbers] set IsLicenseNumberUsed = 1 where LicenseNo = @LicenseNo";
+                                await _connection.ExecuteAsync(licenseNumberQuery, new { Input = input });
+                            }
+                            else
+                            {
+                                return new ServiceResponse<LoginResponse>(false, "License number is already used please follow the regular registration process", null, 401);
+                            }
+                            var loginResponseLicense = new LoginResponse
+                            {
+                                UserID = userWithPassword?.RegistrationId ?? 0,
+                                FirstName = userWithPassword?.FirstName,
+                                LastName = userWithPassword?.LastName,
+                                EmailID = userWithPassword?.EmailID,
+                                MobileNumber = userWithPassword?.MobileNumber,
+                                Location = userWithPassword?.Location,
+                                IsLoginSuccessful = true,
+                                ProfilePercentage = isLicenseLogin ? null : $"{profilePercentage}%",
+                                IsEmployee = false,
+                                Role = "Student",
+                                LicenseDetails = new LicenseDetails
+                                {
+                                    ReferralCode = "",
+                                    SchoolCode = schoolCode,
+                                    BoardId = licenseDetails.BoardID,
+                                    ClassId = licenseDetails.ClassID,
+                                    CourseId = licenseDetails.CourseID,
+                                    LicenseDetailId = licenseDetails.LicenseDetailID
+                                }
+                            };
+                            return new ServiceResponse<LoginResponse>(true, "Login successful.", loginResponseLicense, 200);
+
+
+                            //        isLicenseLogin = true;
+                            //        schoolCode = licenseDetails.SchoolCode;
+                            //        // Update registration with SchoolCode and license access
+                            //        string updateQuery = @"
+                            //UPDATE tblRegistration 
+                            //SET IsLicenceAccess = 1, SchoolCode = @SchoolCode 
+                            //WHERE RegistrationID = @RegistrationID";
+
+                            //        await _connection.ExecuteAsync(updateQuery, new
+                            //        {
+                            //            SchoolCode = schoolCode,
+                            //            RegistrationID = userWithPassword?.RegistrationId
+                            //        });
                         }
                     }
 
@@ -602,7 +636,7 @@ WHERE
                     }
 
                     // Calculate profile percentage for non-license login
-                    decimal profilePercentage = 0;
+               
                     if (!isLicenseLogin && userWithPassword != null)
                     {
                         profilePercentage = await CalculateProfilePercentageAsync(userWithPassword.RegistrationId, userWithPassword);
@@ -620,12 +654,7 @@ WHERE
                         IsLoginSuccessful = true,
                         ProfilePercentage = isLicenseLogin ? null : $"{profilePercentage}%",
                         IsEmployee = false,
-                        Role = "Student",
-                        LicenseDetails = new LicenseDetails
-                        {
-                            ReferralCode = "",
-                            SchoolCode = schoolCode
-                        }
+                        Role = "Student"
                     };
                     //handle session 
                     HandleSessionLogic(loginResponse.UserID, request.DeviceId, false, "ST", request.DeviceDetails);
@@ -1625,6 +1654,5 @@ WHERE
                 await httpClient.GetAsync(smsApiUrl);
             }
         }
-
     }
 }
