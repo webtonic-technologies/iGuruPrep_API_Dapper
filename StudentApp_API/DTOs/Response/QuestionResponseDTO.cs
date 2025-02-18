@@ -4,7 +4,7 @@
     {
         public int QuestionId { get; set; }
         public string QuestionDescription { get; set; } = string.Empty;
-        public int? QuestionTypeId { get; set; }
+        public int QuestionTypeId { get; set; }
         public bool? Status { get; set; }
         public string? CreatedBy { get; set; }
         public DateTime? CreatedOn { get; set; }
@@ -154,5 +154,76 @@
         public int LevelId { get; set; }
         public string LevelName { get; set; }
         public int NoofQperLevel { get; set; }
+    }
+    public class CYOTQestionReportResponse
+    {
+        public int TotalQuestions { get; set; }
+        public int TotalDuration { get; set; }
+        public decimal TotalMarks { get; set; }
+        public int CorrectCount { get; set; }
+        public int IncorrectCount { get; set; }
+        public int UnansweredCount { get; set; }
+        public decimal CorrectPercentage { get; set; }
+        public decimal IncorrectPercentage { get; set; }
+        public decimal UnansweredPercentage { get; set; }
+    }
+    public class CYOTAnalyticsResponse
+    {
+        public int TotalQuestions { get; set; }
+        public int TotalDuration { get; set; }
+        public decimal TotalMarks { get; set; }
+        public int CorrectCount { get; set; }
+        public int IncorrectCount { get; set; }
+        public int UnansweredCount { get; set; }
+        public decimal CorrectPercentage { get; set; }
+        public decimal IncorrectPercentage { get; set; }
+        public decimal UnansweredPercentage { get; set; }
+        public decimal AchievedMarks { get; set; }
+        public decimal NegativeMarks { get; set; }
+        public decimal FinalMarks { get; set; }
+        public decimal FinalPercentage { get; set; }
+    }
+    public class CYOTTimeAnalytics
+    {
+        public decimal TotalTimeSpent { get; set; }            // Total time (all questions) in minutes
+        public decimal AvgTimePerQuestion { get; set; }          // Average time per question in minutes
+
+        public decimal TotalTimeSpentCorrect { get; set; }       // Total time for correct answers in minutes
+        public decimal AvgTimeSpentCorrect { get; set; }         // Average time for correct answers in minutes
+
+        public decimal TotalTimeSpentWrong { get; set; }         // Total time for wrong answers in minutes
+        public decimal AvgTimeSpentWrong { get; set; }           // Average time for wrong answers in minutes
+
+        public decimal TotalTimeSpentUnattempted { get; set; }   // Total time for unattempted questions in minutes
+        public decimal AvgTimeSpentUnattempted { get; set; }     // Average time for unattempted questions in minutes
+    }
+    public class CYOTPerformancePerSubjectDTO
+    {
+        public int TotalQuestions { get; set; }
+        public decimal TotalMarks { get; set; }
+        public int CorrectCount { get; set; }
+        public int IncorrectCount { get; set; }
+        public int UnansweredCount { get; set; }
+        public decimal CorrectPercentage { get; set; }
+        public decimal IncorrectPercentage { get; set; }
+        public decimal UnansweredPercentage { get; set; }
+        public decimal AchievedMarks { get; set; }
+        public decimal NegativeMarks { get; set; }
+        public decimal FinalMarks { get; set; }
+        public decimal FinalPercentage { get; set; }
+    }
+    public class CYOTTimeCategoryAnalytics
+    {
+        public decimal TotalTimeSpent { get; set; }
+        public decimal AvgTimePerQuestion { get; set; }
+    }
+
+    public class CYOTSubjectTimeAnalytics
+    {
+        public decimal TotalTimeAll { get; set; }
+        public decimal AvgTimeAll { get; set; }
+        public CYOTTimeCategoryAnalytics Correct { get; set; }
+        public CYOTTimeCategoryAnalytics Incorrect { get; set; }
+        public CYOTTimeCategoryAnalytics Unattempted { get; set; }
     }
 }

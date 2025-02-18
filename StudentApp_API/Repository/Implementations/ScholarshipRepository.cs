@@ -95,27 +95,76 @@ namespace StudentApp_API.Repository.Implementations
                     RegistrationId = request.studentId
                 });
 
+                //            if (existingCount > 0)
+                //            {
+                //                // Step 2: Fetch existing questions
+                //                string fetchQuery = @"
+                //SELECT sq.STQuestionsId, sq.ScholarshipTestId, sq.SubjectId, sq.QuestionId, sq.QuestionCode, sq.RegistrationId, q.QuestionTypeId
+                //FROM tblScholarshipQuestions sq
+                //INNER JOIN tblQuestions q ON sq.QuestionId = q.QuestionId
+                //WHERE sq.RegistrationId = @RegistrationId";
+
+                //                questionsList = (await _connection.QueryAsync<QuestionResponseDTO>(fetchQuery, new
+                //                {
+                //                    RegistrationId = request.studentId
+                //                })).ToList();
+
+                //                // Step 3: Apply filters on QuestionTypeId if provided
+                //                if (request.QuestionTypeId != null && request.QuestionTypeId.Any())
+                //                {
+                //                    questionsList = questionsList
+                //                        .Where(q => request.QuestionTypeId.Contains(q.QuestionTypeId))
+                //                        .ToList();
+                //                }
+                //            }
                 if (existingCount > 0)
                 {
-                    // Step 2: Fetch existing questions
+                    // Step 2: Fetch existing questions with status
                     string fetchQuery = @"
-    SELECT sq.STQuestionsId, sq.ScholarshipTestId, sq.SubjectId, sq.QuestionId, sq.QuestionCode, sq.RegistrationId, q.QuestionTypeId
-    FROM tblScholarshipQuestions sq
-    INNER JOIN tblQuestions q ON sq.QuestionId = q.QuestionId
-    WHERE sq.RegistrationId = @RegistrationId";
+    WITH QuestionStatusCTE AS (
+        SELECT 
+            sq.STQuestionsId, 
+            sq.ScholarshipTestId, 
+            sq.SubjectId, 
+            sq.QuestionId, 
+            sq.QuestionCode, 
+            sq.RegistrationId, 
+            q.QuestionTypeId,
+            CASE 
+                WHEN ssa.QuestionID IS NOT NULL THEN 
+                    CASE 
+                        WHEN sqr.QuestionId IS NOT NULL THEN 'Review with Answer'
+                        ELSE 'Answered'
+                    END
+                WHEN sqr.QuestionId IS NOT NULL THEN 'Review'
+                ELSE 'Not Visited'
+            END AS Status
+        FROM tblScholarshipQuestions sq
+        INNER JOIN tblQuestions q ON sq.QuestionId = q.QuestionId
+        LEFT JOIN tblStudentScholarshipAnswerSubmission ssa 
+            ON sq.QuestionId = ssa.QuestionID 
+            AND ssa.StudentID = @StudentId 
+            AND ssa.ScholarshipID = @ScholarshipTestId
+        LEFT JOIN tblScholarshipQuestionReview sqr 
+            ON sq.QuestionId = sqr.QuestionId 
+            AND sqr.StudentId = @StudentId 
+            AND sqr.ScholarshipId = @ScholarshipTestId
+        WHERE sq.RegistrationId = @RegistrationId
+    )
+    SELECT * FROM QuestionStatusCTE
+    WHERE (@QuestionTypeId IS NULL OR QuestionTypeId IN @QuestionTypeId)
+    AND (@QuestionStatus IS NULL OR Status IN @QuestionStatus);";
 
-                    questionsList = (await _connection.QueryAsync<QuestionResponseDTO>(fetchQuery, new
+                    var parameters = new
                     {
-                        RegistrationId = request.studentId
-                    })).ToList();
+                        RegistrationId = request.studentId,
+                        StudentId = request.studentId,
+                        ScholarshipTestId = request.scholarshipTestId,
+                        QuestionTypeId = request.QuestionTypeId?.Any() == true ? request.QuestionTypeId : null,
+                        QuestionStatus = request.QuestionStatus?.Any() == true ? request.QuestionStatus : null
+                    };
 
-                    // Step 3: Apply filters on QuestionTypeId if provided
-                    if (request.QuestionTypeId != null && request.QuestionTypeId.Any())
-                    {
-                        questionsList = questionsList
-                            .Where(q => request.QuestionTypeId.Contains(q.QuestionTypeId))
-                            .ToList();
-                    }
+                    questionsList = (await _connection.QueryAsync<QuestionResponseDTO>(fetchQuery, parameters)).ToList();
                 }
                 else
                 {
@@ -595,7 +644,7 @@ namespace StudentApp_API.Repository.Implementations
                 QuestionID = question.QuestionID,
                 SubjectID = subject.SubjectId,
                 QuestionTypeID = question.QuestionTypeID,
-                AnswerID = question.AnswerID  // Assuming question.AnswerID is a List<int>
+                AnswerID = question.AnswerID // Assuming question.AnswerID is a List<int>
             }
         };
 
@@ -873,9 +922,9 @@ namespace StudentApp_API.Repository.Implementations
                     // Insert the new submission
                     var insertQuery = @"
                 INSERT INTO tblStudentScholarshipAnswerSubmission 
-                    (ScholarshipID, StudentID, QuestionID, SubjectID, QuestionTypeID, AnswerID, AnswerStatus, Marks)
+                    (ScholarshipID, StudentID, QuestionID, SubjectID, QuestionTypeID, AnswerID, AnswerStatus, Marks, StartTime, EndTime)
                 VALUES 
-                    (@ScholarshipID, @RegistrationId, @QuestionID, @SubjectID, @QuestionTypeID, @AnswerID, @AnswerStatus, @Marks)";
+                    (@ScholarshipID, @RegistrationId, @QuestionID, @SubjectID, @QuestionTypeID, @AnswerID, @AnswerStatus, @Marks, @StartTime, @EndTime)";
 
                     await _connection.ExecuteAsync(insertQuery, new
                     {
@@ -886,7 +935,9 @@ namespace StudentApp_API.Repository.Implementations
                         QuestionTypeID = answer.QuestionTypeID,
                         AnswerID = string.Join(",", answer.AnswerID),
                         AnswerStatus = answerStatus,
-                        Marks = marksAwarded
+                        Marks = marksAwarded,
+                        StartTime = answer.StartTime,
+                        EndTime = answer.EndTime
                     });
 
                     // Add to the response list
@@ -1180,10 +1231,438 @@ WHERE ScholarshipTestId = @ScholarshipTestId AND RegistrationId = @studentId";
                 return new ServiceResponse<StudentDiscountResponse>(false, ex.Message, null, 500);
             }
         }
+        public async Task<ServiceResponse<ScholarshipAnalytics>> GetScholarshipAnalyticsAsync(int studentId, int scholarshipId)
+        {
+            try
+            {
+                // Define inline queries:
+                // 1. Test details from tblScholarshipTest
+                // 2. Student obtained marks from tblStudentScholarshipAnswerSubmission
+                // 3. Answer status counts from tblStudentScholarshipAnswerSubmission
+                var sql = @"
+                -- 1. Retrieve test details
+                SELECT TotalNumberOfQuestions, Duration, TotalMarks 
+                FROM tblScholarshipTest
+                WHERE ScholarshipTestId = @ScholarshipId;
+
+                -- 2. Sum of marks obtained by the student in submissions
+                SELECT ISNULL(SUM(Marks), 0) 
+                FROM tblStudentScholarshipAnswerSubmission 
+                WHERE StudentID = @StudentId AND ScholarshipID = @ScholarshipId;
+
+                -- 3. Aggregate counts of answer statuses
+                SELECT 
+                    SUM(CASE WHEN AnswerStatus = 'Correct' THEN 1 ELSE 0 END) AS CorrectCount,
+                    SUM(CASE WHEN AnswerStatus = 'Wrong' THEN 1 ELSE 0 END) AS IncorrectCount,
+                    SUM(CASE WHEN AnswerStatus = 'Partial' THEN 1 ELSE 0 END) AS PartiallyCorrectCount,
+                    COUNT(*) AS AttemptedCount
+                FROM tblStudentScholarshipAnswerSubmission 
+                WHERE StudentID = @StudentId AND ScholarshipID = @ScholarshipId;
+            ";
+                _connection.Open();
+                using (var multi = await _connection.QueryMultipleAsync(sql, new { StudentId = studentId, ScholarshipId = scholarshipId }))
+                {
+                    // 1. Read test details
+                    var testDetails = await multi.ReadFirstOrDefaultAsync<dynamic>();
+                    if (testDetails == null)
+                    {
+                        throw new Exception("Test details not found for the given ScholarshipTestId.");
+                    }
+                    int totalQuestions = testDetails.TotalNumberOfQuestions;
+                    int duration = testDetails.Duration;
+                    int testTotalMarks = testDetails.TotalMarks;
+
+                    // 2. Read student's obtained marks
+                    int studentMarks = await multi.ReadFirstAsync<int>();
+
+                    // 3. Read answer status counts
+                    var counts = await multi.ReadFirstAsync<dynamic>();
+                    int correctCount = counts.CorrectCount ?? 0;
+                    int incorrectCount = counts.IncorrectCount ?? 0;
+                    int partiallyCorrectCount = counts.PartiallyCorrectCount ?? 0;
+                    int attemptedCount = counts.AttemptedCount ?? 0;
+
+                    // Calculate unattempted questions
+                    int unattemptedCount = totalQuestions - attemptedCount;
+                    if (unattemptedCount < 0) unattemptedCount = 0;
+
+                    // Calculate percentages (guarding against division by zero)
+                    decimal correctPercentage = totalQuestions > 0 ? (correctCount * 100.0M / totalQuestions) : 0;
+                    decimal incorrectPercentage = totalQuestions > 0 ? (incorrectCount * 100.0M / totalQuestions) : 0;
+                    decimal partiallyCorrectPercentage = totalQuestions > 0 ? (partiallyCorrectCount * 100.0M / totalQuestions) : 0;
+                    decimal unattemptedPercentage = totalQuestions > 0 ? (unattemptedCount * 100.0M / totalQuestions) : 0;
+
+                    // Construct and return the analytics result
+                    var response = new ScholarshipAnalytics
+                    {
+                        TotalQuestions = totalQuestions,
+                        Duration = duration,
+                        TestTotalMarks = testTotalMarks,
+                        StudentMarks = studentMarks,
+                        CorrectCount = correctCount,
+                        CorrectPercentage = correctPercentage,
+                        IncorrectCount = incorrectCount,
+                        IncorrectPercentage = incorrectPercentage,
+                        PartiallyCorrectCount = partiallyCorrectCount,
+                        PartiallyCorrectPercentage = partiallyCorrectPercentage,
+                        UnattemptedCount = unattemptedCount,
+                        UnattemptedPercentage = unattemptedPercentage
+                    };
+                    _connection.Close();
+
+                    return new ServiceResponse<ScholarshipAnalytics>(true, "Operation SUccessful", response, 200);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<ScholarshipAnalytics>(false, ex.Message, null, 500);
+            }
+        }
+        public async Task<ServiceResponse<ScholarshipAnalytics>> GetSubjectWiseScholarshipAnalyticsAsync(int studentId, int scholarshipId, int subjectId)
+        {
+            try
+            {
+                var sql = @"
+            -- 1. Retrieve total number of questions and total marks for the specified subject
+            SELECT 
+                COUNT(*) AS TotalQuestions,
+                ISNULL(SUM(MaxMarks), 0) AS SubjectTotalMarks
+            FROM tblScholarshipQuestions
+            WHERE ScholarshipTestId = @ScholarshipId
+              AND SubjectId = @SubjectId;
+
+            -- 2. Sum of marks obtained by the student in the specified subject
+            SELECT ISNULL(SUM(ssas.Marks), 0) AS StudentMarks
+            FROM tblStudentScholarshipAnswerSubmission ssas
+            INNER JOIN tblScholarshipQuestions sq ON ssas.QuestionID = sq.QuestionId
+            WHERE ssas.StudentID = @StudentId
+              AND ssas.ScholarshipID = @ScholarshipId
+              AND sq.SubjectId = @SubjectId;
+
+            -- 3. Aggregate counts of answer statuses for the specified subject
+            SELECT 
+                SUM(CASE WHEN ssas.AnswerStatus = 'Correct' THEN 1 ELSE 0 END) AS CorrectCount,
+                SUM(CASE WHEN ssas.AnswerStatus = 'Wrong' THEN 1 ELSE 0 END) AS IncorrectCount,
+                SUM(CASE WHEN ssas.AnswerStatus = 'Partial' THEN 1 ELSE 0 END) AS PartiallyCorrectCount,
+                COUNT(*) AS AttemptedCount
+            FROM tblStudentScholarshipAnswerSubmission ssas
+            INNER JOIN tblScholarshipQuestions sq ON ssas.QuestionID = sq.QuestionId
+            WHERE ssas.StudentID = @StudentId
+              AND ssas.ScholarshipID = @ScholarshipId
+              AND sq.SubjectId = @SubjectId;
+        ";
+
+                using (var multi = await _connection.QueryMultipleAsync(sql, new { StudentId = studentId, ScholarshipId = scholarshipId, SubjectId = subjectId }))
+                {
+                    // 1. Read subject-specific test details
+                    var subjectDetails = await multi.ReadFirstOrDefaultAsync<dynamic>();
+                    if (subjectDetails == null)
+                    {
+                        throw new Exception("No questions found for the given SubjectId in this ScholarshipTest.");
+                    }
+                    int totalQuestions = subjectDetails.TotalQuestions;
+                    int subjectTotalMarks = subjectDetails.SubjectTotalMarks;
+
+                    // 2. Read student's obtained marks for the subject
+                    int studentMarks = await multi.ReadFirstAsync<int>();
+
+                    // 3. Read answer status counts for the subject
+                    var counts = await multi.ReadFirstAsync<dynamic>();
+                    int correctCount = counts.CorrectCount ?? 0;
+                    int incorrectCount = counts.IncorrectCount ?? 0;
+                    int partiallyCorrectCount = counts.PartiallyCorrectCount ?? 0;
+                    int attemptedCount = counts.AttemptedCount ?? 0;
+
+                    // Calculate unattempted questions
+                    int unattemptedCount = totalQuestions - attemptedCount;
+                    if (unattemptedCount < 0) unattemptedCount = 0;
+
+                    // Calculate percentages (guarding against division by zero)
+                    decimal correctPercentage = totalQuestions > 0 ? (correctCount * 100.0M / totalQuestions) : 0;
+                    decimal incorrectPercentage = totalQuestions > 0 ? (incorrectCount * 100.0M / totalQuestions) : 0;
+                    decimal partiallyCorrectPercentage = totalQuestions > 0 ? (partiallyCorrectCount * 100.0M / totalQuestions) : 0;
+                    decimal unattemptedPercentage = totalQuestions > 0 ? (unattemptedCount * 100.0M / totalQuestions) : 0;
+
+                    // Construct and return the analytics result
+                    var response = new ScholarshipAnalytics
+                    {
+                        TotalQuestions = totalQuestions,
+                        // Duration = "", // Duration is not subject-specific; set to null or handle accordingly
+                        TestTotalMarks = subjectTotalMarks,
+                        StudentMarks = studentMarks,
+                        CorrectCount = correctCount,
+                        CorrectPercentage = correctPercentage,
+                        IncorrectCount = incorrectCount,
+                        IncorrectPercentage = incorrectPercentage,
+                        PartiallyCorrectCount = partiallyCorrectCount,
+                        PartiallyCorrectPercentage = partiallyCorrectPercentage,
+                        UnattemptedCount = unattemptedCount,
+                        UnattemptedPercentage = unattemptedPercentage
+                    };
+
+                    return new ServiceResponse<ScholarshipAnalytics>(true, "Operation successful", response, 200);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<ScholarshipAnalytics>(false, ex.Message, null, 500);
+            }
+        }
+        public async Task<ServiceResponse<MarksCalculation>> GetMarksCalculationAsync(int studentId, int scholarshipId)
+        {
+            try
+            {
+                var sql = @"
+        -- 1. Retrieve test total marks
+        SELECT TotalMarks 
+        FROM tblScholarshipTest
+        WHERE ScholarshipTestId = @ScholarshipId;
+
+        -- 2. Achieved Marks (sum of marks for 'Correct' and 'PartialCorrect' answers)
+        SELECT ISNULL(SUM(Marks), 0)
+        FROM tblStudentScholarshipAnswerSubmission
+        WHERE StudentID = @StudentId 
+          AND ScholarshipID = @ScholarshipId
+          AND AnswerStatus IN ('Correct', 'PartialCorrect');
+
+        -- 3. Negative Marks (absolute sum for 'Incorrect' answers)
+        SELECT ABS(ISNULL(SUM(Marks), 0))
+        FROM tblStudentScholarshipAnswerSubmission
+        WHERE StudentID = @StudentId 
+          AND ScholarshipID = @ScholarshipId
+          AND AnswerStatus = 'Incorrect';
+    ";
+                _connection.Open();
+                using (var multi = await _connection.QueryMultipleAsync(sql, new { StudentId = studentId, ScholarshipId = scholarshipId }))
+                {
+                    int testTotalMarks = await multi.ReadFirstAsync<int>();
+                    int achievedMarks = await multi.ReadFirstAsync<int>();
+                    int negativeMarks = await multi.ReadFirstAsync<int>();
+
+                    int finalMarks = achievedMarks - negativeMarks;
+                    decimal marksPercentage = testTotalMarks > 0 ? (finalMarks * 100.0M / testTotalMarks) : 0;
+
+                    var response = new MarksCalculation
+                    {
+                        AchievedMarks = achievedMarks,
+                        NegativeMarks = negativeMarks,
+                        FinalMarks = finalMarks,
+                        MarksPercentage = marksPercentage
+                    };
+                    _connection.Close();
+                    return new ServiceResponse<MarksCalculation>(true, "Operation SUccessful", response, 200);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<MarksCalculation>(false, ex.Message, null, 500);
+            }
+        }
+        public async Task<ServiceResponse<MarksCalculation>> GetSubjectWiseMarksCalculationAsync(int studentId, int scholarshipId, int subjectId)
+        {
+            try
+            {
+                var sql = @"
+            -- 1. Retrieve total marks for the specified subject in the scholarship test
+            SELECT ISNULL(SUM(MaxMarks), 0) AS SubjectTotalMarks
+            FROM tblScholarshipQuestions
+            WHERE ScholarshipTestId = @ScholarshipId
+              AND SubjectId = @SubjectId;
+
+            -- 2. Achieved Marks (sum of marks for 'Correct' and 'PartialCorrect' answers in the specified subject)
+            SELECT ISNULL(SUM(ssa.Marks), 0) AS AchievedMarks
+            FROM tblStudentScholarshipAnswerSubmission ssa
+            INNER JOIN tblScholarshipQuestions sq ON ssa.QuestionID = sq.QuestionId
+            WHERE ssa.StudentID = @StudentId
+              AND ssa.ScholarshipID = @ScholarshipId
+              AND sq.SubjectId = @SubjectId
+              AND ssa.AnswerStatus IN ('Correct', 'PartialCorrect');
+
+            -- 3. Negative Marks (absolute sum for 'Incorrect' answers in the specified subject)
+            SELECT ABS(ISNULL(SUM(ssa.Marks), 0)) AS NegativeMarks
+            FROM tblStudentScholarshipAnswerSubmission ssa
+            INNER JOIN tblScholarshipQuestions sq ON ssa.QuestionID = sq.QuestionId
+            WHERE ssa.StudentID = @StudentId
+              AND ssa.ScholarshipID = @ScholarshipId
+              AND sq.SubjectId = @SubjectId
+              AND ssa.AnswerStatus = 'Incorrect';
+        ";
+                using (var multi = await _connection.QueryMultipleAsync(sql, new { StudentId = studentId, ScholarshipId = scholarshipId, SubjectId = subjectId }))
+                {
+                    int subjectTotalMarks = await multi.ReadFirstAsync<int>();
+                    int achievedMarks = await multi.ReadFirstAsync<int>();
+                    int negativeMarks = await multi.ReadFirstAsync<int>();
+
+                    int finalMarks = achievedMarks - negativeMarks;
+                    decimal marksPercentage = subjectTotalMarks > 0 ? (finalMarks * 100.0M / subjectTotalMarks) : 0;
+
+                    var response = new MarksCalculation
+                    {
+                        AchievedMarks = achievedMarks,
+                        NegativeMarks = negativeMarks,
+                        FinalMarks = finalMarks,
+                        MarksPercentage = marksPercentage
+                    };
+
+                    return new ServiceResponse<MarksCalculation>(true, "Operation successful", response, 200);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<MarksCalculation>(false, ex.Message, null, 500);
+            }
+        }
+        public async Task<ServiceResponse<TimeSpentReport>> GetTimeSpentReportAsync(int studentId, int scholarshipId)
+        {
+            var sql = @"
+        -- 1. Aggregate time spent per question and answer status
+        WITH QuestionTimeAggregates AS (
+            SELECT 
+                qn.QuestionID,
+                s.AnswerStatus,
+                SUM(DATEDIFF(MINUTE, qn.StartTime, qn.EndTime)) AS TotalTimeSpent
+            FROM tblQuestionNavigation qn
+            LEFT JOIN tblStudentScholarshipAnswerSubmission s
+                ON qn.QuestionID = s.QuestionID
+                AND qn.StudentID = s.StudentID
+                AND qn.ScholarshipID = s.ScholarshipID
+            WHERE qn.StudentID = @StudentId
+              AND qn.ScholarshipID = @ScholarshipId
+            GROUP BY qn.QuestionID, s.AnswerStatus
+        )
+        -- 2. Calculate overall and status-specific time metrics
+        SELECT 
+            ISNULL(SUM(TotalTimeSpent), 0) AS TotalTime,
+            ISNULL(SUM(CASE WHEN AnswerStatus = 'Correct' THEN TotalTimeSpent ELSE 0 END), 0) AS CorrectTotalTime,
+            ISNULL(AVG(CASE WHEN AnswerStatus = 'Correct' THEN TotalTimeSpent END), 0) AS CorrectAvgTime,
+            ISNULL(SUM(CASE WHEN AnswerStatus = 'Incorrect' THEN TotalTimeSpent ELSE 0 END), 0) AS IncorrectTotalTime,
+            ISNULL(AVG(CASE WHEN AnswerStatus = 'Incorrect' THEN TotalTimeSpent END), 0) AS IncorrectAvgTime,
+            ISNULL(SUM(CASE WHEN AnswerStatus = 'PartialCorrect' THEN TotalTimeSpent ELSE 0 END), 0) AS PartialTotalTime,
+            ISNULL(AVG(CASE WHEN AnswerStatus = 'PartialCorrect' THEN TotalTimeSpent END), 0) AS PartialAvgTime
+        FROM QuestionTimeAggregates;
+
+        -- 3. Count unattempted questions
+        SELECT COUNT(*) 
+        FROM tblScholarshipQuestions q
+        WHERE q.ScholarshipTestId = @ScholarshipId
+          AND NOT EXISTS (
+              SELECT 1 
+              FROM tblStudentScholarshipAnswerSubmission s 
+              WHERE s.StudentID = @StudentId 
+                AND s.ScholarshipID = @ScholarshipId
+                AND s.QuestionID = q.QuestionId
+          );
+    ";
+
+            using (var multi = await _connection.QueryMultipleAsync(sql, new { StudentId = studentId, ScholarshipId = scholarshipId }))
+            {
+                var report = await multi.ReadFirstOrDefaultAsync<TimeSpentReport>();
+                if (report == null)
+                {
+                    return new ServiceResponse<TimeSpentReport>(false, "No data found for the given student and scholarship.", null, 404);
+                }
+
+                report.UnattemptedCount = await multi.ReadFirstAsync<int>();
+                return new ServiceResponse<TimeSpentReport>(true, "Operation successful", report, 200);
+            }
+        }
+        public async Task<ServiceResponse<TimeSpentReport>> GetSubjectWiseTimeSpentReportAsync(int studentId, int scholarshipId, int subjectId)
+        {
+            var sql = @"
+    -- 1. Calculate total and average time spent on questions per answer status
+    WITH TimeSpentPerQuestion AS (
+        SELECT 
+            qn.QuestionID,
+            sq.SubjectId,
+            ssa.AnswerStatus,
+            SUM(DATEDIFF(MINUTE, qn.StartTime, qn.EndTime)) AS TotalTimeSpent
+        FROM tblQuestionNavigation qn
+        INNER JOIN tblScholarshipQuestions sq ON qn.QuestionID = sq.QuestionId
+        LEFT JOIN tblStudentScholarshipAnswerSubmission ssa 
+            ON qn.QuestionID = ssa.QuestionID 
+            AND qn.StudentID = ssa.StudentID 
+            AND qn.ScholarshipID = ssa.ScholarshipID
+        WHERE qn.StudentID = @StudentId 
+          AND qn.ScholarshipID = @ScholarshipId
+          AND sq.SubjectId = @SubjectId
+        GROUP BY qn.QuestionID, sq.SubjectId, ssa.AnswerStatus
+    )
+    SELECT 
+        ISNULL(SUM(TotalTimeSpent), 0) AS TotalTime,
+        ISNULL(SUM(CASE WHEN AnswerStatus = 'Correct' THEN TotalTimeSpent ELSE 0 END), 0) AS CorrectTotalTime,
+        ISNULL(AVG(CASE WHEN AnswerStatus = 'Correct' THEN TotalTimeSpent END), 0) AS CorrectAvgTime,
+        ISNULL(SUM(CASE WHEN AnswerStatus = 'Incorrect' THEN TotalTimeSpent ELSE 0 END), 0) AS IncorrectTotalTime,
+        ISNULL(AVG(CASE WHEN AnswerStatus = 'Incorrect' THEN TotalTimeSpent END), 0) AS IncorrectAvgTime,
+        ISNULL(SUM(CASE WHEN AnswerStatus = 'PartialCorrect' THEN TotalTimeSpent ELSE 0 END), 0) AS PartialTotalTime,
+        ISNULL(AVG(CASE WHEN AnswerStatus = 'PartialCorrect' THEN TotalTimeSpent END), 0) AS PartialAvgTime
+    FROM TimeSpentPerQuestion;
+
+    -- 2. Count unattempted questions in the specified subject
+    SELECT COUNT(*) 
+    FROM tblScholarshipQuestions q
+    WHERE q.ScholarshipTestId = @ScholarshipId
+      AND q.SubjectId = @SubjectId
+      AND NOT EXISTS (
+          SELECT 1 
+          FROM tblStudentScholarshipAnswerSubmission s 
+          WHERE s.StudentID = @StudentId 
+            AND s.ScholarshipID = @ScholarshipId
+            AND s.QuestionID = q.QuestionId
+      );
+    ";
+
+            try
+            {
+                using (var multi = await _connection.QueryMultipleAsync(sql, new { StudentId = studentId, ScholarshipId = scholarshipId, SubjectId = subjectId }))
+                {
+                    var report = await multi.ReadFirstOrDefaultAsync<TimeSpentReport>();
+                    if (report == null)
+                    {
+                        return new ServiceResponse<TimeSpentReport>(false, "No data found for the given student, scholarship, and subject.", null, 404);
+                    }
+
+                    int unattemptedCount = await multi.ReadFirstOrDefaultAsync<int>();
+                    report.UnattemptedCount = unattemptedCount;
+
+                    return new ServiceResponse<TimeSpentReport>(true, "Operation successful", report, 200);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Handle exceptions
+                return new ServiceResponse<TimeSpentReport>(false, $"An unexpected error occurred: {ex.Message}", null, 500);
+            }
+        }
+        public async Task<ServiceResponse<int>> AddReviewAsync(int scholarshipId, int studentId, int questionId)
+        {
+            const string insertQuery = @"
+            INSERT INTO tblScholarshipQuestionReview (ScholarshipId, StudentId, QuestionId)
+            VALUES (@ScholarshipId, @StudentId, @QuestionId);
+            SELECT CAST(SCOPE_IDENTITY() as int);";
+
+            try
+            {
+                var parameters = new { ScholarshipId = scholarshipId, StudentId = studentId, QuestionId = questionId };
+                int newReviewId = await _connection.ExecuteScalarAsync<int>(insertQuery, parameters);
+                if (newReviewId == 0)
+                {
+                    return new ServiceResponse<int>(false, string.Empty, 0, 500);
+                }
+                else
+                {
+                    return new ServiceResponse<int>(true, "Review added successfully.", newReviewId, 200);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log the exception (ex) as needed
+                return new ServiceResponse<int>(false, $"An error occurred: {ex.Message}", 0, 500);
+            }
+        }
         private async Task<(decimal acquiredMarks, decimal successRate)> CalculatePartialMarksAsync(
-            int actualCorrectCount,
-            int studentCorrectCount,
-            bool isNegative)
+                    int actualCorrectCount,
+                    int studentCorrectCount,
+                    bool isNegative)
         {
             var query = @"
         SELECT TOP 1 AcquiredMarks, SuccessRate

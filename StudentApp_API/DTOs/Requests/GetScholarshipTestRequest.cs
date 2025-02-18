@@ -12,7 +12,9 @@
         public int QuestionID { get; set; }
         public int SubjectID { get; set; }
         public int QuestionTypeID { get; set; }
-        public List<int> AnswerID { get; set; }
+        public DateTime StartTime { get; set; }
+        public DateTime EndTime {  get; set; }
+        public List<int>? AnswerID { get; set; }
     }
     public class QuestionAnswerData
     {

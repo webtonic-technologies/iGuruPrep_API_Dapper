@@ -151,5 +151,77 @@ namespace StudentApp_API.Controllers
 
             return BadRequest(response);
         }
+        [HttpPost("AddReview/{scholarshipId}")]
+        public async Task<IActionResult> AddReviewAsync(int scholarshipId, int studentId, int questionId)
+        {
+            var response = await _scholarshipService.AddReviewAsync(scholarshipId, studentId, questionId);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+
+            return BadRequest(response);
+        }
+        [HttpGet("GetSubjectWiseTimeSpentReport/{scholarshipId}")]
+        public async Task<IActionResult> GetSubjectWiseTimeSpentReportAsync(int studentId, int scholarshipId, int subjectId)
+        {
+            var response = await _scholarshipService.GetSubjectWiseTimeSpentReportAsync(studentId, scholarshipId, subjectId);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+
+            return BadRequest(response);
+        }
+        [HttpGet("GetTimeSpentReport/{scholarshipId}")]
+        public async Task<IActionResult> GetTimeSpentReportAsync(int studentId, int scholarshipId)
+        {
+            var response = await _scholarshipService.GetTimeSpentReportAsync(studentId, scholarshipId);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+            return BadRequest(response);
+        }
+        [HttpGet("GetSubjectWiseMarksCalculation/{scholarshipId}")]
+        public async Task<IActionResult> GetSubjectWiseMarksCalculationAsync(int studentId, int scholarshipId, int subjectId)
+        {
+            var response = await _scholarshipService.GetSubjectWiseMarksCalculationAsync(studentId, scholarshipId, subjectId);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+            return BadRequest(response);
+        }
+        [HttpGet("GetMarksCalculation/{scholarshipId}")]
+        public async Task<IActionResult> GetMarksCalculationAsync(int studentId, int scholarshipId)
+        {
+            var response = await _scholarshipService.GetMarksCalculationAsync(studentId, scholarshipId);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+            return BadRequest(response);
+        }
+        [HttpGet("GetSubjectWiseScholarshipAnalytics/{scholarshipId}")]
+        public async Task<IActionResult> GetSubjectWiseScholarshipAnalyticsAsync(int studentId, int scholarshipId, int subjectId)
+        {
+            var response = await _scholarshipService.GetSubjectWiseScholarshipAnalyticsAsync(studentId, scholarshipId, subjectId);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+            return BadRequest(response);
+        }
+        [HttpGet("GetScholarshipAnalytics/{scholarshipId}")]
+        public async Task<IActionResult> GetScholarshipAnalyticsAsync(int studentId, int scholarshipId)
+        {
+            var response = await _scholarshipService.GetScholarshipAnalyticsAsync(studentId, scholarshipId);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+            return BadRequest(response);
+        }
     }
 }

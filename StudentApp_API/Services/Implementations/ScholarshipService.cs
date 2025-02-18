@@ -15,9 +15,19 @@ namespace StudentApp_API.Services.Implementations
             _scholarshipRepository = scholarshipRepository;
         }
 
+        public async Task<ServiceResponse<int>> AddReviewAsync(int scholarshipId, int studentId, int questionId)
+        {
+            return await _scholarshipRepository.AddReviewAsync(scholarshipId, studentId, questionId);
+        }
+
         public async Task<ServiceResponse<bool>> AssignScholarshipAsync(AssignScholarshipRequest request)
         {
             return await _scholarshipRepository.AssignScholarshipAsync(request);
+        }
+
+        public async Task<ServiceResponse<MarksCalculation>> GetMarksCalculationAsync(int studentId, int scholarshipId)
+        {
+            return await _scholarshipRepository.GetMarksCalculationAsync(studentId, scholarshipId);
         }
 
         public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetQuestionsBySectionSettings(GetScholarshipQuestionRequest request)
@@ -33,6 +43,11 @@ namespace StudentApp_API.Services.Implementations
         public async Task<ServiceResponse<List<QuestionTypeResponse>>> GetQuestionTypesByScholarshipId(int scholarshipId)
         {
             return await _scholarshipRepository.GetQuestionTypesByScholarshipId(scholarshipId);
+        }
+
+        public async Task<ServiceResponse<ScholarshipAnalytics>> GetScholarshipAnalyticsAsync(int studentId, int scholarshipId)
+        {
+            return await _scholarshipRepository.GetScholarshipAnalyticsAsync(studentId, scholarshipId);
         }
 
         public async Task<ServiceResponse<List<SubjectQuestionCountResponse>>> GetScholarshipSubjectQuestionCount(int scholarshipTestId)
@@ -53,6 +68,26 @@ namespace StudentApp_API.Services.Implementations
         public async Task<ServiceResponse<StudentDiscountResponse>> GetStudentDiscountAsync(int studentId, int scholarshipTestId)
         {
             return await _scholarshipRepository.GetStudentDiscountAsync(studentId, scholarshipTestId);
+        }
+
+        public async Task<ServiceResponse<MarksCalculation>> GetSubjectWiseMarksCalculationAsync(int studentId, int scholarshipId, int subjectId)
+        {
+            return await _scholarshipRepository.GetSubjectWiseMarksCalculationAsync(studentId, scholarshipId, subjectId);
+        }
+
+        public async Task<ServiceResponse<ScholarshipAnalytics>> GetSubjectWiseScholarshipAnalyticsAsync(int studentId, int scholarshipId, int subjectId)
+        {
+            return await _scholarshipRepository.GetSubjectWiseScholarshipAnalyticsAsync(studentId, scholarshipId, subjectId);
+        }
+
+        public async Task<ServiceResponse<TimeSpentReport>> GetSubjectWiseTimeSpentReportAsync(int studentId, int scholarshipId, int subjectId)
+        {
+            return await _scholarshipRepository.GetSubjectWiseTimeSpentReportAsync(studentId, scholarshipId, subjectId);
+        }
+
+        public async Task<ServiceResponse<TimeSpentReport>> GetTimeSpentReportAsync(int studentId, int scholarshipId)
+        {
+            return await _scholarshipRepository.GetTimeSpentReportAsync(studentId, scholarshipId);
         }
 
         public async Task<ServiceResponse<string>> MarkScholarshipQuestionAsSave(ScholarshipQuestionSaveRequest request)

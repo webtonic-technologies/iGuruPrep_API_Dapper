@@ -16,7 +16,12 @@
         public int ClassId { get; set; }
         public string SyllabusName { get; set; }
     }
-
+    public class CYOTSubjectMapping
+    {
+        public int CYOTId { get; set; }
+        public int SubjectID { get; set; }
+        public int ChapterID { get; set; }
+    }
     public class QuizooSubjectMapping
     {
         public int QuizooID { get; set; }

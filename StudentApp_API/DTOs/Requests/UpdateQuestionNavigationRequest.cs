@@ -20,6 +20,7 @@
         public int scholarshipTestId { get; set; }
         public int studentId { get; set; }
         public List<int>? QuestionTypeId { get; set; }
+        public List<int>? QuestionStatus {  get; set; }
     }
     public class SubjectRequest
     {

@@ -138,4 +138,40 @@
         public decimal Percentage { get; set; }
         public decimal Discount { get; set; }
     }
+    public class ScholarshipAnalytics
+    {
+        // Test details from tblScholarshipTest
+        public int TotalQuestions { get; set; }      // TotalNumberOfQuestions from test table
+        public int Duration { get; set; }            // Duration from test table
+        public int TestTotalMarks { get; set; }      // TotalMarks from test table
+
+        // Student performance from submissions
+        public int StudentMarks { get; set; }        // Sum of marks from submissions
+        public int CorrectCount { get; set; }
+        public decimal CorrectPercentage { get; set; }
+        public int IncorrectCount { get; set; }
+        public decimal IncorrectPercentage { get; set; }
+        public int PartiallyCorrectCount { get; set; }
+        public decimal PartiallyCorrectPercentage { get; set; }
+        public int UnattemptedCount { get; set; }
+        public decimal UnattemptedPercentage { get; set; }
+    }
+    public class MarksCalculation
+    {
+        public int AchievedMarks { get; set; }
+        public int NegativeMarks { get; set; }
+        public int FinalMarks { get; set; }
+        public decimal MarksPercentage { get; set; }
+    }
+    public class TimeSpentReport
+    {
+        public int TotalTime { get; set; }
+        public int CorrectTotalTime { get; set; }
+        public double CorrectAvgTime { get; set; }
+        public int IncorrectTotalTime { get; set; }
+        public double IncorrectAvgTime { get; set; }
+        public int PartialTotalTime { get; set; }
+        public double PartialAvgTime { get; set; }
+        public int UnattemptedCount { get; set; }
+    }
 }
