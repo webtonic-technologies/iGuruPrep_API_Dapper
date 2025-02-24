@@ -4,7 +4,7 @@
     {
         public int QuestionId { get; set; }
         public string QuestionDescription { get; set; } = string.Empty;
-        public int QuestionTypeId { get; set; }
+        public int? QuestionTypeId { get; set; }
         public bool? Status { get; set; }
         public string? CreatedBy { get; set; }
         public DateTime? CreatedOn { get; set; }

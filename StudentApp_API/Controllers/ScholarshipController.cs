@@ -32,7 +32,7 @@ namespace StudentApp_API.Controllers
         [HttpPost("GetQuestionsByStudentScholarship")]
         public async Task<IActionResult> GetQuestionsByStudentScholarship(GetScholarshipQuestionRequest request)
         {
-            var response = await _scholarshipService.GetQuestionsByStudentScholarship(request);
+            var response = await _scholarshipService.ViewKeyByStudentScholarship(request);
             if (response.Success)
             {
                 return Ok(response);
