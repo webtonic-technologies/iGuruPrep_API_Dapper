@@ -1,9 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using StudentApp_API.DTOs.Requests;
-using StudentApp_API.Services.Implementations;
 using StudentApp_API.Services.Interfaces;
-using System.Threading.Tasks;
-using static StudentApp_API.Repository.Implementations.ScholarshipRepository;
 
 namespace StudentApp_API.Controllers
 {
@@ -29,8 +26,8 @@ namespace StudentApp_API.Controllers
 
             return BadRequest(response);
         }
-        [HttpPost("GetQuestionsByStudentScholarship")]
-        public async Task<IActionResult> GetQuestionsByStudentScholarship(GetScholarshipQuestionRequest request)
+        [HttpPost("ViewKeyByStudentScholarship")]
+        public async Task<IActionResult> ViewKeyByStudentScholarship(GetScholarshipQuestionRequest request)
         {
             var response = await _scholarshipService.ViewKeyByStudentScholarship(request);
             if (response.Success)
