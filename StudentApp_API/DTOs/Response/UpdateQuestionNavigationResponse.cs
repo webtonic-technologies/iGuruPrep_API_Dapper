@@ -30,7 +30,7 @@
         public DateTime? ModifiedOn { get; set; }
         public string ModifiedBy { get; set; }
         public int EmployeeID { get; set; }
-        public int TotalMarks {  get; set; }
+        public decimal TotalMarks {  get; set; }
         public string Discount {  get; set; }
     }
 
@@ -143,7 +143,7 @@
         // Test details from tblScholarshipTest
         public int TotalQuestions { get; set; }      // TotalNumberOfQuestions from test table
         public int Duration { get; set; }            // Duration from test table
-        public int TestTotalMarks { get; set; }      // TotalMarks from test table
+        public decimal TestTotalMarks { get; set; }      // TotalMarks from test table
 
         // Student performance from submissions
         public int StudentMarks { get; set; }        // Sum of marks from submissions
