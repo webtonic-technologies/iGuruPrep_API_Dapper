@@ -35,7 +35,7 @@ namespace StudentApp_API.Services.Implementations
             return await _scholarshipRepository.GetQuestionsBySectionSettings(request);
         }
 
-        public async Task<ServiceResponse<List<QuestionResponseDTO>>> ViewKeyByStudentScholarship(GetScholarshipQuestionRequest request)
+        public async Task<ServiceResponse<List<QuestionViewKeyResponseDTO>>> ViewKeyByStudentScholarship(GetScholarshipQuestionRequest request)
         {
             return await _scholarshipRepository.ViewKeyByStudentScholarship(request);
         }

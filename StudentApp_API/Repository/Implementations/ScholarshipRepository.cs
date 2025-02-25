@@ -668,50 +668,29 @@ namespace StudentApp_API.Repository.Implementations
                          VALUES (@QuestionID, @StartTime, @EndTime, @ScholarshipID, @StudentID);
                          SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
-                //foreach (var subject in request.Subjects)
-                //{
-                //    foreach (var question in subject.Questions)
-                //    {
-                //        var data = new List<AnswerSubmissionRequest>
-                //        {
-
-                //        };
-                //        await SubmitAnswer(data);
-                //        foreach (var log in question.TimeLogs)
-                //        {
-                //            // Execute query for each time log
-                //            var navigationId = await _connection.ExecuteScalarAsync<int>(query, new
-                //            {
-                //                QuestionID = question.QuestionID,
-                //                StartTime = log.StartTime,
-                //                EndTime = log.EndTime,
-                //                ScholarshipID = request.ScholarshipID,
-                //                StudentID = request.StudentID
-                //            });
-                //        }
-                //    }
-                //}
                 foreach (var subject in request.Subjects)
                 {
                     foreach (var question in subject.Questions)
                     {
-                        // Create a list with one AnswerSubmissionRequest for this question
-                        var data = new List<AnswerSubmissionRequest>
-        {
-            new AnswerSubmissionRequest
-            {
-                ScholarshipID = request.ScholarshipID,
-                RegistrationId = request.StudentID,
-                QuestionID = question.QuestionID,
-                SubjectID = subject.SubjectId,
-                QuestionTypeID = question.QuestionTypeID,
-                AnswerID = question.AnswerID // Assuming question.AnswerID is a List<int>
-            }
-        };
+                        // Check if MultiOrSingleAnswerId is not null and contains at least one valid answer
+                        if (question.MultiOrSingleAnswerId != null && question.MultiOrSingleAnswerId.Any())
+                        {
+                            // Create a list of AnswerSubmissionRequest for each answer in MultiOrSingleAnswerId
+                            var data = question.MultiOrSingleAnswerId.Select(answerId => new AnswerSubmissionRequest
+                            {
+                                ScholarshipID = request.ScholarshipID,
+                                RegistrationId = request.StudentID,
+                                QuestionID = question.QuestionID,
+                                SubjectID = subject.SubjectId,
+                                QuestionTypeID = question.QuestionTypeID,
+                                MultiOrSingleAnswerId = new List<int> { answerId } // Ensure each answer is passed separately
+                            }).ToList();
 
-                        // Submit the answer(s)
-                        await SubmitAnswer(data);
+                            // Submit the answer(s)
+                            await SubmitAnswer(data);
+                        }
 
+                        // Insert time logs regardless of whether an answer is submitted or not
                         foreach (var log in question.TimeLogs)
                         {
                             // Execute query for each time log
@@ -726,6 +705,42 @@ namespace StudentApp_API.Repository.Implementations
                         }
                     }
                 }
+
+                //        foreach (var subject in request.Subjects)
+                //        {
+                //            foreach (var question in subject.Questions)
+                //            {
+                //                // Create a list with one AnswerSubmissionRequest for this question
+                //                var data = new List<AnswerSubmissionRequest>
+                //{
+                //    new AnswerSubmissionRequest
+                //    {
+                //        ScholarshipID = request.ScholarshipID,
+                //        RegistrationId = request.StudentID,
+                //        QuestionID = question.QuestionID,
+                //        SubjectID = subject.SubjectId,
+                //        QuestionTypeID = question.QuestionTypeID,
+                //        MultiOrSingleAnswerId = question.MultiOrSingleAnswerId // Assuming question.AnswerID is a List<int>
+                //    }
+                //};
+
+                //                // Submit the answer(s)
+                //                await SubmitAnswer(data);
+
+                //                foreach (var log in question.TimeLogs)
+                //                {
+                //                    // Execute query for each time log
+                //                    var navigationId = await _connection.ExecuteScalarAsync<int>(query, new
+                //                    {
+                //                        QuestionID = question.QuestionID,
+                //                        StartTime = log.StartTime,
+                //                        EndTime = log.EndTime,
+                //                        ScholarshipID = request.ScholarshipID,
+                //                        StudentID = request.StudentID
+                //                    });
+                //                }
+                //            }
+                //        }
 
                 // Response message
                 return new ServiceResponse<UpdateQuestionNavigationResponse>(
@@ -838,9 +853,9 @@ namespace StudentApp_API.Repository.Implementations
                 var sectionQuery = @"
             SELECT SSTSectionId
             FROM tblSSQuestionSection
-            WHERE SubjectId = @SubjectID";
+            WHERE SubjectId = @SubjectID and ScholarshipTestId = @ScholarshipTestId";
 
-                var sectionId = await _connection.QueryFirstOrDefaultAsync<int>(sectionQuery, new { SubjectID = request.FirstOrDefault()?.SubjectID });
+                var sectionId = await _connection.QueryFirstOrDefaultAsync<int>(sectionQuery, new { SubjectID = request.FirstOrDefault()?.SubjectID, ScholarshipTestId = request.FirstOrDefault()?.ScholarshipID });
 
                 if (sectionId == 0)
                 {
@@ -886,7 +901,7 @@ namespace StudentApp_API.Repository.Implementations
 
                         var correctAnswerId = await _connection.QueryFirstOrDefaultAsync<int>(singleAnswerQuery, new { QuestionID = answer.QuestionID });
 
-                        if (correctAnswerId == answer.AnswerID.FirstOrDefault())
+                        if (correctAnswerId == answer.MultiOrSingleAnswerId.FirstOrDefault())
                         {
                             marksAwarded = questionData.MarksPerQuestion;
                             answerStatus = "Correct";
@@ -910,10 +925,10 @@ namespace StudentApp_API.Repository.Implementations
                         var actualCorrectCount = correctAnswers.Count();
 
                         // Check if any of the submitted answers are incorrect
-                        bool hasIncorrectAnswer = answer.AnswerID.Any(submittedAnswer => !correctAnswers.Contains(submittedAnswer));
+                        bool hasIncorrectAnswer = answer.MultiOrSingleAnswerId.Any(submittedAnswer => !correctAnswers.Contains(submittedAnswer));
 
                         // Calculate studentCorrectCount based on the correctness of the answers
-                        int studentCorrectCount = hasIncorrectAnswer ? -1 : answer.AnswerID.Intersect(correctAnswers).Count();
+                        int studentCorrectCount = hasIncorrectAnswer ? -1 : answer.MultiOrSingleAnswerId.Intersect(correctAnswers).Count();
 
                         // Determine if negative marking applies
                         bool isNegative = hasIncorrectAnswer;
@@ -940,7 +955,7 @@ namespace StudentApp_API.Repository.Implementations
                         }
                         else
                         {
-                            if (actualCorrectCount == studentCorrectCount && answer.AnswerID.All(correctAnswers.Contains))
+                            if (actualCorrectCount == studentCorrectCount && answer.MultiOrSingleAnswerId.All(correctAnswers.Contains))
                             {
                                 marksAwarded = questionData.MarksPerQuestion;
                                 answerStatus = "Correct";
@@ -994,7 +1009,7 @@ namespace StudentApp_API.Repository.Implementations
                         QuestionID = answer.QuestionID,
                         SubjectID = answer.SubjectID,
                         QuestionTypeID = answer.QuestionTypeID,
-                        AnswerID = string.Join(",", answer.AnswerID),
+                        AnswerID = string.Join(",", answer.MultiOrSingleAnswerId),
                         AnswerStatus = answerStatus,
                         Marks = marksAwarded
                     });
@@ -1084,9 +1099,9 @@ namespace StudentApp_API.Repository.Implementations
 
             return response;
         }
-        public async Task<ServiceResponse<List<QuestionResponseDTO>>> ViewKeyByStudentScholarship(GetScholarshipQuestionRequest request)
+        public async Task<ServiceResponse<List<QuestionViewKeyResponseDTO>>> ViewKeyByStudentScholarship(GetScholarshipQuestionRequest request)
         {
-            ServiceResponse<List<QuestionResponseDTO>> response = new ServiceResponse<List<QuestionResponseDTO>>(true, string.Empty, new List<QuestionResponseDTO>(), 200);
+            ServiceResponse<List<QuestionViewKeyResponseDTO>> response = new ServiceResponse<List<QuestionViewKeyResponseDTO>>(true, string.Empty, new List<QuestionViewKeyResponseDTO>(), 200);
 
             try
             {
@@ -1194,8 +1209,33 @@ namespace StudentApp_API.Repository.Implementations
 
                     questionsList.Add(question);
                 }
+                List<QuestionViewKeyResponseDTO> mappedList = questionsList.Select(q => new QuestionViewKeyResponseDTO
+                {
+                    QuestionId = q.QuestionId,
+                    QuestionDescription = q.QuestionDescription,
+                    QuestionTypeId = q.QuestionTypeId,
+                    QuestionTypeName = q.QuestionTypeName,
+                    IndexTypeId = q.IndexTypeId,
+                    IndexTypeName = q.IndexTypeName,
+                    ContentIndexId = q.ContentIndexId,
+                    ContentIndexName = q.ContentIndexName,
+                    QuestionCode = q.QuestionCode,
+                    Explanation = q.Explanation,
+                    ExtraInformation = q.ExtraInformation,
 
-                response.Data = questionsList;
+                    // Convert StudentAnswer from string to List<int>
+                    StudentAnswer = !string.IsNullOrEmpty(q.StudentAnswer)
+        ? q.StudentAnswer.Split(',').Select(s => int.TryParse(s, out int val) ? val : (int?)null).Where(v => v.HasValue).Select(v => v.Value).ToList()
+        : new List<int>(),
+
+                    IsCorrect = q.IsCorrect,
+                    AnswerMultipleChoiceCategories = q.AnswerMultipleChoiceCategories,
+                    Answersingleanswercategories = q.Answersingleanswercategories
+
+                }).ToList();
+
+                // Assign mapped list to response data
+                response.Data = mappedList;
             }
             catch (Exception ex)
             {
@@ -1361,8 +1401,8 @@ SELECT
     (SELECT Duration FROM tblScholarshipTest WHERE ScholarshipTestId = @ScholarshipId) AS Duration
 FROM tblStudentScholarship sss
 INNER JOIN tblSSQuestionSection ssqs 
-    ON sss.SubjectID = ssqs.SubjectId 
-    AND sss.QuestionTypeID = ssqs.QuestionTypeId
+  ON sss.SubjectID = ssqs.SubjectId and sss.ScholarshipID = ssqs.ScholarshipTestId
+    AND sss.QuestionTypeID = ssqs.QuestionTypeId 
 WHERE sss.ScholarshipID = @ScholarshipId
 AND sss.SubjectID = @SubjectId
 AND sss.StudentID = @StudentId;
@@ -1388,8 +1428,8 @@ AND sss.SubjectId = @SubjectId;
 
 -- 4. Count attempted & unattempted questions based on statuses
 SELECT 
-    SUM(CASE WHEN sss.QuestionStatusId IN (1, 3, 5) THEN 1 ELSE 0 END) AS AttemptedCount,
-    SUM(CASE WHEN sss.QuestionStatusId IN (2, 4) THEN 1 ELSE 0 END) AS UnattemptedCount
+    SUM(CASE WHEN sss.QuestionStatusId IN (1, 5) THEN 1 ELSE 0 END) AS AttemptedCount,
+    SUM(CASE WHEN sss.QuestionStatusId IN (2, 3, 4) THEN 1 ELSE 0 END) AS UnattemptedCount
 FROM tblStudentScholarship sss
 WHERE sss.StudentID = @StudentId
 AND sss.ScholarshipID = @ScholarshipId
@@ -1510,31 +1550,31 @@ AND sss.SubjectID = @SubjectId;";
             try
             {
                 var sql = @"
-        -- 1. Retrieve total marks for the specified subject in the scholarship test
-        SELECT ISNULL(SUM(MaxMarks), 0) AS SubjectTotalMarks
-        FROM tblStudentScholarship
-        WHERE ScholarshipID = @ScholarshipId
-          AND StudentID = @StudentId
-          AND SubjectID = @SubjectId;
+-- 1. Retrieve total marks for the specified subject from the scholarship sections
+SELECT ISNULL(SUM(TotalNumberOfQuestions * MarksPerQuestion), 0) AS SubjectTotalMarks
+FROM tblSSQuestionSection
+WHERE ScholarshipTestId = @ScholarshipId
+AND SubjectId = @SubjectId;
 
-        -- 2. Achieved Marks (sum of marks for 'Correct' and 'PartialCorrect' answers)
-        SELECT ISNULL(SUM(ssa.Marks), 0) AS AchievedMarks
-        FROM tblStudentScholarshipAnswerSubmission ssa
-        INNER JOIN tblStudentScholarship ss ON ssa.QuestionID = ss.QuestionID
-        WHERE ssa.StudentID = @StudentId
-          AND ssa.ScholarshipID = @ScholarshipId
-          AND ss.SubjectID = @SubjectId
-          AND ssa.AnswerStatus IN ('Correct', 'PartialCorrect');
+-- 2. Achieved Marks (sum of marks for 'Correct' and 'PartialCorrect' answers)
+SELECT ISNULL(SUM(ssa.Marks), 0) AS AchievedMarks
+FROM tblStudentScholarshipAnswerSubmission ssa
+INNER JOIN tblStudentScholarship ss ON ssa.QuestionID = ss.QuestionID
+INNER JOIN tblSSQuestionSection ssqs ON ss.SubjectID = ssqs.SubjectID AND ss.QuestionTypeID = ssqs.QuestionTypeID
+WHERE ssa.StudentID = @StudentId
+AND ssa.ScholarshipID = @ScholarshipId
+AND ss.SubjectID = @SubjectId
+AND ssa.AnswerStatus IN ('Correct', 'PartialCorrect');
 
-        -- 3. Negative Marks (absolute sum for 'Incorrect' answers)
-        SELECT ABS(ISNULL(SUM(ssa.Marks), 0)) AS NegativeMarks
-        FROM tblStudentScholarshipAnswerSubmission ssa
-        INNER JOIN tblStudentScholarship ss ON ssa.QuestionID = ss.QuestionID
-        WHERE ssa.StudentID = @StudentId
-          AND ssa.ScholarshipID = @ScholarshipId
-          AND ss.SubjectID = @SubjectId
-          AND ssa.AnswerStatus = 'Incorrect';
-        ";
+-- 3. Negative Marks (sum of absolute values for 'Incorrect' answers)
+SELECT ISNULL(SUM(ssqs.NegativeMarks), 0) AS NegativeMarks
+FROM tblStudentScholarshipAnswerSubmission ssa
+INNER JOIN tblStudentScholarship ss ON ssa.QuestionID = ss.QuestionID
+INNER JOIN tblSSQuestionSection ssqs ON ss.SubjectID = ssqs.SubjectID AND ss.QuestionTypeID = ssqs.QuestionTypeID
+WHERE ssa.StudentID = @StudentId
+AND ssa.ScholarshipID = @ScholarshipId
+AND ss.SubjectID = @SubjectId
+AND ssa.AnswerStatus = 'Incorrect';";
 
                 using (var multi = await _connection.QueryMultipleAsync(sql, new { StudentId = studentId, ScholarshipId = scholarshipId, SubjectId = subjectId }))
                 {
@@ -1569,7 +1609,7 @@ WITH QuestionTimeAggregates AS (
     SELECT 
         qn.QuestionID,
         s.AnswerStatus,
-        SUM(DATEDIFF(MINUTE, qn.StartTime, qn.EndTime)) AS TotalTimeSpent
+        SUM(DATEDIFF(SECOND, qn.StartTime, qn.EndTime)) AS TotalTimeSpent
     FROM tblQuestionNavigation qn
     LEFT JOIN tblStudentScholarshipAnswerSubmission s
         ON qn.QuestionID = s.QuestionID
@@ -1595,7 +1635,7 @@ SELECT COUNT(*)
 FROM tblStudentScholarship ss
 WHERE ss.StudentID = @StudentId
   AND ss.ScholarshipID = @ScholarshipId
-  AND ss.QuestionStatusId IN (2, 4); -- Unanswered (2) & Not Visited (4)
+  AND ss.QuestionStatusId IN (2, 3, 4); -- Unanswered (2) & Not Visited (4)
 ";
 
             try
@@ -1626,7 +1666,7 @@ WITH TimeSpentPerQuestion AS (
         qn.QuestionID,
         sq.SubjectId,
         ssa.AnswerStatus,
-        SUM(DATEDIFF(MINUTE, qn.StartTime, qn.EndTime)) AS TotalTimeSpent
+        SUM(DATEDIFF(SECOND, qn.StartTime, qn.EndTime)) AS TotalTimeSpent
     FROM tblQuestionNavigation qn
     INNER JOIN tblScholarshipQuestions sq ON qn.QuestionID = sq.QuestionId
     LEFT JOIN tblStudentScholarshipAnswerSubmission ssa 

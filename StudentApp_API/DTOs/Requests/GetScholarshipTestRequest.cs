@@ -14,7 +14,7 @@
         public int QuestionTypeID { get; set; }
         public DateTime StartTime { get; set; }
         public DateTime EndTime {  get; set; }
-        public List<int>? AnswerID { get; set; }
+        public List<int>? MultiOrSingleAnswerId { get; set; }
     }
     public class QuestionAnswerData
     {

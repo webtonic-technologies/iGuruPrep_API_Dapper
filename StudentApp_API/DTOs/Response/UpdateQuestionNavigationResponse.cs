@@ -174,4 +174,23 @@
         public double PartialAvgTime { get; set; }
         public int UnattemptedCount { get; set; }
     }
+    public class QuestionViewKeyResponseDTO
+    {
+        public int QuestionId { get; set; }
+        public string QuestionDescription { get; set; } = string.Empty;
+        public int QuestionTypeId { get; set; }
+        public string QuestionTypeName { get; set; }
+        public int IndexTypeId { get; set; }
+        public string IndexTypeName { get; set; } = string.Empty;
+        public int ContentIndexId { get; set; }
+        public string ContentIndexName { get; set; } = string.Empty;
+        public string QuestionCode { get; set; } = string.Empty;
+        public string Explanation { get; set; } = string.Empty;
+        public string ExtraInformation { get; set; } = string.Empty;
+        // New Properties
+        public List<int>? StudentAnswer { get; set; } // Submitted answer
+        public bool? IsCorrect { get; set; } // True if correct, false otherwise
+        public List<AnswerMultipleChoiceCategory>? AnswerMultipleChoiceCategories { get; set; }
+        public Answersingleanswercategory? Answersingleanswercategories { get; set; }
+    }
 }
