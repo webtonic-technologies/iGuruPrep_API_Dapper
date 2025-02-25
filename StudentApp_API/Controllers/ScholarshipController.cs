@@ -220,5 +220,15 @@ namespace StudentApp_API.Controllers
             }
             return BadRequest(response);
         }
+        [HttpPost("UpdateQuestionStatus")]
+        public async Task<IActionResult> UpdateQuestionStatusAsync(int ScholarshipID, int studentId, int questionId, bool isAnswered)
+        {
+            var response = await _scholarshipService.UpdateQuestionStatusAsync(ScholarshipID, studentId, questionId, isAnswered);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+            return BadRequest(response);
+        }
     }
 }

@@ -38,7 +38,7 @@ namespace StudentApp_API.Repository.Implementations
 
             // Step 2: Fetch Scholarship Test based on Board, Class, Course
             string queryScholarshipTest = @"
-            SELECT TOP 1 st.[ScholarshipTestId], st.[APID], st.[ExamTypeId], st.[PatternName], 
+            SELECT TOP 1 st.[ScholarshipTestId], st.[APID], st.[ExamTypeId], st.[PatternName],st.TotalMarks as TotalMarks,
                          st.[TotalNumberOfQuestions], st.[Duration], st.[Status], st.[createdon], 
                          st.[createdby], st.[modifiedon], st.[modifiedby], st.[EmployeeID], ds.Discount as Discount
             FROM [tblScholarshipTest] st
@@ -300,7 +300,7 @@ namespace StudentApp_API.Repository.Implementations
               FROM tblQIDCourse qc 
               WHERE qc.QuestionCode = q.QuestionCode 
                 AND qc.LevelId = @DifficultyLevelId AND qc.CourseID = @CourseID
-          ) AND q.IsLive = 1";
+          ) AND q.IsLive = 0";
                         var coureId = _connection.QueryFirstOrDefault<int>(@"select CourseId from tblScholarshipCourse where ScholarshipTestId = @ScholarshipTestId", new { ScholarshipTestId = request.scholarshipTestId });
                         var selectedQuestions = new List<QuestionResponseDTO>();
                         foreach (var difficultyLimit in difficultyLimits)
@@ -983,9 +983,9 @@ namespace StudentApp_API.Repository.Implementations
                     // Insert the new submission
                     var insertQuery = @"
                 INSERT INTO tblStudentScholarshipAnswerSubmission 
-                    (ScholarshipID, StudentID, QuestionID, SubjectID, QuestionTypeID, AnswerID, AnswerStatus, Marks, StartTime, EndTime)
+                    (ScholarshipID, StudentID, QuestionID, SubjectID, QuestionTypeID, AnswerID, AnswerStatus, Marks)
                 VALUES 
-                    (@ScholarshipID, @RegistrationId, @QuestionID, @SubjectID, @QuestionTypeID, @AnswerID, @AnswerStatus, @Marks, @StartTime, @EndTime)";
+                    (@ScholarshipID, @RegistrationId, @QuestionID, @SubjectID, @QuestionTypeID, @AnswerID, @AnswerStatus, @Marks)";
 
                     await _connection.ExecuteAsync(insertQuery, new
                     {
@@ -996,9 +996,7 @@ namespace StudentApp_API.Repository.Implementations
                         QuestionTypeID = answer.QuestionTypeID,
                         AnswerID = string.Join(",", answer.AnswerID),
                         AnswerStatus = answerStatus,
-                        Marks = marksAwarded,
-                        StartTime = answer.StartTime,
-                        EndTime = answer.EndTime
+                        Marks = marksAwarded
                     });
 
                     // Add to the response list
@@ -1099,7 +1097,7 @@ namespace StudentApp_API.Repository.Implementations
             SELECT ssch.QuestionID, ssch.ScholarshipID, ssch.StudentID, ssch.SubjectID, ssch.QuestionTypeID, 
                    ssch.QuestionStatusId, q.QuestionDescription
             FROM tblStudentScholarship ssch
-            INNER JOIN tblQuestions q ON ssch.QuestionID = q.QuestionId
+            INNER JOIN tblQuestion q ON ssch.QuestionID = q.QuestionId
             WHERE ssch.StudentID = @StudentId AND ssch.ScholarshipID = @ScholarshipTestId");
 
                 var queryParams = new DynamicParameters();
@@ -1298,8 +1296,10 @@ WHERE StudentID = @StudentId AND ScholarshipID = @ScholarshipId;";
                     }
 
                     int totalQuestions = testDetails.TotalNumberOfQuestions;
-                    int duration = testDetails.Duration;
-                    int testTotalMarks = testDetails.TotalMarks;
+                    string durationString = testDetails.Duration; // Example: "120 minutes"
+                    int duration = int.Parse(durationString.Split(' ')[0]); // Extracts "120" and converts to int
+
+                    decimal testTotalMarks = testDetails.TotalMarks;
 
                     // 2. Read student's obtained marks
                     int studentMarks = await multi.ReadFirstAsync<int>();
@@ -1354,23 +1354,26 @@ WHERE StudentID = @StudentId AND ScholarshipID = @ScholarshipId;";
         {
             try
             {
-                var sql = @"
--- 1. Retrieve test details (Total Questions, Total Marks, Duration)
+                var sql = @"-- 1. Retrieve test details (Total Questions, Total Marks, Duration)
 SELECT 
     COUNT(*) AS TotalQuestions,
-    ISNULL(SUM(MaxMarks), 0) AS SubjectTotalMarks,
+    ISNULL(SUM(ssqs.MarksPerQuestion), 0) AS SubjectTotalMarks,
     (SELECT Duration FROM tblScholarshipTest WHERE ScholarshipTestId = @ScholarshipId) AS Duration
-FROM tblScholarshipQuestions
-WHERE ScholarshipTestId = @ScholarshipId
-AND SubjectId = @SubjectId;
+FROM tblStudentScholarship sss
+INNER JOIN tblSSQuestionSection ssqs 
+    ON sss.SubjectID = ssqs.SubjectId 
+    AND sss.QuestionTypeID = ssqs.QuestionTypeId
+WHERE sss.ScholarshipID = @ScholarshipId
+AND sss.SubjectID = @SubjectId
+AND sss.StudentID = @StudentId;
 
 -- 2. Sum of marks obtained by the student in the specified subject
 SELECT ISNULL(SUM(ssas.Marks), 0) AS StudentMarks
 FROM tblStudentScholarshipAnswerSubmission ssas
-INNER JOIN tblScholarshipQuestions sq ON ssas.QuestionID = sq.QuestionId
+INNER JOIN tblStudentScholarship sss ON ssas.QuestionID = sss.QuestionID
 WHERE ssas.StudentID = @StudentId
 AND ssas.ScholarshipID = @ScholarshipId
-AND sq.SubjectId = @SubjectId;
+AND sss.SubjectId = @SubjectId;
 
 -- 3. Count correct, incorrect, and partially correct answers
 SELECT 
@@ -1378,10 +1381,10 @@ SELECT
     SUM(CASE WHEN ssas.AnswerStatus = 'Incorrect' THEN 1 ELSE 0 END) AS IncorrectCount,
     SUM(CASE WHEN ssas.AnswerStatus = 'PartialCorrect' THEN 1 ELSE 0 END) AS PartiallyCorrectCount
 FROM tblStudentScholarshipAnswerSubmission ssas
-INNER JOIN tblScholarshipQuestions sq ON ssas.QuestionID = sq.QuestionId
+INNER JOIN tblStudentScholarship sss ON ssas.QuestionID = sss.QuestionID
 WHERE ssas.StudentID = @StudentId
 AND ssas.ScholarshipID = @ScholarshipId
-AND sq.SubjectId = @SubjectId;
+AND sss.SubjectId = @SubjectId;
 
 -- 4. Count attempted & unattempted questions based on statuses
 SELECT 
@@ -1402,8 +1405,10 @@ AND sss.SubjectID = @SubjectId;";
                     }
 
                     int totalQuestions = subjectDetails.TotalQuestions;
-                    int subjectTotalMarks = subjectDetails.SubjectTotalMarks;
-                    int duration = subjectDetails.Duration ?? 0;
+                    decimal subjectTotalMarks = subjectDetails.SubjectTotalMarks ?? 0;
+                    string durationString = subjectDetails.Duration; // Example: "120 minutes"
+                    int duration = int.Parse(durationString.Split(' ')[0]); // Extracts "120" and converts to int
+
 
                     // 2. Read student's obtained marks for the subject
                     int studentMarks = await multi.ReadFirstOrDefaultAsync<int>();
@@ -1564,7 +1569,7 @@ WITH QuestionTimeAggregates AS (
     SELECT 
         qn.QuestionID,
         s.AnswerStatus,
-        SUM(DATEDIFF(SECOND, qn.StartTime, qn.EndTime)) AS TotalTimeSpent
+        SUM(DATEDIFF(MINUTE, qn.StartTime, qn.EndTime)) AS TotalTimeSpent
     FROM tblQuestionNavigation qn
     LEFT JOIN tblStudentScholarshipAnswerSubmission s
         ON qn.QuestionID = s.QuestionID
@@ -1621,7 +1626,7 @@ WITH TimeSpentPerQuestion AS (
         qn.QuestionID,
         sq.SubjectId,
         ssa.AnswerStatus,
-        SUM(DATEDIFF(SECOND, qn.StartTime, qn.EndTime)) AS TotalTimeSpent
+        SUM(DATEDIFF(MINUTE, qn.StartTime, qn.EndTime)) AS TotalTimeSpent
     FROM tblQuestionNavigation qn
     INNER JOIN tblScholarshipQuestions sq ON qn.QuestionID = sq.QuestionId
     LEFT JOIN tblStudentScholarshipAnswerSubmission ssa 
@@ -1697,6 +1702,79 @@ WHERE ss.StudentID = @StudentId
                 // Log the exception (ex) as needed
                 return new ServiceResponse<int>(false, $"An error occurred: {ex.Message}", 0, 500);
             }
+        }
+        public async Task<ServiceResponse<string>> UpdateQuestionStatusAsync(int ScholarshipID, int studentId, int questionId, bool isAnswered)
+        {
+            // Define status IDs
+            const int Answered = 1;
+            const int NotVisited = 4;
+            const int Review = 3;
+            const int ReviewWithAnswer = 5;
+            const int Unanswered = 2;
+            // Check current status
+            var currentStatusId = await _connection.QuerySingleOrDefaultAsync<int>(
+                @"SELECT QuestionStatusId
+                  FROM [tblStudentScholarship]
+                  WHERE ScholarshipID = @ScholarshipID AND StudentID = @StudentId AND QuestionID = @QuestionId",
+                new { ScholarshipID = ScholarshipID, StudentId = studentId, QuestionId = questionId });
+            
+            int newStatusId;
+            if (currentStatusId == 0)
+            {
+                // New entry
+                newStatusId = isAnswered ? Answered : Review;
+            }
+            else if (currentStatusId == NotVisited)
+            {
+                newStatusId = isAnswered ? Answered : Review;
+            }
+            else if (currentStatusId == Review)
+            {
+                newStatusId = isAnswered ? Answered : Review;
+            }
+            else if (currentStatusId == Answered)
+            {
+                newStatusId = isAnswered ? Answered : ReviewWithAnswer;
+            }
+            else if (currentStatusId == ReviewWithAnswer)
+            {
+                newStatusId = isAnswered ? Answered : ReviewWithAnswer;
+            }
+            else if (currentStatusId == Unanswered)
+            {
+                newStatusId = isAnswered ? Answered : Unanswered;
+            }
+            else
+            {
+                // Default case
+                newStatusId = currentStatusId;
+            }
+            // Update status in the mapping table
+            if (currentStatusId == 0)
+            {
+                // Insert new mapping
+                await _connection.ExecuteAsync(
+                    @"INSERT INTO tblStudentScholarship (ScholarshipID, StudentID, QuestionID, QuestionStatusId)
+                      VALUES (@ScholarshipID, @StudentID, @QuestionId, @QuestionStatusId)",
+                    new { ScholarshipID = ScholarshipID, StudentID = studentId, QuestionId = questionId, QuestionStatusId = newStatusId });
+            }
+            else
+            {
+                // Update existing mapping
+                await _connection.ExecuteAsync(
+                    @"UPDATE tblStudentScholarship
+                      SET QuestionStatusId = @QuestionStatusId
+                      WHERE ScholarshipID = @ScholarshipID AND StudentID = @StudentId AND QuestionID = @QuestionId",
+                    new { QuestionStatusId = newStatusId, ScholarshipID = ScholarshipID, StudentId = studentId, QuestionId = questionId });
+            }
+
+            // Log the review
+            await _connection.ExecuteAsync(
+                @"INSERT INTO tblScholarshipQuestionReview (QuestionId, StudentId, ScholarshipId)
+                  VALUES (@QuestionId, @StudentId, @ScholarshipId)",
+                new { QuestionId = questionId, StudentId = studentId, ScholarshipId = ScholarshipID });
+
+            return new ServiceResponse<string>(true, "status updated successfully", string.Empty, 200);
         }
         private async Task<(decimal acquiredMarks, decimal successRate)> CalculatePartialMarksAsync(
                     int actualCorrectCount,

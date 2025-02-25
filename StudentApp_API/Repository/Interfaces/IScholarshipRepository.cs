@@ -24,5 +24,6 @@ namespace StudentApp_API.Repository.Interfaces
         Task<ServiceResponse<MarksCalculation>> GetMarksCalculationAsync(int studentId, int scholarshipId);
         Task<ServiceResponse<ScholarshipAnalytics>> GetSubjectWiseScholarshipAnalyticsAsync(int studentId, int scholarshipId, int subjectId);
         Task<ServiceResponse<ScholarshipAnalytics>> GetScholarshipAnalyticsAsync(int studentId, int scholarshipId);
+        Task<ServiceResponse<string>> UpdateQuestionStatusAsync(int ScholarshipID, int studentId, int questionId, bool isAnswered);
     }
 }

@@ -104,5 +104,10 @@ namespace StudentApp_API.Services.Implementations
         {
             return await _scholarshipRepository.UpdateQuestionNavigationAsync(request);
         }
+
+        public async Task<ServiceResponse<string>> UpdateQuestionStatusAsync(int ScholarshipID, int studentId, int questionId, bool isAnswered)
+        {
+            return await _scholarshipRepository.UpdateQuestionStatusAsync(ScholarshipID, studentId, questionId, isAnswered);
+        }
     }
 }
