@@ -20,7 +20,7 @@ namespace StudentApp_API.Services.Implementations
             return await _scholarshipRepository.AddReviewAsync(scholarshipId, studentId, questionId);
         }
 
-        public async Task<ServiceResponse<List<QuestionResponseDTO>>> AssignScholarshipAsync(AssignScholarshipRequest request)
+        public async Task<ServiceResponse<ScholarshipQuestionsResponse>> AssignScholarshipAsync(AssignScholarshipRequest request)
         {
             return await _scholarshipRepository.AssignScholarshipAsync(request);
         }
@@ -35,7 +35,7 @@ namespace StudentApp_API.Services.Implementations
             return await _scholarshipRepository.GetQuestionsBySectionSettings(request);
         }
 
-        public async Task<ServiceResponse<List<QuestionViewKeyResponseDTO>>> ViewKeyByStudentScholarship(GetScholarshipQuestionRequest request)
+        public async Task<ServiceResponse<ScholarshipViewKeyQuestionsResponse>> ViewKeyByStudentScholarship(GetScholarshipQuestionRequest request)
         {
             return await _scholarshipRepository.ViewKeyByStudentScholarship(request);
         }

@@ -437,25 +437,55 @@ namespace StudentApp_API.Repository.Implementations
 
             return response;
         }
-        public async Task<ServiceResponse<List<QuestionResponseDTO>>> AssignScholarshipAsync(AssignScholarshipRequest request)
+        public async Task<ServiceResponse<ScholarshipQuestionsResponse>> AssignScholarshipAsync(AssignScholarshipRequest request)
         {
             try
             {
-                // Step 1: Check if the student has already opted for any scholarship
+                // Step 1: Check if the student has already opted for a scholarship
                 var existingScholarship = await _connection.QueryFirstOrDefaultAsync<int>(
                     @"SELECT COUNT(1) 
               FROM tblStudentScholarship
               WHERE StudentID = @RegistrationID",
                     new { RegistrationID = request.RegistrationID });
 
-                // If the student has already opted for a scholarship, return a response indicating so
                 if (existingScholarship > 0)
                 {
-                    return new ServiceResponse<List<QuestionResponseDTO>>(false, "This student has already opted for a scholarship and cannot opt for another one.", [], 400);
+                    return new ServiceResponse<ScholarshipQuestionsResponse>(false, "This student has already opted for a scholarship and cannot opt for another one.", null, 400);
                 }
 
-                // Step 2: Get scholarship data based on the student's registration ID
+                // Step 2: Get scholarship data based on student's registration ID
                 var scholarshipData = await GetScholarshipTestByRegistrationId(request.RegistrationID);
+
+                if (scholarshipData?.Data?.ScholarshipTest == null)
+                {
+                    return new ServiceResponse<ScholarshipQuestionsResponse>(false, "No scholarship test found for this student.", null, 404);
+                }
+
+                // Step 3: Fetch mapped subjects for this scholarship test
+                var scholarshipSubjects = await _connection.QueryAsync<ScholarshipSubjects>(
+                    @"SELECT sst.SubjectId AS SubjectId, sub.SubjectName
+              FROM tblScholarshipSubject sst
+              JOIN tblSubject sub ON sst.SubjectId = sub.SubjectID
+              WHERE sst.ScholarshipTestId = @ScholarshipTestId",
+                    new { ScholarshipTestId = scholarshipData.Data.ScholarshipTest.ScholarshipTestId });
+
+                var subjectsList = scholarshipSubjects.ToList();
+
+                // Step 4: Fetch sections for each subject
+                foreach (var subject in subjectsList)
+                {
+                    var sections = await _connection.QueryAsync<ScholarshipSections>(
+                        @"SELECT SSTSectionId AS SectionId, SectionName, QuestionTypeId
+                  FROM tblSSQuestionSection
+                  WHERE ScholarshipTestId = @ScholarshipTestId AND SubjectId = @SubjectId",
+                        new
+                        {
+                            ScholarshipTestId = scholarshipData.Data.ScholarshipTest.ScholarshipTestId,
+                            SubjectId = subject.SubjectId
+                        });
+
+                    subject.ScholarshipSections = sections.ToList();
+                }
                 var requestbody = new GetScholarshipQuestionRequest
                 {
                     scholarshipTestId = scholarshipData.Data.ScholarshipTest.ScholarshipTestId,
@@ -464,32 +494,104 @@ namespace StudentApp_API.Repository.Implementations
                 };
                 // Step 3: Get the questions for the scholarship test
                 var scholarshipQuestion = await GetQuestionsBySectionSettings(requestbody);
+                // Step 5: Fetch questions and map them to respective sections
+                var questions = scholarshipQuestion.Data;
 
-                // Step 4: Insert the scholarship details for the student
+                foreach (var subject in subjectsList)
+                {
+                    foreach (var section in subject.ScholarshipSections)
+                    {
+                        section.QuestionResponseDTOs = questions
+                            .Where(q => q.QuestionTypeId == section.QuestionTypeId) // Matching QuestionTypeId
+                            .ToList();
+                    }
+                }
+
+                // Step 6: Insert assigned scholarship questions into tblStudentScholarship
                 string insertQuery = @"INSERT INTO tblStudentScholarship (ScholarshipID, StudentID, QuestionID, SubjectID, QuestionTypeID, ExamDate, QuestionStatusId)
                                VALUES (@ScholarshipID, @StudentID, @QuestionID, @SubjectID, @QuestionTypeID, @ExamDate, @QuestionStatusId)";
 
-                foreach (var data in scholarshipQuestion.Data)
+                foreach (var question in questions)
                 {
                     await _connection.ExecuteAsync(insertQuery, new
                     {
                         ScholarshipID = scholarshipData.Data.ScholarshipTest.ScholarshipTestId,
                         StudentID = request.RegistrationID,
-                        QuestionID = data.QuestionId,
-                        SubjectID = data.subjectID,
-                        QuestionTypeID = data.QuestionTypeId,
+                        QuestionID = question.QuestionId,
+                        SubjectID = question.subjectID,
+                        QuestionTypeID = question.QuestionTypeId,
                         ExamDate = DateTime.Now,
                         QuestionStatusId = 4
                     });
                 }
 
-                return new ServiceResponse<List<QuestionResponseDTO>>(true, "Scholarship assigned successfully.", scholarshipQuestion.Data, 200);
+                // Step 7: Return response in desired format
+                var response = new ScholarshipQuestionsResponse
+                {
+                    ScholarshipId = scholarshipData.Data.ScholarshipTest.ScholarshipTestId,
+                    ScholarshipSubjects = subjectsList
+                };
+
+                return new ServiceResponse<ScholarshipQuestionsResponse>(true, "Scholarship assigned successfully.", response, 200);
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, [], 500);
+                return new ServiceResponse<ScholarshipQuestionsResponse>(false, ex.Message, null, 500);
             }
         }
+        //public async Task<ServiceResponse<ScholarshipQuestionsResponse>> AssignScholarshipAsync(AssignScholarshipRequest request)
+        //{
+        //    try
+        //    {
+        //        // Step 1: Check if the student has already opted for any scholarship
+        //        var existingScholarship = await _connection.QueryFirstOrDefaultAsync<int>(
+        //            @"SELECT COUNT(1) 
+        //      FROM tblStudentScholarship
+        //      WHERE StudentID = @RegistrationID",
+        //            new { RegistrationID = request.RegistrationID });
+
+        //        // If the student has already opted for a scholarship, return a response indicating so
+        //        if (existingScholarship > 0)
+        //        {
+        //            return new ServiceResponse<List<QuestionResponseDTO>>(false, "This student has already opted for a scholarship and cannot opt for another one.", [], 400);
+        //        }
+
+        //        // Step 2: Get scholarship data based on the student's registration ID
+        //        var scholarshipData = await GetScholarshipTestByRegistrationId(request.RegistrationID);
+        //        var requestbody = new GetScholarshipQuestionRequest
+        //        {
+        //            scholarshipTestId = scholarshipData.Data.ScholarshipTest.ScholarshipTestId,
+        //            studentId = request.RegistrationID,
+        //            QuestionTypeId = null
+        //        };
+        //        // Step 3: Get the questions for the scholarship test
+        //        var scholarshipQuestion = await GetQuestionsBySectionSettings(requestbody);
+
+        //        // Step 4: Insert the scholarship details for the student
+        //        string insertQuery = @"INSERT INTO tblStudentScholarship (ScholarshipID, StudentID, QuestionID, SubjectID, QuestionTypeID, ExamDate, QuestionStatusId)
+        //                       VALUES (@ScholarshipID, @StudentID, @QuestionID, @SubjectID, @QuestionTypeID, @ExamDate, @QuestionStatusId)";
+
+        //        foreach (var data in scholarshipQuestion.Data)
+        //        {
+        //            await _connection.ExecuteAsync(insertQuery, new
+        //            {
+        //                ScholarshipID = scholarshipData.Data.ScholarshipTest.ScholarshipTestId,
+        //                StudentID = request.RegistrationID,
+        //                QuestionID = data.QuestionId,
+        //                SubjectID = data.subjectID,
+        //                QuestionTypeID = data.QuestionTypeId,
+        //                ExamDate = DateTime.Now,
+        //                QuestionStatusId = 4
+        //            });
+        //        }
+
+        //        return new ServiceResponse<List<QuestionResponseDTO>>(true, "Scholarship assigned successfully.", scholarshipQuestion.Data, 200);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return new ServiceResponse<List<QuestionResponseDTO>>(false, ex.Message, [], 500);
+        //    }
+        //}
         public async Task<ServiceResponse<List<QuestionTypeResponse>>> GetQuestionTypesByScholarshipId(int scholarshipId)
         {
             if (_connection.State != ConnectionState.Open)
@@ -537,37 +639,6 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<List<QuestionTypeResponse>>(false, ex.Message, null, 500);
             }
         }
-        //public async Task<ServiceResponse<bool>> AssignScholarshipAsync(AssignScholarshipRequest request)
-        //{
-        //    try
-        //    {
-        //        var scholarshipData = await GetScholarshipTestByRegistrationId(request.RegistrationID);
-
-        //        var scholarshipQuestion = await GetQuestionsBySectionSettings(scholarshipData.Data.ScholarshipTest.ScholarshipTestId);
-
-        //        string insertQuery = @"INSERT INTO tblStudentScholarship (ScholarshipID, StudentID, QuestionID, SubjectID, QuestionTypeID, ExamDate)
-        //                               VALUES (@ScholarshipID, @StudentID, @QuestionID, @SubjectID, @QuestionTypeID, @ExamDate)";
-
-        //        foreach (var data in scholarshipQuestion.Data)
-        //        {
-        //            await _connection.ExecuteAsync(insertQuery, new
-        //            {
-        //                ScholarshipID = scholarshipData.Data.ScholarshipTest.ScholarshipTestId,
-        //                StudentID = request.RegistrationID,
-        //                QuestionID = data.QuestionId,
-        //                SubjectID = data.subjectID,
-        //                QuestionTypeID = data.QuestionTypeId,
-        //                ExamDate = DateTime.Now
-        //            });
-        //        }
-
-        //        return new ServiceResponse<bool>(true, "Scholarship assigned successfully.", true, 200);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return new ServiceResponse<bool>(false, ex.Message, false, 500);
-        //    }
-        //}
         public async Task<ServiceResponse<GetScholarshipTestResponseWrapper>> GetScholarshipTestAsync(GetScholarshipTestRequest request)
         {
             try
@@ -1099,10 +1170,8 @@ namespace StudentApp_API.Repository.Implementations
 
             return response;
         }
-        public async Task<ServiceResponse<List<QuestionViewKeyResponseDTO>>> ViewKeyByStudentScholarship(GetScholarshipQuestionRequest request)
+        public async Task<ServiceResponse<ScholarshipViewKeyQuestionsResponse>> ViewKeyByStudentScholarship(GetScholarshipQuestionRequest request)
         {
-            ServiceResponse<List<QuestionViewKeyResponseDTO>> response = new ServiceResponse<List<QuestionViewKeyResponseDTO>>(true, string.Empty, new List<QuestionViewKeyResponseDTO>(), 200);
-
             try
             {
                 List<QuestionResponseDTO> questionsList = new List<QuestionResponseDTO>();
@@ -1234,16 +1303,51 @@ namespace StudentApp_API.Repository.Implementations
 
                 }).ToList();
 
-                // Assign mapped list to response data
-                response.Data = mappedList;
+                var scholarshipSubjects = await _connection.QueryAsync<ScholarshipViewKeySubjects>(
+                  @"SELECT sst.SubjectId AS SubjectId, sub.SubjectName
+              FROM tblScholarshipSubject sst
+              JOIN tblSubject sub ON sst.SubjectId = sub.SubjectID
+              WHERE sst.ScholarshipTestId = @ScholarshipTestId",
+                  new { ScholarshipTestId = request.scholarshipTestId });
+
+                var subjectsList = scholarshipSubjects.ToList();
+
+                // Step 4: Fetch sections for each subject
+                foreach (var subject in subjectsList)
+                {
+                    var sections = await _connection.QueryAsync<ScholarshipViewKeySections>(
+                        @"SELECT SSTSectionId AS SectionId, SectionName, QuestionTypeId
+                  FROM tblSSQuestionSection
+                  WHERE ScholarshipTestId = @ScholarshipTestId AND SubjectId = @SubjectId",
+                        new
+                        {
+                            ScholarshipTestId = request.scholarshipTestId,
+                            SubjectId = subject.SubjectId
+                        });
+
+                    subject.ScholarshipSections = sections.ToList();
+                }
+                foreach (var subject in subjectsList)
+                {
+                    foreach (var section in subject.ScholarshipSections)
+                    {
+                        section.QuestionResponseDTOs = mappedList
+                            .Where(q => q.QuestionTypeId == section.QuestionTypeId) // Matching QuestionTypeId
+                            .ToList();
+                    }
+                }
+                var response = new ScholarshipViewKeyQuestionsResponse
+                {
+                    ScholarshipId = request.scholarshipTestId,
+                    ScholarshipSubjects = subjectsList
+                };
+
+                return new ServiceResponse<ScholarshipViewKeyQuestionsResponse>(true, "Scholarship assigned successfully.", response, 200);
             }
             catch (Exception ex)
             {
-                response.Success = false;
-                response.Message = ex.Message;
+                return new ServiceResponse<ScholarshipViewKeyQuestionsResponse>(false, ex.Message, null, 500);
             }
-
-            return response;
         }
         public async Task<ServiceResponse<StudentDiscountResponse>> GetStudentDiscountAsync(int studentId, int scholarshipTestId)
         {
