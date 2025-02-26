@@ -1,4 +1,6 @@
-﻿namespace StudentApp_API.DTOs.Requests
+﻿using System.Diagnostics.CodeAnalysis;
+
+namespace StudentApp_API.DTOs.Requests
 {
     public class GetScholarshipTestRequest
     {
@@ -14,6 +16,7 @@
         public int QuestionTypeID { get; set; }
         public DateTime StartTime { get; set; }
         public DateTime EndTime {  get; set; }
+        [AllowNull]
         public List<int>? MultiOrSingleAnswerId { get; set; }
     }
     public class QuestionAnswerData

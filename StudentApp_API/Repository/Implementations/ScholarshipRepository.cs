@@ -744,19 +744,20 @@ namespace StudentApp_API.Repository.Implementations
                     foreach (var question in subject.Questions)
                     {
                         // Check if MultiOrSingleAnswerId is not null and contains at least one valid answer
-                        if (question.MultiOrSingleAnswerId != null && question.MultiOrSingleAnswerId.Any())
+                        if (question.MultiOrSingleAnswerId != null && question.MultiOrSingleAnswerId.Any(id => id != 0))
                         {
-                            // Create a list of AnswerSubmissionRequest for each answer in MultiOrSingleAnswerId
-                            var data = question.MultiOrSingleAnswerId.Select(answerId => new AnswerSubmissionRequest
-                            {
-                                ScholarshipID = request.ScholarshipID,
-                                RegistrationId = request.StudentID,
-                                QuestionID = question.QuestionID,
-                                SubjectID = subject.SubjectId,
-                                QuestionTypeID = question.QuestionTypeID,
-                                MultiOrSingleAnswerId = new List<int> { answerId } // Ensure each answer is passed separately
-                            }).ToList();
-
+                            var data = new List<AnswerSubmissionRequest>
+        {
+            new AnswerSubmissionRequest
+            {
+                ScholarshipID = request.ScholarshipID,
+                RegistrationId = request.StudentID,
+                QuestionID = question.QuestionID,
+                SubjectID = subject.SubjectId,
+                QuestionTypeID = question.QuestionTypeID,
+                MultiOrSingleAnswerId = question.MultiOrSingleAnswerId // Assuming question.AnswerID is a List<int>
+            }
+        };
                             // Submit the answer(s)
                             await SubmitAnswer(data);
                         }
@@ -1772,7 +1773,7 @@ WITH TimeSpentPerQuestion AS (
         ssa.AnswerStatus,
         SUM(DATEDIFF(SECOND, qn.StartTime, qn.EndTime)) AS TotalTimeSpent
     FROM tblQuestionNavigation qn
-    INNER JOIN tblScholarshipQuestions sq ON qn.QuestionID = sq.QuestionId
+    INNER JOIN tblStudentScholarship sq ON qn.QuestionID = sq.QuestionId
     LEFT JOIN tblStudentScholarshipAnswerSubmission ssa 
         ON qn.QuestionID = ssa.QuestionID 
         AND qn.StudentID = ssa.StudentID 
