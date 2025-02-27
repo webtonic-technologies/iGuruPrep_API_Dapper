@@ -1,6 +1,7 @@
 ﻿using Course_API.DTOs.Requests;
 using Course_API.DTOs.Response;
 using Course_API.DTOs.ServiceResponse;
+using Course_API.Models;
 using Course_API.Repository.Interfaces;
 using Dapper;
 using System.Data;
@@ -331,12 +332,12 @@ namespace Course_API.Repository.Implementations
                     string insertQuery = @"
             INSERT INTO tblScholarshipTest 
             (
-                APID, ExamTypeId, PatternName, TotalNumberOfQuestions, Duration,
+                APID, ExamTypeId, PatternName, TotalNumberOfQuestions, Duration, TotalMarks,
                 Status, createdon, createdby, EmployeeID
             ) 
             VALUES 
             (
-                @APID, @ExamTypeId, @PatternName, @TotalNumberOfQuestions, @Duration,
+                @APID, @ExamTypeId, @PatternName, @TotalNumberOfQuestions, @Duration, @TotalMarks,
                 @Status, @createdon, @createdby, @EmployeeID
             ); 
             SELECT CAST(SCOPE_IDENTITY() as int);";
@@ -350,7 +351,8 @@ namespace Course_API.Repository.Implementations
                         request.Status,
                         createdon = DateTime.Now,
                         request.createdby,
-                        request.EmployeeID
+                        request.EmployeeID,
+                        request.TotalMarks
                     };
                     int newId = await _connection.QuerySingleAsync<int>(insertQuery, parameters);
 
@@ -833,8 +835,11 @@ namespace Course_API.Repository.Implementations
                 }
 
                 // Step 2: Retrieve the total number of questions for the scholarship
-                var scholarshipQuery = "SELECT TotalNumberOfQuestions FROM [tblScholarshipTest] WHERE ScholarshipTestId = @ScholarshipId";
-                int totalNoOfQuestionsForScholarship = await _connection.QueryFirstOrDefaultAsync<int>(scholarshipQuery, new { ScholarshipId });
+                var scholarshipQuery = "SELECT TotalMarks, TotalNumberOfQuestions FROM [tblScholarshipTest] WHERE ScholarshipTestId = @ScholarshipId";
+
+                var scholarshipDateData = await _connection.QueryFirstOrDefaultAsync<(decimal TotalMarks, int TotalNoOfQuestions)>(scholarshipQuery, new { ScholarshipId });
+                decimal totalMarksForScholarship = scholarshipDateData.TotalMarks;
+                int totalNoOfQuestionsForScholarship = scholarshipDateData.TotalNoOfQuestions;
 
                 // Step 3: Retrieve existing sections and difficulty levels for the scholarship
                 var existingSectionsQuery = "SELECT TotalNumberOfQuestions FROM tblSSQuestionSection WHERE ScholarshipTestId = @ScholarshipId";
@@ -859,14 +864,15 @@ namespace Course_API.Repository.Implementations
 
                 // Step 6: Validate the total number of questions
                 int totalAssignedQuestions = totalExistingQuestions + totalRequestedQuestions;
-                if (totalAssignedQuestions != totalNoOfQuestionsForScholarship)
+                decimal totalRequestedMarks = request.Sum(section => section.TotalNumberOfQuestions * section.MarksPerQuestion);
+                if (totalAssignedQuestions != totalNoOfQuestionsForScholarship || totalRequestedMarks != totalMarksForScholarship)
                 {
                     return new ServiceResponse<string>(
-                        false,
-                        $"The total number of questions assigned ({totalAssignedQuestions}) must be exactly equal to the limit of {totalNoOfQuestionsForScholarship} for the scholarship.",
-                        null,
-                        StatusCodes.Status400BadRequest
-                    );
+                      false,
+                      $"The total marks ({totalRequestedMarks}) or total questions ({totalRequestedQuestions}) exceed the limits of the test series ({totalMarksForScholarship} marks, {totalNoOfQuestionsForScholarship} questions).",
+                      null,
+                      StatusCodes.Status400BadRequest
+                  );
                 }
 
                 // Step 7: Validate questions for difficulty levels

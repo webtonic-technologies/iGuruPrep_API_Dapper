@@ -3,6 +3,7 @@ using StudentApp_API.DTOs.Requests;
 using StudentApp_API.DTOs.Response;
 using StudentApp_API.DTOs.ServiceResponse;
 using StudentApp_API.Repository.Interfaces;
+using System.Collections.Generic;
 using System.Data;
 
 namespace StudentApp_API.Repository.Implementations
@@ -197,22 +198,27 @@ namespace StudentApp_API.Repository.Implementations
                     await _connection.ExecuteAsync(updateQuery, quizoo);
                     quizooId = quizoo.QuizooID;
                 }
-
-                // Step 4: Insert or Update `tblQuizooSyllabus`
-                var insertSyllabusQuery = @"
+                if (quizoo.QuizooID != 0)
+                {
+                    await UpdateQuizooSyllabusAsync(quizoo.QuizooID, quizoo.QuizooSyllabus);
+                }
+                else
+                {
+                    // Step 4: Insert or Update `tblQuizooSyllabus`
+                    var insertSyllabusQuery = @"
             INSERT INTO tblQuizooSyllabus (QuizooID, SubjectID, ChapterID)
             VALUES (@QuizooID, @SubjectID, @ChapterID)";
 
-                foreach (var syllabus in quizoo.QuizooSyllabus)
-                {
-                    await _connection.ExecuteAsync(insertSyllabusQuery, new
+                    foreach (var syllabus in quizoo.QuizooSyllabus)
                     {
-                        QuizooID = quizooId,
-                        SubjectID = syllabus.SubjectID,
-                        ChapterID = syllabus.ChapterID
-                    });
+                        await _connection.ExecuteAsync(insertSyllabusQuery, new
+                        {
+                            QuizooID = quizooId,
+                            SubjectID = syllabus.SubjectID,
+                            ChapterID = syllabus.ChapterID
+                        });
+                    }
                 }
-
                 return new ServiceResponse<int>(true, "Quizoo inserted/updated successfully.", quizooId, 200);
             }
             catch (Exception ex)

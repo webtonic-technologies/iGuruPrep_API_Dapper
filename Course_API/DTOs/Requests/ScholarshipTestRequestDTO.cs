@@ -18,6 +18,7 @@ namespace Course_API.DTOs.Requests
         public DateTime? modifiedon { get; set; }
         public string modifiedby { get; set; } = string.Empty;
         public int EmployeeID { get; set; }
+        public decimal TotalMarks {  get; set; }
         public List<ScholarshipBoards>? ScholarshipBoards { get; set; }
         public List<ScholarshipClass>? ScholarshipClasses { get; set; }
         public List<ScholarshipCourse>? ScholarshipCourses { get; set; }
