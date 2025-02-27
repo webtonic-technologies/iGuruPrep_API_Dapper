@@ -1708,12 +1708,11 @@ AND ssa.AnswerStatus = 'Incorrect';";
         }
         public async Task<ServiceResponse<TimeSpentReport>> GetTimeSpentReportAsync(int studentId, int scholarshipId)
         {
-            var sql = @"
--- 1. Aggregate time spent per question and answer status
-WITH QuestionTimeAggregates AS (
-    SELECT 
+            var sql = @" --1.Aggregate time spent per question and answer status
+WITH QuestionTimeAggregates AS(
+    SELECT
         qn.QuestionID,
-        s.AnswerStatus,
+        COALESCE(s.AnswerStatus, 'Unattempted') AS AnswerStatus, --If no answer, mark as 'Unattempted'
         SUM(DATEDIFF(SECOND, qn.StartTime, qn.EndTime)) AS TotalTimeSpent
     FROM tblQuestionNavigation qn
     LEFT JOIN tblStudentScholarshipAnswerSubmission s
@@ -1724,25 +1723,18 @@ WITH QuestionTimeAggregates AS (
       AND qn.ScholarshipID = @ScholarshipId
     GROUP BY qn.QuestionID, s.AnswerStatus
 )
--- 2. Calculate overall and status-specific time metrics
-SELECT 
+--2.Calculate overall and status - specific time metrics
+SELECT
     ISNULL(SUM(TotalTimeSpent), 0) AS TotalTime,
     ISNULL(SUM(CASE WHEN AnswerStatus = 'Correct' THEN TotalTimeSpent ELSE 0 END), 0) AS CorrectTotalTime,
     ISNULL(NULLIF(AVG(CASE WHEN AnswerStatus = 'Correct' THEN TotalTimeSpent END), NULL), 0) AS CorrectAvgTime,
     ISNULL(SUM(CASE WHEN AnswerStatus = 'Incorrect' THEN TotalTimeSpent ELSE 0 END), 0) AS IncorrectTotalTime,
     ISNULL(NULLIF(AVG(CASE WHEN AnswerStatus = 'Incorrect' THEN TotalTimeSpent END), NULL), 0) AS IncorrectAvgTime,
     ISNULL(SUM(CASE WHEN AnswerStatus = 'PartialCorrect' THEN TotalTimeSpent ELSE 0 END), 0) AS PartialTotalTime,
-    ISNULL(NULLIF(AVG(CASE WHEN AnswerStatus = 'PartialCorrect' THEN TotalTimeSpent END), NULL), 0) AS PartialAvgTime
-FROM QuestionTimeAggregates;
-
--- 3. Count unattempted questions
-SELECT COUNT(*) 
-FROM tblStudentScholarship ss
-WHERE ss.StudentID = @StudentId
-  AND ss.ScholarshipID = @ScholarshipId
-  AND ss.QuestionStatusId IN (2, 3, 4); -- Unanswered (2) & Not Visited (4)
-";
-
+    ISNULL(NULLIF(AVG(CASE WHEN AnswerStatus = 'PartialCorrect' THEN TotalTimeSpent END), NULL), 0) AS PartialAvgTime,
+    ISNULL(SUM(CASE WHEN AnswerStatus = 'Unattempted' THEN TotalTimeSpent ELSE 0 END), 0) AS UnattemptedTotalTime,
+    ISNULL(NULLIF(AVG(CASE WHEN AnswerStatus = 'Unattempted' THEN TotalTimeSpent END), NULL), 0) AS UnattemptedAvgTime
+FROM QuestionTimeAggregates;";
             try
             {
                 using (var multi = await _connection.QueryMultipleAsync(sql, new { StudentId = studentId, ScholarshipId = scholarshipId }))
@@ -1753,7 +1745,6 @@ WHERE ss.StudentID = @StudentId
                         return new ServiceResponse<TimeSpentReport>(false, "No data found for the given student and scholarship.", null, 404);
                     }
 
-                    report.UnattemptedCount = await multi.ReadFirstAsync<int>();
                     return new ServiceResponse<TimeSpentReport>(true, "Operation successful", report, 200);
                 }
             }
@@ -1762,15 +1753,15 @@ WHERE ss.StudentID = @StudentId
                 return new ServiceResponse<TimeSpentReport>(false, $"An unexpected error occurred: {ex.Message}", null, 500);
             }
         }
+
         public async Task<ServiceResponse<TimeSpentReport>> GetSubjectWiseTimeSpentReportAsync(int studentId, int scholarshipId, int subjectId)
         {
-            var sql = @"
--- 1. Calculate total and average time spent on questions per answer status
+            var sql = @"-- 1. Calculate total and average time spent on questions per answer status
 WITH TimeSpentPerQuestion AS (
     SELECT 
         qn.QuestionID,
         sq.SubjectId,
-        ssa.AnswerStatus,
+        COALESCE(ssa.AnswerStatus, 'Unattempted') AS AnswerStatus, -- Assign 'Unattempted' before grouping
         SUM(DATEDIFF(SECOND, qn.StartTime, qn.EndTime)) AS TotalTimeSpent
     FROM tblQuestionNavigation qn
     INNER JOIN tblStudentScholarship sq ON qn.QuestionID = sq.QuestionId
@@ -1778,11 +1769,12 @@ WITH TimeSpentPerQuestion AS (
         ON qn.QuestionID = ssa.QuestionID 
         AND qn.StudentID = ssa.StudentID 
         AND qn.ScholarshipID = ssa.ScholarshipID
-    WHERE qn.StudentID = @StudentId 
-      AND qn.ScholarshipID = @ScholarshipId
-      AND sq.SubjectId = @SubjectId
-    GROUP BY qn.QuestionID, sq.SubjectId, ssa.AnswerStatus
+    WHERE qn.StudentID = 4 
+      AND qn.ScholarshipID = 2
+      AND sq.SubjectId = 2040
+    GROUP BY qn.QuestionID, sq.SubjectId, COALESCE(ssa.AnswerStatus, 'Unattempted') -- Apply here
 )
+-- 2. Calculate total & average time for each category
 SELECT 
     ISNULL(SUM(TotalTimeSpent), 0) AS TotalTime,
     ISNULL(SUM(CASE WHEN AnswerStatus = 'Correct' THEN TotalTimeSpent ELSE 0 END), 0) AS CorrectTotalTime,
@@ -1790,18 +1782,10 @@ SELECT
     ISNULL(SUM(CASE WHEN AnswerStatus = 'Incorrect' THEN TotalTimeSpent ELSE 0 END), 0) AS IncorrectTotalTime,
     ISNULL(NULLIF(AVG(CASE WHEN AnswerStatus = 'Incorrect' THEN TotalTimeSpent END), NULL), 0) AS IncorrectAvgTime,
     ISNULL(SUM(CASE WHEN AnswerStatus = 'PartialCorrect' THEN TotalTimeSpent ELSE 0 END), 0) AS PartialTotalTime,
-    ISNULL(NULLIF(AVG(CASE WHEN AnswerStatus = 'PartialCorrect' THEN TotalTimeSpent END), NULL), 0) AS PartialAvgTime
-FROM TimeSpentPerQuestion;
-
--- 2. Count unattempted questions in the specified subject
-SELECT COUNT(*) 
-FROM tblStudentScholarship ss
-WHERE ss.StudentID = @StudentId
-  AND ss.ScholarshipID = @ScholarshipId
-  AND ss.SubjectID = @SubjectId
-  AND ss.QuestionStatusId IN (2, 4); -- Unanswered (2) & Not Visited (4)
-";
-
+    ISNULL(NULLIF(AVG(CASE WHEN AnswerStatus = 'PartialCorrect' THEN TotalTimeSpent END), NULL), 0) AS PartialAvgTime,
+    ISNULL(SUM(CASE WHEN AnswerStatus = 'Unattempted' THEN TotalTimeSpent ELSE 0 END), 0) AS UnattemptedTotalTime,
+    ISNULL(NULLIF(AVG(CASE WHEN AnswerStatus = 'Unattempted' THEN TotalTimeSpent END), NULL), 0) AS UnattemptedAvgTime
+FROM TimeSpentPerQuestion;"; 
             try
             {
                 using (var multi = await _connection.QueryMultipleAsync(sql, new { StudentId = studentId, ScholarshipId = scholarshipId, SubjectId = subjectId }))
@@ -1811,9 +1795,6 @@ WHERE ss.StudentID = @StudentId
                     {
                         return new ServiceResponse<TimeSpentReport>(false, "No data found for the given student, scholarship, and subject.", null, 404);
                     }
-
-                    report.UnattemptedCount = await multi.ReadFirstOrDefaultAsync<int>();
-
                     return new ServiceResponse<TimeSpentReport>(true, "Operation successful", report, 200);
                 }
             }
