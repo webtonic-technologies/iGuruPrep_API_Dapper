@@ -300,7 +300,7 @@ namespace StudentApp_API.Repository.Implementations
               FROM tblQIDCourse qc 
               WHERE qc.QuestionCode = q.QuestionCode 
                 AND qc.LevelId = @DifficultyLevelId AND qc.CourseID = @CourseID
-          ) AND q.IsLive = 0";
+          ) AND q.IsLive = 1";
                         var coureId = _connection.QueryFirstOrDefault<int>(@"select CourseId from tblScholarshipCourse where ScholarshipTestId = @ScholarshipTestId", new { ScholarshipTestId = request.scholarshipTestId });
                         var selectedQuestions = new List<QuestionResponseDTO>();
                         foreach (var difficultyLimit in difficultyLimits)
@@ -1753,7 +1753,6 @@ FROM QuestionTimeAggregates;";
                 return new ServiceResponse<TimeSpentReport>(false, $"An unexpected error occurred: {ex.Message}", null, 500);
             }
         }
-
         public async Task<ServiceResponse<TimeSpentReport>> GetSubjectWiseTimeSpentReportAsync(int studentId, int scholarshipId, int subjectId)
         {
             var sql = @"-- 1. Calculate total and average time spent on questions per answer status
