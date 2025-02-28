@@ -172,7 +172,8 @@
         public double IncorrectAvgTime { get; set; }
         public int PartialTotalTime { get; set; }
         public double PartialAvgTime { get; set; }
-        public int UnattemptedCount { get; set; }
+        public int UnattemptedTotalTime { get; set; }
+        public double UnattemptedAvgTime { get; set; }
     }
     public class QuestionViewKeyResponseDTO
     {

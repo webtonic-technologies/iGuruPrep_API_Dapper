@@ -107,8 +107,7 @@ namespace StudentApp_API.Repository.Implementations
             ss.QuestionID,
             ss.SubjectID,
             ss.QuestionTypeID,
-            ss.QuestionStatusId,
-            qs.StatusName AS Status
+            ss.QuestionStatusId AS Status
         FROM tblStudentScholarship ss
         LEFT JOIN QuestionStatuses qs ON ss.QuestionStatusId = qs.StatusID
         WHERE ss.StudentID = @StudentId AND ss.ScholarshipID =  @ScholarshipID
@@ -136,18 +135,25 @@ namespace StudentApp_API.Repository.Implementations
     LEFT JOIN tblEmployee emp ON q.EmployeeId = emp.Employeeid
     LEFT JOIN tblExamType e ON q.ExamTypeId = e.ExamTypeID
     LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
-    WHERE (@QuestionTypeId IS NULL OR q.QuestionTypeId IN @QuestionTypeId)
-      AND (@QuestionStatus IS NULL OR qsCTE.Status IN @QuestionStatus);";
+    WHERE AND (@QuestionStatus IS NULL OR qsCTE.Status IN @QuestionStatus);";
 
                     var parameters = new
                     {
                         StudentId = request.studentId,
                         ScholarshipID = request.scholarshipTestId,
-                        QuestionTypeId = (request.QuestionTypeId != null && request.QuestionTypeId.Any()) ? request.QuestionTypeId : null,
+                       // QuestionTypeId = (request.QuestionTypeId != null && request.QuestionTypeId.Any()) ? request.QuestionTypeId : null,
                         QuestionStatus = (request.QuestionStatus != null && request.QuestionStatus.Any()) ? request.QuestionStatus : null,
                       
                     };
                     questionsList = (await _connection.QueryAsync<QuestionResponseDTO>(fetchQuery, parameters)).ToList();
+                    // Apply filter on QuestionTypeId if provided
+                    if (request.QuestionTypeId != null && request.QuestionTypeId.Any())
+                    {
+                        questionsList = questionsList
+                            .Where(q => request.QuestionTypeId.Contains(q.QuestionTypeId))
+                            .ToList();
+                    }
+
                     foreach (var question in questionsList)
                     {
                         var isSingleAnswer = question.QuestionTypeId == 3 || question.QuestionTypeId == 4 ||
@@ -1141,13 +1147,14 @@ namespace StudentApp_API.Repository.Implementations
                 else
                 {
                     // If no record exists, insert a new saved question record
-                    var insertQuery = @"INSERT INTO tblScholarshipQuestionSave (StudentId, QuestionId, QuestionCode) 
-                                VALUES (@StudentId, @QuestionId, @QuestionCode)";
+                    var insertQuery = @"INSERT INTO tblScholarshipQuestionSave (StudentId, QuestionId, QuestionCode, ScholarshipId) 
+                                VALUES (@StudentId, @QuestionId, @QuestionCode, @ScholarshipId)";
                     var rowsInserted = await _connection.ExecuteAsync(insertQuery, new
                     {
                         request.StudentId,
                         request.QuestionId,
-                        request.QuestionCode
+                        request.QuestionCode,
+                        request.ScholarshipId
                     });
 
                     if (rowsInserted > 0)
