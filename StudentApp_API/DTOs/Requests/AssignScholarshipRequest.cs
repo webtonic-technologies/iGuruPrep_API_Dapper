@@ -9,6 +9,7 @@
         public int StudentId { get; set; } // Equivalent to RegistrationId in the original API
         public int QuestionId { get; set; }
         public string QuestionCode { get; set; } = string.Empty;
+        public int ScholarshipId {  get; set; }
     }
 
 }
