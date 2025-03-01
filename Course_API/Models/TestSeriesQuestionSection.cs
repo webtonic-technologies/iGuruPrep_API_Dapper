@@ -24,6 +24,7 @@ namespace Course_API.Models
         public int TotalNoofQuestions {  get; set; }
         public int NoofQuestionsforChoice {  get; set; }
         public int SubjectId { get; set; }
+        public int PartialMarkRuleId {  get; set; }
     }
     public class TestSeriesQuestionSectionRequest
     {

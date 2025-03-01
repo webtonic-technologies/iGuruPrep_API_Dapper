@@ -30,9 +30,24 @@
         public int? ParentQId { get; set; }
         public string? ParentQCode { get; set; } = string.Empty;
         public List<QIDCourseResponse>? QIDCourses { get; set; }
+        public List<MatchPair>? MatchPairs { get; set; }
+        public List<MatchThePairAnswer>? MatchThePairType2Answers { get; set; }
         public List<AnswerMultipleChoiceCategory>? AnswerMultipleChoiceCategories { get; set; }
         public Answersingleanswercategory? Answersingleanswercategories { get; set; }
         public List<ParagraphQuestions>? ComprehensiveChildQuestions { get; set; }
+    }
+    public class MatchThePairAnswer
+    {
+        public int MatchThePair2Id { get; set; }
+        public int PairColumn { get; set; }
+        public int PairRow { get; set; }
+    }
+    public class MatchPair
+    {
+        public int MatchThePairId { get; set; }
+        public int PairColumn { get; set; }
+        public int PairRow { get; set; }
+        public string PairValue { get; set; }
     }
     public class ParagraphQuestions
     {

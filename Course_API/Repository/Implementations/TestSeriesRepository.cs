@@ -122,8 +122,13 @@ namespace Course_API.Repository.Implementations
                                     ExtraInformation = q.ExtraInformation,
                                     IsActive = q.Status,
                                     QIDCourses = GetListOfQIDCourse(q.QuestionCode),
-                                    Answersingleanswercategories = GetSingleAnswer(q.QuestionCode),
-                                    AnswerMultipleChoiceCategories = GetMultipleAnswers(q.QuestionCode)
+                                    // Answersingleanswercategories = GetSingleAnswer(q.QuestionCode),
+                                    // AnswerMultipleChoiceCategories = GetMultipleAnswers(q.QuestionCode),
+
+                                    MatchPairs = q.QuestionTypeId == 6 || q.QuestionTypeId == 12 ? GetMatchPairs(q.QuestionCode, q.QuestionId) : null,
+                                    MatchThePairType2Answers = q.QuestionTypeId == 12 ? GetMatchThePairType2Answers(q.QuestionCode, q.QuestionId) : null,
+                                    Answersingleanswercategories = (q.QuestionTypeId != 6 && q.QuestionTypeId != 12) ? GetSingleAnswer(q.QuestionCode, q.QuestionId) : null,
+                                    AnswerMultipleChoiceCategories = (q.QuestionTypeId != 12) ? GetMultipleAnswers(q.QuestionCode) : null
                                 };
                             }
                         }).ToList()
@@ -359,8 +364,13 @@ WHERE
                                             ExtraInformation = q.ExtraInformation,
                                             IsActive = q.Status,
                                             QIDCourses = GetListOfQIDCourse(q.QuestionCode),
-                                            Answersingleanswercategories = GetSingleAnswer(q.QuestionCode),
-                                            AnswerMultipleChoiceCategories = GetMultipleAnswers(q.QuestionCode)
+                                            // Answersingleanswercategories = GetSingleAnswer(q.QuestionCode),
+                                            //  AnswerMultipleChoiceCategories = GetMultipleAnswers(q.QuestionCode)
+
+                                            MatchPairs = q.QuestionTypeId == 6 || q.QuestionTypeId == 12 ? GetMatchPairs(q.QuestionCode, q.QuestionId) : null,
+                                            MatchThePairType2Answers = q.QuestionTypeId == 12 ? GetMatchThePairType2Answers(q.QuestionCode, q.QuestionId) : null,
+                                            Answersingleanswercategories = (q.QuestionTypeId != 6 && q.QuestionTypeId != 12) ? GetSingleAnswer(q.QuestionCode, q.QuestionId) : null,
+                                            AnswerMultipleChoiceCategories = (q.QuestionTypeId != 12) ? GetMultipleAnswers(q.QuestionCode) : null
                                         };
                                     }
                                 })
@@ -564,8 +574,13 @@ WHERE
                                     ExtraInformation = q.ExtraInformation,
                                     IsActive = q.Status,
                                     QIDCourses = GetListOfQIDCourse(q.QuestionCode),
-                                    Answersingleanswercategories = GetSingleAnswer(q.QuestionCode),
-                                    AnswerMultipleChoiceCategories = GetMultipleAnswers(q.QuestionCode)
+                                  //  Answersingleanswercategories = GetSingleAnswer(q.QuestionCode),
+                                  //  AnswerMultipleChoiceCategories = GetMultipleAnswers(q.QuestionCode)
+
+                                      MatchPairs = q.QuestionTypeId == 6 || q.QuestionTypeId == 12 ? GetMatchPairs(q.QuestionCode, q.QuestionId) : null,
+                                    MatchThePairType2Answers = q.QuestionTypeId == 12 ? GetMatchThePairType2Answers(q.QuestionCode, q.QuestionId) : null,
+                                    Answersingleanswercategories = (q.QuestionTypeId != 6 && q.QuestionTypeId != 12) ? GetSingleAnswer(q.QuestionCode, q.QuestionId) : null,
+                                    AnswerMultipleChoiceCategories = (q.QuestionTypeId != 12) ? GetMultipleAnswers(q.QuestionCode) : null
                                 };
                             }
                         })
@@ -1025,194 +1040,6 @@ WHERE TestSeriesId != @TestSeriesId
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
-        //        public async Task<ServiceResponse<string>> AddUpdateTestSeriesDateAndTime(TestSeriesDateAndTimeRequest request)
-        //        {
-        //            try
-        //            {
-        //                // Fetch existing test papers for the test series (both regular and repeated exams)
-        //                string timeValidationQuery = @"
-        //SELECT StartDate, StartTime, Duration, RepeatedExams, RepeatExamStartDate, RepeatExamEndDate
-        //FROM tblTestSeries 
-        //WHERE TestSeriesId != @TestSeriesId 
-        //  AND APID = @APID";  // Fetch test papers for the same APID
-
-        //                var existingTestPapers = await _connection.QueryAsync<(DateTime StartDate, string StartTime, string Duration, bool RepeatedExams, DateTime? RepeatExamStartDate, DateTime? RepeatExamEndDate)>(timeValidationQuery,
-        //                    new
-        //                    {
-        //                        TestSeriesId = request.TestSeriesId,
-        //                        APID = request.APID
-        //                    });
-
-        //                // Check if RepeatedExams is false (Non-repeated test case)
-        //                if (request.RepeatedExams == false)
-        //                {
-        //                        DateTime requestedStartDateTime;
-        //                    if (DateTime.TryParse(request.StartTime, out DateTime parsedStartTime))
-        //                    {
-        //                        // Combine StartDate with parsed StartTime (the date part of parsedStartTime will be ignored)
-        //                        requestedStartDateTime = request.StartDate.Value.Add(parsedStartTime.TimeOfDay);
-
-        //                        // Now you can proceed with the rest of your logic using requestedStartDateTime
-        //                    }
-        //                    else
-        //                    {
-        //                        // Handle invalid time format
-        //                        return new ServiceResponse<string>(false, "Invalid StartTime format.", string.Empty, 400);
-        //                    }
-
-        //                    foreach (var testPaper in existingTestPapers)
-        //                    {
-        //                        // Check for overlap with other regular tests
-        //                        if (!testPaper.RepeatedExams)
-        //                        {
-        //                            // Assuming testPaper.StartTime is a string in the format "HH:mm:ss"
-        //                            if (TimeSpan.TryParse(testPaper.StartTime, out TimeSpan startTimeSpan))
-        //                            {
-        //                                // Combine StartDate with StartTime to create the full DateTime for the test start
-        //                                DateTime existingStartDateTime = testPaper.StartDate.Add(startTimeSpan);
-
-        //                                // Extract numeric value from testPaper.Duration (e.g., "120 minutes")
-        //                                if (!string.IsNullOrWhiteSpace(testPaper.Duration) &&
-        //                                    double.TryParse(new string(testPaper.Duration.TakeWhile(char.IsDigit).ToArray()), out double durationInMinutes))
-        //                                {
-        //                                    // Calculate the end time of the existing test
-        //                                    DateTime existingEndDateTime = existingStartDateTime.AddMinutes(durationInMinutes);
-
-        //                                    // Ensure the requested test does not overlap or is less than 15 minutes apart
-        //                                    if (requestedStartDateTime < existingEndDateTime.AddMinutes(15))
-        //                                    {
-        //                                        return new ServiceResponse<string>(false, "Test papers cannot overlap or be less than 15 minutes apart.", string.Empty, 400);
-        //                                    }
-        //                                }
-        //                                else
-        //                                {
-        //                                    // Handle invalid or missing duration
-        //                                    return new ServiceResponse<string>(false, "Invalid test duration.", string.Empty, 400);
-        //                                }
-
-        //                            }
-        //                            else
-        //                            {
-        //                                return new ServiceResponse<string>(false, "Invalid StartTime format.", string.Empty, 400);
-        //                            }
-        //                        }
-        //                        // Check for overlap with repeated exams' time window
-        //                        if (testPaper.RepeatedExams && testPaper.RepeatExamStartDate.HasValue && testPaper.RepeatExamEndDate.HasValue)
-        //                        {
-        //                            if (request.StartDate >= testPaper.RepeatExamStartDate && request.StartDate <= testPaper.RepeatExamEndDate)
-        //                            {
-        //                                return new ServiceResponse<string>(false, "The test cannot overlap with an existing repeated exam period.", string.Empty, 400);
-        //                            }
-        //                        }
-        //                    }
-        //                }
-        //                else // Repeated exam case
-        //                {
-        //                    // Ensure no overlap with other repeated exams' time windows
-        //                    if (request.RepeatExamStartDate.HasValue && request.RepeatExamEndDate.HasValue)
-        //                    {
-        //                        foreach (var testPaper in existingTestPapers)
-        //                        {
-        //                            // Check for overlap with other repeated exams
-        //                            if (testPaper.RepeatedExams)
-        //                            {
-        //                                if ((request.RepeatExamStartDate <= testPaper.RepeatExamEndDate && request.RepeatExamStartDate >= testPaper.RepeatExamStartDate) ||
-        //                                    (request.RepeatExamEndDate <= testPaper.RepeatExamEndDate && request.RepeatExamEndDate >= testPaper.RepeatExamStartDate))
-        //                                {
-        //                                    return new ServiceResponse<string>(false, "Repeated exams cannot overlap with each other.", string.Empty, 400);
-        //                                }
-        //                            }
-
-        //                            // Check for overlap with regular test timings during repeat exam period
-        //                            if (!testPaper.RepeatedExams)
-        //                            {
-        //                                // Assuming testPaper.StartTime is a string in the format "HH:mm:ss"
-        //                                if (TimeSpan.TryParse(testPaper.StartTime, out TimeSpan startTimeSpan))
-        //                                {
-        //                                    // Combine StartDate with StartTime to create the full DateTime for the test start
-        //                                    DateTime existingStartDateTime = testPaper.StartDate.Add(startTimeSpan);
-
-        //                                    // Convert testPaper.Duration to double if necessary
-        //                                    if (double.TryParse(testPaper.Duration.ToString(), out double durationInMinutes))
-        //                                    {
-        //                                        DateTime existingEndDateTime = existingStartDateTime.AddMinutes(durationInMinutes);
-
-        //                                        // Ensure repeated test's repeat period does not overlap with non-repeated test timings
-        //                                        if ((existingStartDateTime >= request.RepeatExamStartDate && existingStartDateTime <= request.RepeatExamEndDate) ||
-        //                                            (existingEndDateTime >= request.RepeatExamStartDate && existingEndDateTime <= request.RepeatExamEndDate))
-        //                                        {
-        //                                            return new ServiceResponse<string>(false, "Regular test timings cannot overlap with the repeated exam period.", string.Empty, 400);
-        //                                        }
-        //                                    }
-        //                                    else
-        //                                    {
-        //                                        return new ServiceResponse<string>(false, "Invalid test duration.", string.Empty, 400);
-        //                                    }
-        //                                }
-        //                                else
-        //                                {
-        //                                    return new ServiceResponse<string>(false, "Invalid StartTime format.", string.Empty, 400);
-        //                                }
-        //                            }
-        //                        }
-        //                    }
-        //                    else
-        //                    {
-        //                        return new ServiceResponse<string>(false, "Invalid repeat exam period provided.", string.Empty, 400);
-        //                    }
-        //                }
-        //                string updateQuery = @"
-        //                    UPDATE tblTestSeries
-        //                    SET
-        //                        APID = @APID,
-        //                        ManualQuestionSelect = @ManualQuestionSelect,
-        //                        StartDate = @StartDate,
-        //                        StartTime = @StartTime,
-        //                        ResultDate = @ResultDate,
-        //                        ResultTime = @ResultTime,
-        //                        NameOfExam = @NameOfExam,
-        //                        RepeatedExams = @RepeatedExams,
-        //                        modifiedon = @modifiedon,
-        //                        modifiedby = @modifiedby,
-        //                        RepeatExamEndDate = @RepeatExamEndDate,
-        //                        RepeatExamStartDate = @RepeatExamStartDate,
-        //                        RepeatExamStarttime = @RepeatExamStarttime,
-        //                        RepeatExamResulttimeId = @RepeatExamResulttimeId
-        //                    WHERE TestSeriesId = @TestSeriesId;";
-        //                var parameters = new
-        //                {
-        //                    request.APID,
-        //                    request.ManualQuestionSelect,
-        //                    request.StartDate,
-        //                    request.StartTime,
-        //                    request.ResultDate,
-        //                    request.ResultTime,
-        //                    request.NameOfExam,
-        //                    request.RepeatedExams,
-        //                    modifiedon = DateTime.Now,
-        //                    request.modifiedby,
-        //                    request.TestSeriesId,
-        //                    request.RepeatExamEndDate,
-        //                    request.RepeatExamStartDate,
-        //                    request.RepeatExamStarttime,
-        //                    request.RepeatExamResulttimeId,
-        //                    // request.IsAdmin
-        //                };
-        //                int rowsAffected = await _connection.ExecuteAsync(updateQuery, parameters);
-        //                if (rowsAffected > 0)
-        //                {
-        //                    return new ServiceResponse<string>(true, "operation successful", string.Empty, 200);
-        //                }
-        //                else
-        //                {
-        //                    return new ServiceResponse<string>(false, "Some error occured", string.Empty, 500);
-        //                }
-        //            }
-        //            catch (Exception ex)
-        //            {
-        //                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
-        //            }
-        //        }
         public async Task<ServiceResponse<TestSeriesResponseDTO>> GetTestSeriesById(int TestSeriesId)
         {
             try
@@ -2100,15 +1927,16 @@ WHERE TestSeriesId != @TestSeriesId
                 TotalNoofQuestions = @TotalNoofQuestions,
                 NoofQuestionsforChoice = @NoofQuestionsforChoice,
                 SubjectId = @SubjectId,
+                PartialMarkRuleId = @PartialMarkRuleId,
                 SectionName = @SectionName,
                 DisplayOrder = @DisplayOrder
             WHERE testseriesQuestionSectionid = @testseriesQuestionSectionid";
 
                 string insertQuery = @"
             INSERT INTO tbltestseriesQuestionSection 
-            (TestSeriesid, DisplayOrder, SectionName, Status, QuestionTypeID, EntermarksperCorrectAnswer, EnterNegativeMarks, TotalNoofQuestions, NoofQuestionsforChoice, SubjectId)
+            (TestSeriesid, DisplayOrder, SectionName, Status, QuestionTypeID, EntermarksperCorrectAnswer, EnterNegativeMarks, TotalNoofQuestions, NoofQuestionsforChoice, SubjectId, PartialMarkRuleId)
             VALUES 
-            (@TestSeriesid, @DisplayOrder, @SectionName, @Status, @QuestionTypeID, @EntermarksperCorrectAnswer, @EnterNegativeMarks, @TotalNoofQuestions, @NoofQuestionsforChoice, @SubjectId);
+            (@TestSeriesid, @DisplayOrder, @SectionName, @Status, @QuestionTypeID, @EntermarksperCorrectAnswer, @EnterNegativeMarks, @TotalNoofQuestions, @NoofQuestionsforChoice, @SubjectId, @PartialMarkRuleId);
             SELECT CAST(SCOPE_IDENTITY() as int);";
 
                 foreach (var section in request)
@@ -2677,8 +2505,13 @@ WHERE TestSeriesId != @TestSeriesId
                             IsActive = item.IsActive,
                             QIDCourses = GetListOfQIDCourse(item.QuestionCode),
                             //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
-                            Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
-                            AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
+                            //Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
+                            //AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
+
+                            MatchPairs = item.QuestionTypeId == 6 || item.QuestionTypeId == 12 ? GetMatchPairs(item.QuestionCode, item.QuestionId) : null,
+                            MatchThePairType2Answers = item.QuestionTypeId == 12 ? GetMatchThePairType2Answers(item.QuestionCode, item.QuestionId) : null,
+                            Answersingleanswercategories = (item.QuestionTypeId != 6 && item.QuestionTypeId != 12) ? GetSingleAnswer(item.QuestionCode, item.QuestionId) : null,
+                            AnswerMultipleChoiceCategories = (item.QuestionTypeId != 12) ? GetMultipleAnswers(item.QuestionCode) : null
                         };
                     }
                 }
@@ -5230,6 +5063,58 @@ WHERE tsci.TestSeriesID = @TestSeriesID";
             else
             {
                 return 0;
+            }
+        }
+        private List<MatchPair> GetMatchPairs(string questionCode, int questionId)
+        {
+            const string query = @"
+        SELECT MatchThePairId, PairColumn, PairRow, PairValue
+        FROM tblQuestionMatchThePair
+        WHERE QuestionCode = @QuestionCode AND QuestionId = @QuestionId";
+
+
+            return _connection.Query<MatchPair>(query, new { QuestionCode = questionCode, QuestionId = questionId }).ToList();
+
+        }
+        private List<MatchThePairAnswer> GetMatchThePairType2Answers(string questionCode, int questionId)
+        {
+            const string getAnswerIdQuery = @"
+        SELECT AnswerId 
+        FROM tblAnswerMaster
+        WHERE QuestionCode = @QuestionCode AND QuestionId = @QuestionId";
+
+            const string getAnswersQuery = @"
+        SELECT MatchThePair2Id, PairColumn, PairRow
+        FROM tblOptionsMatchThePair2
+        WHERE AnswerId = @AnswerId";
+
+
+            var answerId = _connection.QueryFirstOrDefault<int?>(getAnswerIdQuery, new { QuestionCode = questionCode, QuestionId = questionId });
+
+            if (answerId == null)
+            {
+                return new List<MatchThePairAnswer>();
+            }
+
+            return _connection.Query<MatchThePairAnswer>(getAnswersQuery, new { AnswerId = answerId }).ToList();
+
+        }
+        private DTOs.Response.Answersingleanswercategory GetSingleAnswer(string QuestionCode, int QuestionId)
+        {
+            var answerMaster = _connection.QueryFirstOrDefault<AnswerMaster>(@"
+        SELECT * FROM tblAnswerMaster WHERE QuestionCode = @QuestionCode and Questionid = @Questionid", new { QuestionCode, Questionid = QuestionId });
+
+            if (answerMaster != null)
+            {
+                string getQuery = @"
+            SELECT * FROM [tblAnswersingleanswercategory] WHERE [Answerid] = @Answerid";
+
+                var response = _connection.QueryFirstOrDefault<DTOs.Response.Answersingleanswercategory>(getQuery, new { answerMaster.Answerid });
+                return response ?? new DTOs.Response.Answersingleanswercategory();
+            }
+            else
+            {
+                return new DTOs.Response.Answersingleanswercategory();
             }
         }
     }
