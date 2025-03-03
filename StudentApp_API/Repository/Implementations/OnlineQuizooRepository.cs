@@ -58,7 +58,7 @@ namespace StudentApp_API.Repository.Implementations
                     @ClassID, @CourseID, @BoardID
                 ); 
                 SELECT CAST(SCOPE_IDENTITY() as int)";
-
+                //quizoo.QuizooStartTime
                     quizooId = await _connection.ExecuteScalarAsync<int>(insertQuery, quizoo);
                     quizoo.QuizooLink = $"iGuruQuizooLink/{quizooId}";
                     await _connection.ExecuteAsync(@"update tblQuizoo set QuizooLink = @QuizooLink", new { QuizooLink = quizoo.QuizooLink });

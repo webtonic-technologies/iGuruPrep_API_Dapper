@@ -19,7 +19,7 @@ namespace StudentApp_API.Services.Implementations
             return await _quizooQuestionBoardRepository.GetQuizQuestions(quizooId, registrationId);
         }
 
-        public async Task<IEnumerable<AnswerPercentageResponse>> SubmitAnswerAsync(SubmitAnswerRequest request)
+        public async Task<IEnumerable<AnswerPercentageResponse>> SubmitAnswerAsync(List<SubmitAnswerRequest> request)
         {
             return await _quizooQuestionBoardRepository.SubmitAnswerAsync(request);
         }

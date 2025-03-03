@@ -91,7 +91,7 @@
         public int PairRow { get; set; }
         public string PairValue { get; set; }
     }
-
+    
     public class AnswerPercentageResponse
     {
         public int QuizID { get; set; }

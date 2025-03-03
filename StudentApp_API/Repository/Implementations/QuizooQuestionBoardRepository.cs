@@ -219,95 +219,191 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
             }
         }
-        public async Task<IEnumerable<AnswerPercentageResponse>> SubmitAnswerAsync(SubmitAnswerRequest request)
+        public async Task<IEnumerable<AnswerPercentageResponse>> SubmitAnswerAsync(List<SubmitAnswerRequest> requestList)
         {
-            string checkCorrectAnswerQuery = @"
-    SELECT AMC.IsCorrect
-    FROM tblAnswerMaster AM
-    INNER JOIN tblAnswerMultipleChoiceCategory AMC
-    ON AM.AnswerID = AMC.AnswerID
-    WHERE AM.QuestionID = @QuestionID AND AMC.AnswerID = @AnswerID";
+            var responseList = new List<AnswerPercentageResponse>();
 
-            string checkExistingAnswerQuery = @"
-    SELECT COUNT(1)
-    FROM tblQuizooPlayersAnswers
-    WHERE QuizooID = @QuizID AND QuestionID = @QuestionID AND StudentID = @StudentID";
-
-            string updateQuery = @"
-    UPDATE tblQuizooPlayersAnswers
-    SET AnswerID = @AnswerID, IsCorrect = @IsCorrect
-    WHERE QuizooID = @QuizID AND QuestionID = @QuestionID AND StudentID = @StudentID";
-
-            string insertQuery = @"
-    INSERT INTO tblQuizooPlayersAnswers (QuizooID, StudentID, QuestionID, AnswerID, IsCorrect)
-    VALUES (@QuizID, @StudentID, @QuestionID, @AnswerID, @IsCorrect)";
-
-            string percentageQuery = @"
-    SELECT 
-        QPA.AnswerID,
-        COUNT(QPA.AnswerID) AS AnswerCount,
-        (COUNT(QPA.AnswerID) * 100.0 / NULLIF(TotalResponses.TotalCount, 0)) AS AnswerPercentage
-    FROM 
-        tblQuizooPlayersAnswers QPA
-    INNER JOIN 
-        (SELECT COUNT(*) AS TotalCount
-         FROM tblQuizooPlayersAnswers
-         WHERE QuizooID = @QuizID AND QuestionID = @QuestionID) AS TotalResponses
-    ON 1 = 1
-    WHERE 
-        QPA.QuizooID = @QuizID AND QPA.QuestionID = @QuestionID
-    GROUP BY 
-        QPA.AnswerID, TotalResponses.TotalCount";
-
-            // Check if the answer is correct
-            bool isCorrect = await _connection.ExecuteScalarAsync<bool>(checkCorrectAnswerQuery, new
+            foreach (var request in requestList)
             {
-                QuestionID = request.QuestionID,
-                AnswerID = request.AnswerID
-            });
+                string checkCorrectAnswerQuery = @"
+        SELECT AMC.IsCorrect
+        FROM tblAnswerMaster AM
+        INNER JOIN tblAnswerMultipleChoiceCategory AMC
+        ON AM.AnswerID = AMC.AnswerID
+        WHERE AM.QuestionID = @QuestionID AND AMC.AnswerID = @AnswerID";
 
-            // Check if there is an existing answer for the student
-            bool hasExistingAnswer = await _connection.ExecuteScalarAsync<bool>(checkExistingAnswerQuery, new
-            {
-                QuizID = request.QuizID,
-                QuestionID = request.QuestionID,
-                StudentID = request.StudentID
-            });
+                string checkExistingAnswerQuery = @"
+        SELECT COUNT(1)
+        FROM tblQuizooPlayersAnswers
+        WHERE QuizooID = @QuizID AND QuestionID = @QuestionID AND StudentID = @StudentID";
 
-            if (hasExistingAnswer)
-            {
-                // Update the existing answer
-                await _connection.ExecuteAsync(updateQuery, new
+                string updateQuery = @"
+        UPDATE tblQuizooPlayersAnswers
+        SET AnswerID = @AnswerID, IsCorrect = @IsCorrect
+        WHERE QuizooID = @QuizID AND QuestionID = @QuestionID AND StudentID = @StudentID";
+
+                string insertQuery = @"
+        INSERT INTO tblQuizooPlayersAnswers (QuizooID, StudentID, QuestionID, AnswerID, IsCorrect)
+        VALUES (@QuizID, @StudentID, @QuestionID, @AnswerID, @IsCorrect)";
+
+                string percentageQuery = @"
+        SELECT 
+            QPA.AnswerID,
+            COUNT(QPA.AnswerID) AS AnswerCount,
+            (COUNT(QPA.AnswerID) * 100.0 / NULLIF(TotalResponses.TotalCount, 0)) AS AnswerPercentage
+        FROM 
+            tblQuizooPlayersAnswers QPA
+        INNER JOIN 
+            (SELECT COUNT(*) AS TotalCount
+             FROM tblQuizooPlayersAnswers
+             WHERE QuizooID = @QuizID AND QuestionID = @QuestionID) AS TotalResponses
+        ON 1 = 1
+        WHERE 
+            QPA.QuizooID = @QuizID AND QPA.QuestionID = @QuestionID
+        GROUP BY 
+            QPA.AnswerID, TotalResponses.TotalCount";
+
+                // Check if the answer is correct
+                bool isCorrect = await _connection.ExecuteScalarAsync<bool>(checkCorrectAnswerQuery, new
+                {
+                    QuestionID = request.QuestionID,
+                    AnswerID = request.AnswerID
+                });
+
+                // Check if there is an existing answer for the student
+                bool hasExistingAnswer = await _connection.ExecuteScalarAsync<bool>(checkExistingAnswerQuery, new
                 {
                     QuizID = request.QuizID,
-                    StudentID = request.StudentID,
                     QuestionID = request.QuestionID,
-                    AnswerID = request.AnswerID,
-                    IsCorrect = isCorrect
+                    StudentID = request.StudentID
                 });
-            }
-            else
-            {
-                // Insert a new answer
-                await _connection.ExecuteAsync(insertQuery, new
+
+                if (hasExistingAnswer)
+                {
+                    // Update the existing answer
+                    await _connection.ExecuteAsync(updateQuery, new
+                    {
+                        QuizID = request.QuizID,
+                        StudentID = request.StudentID,
+                        QuestionID = request.QuestionID,
+                        AnswerID = request.AnswerID,
+                        IsCorrect = isCorrect
+                    });
+                }
+                else
+                {
+                    // Insert a new answer
+                    await _connection.ExecuteAsync(insertQuery, new
+                    {
+                        QuizID = request.QuizID,
+                        StudentID = request.StudentID,
+                        QuestionID = request.QuestionID,
+                        AnswerID = request.AnswerID,
+                        IsCorrect = isCorrect
+                    });
+                }
+
+                // Fetch updated percentages for this question
+                var percentages = await _connection.QueryAsync<AnswerPercentageResponse>(percentageQuery, new
                 {
                     QuizID = request.QuizID,
-                    StudentID = request.StudentID,
-                    QuestionID = request.QuestionID,
-                    AnswerID = request.AnswerID,
-                    IsCorrect = isCorrect
+                    QuestionID = request.QuestionID
                 });
+
+                responseList.AddRange(percentages);
             }
 
-            // Fetch updated percentages
-            var percentages = await _connection.QueryAsync<AnswerPercentageResponse>(percentageQuery, new
-            {
-                QuizID = request.QuizID,
-                QuestionID = request.QuestionID
-            });
-
-            return percentages;
+            return responseList.Distinct().ToList(); // Remove duplicates if any
         }
+        //    public async Task<IEnumerable<AnswerPercentageResponse>> SubmitAnswerAsync(List<SubmitAnswerRequest> request)
+        //    {
+        //        string checkCorrectAnswerQuery = @"
+        //SELECT AMC.IsCorrect
+        //FROM tblAnswerMaster AM
+        //INNER JOIN tblAnswerMultipleChoiceCategory AMC
+        //ON AM.AnswerID = AMC.AnswerID
+        //WHERE AM.QuestionID = @QuestionID AND AMC.AnswerID = @AnswerID";
+
+        //        string checkExistingAnswerQuery = @"
+        //SELECT COUNT(1)
+        //FROM tblQuizooPlayersAnswers
+        //WHERE QuizooID = @QuizID AND QuestionID = @QuestionID AND StudentID = @StudentID";
+
+        //        string updateQuery = @"
+        //UPDATE tblQuizooPlayersAnswers
+        //SET AnswerID = @AnswerID, IsCorrect = @IsCorrect
+        //WHERE QuizooID = @QuizID AND QuestionID = @QuestionID AND StudentID = @StudentID";
+
+        //        string insertQuery = @"
+        //INSERT INTO tblQuizooPlayersAnswers (QuizooID, StudentID, QuestionID, AnswerID, IsCorrect)
+        //VALUES (@QuizID, @StudentID, @QuestionID, @AnswerID, @IsCorrect)";
+
+        //        string percentageQuery = @"
+        //SELECT 
+        //    QPA.AnswerID,
+        //    COUNT(QPA.AnswerID) AS AnswerCount,
+        //    (COUNT(QPA.AnswerID) * 100.0 / NULLIF(TotalResponses.TotalCount, 0)) AS AnswerPercentage
+        //FROM 
+        //    tblQuizooPlayersAnswers QPA
+        //INNER JOIN 
+        //    (SELECT COUNT(*) AS TotalCount
+        //     FROM tblQuizooPlayersAnswers
+        //     WHERE QuizooID = @QuizID AND QuestionID = @QuestionID) AS TotalResponses
+        //ON 1 = 1
+        //WHERE 
+        //    QPA.QuizooID = @QuizID AND QPA.QuestionID = @QuestionID
+        //GROUP BY 
+        //    QPA.AnswerID, TotalResponses.TotalCount";
+
+        //        // Check if the answer is correct
+        //        bool isCorrect = await _connection.ExecuteScalarAsync<bool>(checkCorrectAnswerQuery, new
+        //        {
+        //            QuestionID = request.QuestionID,
+        //            AnswerID = request.AnswerID
+        //        });
+
+        //        // Check if there is an existing answer for the student
+        //        bool hasExistingAnswer = await _connection.ExecuteScalarAsync<bool>(checkExistingAnswerQuery, new
+        //        {
+        //            QuizID = request.QuizID,
+        //            QuestionID = request.QuestionID,
+        //            StudentID = request.StudentID
+        //        });
+
+        //        if (hasExistingAnswer)
+        //        {
+        //            // Update the existing answer
+        //            await _connection.ExecuteAsync(updateQuery, new
+        //            {
+        //                QuizID = request.QuizID,
+        //                StudentID = request.StudentID,
+        //                QuestionID = request.QuestionID,
+        //                AnswerID = request.AnswerID,
+        //                IsCorrect = isCorrect
+        //            });
+        //        }
+        //        else
+        //        {
+        //            // Insert a new answer
+        //            await _connection.ExecuteAsync(insertQuery, new
+        //            {
+        //                QuizID = request.QuizID,
+        //                StudentID = request.StudentID,
+        //                QuestionID = request.QuestionID,
+        //                AnswerID = request.AnswerID,
+        //                IsCorrect = isCorrect
+        //            });
+        //        }
+
+        //        // Fetch updated percentages
+        //        var percentages = await _connection.QueryAsync<AnswerPercentageResponse>(percentageQuery, new
+        //        {
+        //            QuizID = request.QuizID,
+        //            QuestionID = request.QuestionID
+        //        });
+
+        //        return percentages;
+        //    }
         private List<MatchPair> GetMatchPairs(string questionCode, int questionId)
         {
             const string query = @"

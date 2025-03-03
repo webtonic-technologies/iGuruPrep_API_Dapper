@@ -36,7 +36,7 @@ namespace StudentApp_API.Controllers
             }
         }
         [HttpPost("SubmitAnswer")]
-        public async Task<IActionResult> SubmitAnswerAsync(SubmitAnswerRequest request)
+        public async Task<IActionResult> SubmitAnswerAsync(List<SubmitAnswerRequest> request)
         {
             try
             {

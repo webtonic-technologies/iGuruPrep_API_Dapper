@@ -135,7 +135,7 @@ namespace StudentApp_API.Repository.Implementations
     LEFT JOIN tblEmployee emp ON q.EmployeeId = emp.Employeeid
     LEFT JOIN tblExamType e ON q.ExamTypeId = e.ExamTypeID
     LEFT JOIN tblQBIndexType it ON q.IndexTypeId = it.IndexId
-    WHERE AND (@QuestionStatus IS NULL OR qsCTE.Status IN @QuestionStatus);";
+    WHERE (@QuestionStatus IS NULL OR qsCTE.Status IN @QuestionStatus);";
 
                     var parameters = new
                     {
@@ -1775,9 +1775,9 @@ WITH TimeSpentPerQuestion AS (
         ON qn.QuestionID = ssa.QuestionID 
         AND qn.StudentID = ssa.StudentID 
         AND qn.ScholarshipID = ssa.ScholarshipID
-    WHERE qn.StudentID = 4 
-      AND qn.ScholarshipID = 2
-      AND sq.SubjectId = 2040
+    WHERE qn.StudentID = @StudentId
+      AND qn.ScholarshipID = @ScholarshipId
+      AND sq.SubjectId = @SubjectId
     GROUP BY qn.QuestionID, sq.SubjectId, COALESCE(ssa.AnswerStatus, 'Unattempted') -- Apply here
 )
 -- 2. Calculate total & average time for each category

@@ -472,7 +472,7 @@ namespace StudentApp_API.Repository.Implementations
                 // Query to fetch associated syllabus details
                 var syllabusQuery = @"
             SELECT 
-                qs.QuizooID, qs.SubjectID, qs.ChapterID, 
+                qs.QuizooID, qs.SubjectID, qs.ChapterID, qs.QSID as QSID,
                 s.SubjectName, c.ContentName_Chapter
             FROM tblQuizooSyllabus qs
             INNER JOIN tblSubject s ON qs.SubjectID = s.SubjectID
@@ -500,7 +500,6 @@ namespace StudentApp_API.Repository.Implementations
                 QuizooName,
                 QuizooDate,
                 QuizooStartTime,
-                Duration,
                 NoOfQuestions,
                 NoOfPlayers,
                 QuizooLink,

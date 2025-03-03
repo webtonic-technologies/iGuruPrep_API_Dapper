@@ -6,6 +6,6 @@ namespace StudentApp_API.Services.Interfaces
     public interface IQuizooQuestionBoardServices
     {
         Task<ServiceResponse<List<QuestionResponseDTO>>> GetQuizQuestions(int quizooId, int registrationId);
-        Task<IEnumerable<AnswerPercentageResponse>> SubmitAnswerAsync(SubmitAnswerRequest request);
+        Task<IEnumerable<AnswerPercentageResponse>> SubmitAnswerAsync(List<SubmitAnswerRequest> request);
     }
 }

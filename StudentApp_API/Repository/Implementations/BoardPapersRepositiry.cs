@@ -49,7 +49,7 @@ namespace StudentApp_API.Repository.Implementations
             INNER JOIN tblTestSeriesBoards tsb ON ts.TestSeriesId = tsb.TestSeriesId
             INNER JOIN tblTestSeriesClass tsc ON ts.TestSeriesId = tsc.TestSeriesId
             INNER JOIN tblTestSeriesCourse tscs ON ts.TestSeriesId = tscs.TestSeriesId
-            WHERE tsb.BoardId = @BoardId AND tsc.ClassId = @ClassId AND tscs.CourseId = @CourseId AND ts.TypeOfTestSeries = 1002";
+            WHERE tsb.BoardId = @BoardId AND tsc.ClassId = @ClassId AND tscs.CourseId = @CourseId AND ts.TypeOfTestSeries = 4";
 
                 var testSeriesIds = (await _connection.QueryAsync<int>(queryTestSeries, new
                 {
@@ -112,9 +112,10 @@ namespace StudentApp_API.Repository.Implementations
 
                 // Step 2: Fetch details of test series from tblTestSeries using the retrieved TestSeriesIds
                 string queryTestSeries = @"
-            SELECT ts.TestSeriesId, ts.NameOfExam AS TestPatternName, ts.Duration, ts.StartDate, ts.StartTime, ts.ResultDate, ts.ResultTime, ts.TotalNoOfQuestions
+            SELECT ts.TestSeriesId, ts.NameOfExam AS TestPatternName, ts.Duration, ts.StartDate, ts.StartTime, 
+            ts.ResultDate, ts.ResultTime, ts.TotalNoOfQuestions
             FROM tblTestSeries ts
-            WHERE ts.TestSeriesId IN @TestSeriesIds AND ts.DownloadStatusId >= 3";
+            WHERE ts.TestSeriesId IN @TestSeriesIds AND ts.DownloadStatusId >= 3 AND ts.TypeOfTestSeries = 4";
 
                 response = (await _connection.QueryAsync<TestSeriesResponse>(queryTestSeries, new
                 {
