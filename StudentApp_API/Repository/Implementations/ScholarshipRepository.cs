@@ -156,8 +156,7 @@ namespace StudentApp_API.Repository.Implementations
 
                     foreach (var question in questionsList)
                     {
-                        var isSingleAnswer = question.QuestionTypeId == 3 || question.QuestionTypeId == 4 ||
-                                       question.QuestionTypeId == 8 || question.QuestionTypeId == 7 || question.QuestionTypeId == 9;
+                        var isSingleAnswer = question.QuestionTypeId == 9 || question.QuestionTypeId == 4 ;
                         // Fetch the student's submitted answer
                         string studentAnswerQuery = @"
                 SELECT AnswerID, AnswerStatus 
@@ -888,25 +887,23 @@ namespace StudentApp_API.Repository.Implementations
                 {
                     return new ServiceResponse<List<MarksAcquiredAfterAnswerSubmission>>(false, "Request is empty or invalid.", null, 400);
                 }
-
-                // Fetch section ID based on the subject ID
-                var sectionQuery = @"
-            SELECT SSTSectionId
-            FROM tblSSQuestionSection
-            WHERE SubjectId = @SubjectID and ScholarshipTestId = @ScholarshipTestId";
-
-                var sectionId = await _connection.QueryFirstOrDefaultAsync<int>(sectionQuery, new { SubjectID = request.FirstOrDefault()?.SubjectID, ScholarshipTestId = request.FirstOrDefault()?.ScholarshipID });
-
-                if (sectionId == 0)
-                {
-                    return new ServiceResponse<List<MarksAcquiredAfterAnswerSubmission>>(false, "Section not found for the given subject.", null, 404);
-                }
-
                 // Prepare the response list
                 var responses = new List<MarksAcquiredAfterAnswerSubmission>();
 
                 foreach (var answer in request)
                 {
+                    // Fetch section ID based on the subject ID
+                    var sectionQuery = @"
+            SELECT SSTSectionId
+            FROM tblSSQuestionSection
+            WHERE SubjectId = @SubjectID and ScholarshipTestId = @ScholarshipTestId and QuestionTypeId = @QuestionTypeId";
+
+                    var sectionId = await _connection.QueryFirstOrDefaultAsync<int>(sectionQuery, new { SubjectID = request.FirstOrDefault()?.SubjectID, ScholarshipTestId = request.FirstOrDefault()?.ScholarshipID, QuestionTypeId = answer.QuestionTypeID });
+
+                    if (sectionId == 0)
+                    {
+                        return new ServiceResponse<List<MarksAcquiredAfterAnswerSubmission>>(false, "Section not found for the given subject.", null, 404);
+                    }
                     // Fetch question and answer details
                     var query = @"
                 SELECT 
