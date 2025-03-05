@@ -141,9 +141,9 @@ namespace StudentApp_API.Repository.Implementations
                     {
                         StudentId = request.studentId,
                         ScholarshipID = request.scholarshipTestId,
-                       // QuestionTypeId = (request.QuestionTypeId != null && request.QuestionTypeId.Any()) ? request.QuestionTypeId : null,
+                        // QuestionTypeId = (request.QuestionTypeId != null && request.QuestionTypeId.Any()) ? request.QuestionTypeId : null,
                         QuestionStatus = (request.QuestionStatus != null && request.QuestionStatus.Any()) ? request.QuestionStatus : null,
-                      
+
                     };
                     questionsList = (await _connection.QueryAsync<QuestionResponseDTO>(fetchQuery, parameters)).ToList();
                     // Apply filter on QuestionTypeId if provided
@@ -273,8 +273,7 @@ namespace StudentApp_API.Repository.Implementations
                         {
                             return new ServiceResponse<List<QuestionResponseDTO>>(false, "No difficulty level limits found.", [], 404);
                         }
-                        var isSingleAnswer = section.QuestionTypeId == 3 || section.QuestionTypeId == 4 ||
-                                             section.QuestionTypeId == 8 || section.QuestionTypeId == 7 || section.QuestionTypeId == 9;
+                        var isSingleAnswer = section.QuestionTypeId == 9 || section.QuestionTypeId == 4 ;
 
 
                         // Step 5: Fetch questions based on difficulty levels and limits
@@ -334,21 +333,6 @@ namespace StudentApp_API.Repository.Implementations
 
                         foreach (var question in selectedQuestions)
                         {
-                            // Fetch the student's submitted answer
-                            string studentAnswerQuery = @"
-                SELECT AnswerID, AnswerStatus 
-                FROM tblStudentScholarshipAnswerSubmission 
-                WHERE StudentID = @StudentId AND QuestionID = @QuestionId AND ScholarshipID = @ScholarshipTestId";
-
-                            var studentAnswer = await _connection.QuerySingleOrDefaultAsync<dynamic>(studentAnswerQuery,
-                                new { StudentId = request.studentId, QuestionId = question.QuestionId, ScholarshipTestId = request.scholarshipTestId });
-
-                            if (studentAnswer != null)
-                            {
-                                question.StudentAnswer = studentAnswer.AnswerID.ToString();
-                                //question.IsCorrect = studentAnswer.AnswerStatus;
-                            }
-
                             // Fetch correct answers and additional question details
                             if (isSingleAnswer)
                             {
@@ -383,28 +367,6 @@ namespace StudentApp_API.Repository.Implementations
                     WHERE am.Questionid = @QuestionId";
 
                                 question.AnswerMultipleChoiceCategories = (await _connection.QueryAsync<AnswerMultipleChoiceCategory>(multipleAnswerQuery, new { QuestionId = question.QuestionId })).ToList();
-
-                                // Determine correctness if not already fetched
-                                if (question.IsCorrect == null)
-                                {
-                                    var correctAnswers = question.AnswerMultipleChoiceCategories
-                                        .Where(a => a.Iscorrect)
-                                        .Select(a => a.Answermultiplechoicecategoryid)
-                                        .ToList();
-                                    if (studentAnswer != null)
-                                    {
-                                        var studentAnswers = question.StudentAnswer?
-                                    .Split(',')
-                                    .Select(a => int.TryParse(a.Trim(), out var id) ? id : (int?)null)
-                                    .Where(id => id.HasValue)
-                                    .Select(id => id.Value)
-                                    .ToList();
-
-                                        question.IsCorrect = studentAnswers != null
-                                            && correctAnswers.All(studentAnswers.Contains)
-                                            && studentAnswers.All(correctAnswers.Contains);
-                                    }
-                                }
                             }
                         }
 
