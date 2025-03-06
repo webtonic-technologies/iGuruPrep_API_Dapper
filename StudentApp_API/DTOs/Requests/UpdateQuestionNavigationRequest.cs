@@ -32,6 +32,7 @@
     {
         public int QuestionID { get; set; }
         public int QuestionTypeID { get; set; }
+        public int QuestionstatusId {  get; set; }
         public List<int> MultiOrSingleAnswerId { get; set; }
         public List<TimeLog> TimeLogs { get; set; }
     }
