@@ -146,7 +146,7 @@
         public decimal TestTotalMarks { get; set; }      // TotalMarks from test table
 
         // Student performance from submissions
-        public int StudentMarks { get; set; }        // Sum of marks from submissions
+        public decimal StudentMarks { get; set; }        // Sum of marks from submissions
         public int CorrectCount { get; set; }
         public decimal CorrectPercentage { get; set; }
         public int IncorrectCount { get; set; }
@@ -158,9 +158,9 @@
     }
     public class MarksCalculation
     {
-        public int AchievedMarks { get; set; }
-        public int NegativeMarks { get; set; }
-        public int FinalMarks { get; set; }
+        public decimal AchievedMarks { get; set; }
+        public decimal NegativeMarks { get; set; }
+        public decimal FinalMarks { get; set; }
         public decimal MarksPercentage { get; set; }
     }
     public class TimeSpentReport
