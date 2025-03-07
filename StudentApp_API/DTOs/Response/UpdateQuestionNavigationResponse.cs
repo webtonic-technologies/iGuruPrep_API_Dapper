@@ -178,7 +178,6 @@
         public string UnattemptedAvgTime { get; set; }
         public string ExtraQuestionTotalTime { get; set; }
         public string ExtraQuestionAvgTime { get; set; }
-
     }
     public class QuestionViewKeyResponseDTO
     {
