@@ -155,6 +155,8 @@
         public decimal PartiallyCorrectPercentage { get; set; }
         public int UnattemptedCount { get; set; }
         public decimal UnattemptedPercentage { get; set; }
+        public int ExtraQuestionsCount {  get; set; }
+        public decimal ExtraQuestionsPercentage { get; set; }
     }
     public class MarksCalculation
     {
@@ -165,15 +167,18 @@
     }
     public class TimeSpentReport
     {
-        public int TotalTime { get; set; }
-        public int CorrectTotalTime { get; set; }
-        public double CorrectAvgTime { get; set; }
-        public int IncorrectTotalTime { get; set; }
-        public double IncorrectAvgTime { get; set; }
-        public int PartialTotalTime { get; set; }
-        public double PartialAvgTime { get; set; }
-        public int UnattemptedTotalTime { get; set; }
-        public double UnattemptedAvgTime { get; set; }
+        public string TotalTime { get; set; }
+        public string CorrectTotalTime { get; set; }
+        public string CorrectAvgTime { get; set; }
+        public string IncorrectTotalTime { get; set; }
+        public string IncorrectAvgTime { get; set; }
+        public string PartialTotalTime { get; set; }
+        public string PartialAvgTime { get; set; }
+        public string UnattemptedTotalTime { get; set; }
+        public string UnattemptedAvgTime { get; set; }
+        public string ExtraQuestionTotalTime { get; set; }
+        public string ExtraQuestionAvgTime { get; set; }
+
     }
     public class QuestionViewKeyResponseDTO
     {

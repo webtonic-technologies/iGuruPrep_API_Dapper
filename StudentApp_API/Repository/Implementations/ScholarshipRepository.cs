@@ -304,7 +304,7 @@ namespace StudentApp_API.Repository.Implementations
               FROM tblQIDCourse qc 
               WHERE qc.QuestionCode = q.QuestionCode 
                 AND qc.LevelId = @DifficultyLevelId AND qc.CourseID = @CourseID
-          ) AND q.IsLive = 1";
+          ) AND q.IsLive = 0";
                         var coureId = _connection.QueryFirstOrDefault<int>(@"select CourseId from tblScholarshipCourse where ScholarshipTestId = @ScholarshipTestId", new { ScholarshipTestId = request.scholarshipTestId });
                         var selectedQuestions = new List<QuestionResponseDTO>();
                         foreach (var difficultyLimit in difficultyLimits)
@@ -474,6 +474,7 @@ namespace StudentApp_API.Repository.Implementations
                         var sectionQuestions = questions
                             .Where(q => q.QuestionTypeId == section.QuestionTypeId) // Matching QuestionTypeId
                             .ToList();
+                        section.QuestionResponseDTOs = sectionQuestions;
 
                         foreach (var question in sectionQuestions)
                         {
@@ -1290,99 +1291,6 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<StudentDiscountResponse>(false, ex.Message, null, 500);
             }
         }
-        //public async Task<ServiceResponse<ScholarshipAnalytics>> GetScholarshipAnalyticsAsync(int studentId, int scholarshipId)
-        //{
-        //    try
-        //    {
-        //        var sql = @"
-        //-- 1. Retrieve test details
-        //SELECT TotalNumberOfQuestions, Duration, TotalMarks 
-        //FROM tblScholarshipTest
-        //WHERE ScholarshipTestId = @ScholarshipId;
-
-        //-- 2. Sum of marks obtained by the student
-        //SELECT ISNULL(SUM(Marks), 0) 
-        //FROM tblStudentScholarshipAnswerSubmission 
-        //WHERE StudentID = @StudentId AND ScholarshipID = @ScholarshipId;
-
-        //-- 3. Aggregate counts of answer statuses
-        //SELECT 
-        //    SUM(CASE WHEN AnswerStatus = 'Correct' THEN 1 ELSE 0 END) AS CorrectCount,
-        //    SUM(CASE WHEN AnswerStatus = 'Incorrect' THEN 1 ELSE 0 END) AS IncorrectCount,
-        //    SUM(CASE WHEN AnswerStatus = 'PartialCorrect' THEN 1 ELSE 0 END) AS PartiallyCorrectCount,
-        //    COUNT(*) AS AttemptedCount
-        //FROM tblStudentScholarshipAnswerSubmission 
-        //WHERE StudentID = @StudentId AND ScholarshipID = @ScholarshipId;
-
-        //-- 4. Count total assigned questions for the student
-        //SELECT COUNT(*) FROM tblStudentScholarship
-        //WHERE StudentID = @StudentId AND ScholarshipID = @ScholarshipId;";
-
-        //        _connection.Open();
-        //        using (var multi = await _connection.QueryMultipleAsync(sql, new { StudentId = studentId, ScholarshipId = scholarshipId }))
-        //        {
-        //            // 1. Read test details
-        //            var testDetails = await multi.ReadFirstOrDefaultAsync<dynamic>();
-        //            if (testDetails == null)
-        //            {
-        //                return new ServiceResponse<ScholarshipAnalytics>(false, "Test details not found for the given ScholarshipTestId.", null, 404);
-        //            }
-
-        //            int totalQuestions = testDetails.TotalNumberOfQuestions;
-        //            string durationString = testDetails.Duration; // Example: "120 minutes"
-        //            int duration = int.Parse(durationString.Split(' ')[0]); // Extracts "120" and converts to int
-
-        //            decimal testTotalMarks = testDetails.TotalMarks;
-
-        //            // 2. Read student's obtained marks
-        //            int studentMarks = await multi.ReadFirstAsync<int>();
-
-        //            // 3. Read answer status counts
-        //            var counts = await multi.ReadFirstAsync<dynamic>();
-        //            int correctCount = counts?.CorrectCount ?? 0;
-        //            int incorrectCount = counts?.IncorrectCount ?? 0;
-        //            int partiallyCorrectCount = counts?.PartiallyCorrectCount ?? 0;
-        //            int attemptedCount = counts?.AttemptedCount ?? 0;
-
-        //            // 4. Read total assigned questions for the student
-        //            int assignedQuestions = await multi.ReadFirstAsync<int>();
-
-        //            // Calculate unattempted questions
-        //            int unattemptedCount = assignedQuestions - attemptedCount;
-        //            if (unattemptedCount < 0) unattemptedCount = 0;
-
-        //            // Calculate percentages safely
-        //            decimal correctPercentage = assignedQuestions > 0 ? (correctCount * 100.0M / assignedQuestions) : 0;
-        //            decimal incorrectPercentage = assignedQuestions > 0 ? (incorrectCount * 100.0M / assignedQuestions) : 0;
-        //            decimal partiallyCorrectPercentage = assignedQuestions > 0 ? (partiallyCorrectCount * 100.0M / assignedQuestions) : 0;
-        //            decimal unattemptedPercentage = assignedQuestions > 0 ? (unattemptedCount * 100.0M / assignedQuestions) : 0;
-
-        //            // Construct the analytics result
-        //            var response = new ScholarshipAnalytics
-        //            {
-        //                TotalQuestions = assignedQuestions,
-        //                Duration = duration,
-        //                TestTotalMarks = testTotalMarks,
-        //                StudentMarks = studentMarks,
-        //                CorrectCount = correctCount,
-        //                CorrectPercentage = correctPercentage,
-        //                IncorrectCount = incorrectCount,
-        //                IncorrectPercentage = incorrectPercentage,
-        //                PartiallyCorrectCount = partiallyCorrectCount,
-        //                PartiallyCorrectPercentage = partiallyCorrectPercentage,
-        //                UnattemptedCount = unattemptedCount,
-        //                UnattemptedPercentage = unattemptedPercentage
-        //            };
-        //            _connection.Close();
-
-        //            return new ServiceResponse<ScholarshipAnalytics>(true, "Operation Successful", response, 200);
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return new ServiceResponse<ScholarshipAnalytics>(false, ex.Message, null, 500);
-        //    }
-        //}
         public async Task<ServiceResponse<ScholarshipAnalytics>> GetScholarshipAnalyticsAsync(int studentId, int scholarshipId)
         {
             try
@@ -1402,8 +1310,7 @@ namespace StudentApp_API.Repository.Implementations
         SELECT ss.SectionId, ssa.AnswerStatus, ssa.Marks 
         FROM tblStudentScholarshipAnswerSubmission ssa
         INNER JOIN tblStudentScholarship ss ON ssa.QuestionID = ss.QuestionID  
-        WHERE ss.StudentID = @StudentId AND ss.ScholarshipID = @ScholarshipId AND ssa.StudentID = @StudentId and ssa.ScholarshipID = @ScholarshipId
-        ORDER BY ss.SectionId, ssa.AnswerStatus DESC;";  // Prioritizing Correct over Incorrect
+        WHERE ss.StudentID = @StudentId AND ss.ScholarshipID = @ScholarshipId AND ssa.StudentID = @StudentId and ssa.ScholarshipID = @ScholarshipId;";
 
                 _connection.Open();
                 using (var multi = await _connection.QueryMultipleAsync(sql, new { StudentId = studentId, ScholarshipId = scholarshipId }))
@@ -1427,7 +1334,7 @@ namespace StudentApp_API.Repository.Implementations
 
                     // Initialize aggregated counts
                     int totalQuestions = 0;
-                    int totalAttempted = 0, totalCorrect = 0, totalIncorrect = 0, totalPartial = 0;
+                    int totalAttempted = 0, totalCorrect = 0, totalIncorrect = 0, totalPartial = 0, totalExtraQuestions = 0;
                     decimal totalMarksObtained = 0;
 
                     // Process each section
@@ -1442,11 +1349,126 @@ namespace StudentApp_API.Repository.Implementations
                         var sectionAnswers = allAnswers.Where(a => a.SectionId == sectionId).ToList();
 
                         // Select `maxQuestionsToConsider` answers prioritizing correct ones
-                        var selectedAnswers = sectionAnswers
-                            .OrderByDescending(a => a.AnswerStatus == "Correct") // Prioritize Correct
-                            .ThenBy(a => a.AnswerStatus == "PartialCorrect")      // Then Partial Correct
-                            .Take(maxQuestionsToConsider)
-                            .ToList();
+                        var selectedAnswers = sectionAnswers.Take(maxQuestionsToConsider).ToList();
+                        int sectionExtraQuestions = Math.Max(0, sectionAnswers.Count - maxQuestionsToConsider);
+                        // Section-wise calculations
+                        int sectionAttempted = selectedAnswers.Count;
+                        int sectionCorrect = selectedAnswers.Count(a => a.AnswerStatus == "Correct");
+                        int sectionIncorrect = selectedAnswers.Count(a => a.AnswerStatus == "Incorrect");
+                        int sectionPartial = selectedAnswers.Count(a => a.AnswerStatus == "PartialCorrect");
+                        int sectionUnattempted = sectionTotalQuestions - sectionAttempted;
+                        decimal sectionMarksObtained = selectedAnswers.Sum(a => (decimal?)a.Marks ?? 0); // Handle nulls
+
+                        // Aggregate section data
+                        totalQuestions += sectionTotalQuestions;
+                        totalAttempted += sectionAttempted;
+                        totalCorrect += sectionCorrect;
+                        totalIncorrect += sectionIncorrect;
+                        totalPartial += sectionPartial;
+                        totalMarksObtained += sectionMarksObtained;
+                        totalExtraQuestions += sectionExtraQuestions; 
+                    }
+
+                    // Compute overall analytics
+                    int totalUnattempted = totalQuestions - totalAttempted - totalExtraQuestions;
+                    decimal correctPercentage = totalQuestions > 0 ? (totalCorrect * 100.0M / totalQuestions) : 0;
+                    decimal incorrectPercentage = totalQuestions > 0 ? (totalIncorrect * 100.0M / totalQuestions) : 0;
+                    decimal partialPercentage = totalQuestions > 0 ? (totalPartial * 100.0M / totalQuestions) : 0;
+                    decimal unattemptedPercentage = totalQuestions > 0 ? (totalUnattempted * 100.0M / totalQuestions) : 0;
+                    decimal extraQuestionsPercentage = totalQuestions > 0 ? (totalExtraQuestions * 100.0M / totalQuestions) : 0;
+                    // Prepare response
+                    var response = new ScholarshipAnalytics
+                    {
+                        TotalQuestions = totalQuestions,
+                        Duration = duration,
+                        TestTotalMarks = testTotalMarks,
+                        StudentMarks = totalMarksObtained,
+                        CorrectCount = totalCorrect,
+                        CorrectPercentage = correctPercentage,
+                        IncorrectCount = totalIncorrect,
+                        IncorrectPercentage = incorrectPercentage,
+                        PartiallyCorrectCount = totalPartial,
+                        PartiallyCorrectPercentage = partialPercentage,
+                        UnattemptedCount = totalUnattempted,
+                        UnattemptedPercentage = unattemptedPercentage,
+                        ExtraQuestionsCount = totalExtraQuestions,
+                        ExtraQuestionsPercentage = extraQuestionsPercentage
+                    };
+
+                    _connection.Close();
+                    return new ServiceResponse<ScholarshipAnalytics>(true, "Operation Successful", response, 200);
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<ScholarshipAnalytics>(false, ex.Message, null, 500);
+            }
+        }
+        public async Task<ServiceResponse<ScholarshipAnalytics>> GetSubjectWiseScholarshipAnalyticsAsync(int studentId, int scholarshipId, int subjectId)
+        {
+            try
+            {
+                var sql = @"
+        -- 1. Retrieve test details for the given subject
+        SELECT TotalMarks, Duration 
+        FROM tblScholarshipTest 
+        WHERE ScholarshipTestId = @ScholarshipId;
+
+        -- 2. Retrieve all sections for the test (filtered by subject)
+        SELECT SSTSectionId, TotalNumberOfQuestions, NoOfQuestionsPerChoice 
+        FROM tblSSQuestionSection 
+        WHERE ScholarshipTestId = @ScholarshipId AND SubjectId = @SubjectId;
+
+        -- 3. Retrieve student's answers with SectionId mapping (filtered by subject)
+        SELECT ss.SectionId, ssa.AnswerStatus, ssa.Marks 
+        FROM tblStudentScholarshipAnswerSubmission ssa
+        INNER JOIN tblStudentScholarship ss ON ssa.QuestionID = ss.QuestionID  
+        WHERE ss.StudentID = @StudentId 
+            AND ss.ScholarshipID = @ScholarshipId 
+            AND ss.SubjectID = @SubjectId
+            AND ssa.StudentID = @StudentId 
+            AND ssa.ScholarshipID = @ScholarshipId
+            AND ssa.SubjectID = @SubjectId;";
+
+                _connection.Open();
+                using (var multi = await _connection.QueryMultipleAsync(sql, new { StudentId = studentId, ScholarshipId = scholarshipId, SubjectId = subjectId }))
+                {
+                    // Read test details
+                    var testDetails = await multi.ReadFirstOrDefaultAsync<dynamic>();
+                    if (testDetails == null)
+                    {
+                        return new ServiceResponse<ScholarshipAnalytics>(false, "Test details not found for the given subject.", null, 404);
+                    }
+
+                    decimal testTotalMarks = testDetails.TotalMarks;
+                    int duration;
+                    int.TryParse(testDetails.Duration.Split(' ')[0], out duration); // Extract numeric value safely
+
+                    // Read all sections
+                    var sections = (await multi.ReadAsync<dynamic>()).ToList();
+
+                    // Read student's answers (mapped with SectionId)
+                    var allAnswers = (await multi.ReadAsync<dynamic>()).ToList();
+
+                    // Initialize aggregated counts
+                    int totalQuestions = 0;
+                    int totalAttempted = 0, totalCorrect = 0, totalIncorrect = 0, totalPartial = 0, totalExtraQuestions = 0;
+                    decimal totalMarksObtained = 0;
+
+                    // Process each section
+                    foreach (var section in sections)
+                    {
+                        int sectionId = section.SSTSectionId;
+                        int sectionTotalQuestions = section.TotalNumberOfQuestions;
+                        int noOfQuestionsPerChoice = section.NoOfQuestionsPerChoice;
+                        int maxQuestionsToConsider = sectionTotalQuestions - noOfQuestionsPerChoice;
+
+                        // Filter answers for this section
+                        var sectionAnswers = allAnswers.Where(a => a.SectionId == sectionId).ToList();
+
+                        // Select `maxQuestionsToConsider` answers prioritizing correct ones
+                        var selectedAnswers = sectionAnswers.Take(maxQuestionsToConsider).ToList();
+                        int sectionExtraQuestions = Math.Max(0, sectionAnswers.Count - maxQuestionsToConsider);
 
                         // Section-wise calculations
                         int sectionAttempted = selectedAnswers.Count;
@@ -1463,14 +1485,16 @@ namespace StudentApp_API.Repository.Implementations
                         totalIncorrect += sectionIncorrect;
                         totalPartial += sectionPartial;
                         totalMarksObtained += sectionMarksObtained;
+                        totalExtraQuestions += sectionExtraQuestions;
                     }
 
                     // Compute overall analytics
-                    int totalUnattempted = totalQuestions - totalAttempted;
+                    int totalUnattempted = totalQuestions - totalAttempted - totalExtraQuestions;
                     decimal correctPercentage = totalQuestions > 0 ? (totalCorrect * 100.0M / totalQuestions) : 0;
                     decimal incorrectPercentage = totalQuestions > 0 ? (totalIncorrect * 100.0M / totalQuestions) : 0;
                     decimal partialPercentage = totalQuestions > 0 ? (totalPartial * 100.0M / totalQuestions) : 0;
                     decimal unattemptedPercentage = totalQuestions > 0 ? (totalUnattempted * 100.0M / totalQuestions) : 0;
+                    decimal extraQuestionsPercentage = totalQuestions > 0 ? (totalExtraQuestions * 100.0M / totalQuestions) : 0;
 
                     // Prepare response
                     var response = new ScholarshipAnalytics
@@ -1486,7 +1510,9 @@ namespace StudentApp_API.Repository.Implementations
                         PartiallyCorrectCount = totalPartial,
                         PartiallyCorrectPercentage = partialPercentage,
                         UnattemptedCount = totalUnattempted,
-                        UnattemptedPercentage = unattemptedPercentage
+                        UnattemptedPercentage = unattemptedPercentage,
+                        ExtraQuestionsCount = totalExtraQuestions,
+                        ExtraQuestionsPercentage = extraQuestionsPercentage
                     };
 
                     _connection.Close();
@@ -1498,275 +1524,6 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<ScholarshipAnalytics>(false, ex.Message, null, 500);
             }
         }
-
-        //public async Task<ServiceResponse<ScholarshipAnalytics>> GetSubjectWiseScholarshipAnalyticsAsync(int studentId, int scholarshipId, int subjectId)
-        //{
-        //    try
-        //    {
-        //        var sql = @"-- 1. Retrieve test details (Total Questions, Total Marks, Duration)
-        //SELECT 
-        //    COUNT(*) AS TotalQuestions,
-        //    ISNULL(SUM(ssqs.MarksPerQuestion), 0) AS SubjectTotalMarks,
-        //    (SELECT Duration FROM tblScholarshipTest WHERE ScholarshipTestId = @ScholarshipId) AS Duration
-        //FROM tblStudentScholarship sss
-        //INNER JOIN tblSSQuestionSection ssqs 
-        //  ON sss.SubjectID = ssqs.SubjectId and sss.ScholarshipID = ssqs.ScholarshipTestId
-        //    AND sss.QuestionTypeID = ssqs.QuestionTypeId 
-        //WHERE sss.ScholarshipID = @ScholarshipId
-        //AND sss.SubjectID = @SubjectId
-        //AND sss.StudentID = @StudentId;
-
-        //-- 2. Sum of marks obtained by the student in the specified subject
-        //SELECT ISNULL(SUM(ssas.Marks), 0) AS StudentMarks
-        //FROM tblStudentScholarshipAnswerSubmission ssas
-        //INNER JOIN tblStudentScholarship sss ON ssas.QuestionID = sss.QuestionID
-        //WHERE ssas.StudentID = @StudentId
-        //AND ssas.ScholarshipID = @ScholarshipId
-        //AND sss.SubjectId = @SubjectId;
-
-        //-- 3. Count correct, incorrect, and partially correct answers
-        //SELECT 
-        //    SUM(CASE WHEN ssas.AnswerStatus = 'Correct' THEN 1 ELSE 0 END) AS CorrectCount,
-        //    SUM(CASE WHEN ssas.AnswerStatus = 'Incorrect' THEN 1 ELSE 0 END) AS IncorrectCount,
-        //    SUM(CASE WHEN ssas.AnswerStatus = 'PartialCorrect' THEN 1 ELSE 0 END) AS PartiallyCorrectCount
-        //FROM tblStudentScholarshipAnswerSubmission ssas
-        //INNER JOIN tblStudentScholarship sss ON ssas.QuestionID = sss.QuestionID
-        //WHERE ssas.StudentID = @StudentId
-        //AND ssas.ScholarshipID = @ScholarshipId
-        //AND sss.SubjectId = @SubjectId;
-
-        //-- 4. Count attempted & unattempted questions based on statuses
-        //SELECT 
-        //    SUM(CASE WHEN sss.QuestionStatusId IN (1, 5) THEN 1 ELSE 0 END) AS AttemptedCount,
-        //    SUM(CASE WHEN sss.QuestionStatusId IN (2, 3, 4) THEN 1 ELSE 0 END) AS UnattemptedCount
-        //FROM tblStudentScholarship sss
-        //WHERE sss.StudentID = @StudentId
-        //AND sss.ScholarshipID = @ScholarshipId
-        //AND sss.SubjectID = @SubjectId;";
-
-        //        using (var multi = await _connection.QueryMultipleAsync(sql, new { StudentId = studentId, ScholarshipId = scholarshipId, SubjectId = subjectId }))
-        //        {
-        //            // 1. Read subject-specific test details
-        //            var subjectDetails = await multi.ReadFirstOrDefaultAsync<dynamic>();
-        //            if (subjectDetails == null)
-        //            {
-        //                return new ServiceResponse<ScholarshipAnalytics>(false, "No questions found for the given SubjectId in this ScholarshipTest.", null, 404);
-        //            }
-
-        //            int totalQuestions = subjectDetails.TotalQuestions;
-        //            decimal subjectTotalMarks = subjectDetails.SubjectTotalMarks ?? 0;
-        //            string durationString = subjectDetails.Duration; // Example: "120 minutes"
-        //            int duration = int.Parse(durationString.Split(' ')[0]); // Extracts "120" and converts to int
-
-
-        //            // 2. Read student's obtained marks for the subject
-        //            int studentMarks = await multi.ReadFirstOrDefaultAsync<int>();
-
-        //            // 3. Read answer status counts
-        //            var counts = await multi.ReadFirstOrDefaultAsync<dynamic>();
-        //            int correctCount = counts?.CorrectCount ?? 0;
-        //            int incorrectCount = counts?.IncorrectCount ?? 0;
-        //            int partiallyCorrectCount = counts?.PartiallyCorrectCount ?? 0;
-
-        //            // 4. Read attempted and unattempted counts
-        //            var attemptData = await multi.ReadFirstOrDefaultAsync<dynamic>();
-        //            int attemptedCount = attemptData?.AttemptedCount ?? 0;
-        //            int unattemptedCount = attemptData?.UnattemptedCount ?? (totalQuestions - attemptedCount);
-
-        //            // Calculate percentages (guarding against division by zero)
-        //            decimal correctPercentage = totalQuestions > 0 ? (correctCount * 100.0M / totalQuestions) : 0;
-        //            decimal incorrectPercentage = totalQuestions > 0 ? (incorrectCount * 100.0M / totalQuestions) : 0;
-        //            decimal partiallyCorrectPercentage = totalQuestions > 0 ? (partiallyCorrectCount * 100.0M / totalQuestions) : 0;
-        //            decimal unattemptedPercentage = totalQuestions > 0 ? (unattemptedCount * 100.0M / totalQuestions) : 0;
-
-        //            // Construct and return the analytics result
-        //            var response = new ScholarshipAnalytics
-        //            {
-        //                TotalQuestions = totalQuestions,
-        //                Duration = duration,
-        //                TestTotalMarks = subjectTotalMarks,
-        //                StudentMarks = studentMarks,
-        //                CorrectCount = correctCount,
-        //                CorrectPercentage = correctPercentage,
-        //                IncorrectCount = incorrectCount,
-        //                IncorrectPercentage = incorrectPercentage,
-        //                PartiallyCorrectCount = partiallyCorrectCount,
-        //                PartiallyCorrectPercentage = partiallyCorrectPercentage,
-        //                UnattemptedCount = unattemptedCount,
-        //                UnattemptedPercentage = unattemptedPercentage
-        //            };
-
-        //            return new ServiceResponse<ScholarshipAnalytics>(true, "Operation successful", response, 200);
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return new ServiceResponse<ScholarshipAnalytics>(false, ex.Message, null, 500);
-        //    }
-        //}
-        public async Task<ServiceResponse<ScholarshipAnalytics>> GetSubjectWiseScholarshipAnalyticsAsync(int studentId, int scholarshipId, int subjectId)
-        {
-            try
-            {
-                var sql = @"
-        -- 1. Get Section-wise question constraints
-        SELECT 
-            SSTSectionId,
-            ScholarshipTestId,
-            SubjectId,
-            TotalNumberOfQuestions,
-            NoOfQuestionsPerChoice,
-            MarksPerQuestion,
-            NegativeMarks
-        FROM tblSSQuestionSection
-        WHERE ScholarshipTestId = @ScholarshipId
-        AND SubjectId = @SubjectId;
-
-        -- 2. Get Student's Answer Data (Ordered by submission time)
-        SELECT 
-            sss.QuestionID,
-            ssas.Marks,
-            ssas.AnswerStatus,
-            sss.SSTSectionId,
-            sss.QuestionStatusId,
-            sss.QuestionTypeID
-        FROM tblStudentScholarshipAnswerSubmission ssas
-        INNER JOIN tblStudentScholarship sss 
-            ON ssas.QuestionID = sss.QuestionID
-        WHERE ssas.StudentID = @StudentId
-        AND ssas.ScholarshipID = @ScholarshipId
-        AND sss.SubjectID = @SubjectId
-        ORDER BY ssas.SubmissionTime;";
-        
-        using (var multi = await _connection.QueryMultipleAsync(sql, new { StudentId = studentId, ScholarshipId = scholarshipId, SubjectId = subjectId }))
-                {
-                    var sections = (await multi.ReadAsync<dynamic>()).ToList();
-                    var answers = (await multi.ReadAsync<dynamic>()).ToList();
-
-                    if (!sections.Any())
-                    {
-                        return new ServiceResponse<ScholarshipAnalytics>(false, "No sections found for the given subject.", null, 404);
-                    }
-
-                    // Analytics Calculation Variables
-                    int totalQuestions = 0, attemptedCount = 0, unattemptedCount = 0;
-                    int correctCount = 0, incorrectCount = 0, partiallyCorrectCount = 0;
-                    decimal totalMarks = 0, studentMarks = 0;
-
-                    // Process each section independently
-                    foreach (var section in sections)
-                    {
-                        var sectionAnswers = answers.Where(a => a.SSTSectionId == section.SSTSectionId).ToList();
-
-                        int maxConsideredQuestions = Math.Min(section.TotalNumberOfQuestions, section.NoOfQuestionsPerChoice);
-                        totalQuestions += maxConsideredQuestions; // Summing expected questions per section
-
-                        var validAnswers = sectionAnswers.Take(maxConsideredQuestions).ToList(); // Consider only required responses
-
-                        attemptedCount += validAnswers.Count;
-                        unattemptedCount += maxConsideredQuestions - validAnswers.Count;
-
-                        foreach (var ans in validAnswers)
-                        {
-                            studentMarks += ans.Marks;
-
-                            switch (ans.AnswerStatus)
-                            {
-                                case "Correct":
-                                    correctCount++;
-                                    break;
-                                case "Incorrect":
-                                    incorrectCount++;
-                                    break;
-                                case "PartialCorrect":
-                                    partiallyCorrectCount++;
-                                    break;
-                            }
-                        }
-
-                        totalMarks += section.MarksPerQuestion * maxConsideredQuestions;
-                    }
-
-                    // Compute Percentages
-                    decimal correctPercentage = totalQuestions > 0 ? (correctCount * 100.0M / totalQuestions) : 0;
-                    decimal incorrectPercentage = totalQuestions > 0 ? (incorrectCount * 100.0M / totalQuestions) : 0;
-                    decimal partiallyCorrectPercentage = totalQuestions > 0 ? (partiallyCorrectCount * 100.0M / totalQuestions) : 0;
-                    decimal unattemptedPercentage = totalQuestions > 0 ? (unattemptedCount * 100.0M / totalQuestions) : 0;
-
-                    // Response Data
-                    var response = new ScholarshipAnalytics
-                    {
-                        TotalQuestions = totalQuestions,
-                        TestTotalMarks = totalMarks,
-                        StudentMarks = studentMarks,
-                        CorrectCount = correctCount,
-                        CorrectPercentage = correctPercentage,
-                        IncorrectCount = incorrectCount,
-                        IncorrectPercentage = incorrectPercentage,
-                        PartiallyCorrectCount = partiallyCorrectCount,
-                        PartiallyCorrectPercentage = partiallyCorrectPercentage,
-                        UnattemptedCount = unattemptedCount,
-                        UnattemptedPercentage = unattemptedPercentage
-                    };
-
-                    return new ServiceResponse<ScholarshipAnalytics>(true, "Operation successful", response, 200);
-                }
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<ScholarshipAnalytics>(false, ex.Message, null, 500);
-            }
-        }
-        //    public async Task<ServiceResponse<MarksCalculation>> GetMarksCalculationAsync(int studentId, int scholarshipId)
-        //    {
-        //        try
-        //        {
-        //            var sql = @"
-        //    -- 1. Retrieve test total marks
-        //    SELECT TotalMarks 
-        //    FROM tblScholarshipTest
-        //    WHERE ScholarshipTestId = @ScholarshipId;
-
-        //    -- 2. Achieved Marks (sum of marks for 'Correct' and 'PartialCorrect' answers)
-        //    SELECT ISNULL(SUM(Marks), 0)
-        //    FROM tblStudentScholarshipAnswerSubmission
-        //    WHERE StudentID = @StudentId 
-        //      AND ScholarshipID = @ScholarshipId
-        //      AND AnswerStatus IN ('Correct', 'PartialCorrect');
-
-        //    -- 3. Negative Marks (absolute sum for 'Incorrect' answers)
-        //    SELECT ABS(ISNULL(SUM(Marks), 0))
-        //    FROM tblStudentScholarshipAnswerSubmission
-        //    WHERE StudentID = @StudentId 
-        //      AND ScholarshipID = @ScholarshipId
-        //      AND AnswerStatus = 'Incorrect';
-        //";
-        //            _connection.Open();
-        //            using (var multi = await _connection.QueryMultipleAsync(sql, new { StudentId = studentId, ScholarshipId = scholarshipId }))
-        //            {
-        //                int testTotalMarks = await multi.ReadFirstAsync<int>();
-        //                int achievedMarks = await multi.ReadFirstAsync<int>();
-        //                int negativeMarks = await multi.ReadFirstAsync<int>();
-
-        //                int finalMarks = achievedMarks - negativeMarks;
-        //                decimal marksPercentage = testTotalMarks > 0 ? (finalMarks * 100.0M / testTotalMarks) : 0;
-
-        //                var response = new MarksCalculation
-        //                {
-        //                    AchievedMarks = achievedMarks,
-        //                    NegativeMarks = negativeMarks,
-        //                    FinalMarks = finalMarks,
-        //                    MarksPercentage = marksPercentage
-        //                };
-        //                _connection.Close();
-        //                return new ServiceResponse<MarksCalculation>(true, "Operation SUccessful", response, 200);
-        //            }
-        //        }
-        //        catch (Exception ex)
-        //        {
-        //            return new ServiceResponse<MarksCalculation>(false, ex.Message, null, 500);
-        //        }
-        //    }
         public async Task<ServiceResponse<MarksCalculation>> GetMarksCalculationAsync(int studentId, int scholarshipId)
         {
             try
@@ -1783,13 +1540,11 @@ namespace StudentApp_API.Repository.Implementations
         WHERE ScholarshipTestId = @ScholarshipId;
 
         -- 3. Get student's answered questions sorted by attempt order
-        SELECT ssas.QuestionID, ssas.Marks, ssas.AnswerStatus, sss.SubjectId, sss.SSTSectionId
+        SELECT ssas.QuestionID, ssas.Marks, ssas.AnswerStatus, sss.SubjectId, sss.SectionId
         FROM tblStudentScholarshipAnswerSubmission ssas
         INNER JOIN tblStudentScholarship sss ON ssas.QuestionID = sss.QuestionID
         WHERE ssas.StudentID = @StudentId 
-        AND ssas.ScholarshipID = @ScholarshipId
-        ORDER BY ssas.QuestionID;
-        ";
+        AND ssas.ScholarshipID = @ScholarshipId ORDER BY ssas.SubmissionID;";
 
                 using (var multi = await _connection.QueryMultipleAsync(sql, new { StudentId = studentId, ScholarshipId = scholarshipId }))
                 {
@@ -1801,12 +1556,13 @@ namespace StudentApp_API.Repository.Implementations
                     decimal achievedMarks = 0, negativeMarks = 0;
                     int totalUnattemptedQuestions = 0;
 
-                    var groupedBySubject = studentAnswers.GroupBy(a => new { a.SubjectId, a.SSTSectionId });
+                    // Fix: Group by SectionId properly (not SSTSectionId)
+                    var groupedBySubject = studentAnswers.Where(a => a.SectionId != null).GroupBy(a => new { a.SubjectId, a.SectionId });
 
                     foreach (var group in groupedBySubject)
                     {
                         var subjectId = group.Key.SubjectId;
-                        var sectionId = group.Key.SSTSectionId;
+                        var sectionId = group.Key.SectionId; // Fix: Ensure correct SectionId reference
 
                         var sectionConfig = sectionConstraints.FirstOrDefault(sc => sc.SSTSectionId == sectionId);
                         if (sectionConfig == null) continue;
@@ -1822,9 +1578,22 @@ namespace StudentApp_API.Repository.Implementations
                         int unattemptedCount = Math.Max(0, N - attemptedCount);
                         totalUnattemptedQuestions += unattemptedCount;
 
-                        // Calculate marks
-                        achievedMarks += validAnswers.Where(a => a.AnswerStatus == "Correct" || a.AnswerStatus == "PartialCorrect").Sum(a => a.Marks);
-                        negativeMarks += Math.Abs(validAnswers.Where(a => a.AnswerStatus == "Incorrect").Sum(a => a.Marks));
+                        // Calculate marks correctly
+                        foreach (var answer in validAnswers)
+                        {
+                            if (answer.AnswerStatus == "Correct")
+                            {
+                                achievedMarks += sectionConfig.MarksPerQuestion;
+                            }
+                            else if (answer.AnswerStatus == "PartialCorrect")
+                            {
+                                achievedMarks += (decimal?)answer.Marks ?? 0; // Consider partial marks
+                            }
+                            else if (answer.AnswerStatus == "Incorrect")
+                            {
+                                negativeMarks += sectionConfig.NegativeMarks; // Apply negative marking
+                            }
+                        }
                     }
 
                     decimal finalMarks = achievedMarks - negativeMarks;
@@ -1836,7 +1605,7 @@ namespace StudentApp_API.Repository.Implementations
                         NegativeMarks = negativeMarks,
                         FinalMarks = finalMarks,
                         MarksPercentage = marksPercentage,
-                      //  UnattemptedQuestions = totalUnattemptedQuestions
+                        //UnattemptedQuestions = totalUnattemptedQuestions
                     };
 
                     return new ServiceResponse<MarksCalculation>(true, "Operation Successful", response, 200);
@@ -1847,110 +1616,55 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<MarksCalculation>(false, ex.Message, null, 500);
             }
         }
-        //        public async Task<ServiceResponse<MarksCalculation>> GetSubjectWiseMarksCalculationAsync(int studentId, int scholarshipId, int subjectId)
-        //        {
-        //            try
-        //            {
-        //                var sql = @"
-        //-- 1. Retrieve total marks for the specified subject from the scholarship sections
-        //SELECT ISNULL(SUM(TotalNumberOfQuestions * MarksPerQuestion), 0) AS SubjectTotalMarks
-        //FROM tblSSQuestionSection
-        //WHERE ScholarshipTestId = @ScholarshipId
-        //AND SubjectId = @SubjectId;
-
-        //-- 2. Achieved Marks (sum of marks for 'Correct' and 'PartialCorrect' answers)
-        //SELECT ISNULL(SUM(ssa.Marks), 0) AS AchievedMarks
-        //FROM tblStudentScholarshipAnswerSubmission ssa
-        //INNER JOIN tblStudentScholarship ss ON ssa.QuestionID = ss.QuestionID
-        //INNER JOIN tblSSQuestionSection ssqs ON ss.SubjectID = ssqs.SubjectID AND ss.QuestionTypeID = ssqs.QuestionTypeID
-        //WHERE ssa.StudentID = @StudentId
-        //AND ssa.ScholarshipID = @ScholarshipId
-        //AND ss.SubjectID = @SubjectId
-        //AND ssa.AnswerStatus IN ('Correct', 'PartialCorrect');
-
-        //-- 3. Negative Marks (sum of absolute values for 'Incorrect' answers)
-        //SELECT ISNULL(SUM(ssqs.NegativeMarks), 0) AS NegativeMarks
-        //FROM tblStudentScholarshipAnswerSubmission ssa
-        //INNER JOIN tblStudentScholarship ss ON ssa.QuestionID = ss.QuestionID
-        //INNER JOIN tblSSQuestionSection ssqs ON ss.SubjectID = ssqs.SubjectID AND ss.QuestionTypeID = ssqs.QuestionTypeID
-        //WHERE ssa.StudentID = @StudentId
-        //AND ssa.ScholarshipID = @ScholarshipId
-        //AND ss.SubjectID = @SubjectId
-        //AND ssa.AnswerStatus = 'Incorrect';";
-
-        //                using (var multi = await _connection.QueryMultipleAsync(sql, new { StudentId = studentId, ScholarshipId = scholarshipId, SubjectId = subjectId }))
-        //                {
-        //                    int subjectTotalMarks = await multi.ReadFirstAsync<int>();
-        //                    int achievedMarks = await multi.ReadFirstAsync<int>();
-        //                    int negativeMarks = await multi.ReadFirstAsync<int>();
-
-        //                    int finalMarks = achievedMarks - negativeMarks;
-        //                    decimal marksPercentage = subjectTotalMarks > 0 ? (finalMarks * 100.0M / subjectTotalMarks) : 0;
-
-        //                    var response = new MarksCalculation
-        //                    {
-        //                        AchievedMarks = achievedMarks,
-        //                        NegativeMarks = negativeMarks,
-        //                        FinalMarks = finalMarks,
-        //                        MarksPercentage = marksPercentage
-        //                    };
-
-        //                    return new ServiceResponse<MarksCalculation>(true, "Operation successful", response, 200);
-        //                }
-        //            }
-        //            catch (Exception ex)
-        //            {
-        //                return new ServiceResponse<MarksCalculation>(false, ex.Message, null, 500);
-        //            }
-        //        }
         public async Task<ServiceResponse<MarksCalculation>> GetSubjectWiseMarksCalculationAsync(int studentId, int scholarshipId, int subjectId)
         {
             try
             {
                 var sql = @"
-        -- 1. Retrieve total marks for the specified subject
-        SELECT ISNULL(SUM(TotalNumberOfQuestions * MarksPerQuestion), 0) AS SubjectTotalMarks
-        FROM tblSSQuestionSection
-        WHERE ScholarshipTestId = @ScholarshipId
-        AND SubjectId = @SubjectId;
+        -- 1. Retrieve test total marks
+        SELECT TotalMarks 
+        FROM tblScholarshipTest
+        WHERE ScholarshipTestId = @ScholarshipId;
 
-        -- 2. Retrieve section constraints for the subject
-        SELECT SSTSectionId, TotalNumberOfQuestions, NoOfQuestionsPerChoice, MarksPerQuestion, NegativeMarks
+        -- 2. Retrieve subject-section constraints for the given subject
+        SELECT SubjectId, SSTSectionId, TotalNumberOfQuestions, NoOfQuestionsPerChoice, MarksPerQuestion, NegativeMarks
         FROM tblSSQuestionSection
-        WHERE ScholarshipTestId = @ScholarshipId
-        AND SubjectId = @SubjectId;
+        WHERE ScholarshipTestId = @ScholarshipId AND SubjectId = @SubjectId;
 
-        -- 3. Get student's answers for the subject, ordered by question attempt
-        SELECT ssas.QuestionID, ssas.Marks, ssas.AnswerStatus, sss.SSTSectionId
+        -- 3. Get student's answered questions sorted by submission order for the given subject
+        SELECT ssas.QuestionID, ssas.Marks, ssas.AnswerStatus, sss.SubjectId, sss.SectionId
         FROM tblStudentScholarshipAnswerSubmission ssas
         INNER JOIN tblStudentScholarship sss ON ssas.QuestionID = sss.QuestionID
         WHERE ssas.StudentID = @StudentId 
-        AND ssas.ScholarshipID = @ScholarshipId
+        AND ssas.ScholarshipID = @ScholarshipId 
         AND sss.SubjectId = @SubjectId
-        ORDER BY ssas.QuestionID;
-        ";
-
-                using (var multi = await _connection.QueryMultipleAsync(sql, new { StudentId = studentId, ScholarshipId = scholarshipId, SubjectId = subjectId }))
+        ORDER BY ssas.SubmissionID;";
+        
+        using (var multi = await _connection.QueryMultipleAsync(sql, new { StudentId = studentId, ScholarshipId = scholarshipId, SubjectId = subjectId }))
                 {
-                    int subjectTotalMarks = await multi.ReadFirstAsync<int>();
+                    int testTotalMarks = await multi.ReadFirstAsync<int>();
+
                     var sectionConstraints = (await multi.ReadAsync<dynamic>()).ToList();
                     var studentAnswers = (await multi.ReadAsync<dynamic>()).ToList();
 
                     decimal achievedMarks = 0, negativeMarks = 0;
                     int totalUnattemptedQuestions = 0;
 
-                    var groupedBySection = studentAnswers.GroupBy(a => a.SSTSectionId);
+                    var groupedBySection = studentAnswers
+                        .Where(a => a.SectionId != null) // Ensure SectionId is not null
+                        .GroupBy(a => a.SectionId); // Group answers by SectionId
 
-                    foreach (var group in groupedBySection)
+                    foreach (var sectionGroup in groupedBySection)
                     {
-                        var sectionId = group.Key;
+                        var sectionId = sectionGroup.Key;
                         var sectionConfig = sectionConstraints.FirstOrDefault(sc => sc.SSTSectionId == sectionId);
                         if (sectionConfig == null) continue;
 
-                        int N = sectionConfig.TotalNumberOfQuestions - sectionConfig.NoOfQuestionsPerChoice; // Adjusted limit per section
+                        int N = sectionConfig.TotalNumberOfQuestions - sectionConfig.NoOfQuestionsPerChoice; // New N calculation
+                        int totalQuestionsInSection = sectionConfig.TotalNumberOfQuestions;
 
-                        // Take only the first N answers
-                        var validAnswers = group.Take(N).ToList();
+                        // Consider only the first N valid answers
+                        var validAnswers = sectionGroup.Take(N).ToList();
 
                         // Count unattempted questions
                         int attemptedCount = validAnswers.Count;
@@ -1958,12 +1672,25 @@ namespace StudentApp_API.Repository.Implementations
                         totalUnattemptedQuestions += unattemptedCount;
 
                         // Calculate marks
-                        achievedMarks += validAnswers.Where(a => a.AnswerStatus == "Correct" || a.AnswerStatus == "PartialCorrect").Sum(a => a.Marks);
-                        negativeMarks += Math.Abs(validAnswers.Where(a => a.AnswerStatus == "Incorrect").Sum(a => a.Marks));
+                        foreach (var answer in validAnswers)
+                        {
+                            if (answer.AnswerStatus == "Correct")
+                            {
+                                achievedMarks += sectionConfig.MarksPerQuestion;
+                            }
+                            else if (answer.AnswerStatus == "PartialCorrect")
+                            {
+                                achievedMarks += (decimal?)answer.Marks ?? 0; // Consider partial marks
+                            }
+                            else if (answer.AnswerStatus == "Incorrect")
+                            {
+                                negativeMarks += sectionConfig.NegativeMarks; // Apply negative marking
+                            }
+                        }
                     }
 
                     decimal finalMarks = achievedMarks - negativeMarks;
-                    decimal marksPercentage = subjectTotalMarks > 0 ? (finalMarks * 100.0M / subjectTotalMarks) : 0;
+                    decimal marksPercentage = testTotalMarks > 0 ? (finalMarks * 100.0M / testTotalMarks) : 0;
 
                     var response = new MarksCalculation
                     {
@@ -1971,10 +1698,10 @@ namespace StudentApp_API.Repository.Implementations
                         NegativeMarks = negativeMarks,
                         FinalMarks = finalMarks,
                         MarksPercentage = marksPercentage,
-                       // UnattemptedQuestions = totalUnattemptedQuestions
+                        // UnattemptedQuestions = totalUnattemptedQuestions
                     };
 
-                    return new ServiceResponse<MarksCalculation>(true, "Operation successful", response, 200);
+                    return new ServiceResponse<MarksCalculation>(true, "Operation Successful", response, 200);
                 }
             }
             catch (Exception ex)
@@ -2090,11 +1817,25 @@ namespace StudentApp_API.Repository.Implementations
             {
                 using (var multi = await _connection.QueryMultipleAsync(sql, new { StudentId = studentId, ScholarshipId = scholarshipId }))
                 {
-                    var report = await multi.ReadFirstOrDefaultAsync<TimeSpentReport>();
-                    if (report == null)
+                    var rawData = await multi.ReadFirstOrDefaultAsync<dynamic>();
+                    if (rawData == null)
                     {
                         return new ServiceResponse<TimeSpentReport>(false, "No data found for the given student and scholarship.", null, 404);
                     }
+
+                    // Convert seconds into formatted time strings
+                    var report = new TimeSpentReport
+                    {
+                        TotalTime = ConvertSecondsToTimeFormat(rawData.TotalTime),
+                        CorrectTotalTime = ConvertSecondsToTimeFormat(rawData.CorrectTotalTime),
+                        CorrectAvgTime = ConvertSecondsToTimeFormat(rawData.CorrectAvgTime),
+                        IncorrectTotalTime = ConvertSecondsToTimeFormat(rawData.IncorrectTotalTime),
+                        IncorrectAvgTime = ConvertSecondsToTimeFormat(rawData.IncorrectAvgTime),
+                        PartialTotalTime = ConvertSecondsToTimeFormat(rawData.PartialTotalTime),
+                        PartialAvgTime = ConvertSecondsToTimeFormat(rawData.PartialAvgTime),
+                        UnattemptedTotalTime = ConvertSecondsToTimeFormat(rawData.UnattemptedTotalTime),
+                        UnattemptedAvgTime = ConvertSecondsToTimeFormat(rawData.UnattemptedAvgTime)
+                    };
 
                     return new ServiceResponse<TimeSpentReport>(true, "Operation successful", report, 200);
                 }
@@ -2359,5 +2100,12 @@ namespace StudentApp_API.Repository.Implementations
             // Assuming the following are single answer type IDs based on your data
             return questionTypeId == 3 || questionTypeId == 7 || questionTypeId == 8 || questionTypeId == 10 || questionTypeId == 11;
         }
+        private string ConvertSecondsToTimeFormat(int totalSeconds)
+        {
+            int minutes = totalSeconds / 60;
+            int seconds = totalSeconds % 60;
+            return $"{minutes} min {seconds} sec";
+        }
+
     }
 }
