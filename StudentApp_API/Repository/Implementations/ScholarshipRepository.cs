@@ -1712,143 +1712,138 @@ namespace StudentApp_API.Repository.Implementations
         }
         public async Task<ServiceResponse<TimeSpentReport>> GetTimeSpentReportAsync(int studentId, int scholarshipId)
         {
-            using (var connection = _connection)
-            {
-                // 1. Fetch Section Settings
-                var sectionSettingsQuery = @"
+            // 1. Fetch Section Settings
+            var sectionSettingsQuery = @"
             SELECT TotalNumberOfQuestions, NoOfQuestionsPerChoice 
             FROM tblSSQuestionSection 
             WHERE ScholarshipTestId = @scholarshipId";
 
-                var sectionSettings = await connection.QueryFirstOrDefaultAsync<(int TotalNumberOfQuestions, int NoOfQuestionsPerChoice)>(
-                    sectionSettingsQuery, new { scholarshipId });
+            var sectionSettings = await _connection.QueryFirstOrDefaultAsync<(int TotalNumberOfQuestions, int NoOfQuestionsPerChoice)>(
+                sectionSettingsQuery, new { scholarshipId });
 
-                if (sectionSettings == default)
-                    return new ServiceResponse<TimeSpentReport>(false, "Section settings not found", null, 404);
+            if (sectionSettings == default)
+                return new ServiceResponse<TimeSpentReport>(false, "Section settings not found", null, 404);
 
-                int cutoff = sectionSettings.TotalNumberOfQuestions - sectionSettings.NoOfQuestionsPerChoice;
+            int cutoff = sectionSettings.TotalNumberOfQuestions - sectionSettings.NoOfQuestionsPerChoice;
 
-                // 2. Fetch Answered Questions (Ordered by Submission)
-                var answeredQuestionsQuery = @"
+            // 2. Fetch Answered Questions (Ordered by Submission)
+            var answeredQuestionsQuery = @"
             SELECT QuestionID, AnswerStatus, Marks 
             FROM tblStudentScholarshipAnswerSubmission 
             WHERE ScholarshipID = @scholarshipId AND StudentID = @studentId
             ORDER BY SubmissionID";
 
-                var answeredQuestions = (await connection.QueryAsync<(int QuestionID, string AnswerStatus, decimal Marks, DateTime SubmittedAt)>(
-                    answeredQuestionsQuery, new { scholarshipId, studentId })).ToList();
+            var answeredQuestions = (await _connection.QueryAsync<(int QuestionID, string AnswerStatus, decimal Marks, DateTime SubmittedAt)>(
+                answeredQuestionsQuery, new { scholarshipId, studentId })).ToList();
 
-                if (!answeredQuestions.Any())
-                    return new ServiceResponse<TimeSpentReport>(false, "No answers submitted", null, 404);
+            if (!answeredQuestions.Any())
+                return new ServiceResponse<TimeSpentReport>(false, "No answers submitted", null, 404);
 
-                var regularQuestions = answeredQuestions.Take(cutoff).ToList();
-                var extraQuestions = answeredQuestions.Skip(cutoff).ToList();
+            var regularQuestions = answeredQuestions.Take(cutoff).ToList();
+            var extraQuestions = answeredQuestions.Skip(cutoff).ToList();
 
-                // 3. Fetch All Time Logs from tblQuestionNavigation
-                var timeQuery = @"
+            // 3. Fetch All Time Logs from tblQuestionNavigation
+            var timeQuery = @"
             SELECT QuestionID, StartTime, EndTime 
             FROM tblQuestionNavigation 
             WHERE ScholarshipID = @scholarshipId AND StudentID = @studentId";
 
-                var timeLogs = (await connection.QueryAsync<(int QuestionID, DateTime StartTime, DateTime EndTime)>(
-                    timeQuery, new { scholarshipId, studentId })).ToList();
+            var timeLogs = (await _connection.QueryAsync<(int QuestionID, DateTime StartTime, DateTime EndTime)>(
+                timeQuery, new { scholarshipId, studentId })).ToList();
 
-                // 4. Compute Total Time Spent per Question (Summing Multiple Visits)
-                var timeSpentPerQuestion = timeLogs
-                    .GroupBy(x => x.QuestionID)
-                    .ToDictionary(
-                        g => g.Key,
-                        g => (int)g.Sum(x => (x.EndTime - x.StartTime).TotalSeconds) // Convert to int for formatting
-                    );
+            // 4. Compute Total Time Spent per Question (Summing Multiple Visits)
+            var timeSpentPerQuestion = timeLogs
+                .GroupBy(x => x.QuestionID)
+                .ToDictionary(
+                    g => g.Key,
+                    g => (int)g.Sum(x => (x.EndTime - x.StartTime).TotalSeconds) // Convert to int for formatting
+                );
 
-                int totalTime = 0, correctTotal = 0, incorrectTotal = 0, partialTotal = 0, unattemptedTotal = 0, extraTotal = 0;
-                int correctCount = 0, incorrectCount = 0, partialCount = 0, unattemptedCount = 0, extraCount = 0;
+            int totalTime = 0, correctTotal = 0, incorrectTotal = 0, partialTotal = 0, unattemptedTotal = 0, extraTotal = 0;
+            int correctCount = 0, incorrectCount = 0, partialCount = 0, unattemptedCount = 0, extraCount = 0;
 
-                foreach (var question in answeredQuestions)
+            foreach (var question in answeredQuestions)
+            {
+                int timeSpent = timeSpentPerQuestion.ContainsKey(question.QuestionID) ? timeSpentPerQuestion[question.QuestionID] : 0;
+                totalTime += timeSpent;
+
+                if (extraQuestions.Any(q => q.QuestionID == question.QuestionID))
                 {
-                    int timeSpent = timeSpentPerQuestion.ContainsKey(question.QuestionID) ? timeSpentPerQuestion[question.QuestionID] : 0;
-                    totalTime += timeSpent;
-
-                    if (extraQuestions.Any(q => q.QuestionID == question.QuestionID))
+                    extraTotal += timeSpent;
+                    extraCount++;
+                }
+                else
+                {
+                    switch (question.AnswerStatus)
                     {
-                        extraTotal += timeSpent;
-                        extraCount++;
-                    }
-                    else
-                    {
-                        switch (question.AnswerStatus)
-                        {
-                            case "Correct":
-                                correctTotal += timeSpent;
-                                correctCount++;
-                                break;
-                            case "Incorrect":
-                                incorrectTotal += timeSpent;
-                                incorrectCount++;
-                                break;
-                            case "PartialCorrect":
-                                partialTotal += timeSpent;
-                                partialCount++;
-                                break;
-                        }
+                        case "Correct":
+                            correctTotal += timeSpent;
+                            correctCount++;
+                            break;
+                        case "Incorrect":
+                            incorrectTotal += timeSpent;
+                            incorrectCount++;
+                            break;
+                        case "PartialCorrect":
+                            partialTotal += timeSpent;
+                            partialCount++;
+                            break;
                     }
                 }
-
-                // 5. Construct Response with Formatted Time
-                var formattedReport = new TimeSpentReport
-                {
-                    TotalTime = ConvertSecondsToTimeFormat(totalTime),
-                    CorrectTotalTime = ConvertSecondsToTimeFormat(correctTotal),
-                    CorrectAvgTime = correctCount > 0 ? ConvertSecondsToTimeFormat(correctTotal / correctCount) : "0 seconds",
-                    IncorrectTotalTime = ConvertSecondsToTimeFormat(incorrectTotal),
-                    IncorrectAvgTime = incorrectCount > 0 ? ConvertSecondsToTimeFormat(incorrectTotal / incorrectCount) : "0 seconds",
-                    PartialTotalTime = ConvertSecondsToTimeFormat(partialTotal),
-                    PartialAvgTime = partialCount > 0 ? ConvertSecondsToTimeFormat(partialTotal / partialCount) : "0 seconds",
-                    UnattemptedTotalTime = ConvertSecondsToTimeFormat(unattemptedTotal),
-                    UnattemptedAvgTime = unattemptedCount > 0 ? ConvertSecondsToTimeFormat(unattemptedTotal / unattemptedCount) : "0 seconds",
-                    ExtraQuestionTotalTime = ConvertSecondsToTimeFormat(extraTotal),
-                    ExtraQuestionAvgTime = extraCount > 0 ? ConvertSecondsToTimeFormat(extraTotal / extraCount) : "0 seconds"
-                };
-
-                return new ServiceResponse<TimeSpentReport>(true, "Operation successful", formattedReport, 200);
             }
+
+            // 5. Construct Response with Formatted Time
+            var formattedReport = new TimeSpentReport
+            {
+                TotalTime = ConvertSecondsToTimeFormat(totalTime),
+                CorrectTotalTime = ConvertSecondsToTimeFormat(correctTotal),
+                CorrectAvgTime = correctCount > 0 ? ConvertSecondsToTimeFormat(correctTotal / correctCount) : "0 seconds",
+                IncorrectTotalTime = ConvertSecondsToTimeFormat(incorrectTotal),
+                IncorrectAvgTime = incorrectCount > 0 ? ConvertSecondsToTimeFormat(incorrectTotal / incorrectCount) : "0 seconds",
+                PartialTotalTime = ConvertSecondsToTimeFormat(partialTotal),
+                PartialAvgTime = partialCount > 0 ? ConvertSecondsToTimeFormat(partialTotal / partialCount) : "0 seconds",
+                UnattemptedTotalTime = ConvertSecondsToTimeFormat(unattemptedTotal),
+                UnattemptedAvgTime = unattemptedCount > 0 ? ConvertSecondsToTimeFormat(unattemptedTotal / unattemptedCount) : "0 seconds",
+                ExtraQuestionTotalTime = ConvertSecondsToTimeFormat(extraTotal),
+                ExtraQuestionAvgTime = extraCount > 0 ? ConvertSecondsToTimeFormat(extraTotal / extraCount) : "0 seconds"
+            };
+
+            return new ServiceResponse<TimeSpentReport>(true, "Operation successful", formattedReport, 200);
         }
         public async Task<ServiceResponse<TimeSpentReport>> GetSubjectWiseTimeSpentReportAsync(int studentId, int scholarshipId, int subjectId)
         {
-            using (var connection = _connection)
-            {
-                // 1. Fetch Section Settings for the Given Subject
-                var sectionSettingsQuery = @"
+            // 1. Fetch Section Settings for the Given Subject
+            var sectionSettingsQuery = @"
         SELECT TotalNumberOfQuestions, NoOfQuestionsPerChoice 
         FROM tblSSQuestionSection 
         WHERE ScholarshipTestId = @scholarshipId AND SubjectID = @subjectId";
 
-                var sectionSettings = await connection.QueryFirstOrDefaultAsync<(int TotalNumberOfQuestions, int NoOfQuestionsPerChoice)>(
-                    sectionSettingsQuery, new { scholarshipId, subjectId });
+            var sectionSettings = await _connection.QueryFirstOrDefaultAsync<(int TotalNumberOfQuestions, int NoOfQuestionsPerChoice)>(
+                sectionSettingsQuery, new { scholarshipId, subjectId });
 
-                if (sectionSettings == default)
-                    return new ServiceResponse<TimeSpentReport>(false, "Section settings not found for the subject", null, 404);
+            if (sectionSettings == default)
+                return new ServiceResponse<TimeSpentReport>(false, "Section settings not found for the subject", null, 404);
 
-                int cutoff = sectionSettings.TotalNumberOfQuestions - sectionSettings.NoOfQuestionsPerChoice;
+            int cutoff = sectionSettings.TotalNumberOfQuestions - sectionSettings.NoOfQuestionsPerChoice;
 
-                // 2. Fetch Answered Questions for the Given Subject
-                var answeredQuestionsQuery = @"
+            // 2. Fetch Answered Questions for the Given Subject
+            var answeredQuestionsQuery = @"
         SELECT QuestionID, AnswerStatus, Marks 
         FROM tblStudentScholarshipAnswerSubmission 
         WHERE ScholarshipID = @scholarshipId AND StudentID = @studentId AND SubjectID = @subjectId
         ORDER BY SubmissionID";
 
-                var answeredQuestions = (await connection.QueryAsync<(int QuestionID, string AnswerStatus, decimal Marks)>(
-                    answeredQuestionsQuery, new { scholarshipId, studentId, subjectId })).ToList();
+            var answeredQuestions = (await _connection.QueryAsync<(int QuestionID, string AnswerStatus, decimal Marks)>(
+                answeredQuestionsQuery, new { scholarshipId, studentId, subjectId })).ToList();
 
-                if (!answeredQuestions.Any())
-                    return new ServiceResponse<TimeSpentReport>(false, "No answers submitted for the subject", null, 404);
+            if (!answeredQuestions.Any())
+                return new ServiceResponse<TimeSpentReport>(false, "No answers submitted for the subject", null, 404);
 
-                var regularQuestions = answeredQuestions.Take(cutoff).ToList();
-                var extraQuestions = answeredQuestions.Skip(cutoff).ToList();
+            var regularQuestions = answeredQuestions.Take(cutoff).ToList();
+            var extraQuestions = answeredQuestions.Skip(cutoff).ToList();
 
-                // 3. Fetch All Time Logs for the Given Subject (Joining with Question Table)
-                var timeQuery = @"
+            // 3. Fetch All Time Logs for the Given Subject (Joining with Question Table)
+            var timeQuery = @"
 SELECT QN.QuestionID, QN.StartTime, QN.EndTime 
 FROM tblQuestionNavigation QN
 INNER JOIN tblStudentScholarship SS ON QN.QuestionID = SS.QuestionID 
@@ -1858,68 +1853,68 @@ WHERE QN.ScholarshipID = @scholarshipId
 AND QN.StudentID = @studentId 
 AND SS.SubjectID = @subjectId";
 
-                var timeLogs = (await connection.QueryAsync<(int QuestionID, DateTime StartTime, DateTime EndTime)>(
-                    timeQuery, new { scholarshipId, studentId, subjectId })).ToList();
+            var timeLogs = (await _connection.QueryAsync<(int QuestionID, DateTime StartTime, DateTime EndTime)>(
+                timeQuery, new { scholarshipId, studentId, subjectId })).ToList();
 
-                // 4. Compute Total Time Spent per Question
-                var timeSpentPerQuestion = timeLogs
-                    .GroupBy(x => x.QuestionID)
-                    .ToDictionary(
-                        g => g.Key,
-                        g => (int)g.Sum(x => (x.EndTime - x.StartTime).TotalSeconds)
-                    );
+            // 4. Compute Total Time Spent per Question
+            var timeSpentPerQuestion = timeLogs
+                .GroupBy(x => x.QuestionID)
+                .ToDictionary(
+                    g => g.Key,
+                    g => (int)g.Sum(x => (x.EndTime - x.StartTime).TotalSeconds)
+                );
 
-                int totalTime = 0, correctTotal = 0, incorrectTotal = 0, partialTotal = 0, unattemptedTotal = 0, extraTotal = 0;
-                int correctCount = 0, incorrectCount = 0, partialCount = 0, unattemptedCount = 0, extraCount = 0;
+            int totalTime = 0, correctTotal = 0, incorrectTotal = 0, partialTotal = 0, unattemptedTotal = 0, extraTotal = 0;
+            int correctCount = 0, incorrectCount = 0, partialCount = 0, unattemptedCount = 0, extraCount = 0;
 
-                foreach (var question in answeredQuestions)
+            foreach (var question in answeredQuestions)
+            {
+                int timeSpent = timeSpentPerQuestion.ContainsKey(question.QuestionID) ? timeSpentPerQuestion[question.QuestionID] : 0;
+                totalTime += timeSpent;
+
+                if (extraQuestions.Any(q => q.QuestionID == question.QuestionID))
                 {
-                    int timeSpent = timeSpentPerQuestion.ContainsKey(question.QuestionID) ? timeSpentPerQuestion[question.QuestionID] : 0;
-                    totalTime += timeSpent;
-
-                    if (extraQuestions.Any(q => q.QuestionID == question.QuestionID))
+                    extraTotal += timeSpent;
+                    extraCount++;
+                }
+                else
+                {
+                    switch (question.AnswerStatus)
                     {
-                        extraTotal += timeSpent;
-                        extraCount++;
-                    }
-                    else
-                    {
-                        switch (question.AnswerStatus)
-                        {
-                            case "Correct":
-                                correctTotal += timeSpent;
-                                correctCount++;
-                                break;
-                            case "Incorrect":
-                                incorrectTotal += timeSpent;
-                                incorrectCount++;
-                                break;
-                            case "PartialCorrect":
-                                partialTotal += timeSpent;
-                                partialCount++;
-                                break;
-                        }
+                        case "Correct":
+                            correctTotal += timeSpent;
+                            correctCount++;
+                            break;
+                        case "Incorrect":
+                            incorrectTotal += timeSpent;
+                            incorrectCount++;
+                            break;
+                        case "PartialCorrect":
+                            partialTotal += timeSpent;
+                            partialCount++;
+                            break;
                     }
                 }
-
-                // 5. Construct Response with Formatted Time
-                var formattedReport = new TimeSpentReport
-                {
-                    TotalTime = ConvertSecondsToTimeFormat(totalTime),
-                    CorrectTotalTime = ConvertSecondsToTimeFormat(correctTotal),
-                    CorrectAvgTime = correctCount > 0 ? ConvertSecondsToTimeFormat(correctTotal / correctCount) : "0 seconds",
-                    IncorrectTotalTime = ConvertSecondsToTimeFormat(incorrectTotal),
-                    IncorrectAvgTime = incorrectCount > 0 ? ConvertSecondsToTimeFormat(incorrectTotal / incorrectCount) : "0 seconds",
-                    PartialTotalTime = ConvertSecondsToTimeFormat(partialTotal),
-                    PartialAvgTime = partialCount > 0 ? ConvertSecondsToTimeFormat(partialTotal / partialCount) : "0 seconds",
-                    UnattemptedTotalTime = ConvertSecondsToTimeFormat(unattemptedTotal),
-                    UnattemptedAvgTime = unattemptedCount > 0 ? ConvertSecondsToTimeFormat(unattemptedTotal / unattemptedCount) : "0 seconds",
-                    ExtraQuestionTotalTime = ConvertSecondsToTimeFormat(extraTotal),
-                    ExtraQuestionAvgTime = extraCount > 0 ? ConvertSecondsToTimeFormat(extraTotal / extraCount) : "0 seconds"
-                };
-
-                return new ServiceResponse<TimeSpentReport>(true, "Operation successful", formattedReport, 200);
             }
+
+            // 5. Construct Response with Formatted Time
+            var formattedReport = new TimeSpentReport
+            {
+                TotalTime = ConvertSecondsToTimeFormat(totalTime),
+                CorrectTotalTime = ConvertSecondsToTimeFormat(correctTotal),
+                CorrectAvgTime = correctCount > 0 ? ConvertSecondsToTimeFormat(correctTotal / correctCount) : "0 seconds",
+                IncorrectTotalTime = ConvertSecondsToTimeFormat(incorrectTotal),
+                IncorrectAvgTime = incorrectCount > 0 ? ConvertSecondsToTimeFormat(incorrectTotal / incorrectCount) : "0 seconds",
+                PartialTotalTime = ConvertSecondsToTimeFormat(partialTotal),
+                PartialAvgTime = partialCount > 0 ? ConvertSecondsToTimeFormat(partialTotal / partialCount) : "0 seconds",
+                UnattemptedTotalTime = ConvertSecondsToTimeFormat(unattemptedTotal),
+                UnattemptedAvgTime = unattemptedCount > 0 ? ConvertSecondsToTimeFormat(unattemptedTotal / unattemptedCount) : "0 seconds",
+                ExtraQuestionTotalTime = ConvertSecondsToTimeFormat(extraTotal),
+                ExtraQuestionAvgTime = extraCount > 0 ? ConvertSecondsToTimeFormat(extraTotal / extraCount) : "0 seconds"
+            };
+
+            return new ServiceResponse<TimeSpentReport>(true, "Operation successful", formattedReport, 200);
+
         }
         // Helper Method to Convert Seconds to X minutes Y seconds Format
         private string ConvertSecondsToTimeFormat(int seconds)
