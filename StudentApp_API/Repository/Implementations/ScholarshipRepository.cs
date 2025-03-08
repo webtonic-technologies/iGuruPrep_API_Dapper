@@ -1712,82 +1712,95 @@ namespace StudentApp_API.Repository.Implementations
         }
         public async Task<ServiceResponse<TimeSpentReport>> GetTimeSpentReportAsync(int studentId, int scholarshipId)
         {
-            // 1. Fetch Section Settings
+            // 1. Fetch Section Settings (Multiple Sections)
             var sectionSettingsQuery = @"
-            SELECT TotalNumberOfQuestions, NoOfQuestionsPerChoice 
-            FROM tblSSQuestionSection 
-            WHERE ScholarshipTestId = @scholarshipId";
+    SELECT SSTSectionId, TotalNumberOfQuestions, NoOfQuestionsPerChoice 
+    FROM tblSSQuestionSection 
+    WHERE ScholarshipTestId = @scholarshipId";
 
-            var sectionSettings = await _connection.QueryFirstOrDefaultAsync<(int TotalNumberOfQuestions, int NoOfQuestionsPerChoice)>(
-                sectionSettingsQuery, new { scholarshipId });
+            var sectionSettingsList = (await _connection.QueryAsync<(int SectionId, int TotalNumberOfQuestions, int NoOfQuestionsPerChoice)>(
+                sectionSettingsQuery, new { scholarshipId })).ToList();
 
-            if (sectionSettings == default)
+            if (!sectionSettingsList.Any())
                 return new ServiceResponse<TimeSpentReport>(false, "Section settings not found", null, 404);
 
-            int cutoff = sectionSettings.TotalNumberOfQuestions - sectionSettings.NoOfQuestionsPerChoice;
-
             // 2. Fetch Answered Questions (Ordered by Submission)
+            // Fetch Answered Questions with SectionId from tblStudentScholarship
             var answeredQuestionsQuery = @"
-            SELECT QuestionID, AnswerStatus, Marks 
-            FROM tblStudentScholarshipAnswerSubmission 
-            WHERE ScholarshipID = @scholarshipId AND StudentID = @studentId
-            ORDER BY SubmissionID";
+SELECT sa.QuestionID, sa.AnswerStatus, sa.Marks, ss.SectionId
+FROM tblStudentScholarshipAnswerSubmission sa
+INNER JOIN tblStudentScholarship ss 
+    ON sa.QuestionID = ss.QuestionID 
+    AND sa.ScholarshipID = ss.ScholarshipID 
+    AND sa.StudentID = ss.StudentID
+WHERE sa.ScholarshipID = @scholarshipId AND sa.StudentID = @studentId
+ORDER BY sa.SubmissionID";
 
-            var answeredQuestions = (await _connection.QueryAsync<(int QuestionID, string AnswerStatus, decimal Marks, DateTime SubmittedAt)>(
+            var answeredQuestions = (await _connection.QueryAsync<(int QuestionID, string AnswerStatus, decimal Marks, int SectionId)>(
                 answeredQuestionsQuery, new { scholarshipId, studentId })).ToList();
 
             if (!answeredQuestions.Any())
                 return new ServiceResponse<TimeSpentReport>(false, "No answers submitted", null, 404);
 
-            var regularQuestions = answeredQuestions.Take(cutoff).ToList();
-            var extraQuestions = answeredQuestions.Skip(cutoff).ToList();
-
             // 3. Fetch All Time Logs from tblQuestionNavigation
             var timeQuery = @"
-            SELECT QuestionID, StartTime, EndTime 
-            FROM tblQuestionNavigation 
-            WHERE ScholarshipID = @scholarshipId AND StudentID = @studentId";
+    SELECT QuestionID, StartTime, EndTime 
+    FROM tblQuestionNavigation 
+    WHERE ScholarshipID = @scholarshipId AND StudentID = @studentId";
 
             var timeLogs = (await _connection.QueryAsync<(int QuestionID, DateTime StartTime, DateTime EndTime)>(
                 timeQuery, new { scholarshipId, studentId })).ToList();
 
-            // 4. Compute Total Time Spent per Question (Summing Multiple Visits)
+            // Store total time spent per question
             var timeSpentPerQuestion = timeLogs
                 .GroupBy(x => x.QuestionID)
                 .ToDictionary(
                     g => g.Key,
-                    g => (int)g.Sum(x => (x.EndTime - x.StartTime).TotalSeconds) // Convert to int for formatting
+                    g => (int)g.Sum(x => (x.EndTime - x.StartTime).TotalSeconds)
                 );
 
             int totalTime = 0, correctTotal = 0, incorrectTotal = 0, partialTotal = 0, unattemptedTotal = 0, extraTotal = 0;
             int correctCount = 0, incorrectCount = 0, partialCount = 0, unattemptedCount = 0, extraCount = 0;
 
-            foreach (var question in answeredQuestions)
+            // 4. Loop through each section and process its questions separately
+            foreach (var section in sectionSettingsList)
             {
-                int timeSpent = timeSpentPerQuestion.ContainsKey(question.QuestionID) ? timeSpentPerQuestion[question.QuestionID] : 0;
-                totalTime += timeSpent;
+                int sectionId = section.SectionId;
+                int cutoff = section.TotalNumberOfQuestions - section.NoOfQuestionsPerChoice;
 
-                if (extraQuestions.Any(q => q.QuestionID == question.QuestionID))
+                // Filter answered questions for this section
+                var sectionQuestions = answeredQuestions.Where(q => q.SectionId == sectionId).ToList();
+
+                var regularQuestions = sectionQuestions.Take(cutoff).ToList();
+                var extraQuestions = sectionQuestions.Skip(cutoff).ToList();
+
+                foreach (var question in sectionQuestions)
                 {
-                    extraTotal += timeSpent;
-                    extraCount++;
-                }
-                else
-                {
-                    switch (question.AnswerStatus)
+                    int timeSpent = timeSpentPerQuestion.ContainsKey(question.QuestionID) ? timeSpentPerQuestion[question.QuestionID] : 0;
+                    totalTime += timeSpent;
+
+                    if (extraQuestions.Any(q => q.QuestionID == question.QuestionID))
                     {
-                        case "Correct":
-                            correctTotal += timeSpent;
-                            correctCount++;
-                            break;
-                        case "Incorrect":
-                            incorrectTotal += timeSpent;
-                            incorrectCount++;
-                            break;
-                        case "PartialCorrect":
-                            partialTotal += timeSpent;
-                            partialCount++;
-                            break;
+                        extraTotal += timeSpent;
+                        extraCount++;
+                    }
+                    else
+                    {
+                        switch (question.AnswerStatus)
+                        {
+                            case "Correct":
+                                correctTotal += timeSpent;
+                                correctCount++;
+                                break;
+                            case "Incorrect":
+                                incorrectTotal += timeSpent;
+                                incorrectCount++;
+                                break;
+                            case "PartialCorrect":
+                                partialTotal += timeSpent;
+                                partialCount++;
+                                break;
+                        }
                     }
                 }
             }
