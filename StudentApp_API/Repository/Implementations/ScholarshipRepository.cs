@@ -1714,9 +1714,9 @@ namespace StudentApp_API.Repository.Implementations
         {
             // 1. Fetch Section Settings (Multiple Sections)
             var sectionSettingsQuery = @"
-    SELECT SSTSectionId, TotalNumberOfQuestions, NoOfQuestionsPerChoice 
-    FROM tblSSQuestionSection 
-    WHERE ScholarshipTestId = @scholarshipId";
+        SELECT SSTSectionId, TotalNumberOfQuestions, NoOfQuestionsPerChoice 
+        FROM tblSSQuestionSection 
+        WHERE ScholarshipTestId = @scholarshipId";
 
             var sectionSettingsList = (await _connection.QueryAsync<(int SectionId, int TotalNumberOfQuestions, int NoOfQuestionsPerChoice)>(
                 sectionSettingsQuery, new { scholarshipId })).ToList();
@@ -1725,28 +1725,33 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<TimeSpentReport>(false, "Section settings not found", null, 404);
 
             // 2. Fetch Answered Questions (Ordered by Submission)
-            // Fetch Answered Questions with SectionId from tblStudentScholarship
             var answeredQuestionsQuery = @"
-SELECT sa.QuestionID, sa.AnswerStatus, sa.Marks, ss.SectionId
-FROM tblStudentScholarshipAnswerSubmission sa
-INNER JOIN tblStudentScholarship ss 
-    ON sa.QuestionID = ss.QuestionID 
-    AND sa.ScholarshipID = ss.ScholarshipID 
-    AND sa.StudentID = ss.StudentID
-WHERE sa.ScholarshipID = @scholarshipId AND sa.StudentID = @studentId
-ORDER BY sa.SubmissionID";
+        SELECT sa.QuestionID, sa.AnswerStatus, sa.Marks, ss.SectionId
+        FROM tblStudentScholarshipAnswerSubmission sa
+        INNER JOIN tblStudentScholarship ss 
+            ON sa.QuestionID = ss.QuestionID 
+            AND sa.ScholarshipID = ss.ScholarshipID 
+            AND sa.StudentID = ss.StudentID
+        WHERE sa.ScholarshipID = @scholarshipId AND sa.StudentID = @studentId
+        ORDER BY sa.SubmissionID";
 
             var answeredQuestions = (await _connection.QueryAsync<(int QuestionID, string AnswerStatus, decimal Marks, int SectionId)>(
                 answeredQuestionsQuery, new { scholarshipId, studentId })).ToList();
 
-            if (!answeredQuestions.Any())
-                return new ServiceResponse<TimeSpentReport>(false, "No answers submitted", null, 404);
+            // 3. Fetch **Unattempted Questions** (QuestionStatusId = 2)
+            var unattemptedQuestionsQuery = @"
+        SELECT QuestionID, SectionId
+        FROM tblStudentScholarship
+        WHERE ScholarshipID = @scholarshipId AND StudentID = @studentId AND QuestionStatusId = 2";
 
-            // 3. Fetch All Time Logs from tblQuestionNavigation
+            var unattemptedQuestions = (await _connection.QueryAsync<(int QuestionID, int SectionId)>(
+                unattemptedQuestionsQuery, new { scholarshipId, studentId })).ToList();
+
+            // 4. Fetch **All Time Logs** from tblQuestionNavigation
             var timeQuery = @"
-    SELECT QuestionID, StartTime, EndTime 
-    FROM tblQuestionNavigation 
-    WHERE ScholarshipID = @scholarshipId AND StudentID = @studentId";
+        SELECT QuestionID, StartTime, EndTime 
+        FROM tblQuestionNavigation 
+        WHERE ScholarshipID = @scholarshipId AND StudentID = @studentId";
 
             var timeLogs = (await _connection.QueryAsync<(int QuestionID, DateTime StartTime, DateTime EndTime)>(
                 timeQuery, new { scholarshipId, studentId })).ToList();
@@ -1762,7 +1767,7 @@ ORDER BY sa.SubmissionID";
             int totalTime = 0, correctTotal = 0, incorrectTotal = 0, partialTotal = 0, unattemptedTotal = 0, extraTotal = 0;
             int correctCount = 0, incorrectCount = 0, partialCount = 0, unattemptedCount = 0, extraCount = 0;
 
-            // 4. Loop through each section and process its questions separately
+            // 5. Process Answered Questions by Section
             foreach (var section in sectionSettingsList)
             {
                 int sectionId = section.SectionId;
@@ -1770,7 +1775,6 @@ ORDER BY sa.SubmissionID";
 
                 // Filter answered questions for this section
                 var sectionQuestions = answeredQuestions.Where(q => q.SectionId == sectionId).ToList();
-
                 var regularQuestions = sectionQuestions.Take(cutoff).ToList();
                 var extraQuestions = sectionQuestions.Skip(cutoff).ToList();
 
@@ -1803,9 +1807,20 @@ ORDER BY sa.SubmissionID";
                         }
                     }
                 }
+
+                // 6. Process **Unattempted Questions**
+                var sectionUnattemptedQuestions = unattemptedQuestions.Where(q => q.SectionId == sectionId).ToList();
+
+                foreach (var question in sectionUnattemptedQuestions)
+                {
+                    int timeSpent = timeSpentPerQuestion.ContainsKey(question.QuestionID) ? timeSpentPerQuestion[question.QuestionID] : 0;
+                    unattemptedTotal += timeSpent;
+                    unattemptedCount++;
+                    totalTime += timeSpent;
+                }
             }
 
-            // 5. Construct Response with Formatted Time
+            // 7. Construct Response with Formatted Time
             var formattedReport = new TimeSpentReport
             {
                 TotalTime = ConvertSecondsToTimeFormat(totalTime),
@@ -1823,6 +1838,7 @@ ORDER BY sa.SubmissionID";
 
             return new ServiceResponse<TimeSpentReport>(true, "Operation successful", formattedReport, 200);
         }
+
         public async Task<ServiceResponse<TimeSpentReport>> GetSubjectWiseTimeSpentReportAsync(int studentId, int scholarshipId, int subjectId)
         {
             // 1. Fetch Section Settings for the Given Subject
