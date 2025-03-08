@@ -4,6 +4,7 @@ using StudentApp_API.DTOs.Responses;
 using StudentApp_API.DTOs.ServiceResponse;
 using StudentApp_API.Repository.Interfaces;
 using System.Data;
+using System.Data.Common;
 using System.Text;
 
 namespace StudentApp_API.Repository.Implementations
@@ -1710,186 +1711,217 @@ namespace StudentApp_API.Repository.Implementations
             }
         }
         public async Task<ServiceResponse<TimeSpentReport>> GetTimeSpentReportAsync(int studentId, int scholarshipId)
-       {
-            var sql = @"WITH Settings AS (
-    SELECT ScholarshipTestId, TotalNumberOfQuestions, NoOfQuestionsPerChoice
-    FROM tblSSQuestionSection
-    WHERE ScholarshipTestId = @ScholarshipId
-),
-RankedAnswers AS (
-    SELECT sa.*, 
-           ROW_NUMBER() OVER (PARTITION BY sa.StudentID, sa.ScholarshipID ORDER BY sa.SubmissionID) AS rn
-    FROM tblStudentScholarshipAnswerSubmission sa
-    WHERE sa.ScholarshipID = @ScholarshipId AND sa.StudentID = @StudentId
-),
-LatestNavigations AS (
-    SELECT qn.StudentID, qn.ScholarshipID, qn.QuestionID, MAX(qn.EndTime) AS LastVisitTime
-    FROM tblQuestionNavigation qn
-    WHERE qn.ScholarshipID = @ScholarshipId AND qn.StudentID = @StudentId
-    GROUP BY qn.StudentID, qn.ScholarshipID, qn.QuestionID
-),
-ExtraAttemptedQuestions AS (
-    SELECT ra.QuestionID, ra.Marks, ln.LastVisitTime AS ExtraAttemptedTime
-    FROM RankedAnswers ra
-    JOIN Settings s ON ra.ScholarshipID = s.ScholarshipTestId
-    LEFT JOIN LatestNavigations ln ON ra.StudentID = ln.StudentID 
-                                    AND ra.ScholarshipID = ln.ScholarshipID 
-                                    AND ra.QuestionID = ln.QuestionID
-    WHERE ra.rn > (s.TotalNumberOfQuestions - s.NoOfQuestionsPerChoice)
-),
-QuestionTimeAggregates AS (
-    SELECT
-        qn.QuestionID,
-        COALESCE(s.AnswerStatus, 'Unattempted') AS AnswerStatus,
-        SUM(DATEDIFF(SECOND, qn.StartTime, qn.EndTime)) AS TotalTimeSpent,  
-        CASE WHEN eq.QuestionID IS NOT NULL THEN 1 ELSE 0 END AS IsExtraAttempted
-    FROM tblQuestionNavigation qn
-    LEFT JOIN tblStudentScholarshipAnswerSubmission s
-        ON qn.QuestionID = s.QuestionID
-        AND qn.StudentID = s.StudentID
-        AND qn.ScholarshipID = s.ScholarshipID
-    LEFT JOIN (
-        SELECT DISTINCT QuestionID FROM ExtraAttemptedQuestions
-    ) eq ON qn.QuestionID = eq.QuestionID
-    WHERE qn.StudentID = @StudentId
-      AND qn.ScholarshipID = @ScholarshipId
-    GROUP BY qn.QuestionID, s.AnswerStatus, eq.QuestionID
-),
-AggregatedTime AS (
-    SELECT
-        SUM(qta.TotalTimeSpent) AS TotalTime,
-        SUM(CASE WHEN qta.IsExtraAttempted = 0 AND qta.AnswerStatus = 'Correct' THEN qta.TotalTimeSpent ELSE 0 END) AS CorrectTotalTime,
-        COUNT(CASE WHEN qta.IsExtraAttempted = 0 AND qta.AnswerStatus = 'Correct' THEN 1 ELSE NULL END) AS CorrectCount,
-        SUM(CASE WHEN qta.IsExtraAttempted = 0 AND qta.AnswerStatus = 'Incorrect' THEN qta.TotalTimeSpent ELSE 0 END) AS IncorrectTotalTime,
-        COUNT(CASE WHEN qta.IsExtraAttempted = 0 AND qta.AnswerStatus = 'Incorrect' THEN 1 ELSE NULL END) AS IncorrectCount,
-        SUM(CASE WHEN qta.IsExtraAttempted = 0 AND qta.AnswerStatus = 'PartialCorrect' THEN qta.TotalTimeSpent ELSE 0 END) AS PartialTotalTime,
-        COUNT(CASE WHEN qta.IsExtraAttempted = 0 AND qta.AnswerStatus = 'PartialCorrect' THEN 1 ELSE NULL END) AS PartialCount,
-        SUM(CASE WHEN qta.IsExtraAttempted = 0 AND qta.AnswerStatus = 'Unattempted' THEN qta.TotalTimeSpent ELSE 0 END) AS UnattemptedTotalTime,
-        COUNT(CASE WHEN qta.IsExtraAttempted = 0 AND qta.AnswerStatus = 'Unattempted' THEN 1 ELSE NULL END) AS UnattemptedCount,
-        SUM(CASE WHEN qta.IsExtraAttempted = 1 THEN qta.TotalTimeSpent ELSE 0 END) AS ExtraQuestionTotalTime,
-        COUNT(CASE WHEN qta.IsExtraAttempted = 1 THEN 1 ELSE NULL END) AS ExtraQuestionCount
-    FROM QuestionTimeAggregates qta
-)
-SELECT
-    ISNULL(TotalTime, 0) AS TotalTime,
-    ISNULL(CorrectTotalTime, 0) AS CorrectTotalTime,
-    ISNULL(CASE WHEN CorrectCount > 0 THEN CorrectTotalTime / CorrectCount ELSE 0 END, 0) AS CorrectAvgTime,
-    ISNULL(IncorrectTotalTime, 0) AS IncorrectTotalTime,
-    ISNULL(CASE WHEN IncorrectCount > 0 THEN IncorrectTotalTime / IncorrectCount ELSE 0 END, 0) AS IncorrectAvgTime,
-    ISNULL(PartialTotalTime, 0) AS PartialTotalTime,
-    ISNULL(CASE WHEN PartialCount > 0 THEN PartialTotalTime / PartialCount ELSE 0 END, 0) AS PartialAvgTime,
-    ISNULL(UnattemptedTotalTime, 0) AS UnattemptedTotalTime,
-    ISNULL(CASE WHEN UnattemptedCount > 0 THEN UnattemptedTotalTime / UnattemptedCount ELSE 0 END, 0) AS UnattemptedAvgTime,
-    ISNULL(ExtraQuestionTotalTime, 0) AS ExtraQuestionTotalTime,
-    ISNULL(CASE WHEN ExtraQuestionCount > 0 THEN ExtraQuestionTotalTime / ExtraQuestionCount ELSE 0 END, 0) AS ExtraQuestionAvgTime
-FROM AggregatedTime;";
-//            var sql = @"WITH Settings AS (
-//    SELECT ScholarshipTestId, TotalNumberOfQuestions, NoOfQuestionsPerChoice
-//    FROM tblSSQuestionSection
-//    WHERE ScholarshipTestId = @ScholarshipId
-//),
-//RankedAnswers AS (
-//    SELECT sa.*, 
-//           ROW_NUMBER() OVER (PARTITION BY sa.StudentID, sa.ScholarshipID ORDER BY sa.SubmissionID) AS rn
-//    FROM tblStudentScholarshipAnswerSubmission sa
-//    WHERE sa.ScholarshipID = @ScholarshipId AND sa.StudentID = @StudentId
-//),
-//LatestNavigations AS (
-//    SELECT qn.StudentID, qn.ScholarshipID, qn.QuestionID, MAX(qn.EndTime) AS LastVisitTime
-//    FROM tblQuestionNavigation qn
-//    WHERE qn.ScholarshipID = @ScholarshipId AND qn.StudentID = @StudentId
-//    GROUP BY qn.StudentID, qn.ScholarshipID, qn.QuestionID
-//),
-//ExtraAttemptedQuestions AS (
-//    SELECT ra.QuestionID, ra.Marks, ln.LastVisitTime AS ExtraAttemptedTime
-//    FROM RankedAnswers ra
-//    JOIN Settings s ON ra.ScholarshipID = s.ScholarshipTestId
-//    LEFT JOIN LatestNavigations ln ON ra.StudentID = ln.StudentID 
-//                                    AND ra.ScholarshipID = ln.ScholarshipID 
-//                                    AND ra.QuestionID = ln.QuestionID
-//    WHERE ra.rn > (s.TotalNumberOfQuestions - s.NoOfQuestionsPerChoice)
-//),
-//QuestionTimeAggregates AS (
-//    SELECT
-//        qn.QuestionID,
-//        COALESCE(s.AnswerStatus, 'Unattempted') AS AnswerStatus,
-//        SUM(DATEDIFF(SECOND, qn.StartTime, qn.EndTime)) AS TotalTimeSpent,
-//        CASE WHEN eq.QuestionID IS NOT NULL THEN 1 ELSE 0 END AS IsExtraAttempted
-//    FROM tblQuestionNavigation qn
-//    LEFT JOIN tblStudentScholarshipAnswerSubmission s
-//        ON qn.QuestionID = s.QuestionID
-//        AND qn.StudentID = s.StudentID
-//        AND qn.ScholarshipID = s.ScholarshipID
-//    LEFT JOIN ExtraAttemptedQuestions eq 
-//        ON qn.QuestionID = eq.QuestionID
-//    WHERE qn.StudentID = @StudentId
-//      AND qn.ScholarshipID = @ScholarshipId
-//    GROUP BY qn.QuestionID, s.AnswerStatus, eq.QuestionID
-//),
-//AggregatedTime AS (
-//    SELECT
-//        SUM(TotalTimeSpent) AS TotalTime,
-//        SUM(CASE WHEN IsExtraAttempted = 0 AND AnswerStatus = 'Correct' THEN TotalTimeSpent ELSE 0 END) AS CorrectTotalTime,
-//        COUNT(CASE WHEN IsExtraAttempted = 0 AND AnswerStatus = 'Correct' THEN 1 ELSE NULL END) AS CorrectCount,
-//        SUM(CASE WHEN IsExtraAttempted = 0 AND AnswerStatus = 'Incorrect' THEN TotalTimeSpent ELSE 0 END) AS IncorrectTotalTime,
-//        COUNT(CASE WHEN IsExtraAttempted = 0 AND AnswerStatus = 'Incorrect' THEN 1 ELSE NULL END) AS IncorrectCount,
-//        SUM(CASE WHEN IsExtraAttempted = 0 AND AnswerStatus = 'PartialCorrect' THEN TotalTimeSpent ELSE 0 END) AS PartialTotalTime,
-//        COUNT(CASE WHEN IsExtraAttempted = 0 AND AnswerStatus = 'PartialCorrect' THEN 1 ELSE NULL END) AS PartialCount,
-//        SUM(CASE WHEN IsExtraAttempted = 0 AND AnswerStatus = 'Unattempted' THEN TotalTimeSpent ELSE 0 END) AS UnattemptedTotalTime,
-//        COUNT(CASE WHEN IsExtraAttempted = 0 AND AnswerStatus = 'Unattempted' THEN 1 ELSE NULL END) AS UnattemptedCount,
-//        SUM(CASE WHEN IsExtraAttempted = 1 THEN TotalTimeSpent ELSE 0 END) AS ExtraQuestionTotalTime,
-//        COUNT(CASE WHEN IsExtraAttempted = 1 THEN 1 ELSE NULL END) AS ExtraQuestionCount
-//    FROM QuestionTimeAggregates
-//)
-//SELECT
-//    ISNULL(TotalTime, 0) AS TotalTime,
-//    ISNULL(CorrectTotalTime, 0) AS CorrectTotalTime,
-//    ISNULL(CASE WHEN CorrectCount > 0 THEN CorrectTotalTime / CorrectCount ELSE 0 END, 0) AS CorrectAvgTime,
-//    ISNULL(IncorrectTotalTime, 0) AS IncorrectTotalTime,
-//    ISNULL(CASE WHEN IncorrectCount > 0 THEN IncorrectTotalTime / IncorrectCount ELSE 0 END, 0) AS IncorrectAvgTime,
-//    ISNULL(PartialTotalTime, 0) AS PartialTotalTime,
-//    ISNULL(CASE WHEN PartialCount > 0 THEN PartialTotalTime / PartialCount ELSE 0 END, 0) AS PartialAvgTime,
-//    ISNULL(UnattemptedTotalTime, 0) AS UnattemptedTotalTime,
-//    ISNULL(CASE WHEN UnattemptedCount > 0 THEN UnattemptedTotalTime / UnattemptedCount ELSE 0 END, 0) AS UnattemptedAvgTime,
-//    ISNULL(ExtraQuestionTotalTime, 0) AS ExtraQuestionTotalTime,
-//    ISNULL(CASE WHEN ExtraQuestionCount > 0 THEN ExtraQuestionTotalTime / ExtraQuestionCount ELSE 0 END, 0) AS ExtraQuestionAvgTime
-//FROM AggregatedTime;";
-
-            try
+        {
+            using (var connection = _connection)
             {
-                using (var multi = await _connection.QueryMultipleAsync(sql, new { StudentId = studentId, ScholarshipId = scholarshipId }))
+                // 1. Fetch Section Settings
+                var sectionSettingsQuery = @"
+            SELECT TotalNumberOfQuestions, NoOfQuestionsPerChoice 
+            FROM tblSSQuestionSection 
+            WHERE ScholarshipTestId = @scholarshipId";
+
+                var sectionSettings = await connection.QueryFirstOrDefaultAsync<(int TotalNumberOfQuestions, int NoOfQuestionsPerChoice)>(
+                    sectionSettingsQuery, new { scholarshipId });
+
+                if (sectionSettings == default)
+                    return new ServiceResponse<TimeSpentReport>(false, "Section settings not found", null, 404);
+
+                int cutoff = sectionSettings.TotalNumberOfQuestions - sectionSettings.NoOfQuestionsPerChoice;
+
+                // 2. Fetch Answered Questions (Ordered by Submission)
+                var answeredQuestionsQuery = @"
+            SELECT QuestionID, AnswerStatus, Marks 
+            FROM tblStudentScholarshipAnswerSubmission 
+            WHERE ScholarshipID = @scholarshipId AND StudentID = @studentId
+            ORDER BY SubmissionID";
+
+                var answeredQuestions = (await connection.QueryAsync<(int QuestionID, string AnswerStatus, decimal Marks, DateTime SubmittedAt)>(
+                    answeredQuestionsQuery, new { scholarshipId, studentId })).ToList();
+
+                if (!answeredQuestions.Any())
+                    return new ServiceResponse<TimeSpentReport>(false, "No answers submitted", null, 404);
+
+                var regularQuestions = answeredQuestions.Take(cutoff).ToList();
+                var extraQuestions = answeredQuestions.Skip(cutoff).ToList();
+
+                // 3. Fetch All Time Logs from tblQuestionNavigation
+                var timeQuery = @"
+            SELECT QuestionID, StartTime, EndTime 
+            FROM tblQuestionNavigation 
+            WHERE ScholarshipID = @scholarshipId AND StudentID = @studentId";
+
+                var timeLogs = (await connection.QueryAsync<(int QuestionID, DateTime StartTime, DateTime EndTime)>(
+                    timeQuery, new { scholarshipId, studentId })).ToList();
+
+                // 4. Compute Total Time Spent per Question (Summing Multiple Visits)
+                var timeSpentPerQuestion = timeLogs
+                    .GroupBy(x => x.QuestionID)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => (int)g.Sum(x => (x.EndTime - x.StartTime).TotalSeconds) // Convert to int for formatting
+                    );
+
+                int totalTime = 0, correctTotal = 0, incorrectTotal = 0, partialTotal = 0, unattemptedTotal = 0, extraTotal = 0;
+                int correctCount = 0, incorrectCount = 0, partialCount = 0, unattemptedCount = 0, extraCount = 0;
+
+                foreach (var question in answeredQuestions)
                 {
-                    var report = await multi.ReadFirstOrDefaultAsync<dynamic>();
-                    if (report == null)
+                    int timeSpent = timeSpentPerQuestion.ContainsKey(question.QuestionID) ? timeSpentPerQuestion[question.QuestionID] : 0;
+                    totalTime += timeSpent;
+
+                    if (extraQuestions.Any(q => q.QuestionID == question.QuestionID))
                     {
-                        return new ServiceResponse<TimeSpentReport>(false, "No data found.", null, 404);
+                        extraTotal += timeSpent;
+                        extraCount++;
                     }
-
-                    var formattedReport = new TimeSpentReport
+                    else
                     {
-                        TotalTime = ConvertSecondsToTimeFormat((int)(report.TotalTime ?? 0)),
-                        CorrectTotalTime = ConvertSecondsToTimeFormat((int)(report.CorrectTotalTime ?? 0)),
-                        CorrectAvgTime = ConvertSecondsToTimeFormat((int)(report.CorrectAvgTime ?? 0)),
-                        IncorrectTotalTime = ConvertSecondsToTimeFormat((int)(report.IncorrectTotalTime ?? 0)),
-                        IncorrectAvgTime = ConvertSecondsToTimeFormat((int)(report.IncorrectAvgTime ?? 0)),
-                        PartialTotalTime = ConvertSecondsToTimeFormat((int)(report.PartialTotalTime ?? 0)),
-                        PartialAvgTime = ConvertSecondsToTimeFormat((int)(report.PartialAvgTime ?? 0)),
-                        UnattemptedTotalTime = ConvertSecondsToTimeFormat((int)(report.UnattemptedTotalTime ?? 0)),
-                        UnattemptedAvgTime = ConvertSecondsToTimeFormat((int)(report.UnattemptedAvgTime ?? 0)),
-                        ExtraQuestionTotalTime = ConvertSecondsToTimeFormat((int)(report.ExtraQuestionTotalTime ?? 0)),
-                        ExtraQuestionAvgTime = ConvertSecondsToTimeFormat((int)(report.ExtraQuestionAvgTime ?? 0))
-                    };
-
-                    return new ServiceResponse<TimeSpentReport>(true, "Operation successful", formattedReport, 200);
+                        switch (question.AnswerStatus)
+                        {
+                            case "Correct":
+                                correctTotal += timeSpent;
+                                correctCount++;
+                                break;
+                            case "Incorrect":
+                                incorrectTotal += timeSpent;
+                                incorrectCount++;
+                                break;
+                            case "PartialCorrect":
+                                partialTotal += timeSpent;
+                                partialCount++;
+                                break;
+                        }
+                    }
                 }
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<TimeSpentReport>(false, $"An error occurred: {ex.Message}", null, 500);
+
+                // 5. Construct Response with Formatted Time
+                var formattedReport = new TimeSpentReport
+                {
+                    TotalTime = ConvertSecondsToTimeFormat(totalTime),
+                    CorrectTotalTime = ConvertSecondsToTimeFormat(correctTotal),
+                    CorrectAvgTime = correctCount > 0 ? ConvertSecondsToTimeFormat(correctTotal / correctCount) : "0 seconds",
+                    IncorrectTotalTime = ConvertSecondsToTimeFormat(incorrectTotal),
+                    IncorrectAvgTime = incorrectCount > 0 ? ConvertSecondsToTimeFormat(incorrectTotal / incorrectCount) : "0 seconds",
+                    PartialTotalTime = ConvertSecondsToTimeFormat(partialTotal),
+                    PartialAvgTime = partialCount > 0 ? ConvertSecondsToTimeFormat(partialTotal / partialCount) : "0 seconds",
+                    UnattemptedTotalTime = ConvertSecondsToTimeFormat(unattemptedTotal),
+                    UnattemptedAvgTime = unattemptedCount > 0 ? ConvertSecondsToTimeFormat(unattemptedTotal / unattemptedCount) : "0 seconds",
+                    ExtraQuestionTotalTime = ConvertSecondsToTimeFormat(extraTotal),
+                    ExtraQuestionAvgTime = extraCount > 0 ? ConvertSecondsToTimeFormat(extraTotal / extraCount) : "0 seconds"
+                };
+
+                return new ServiceResponse<TimeSpentReport>(true, "Operation successful", formattedReport, 200);
             }
         }
+        public async Task<ServiceResponse<TimeSpentReport>> GetSubjectWiseTimeSpentReportAsync(int studentId, int scholarshipId, int subjectId)
+        {
+            using (var connection = _connection)
+            {
+                // 1. Fetch Section Settings for the Given Subject
+                var sectionSettingsQuery = @"
+        SELECT TotalNumberOfQuestions, NoOfQuestionsPerChoice 
+        FROM tblSSQuestionSection 
+        WHERE ScholarshipTestId = @scholarshipId AND SubjectID = @subjectId";
 
-        // Convert seconds to "X minutes Y seconds" format
+                var sectionSettings = await connection.QueryFirstOrDefaultAsync<(int TotalNumberOfQuestions, int NoOfQuestionsPerChoice)>(
+                    sectionSettingsQuery, new { scholarshipId, subjectId });
+
+                if (sectionSettings == default)
+                    return new ServiceResponse<TimeSpentReport>(false, "Section settings not found for the subject", null, 404);
+
+                int cutoff = sectionSettings.TotalNumberOfQuestions - sectionSettings.NoOfQuestionsPerChoice;
+
+                // 2. Fetch Answered Questions for the Given Subject
+                var answeredQuestionsQuery = @"
+        SELECT QuestionID, AnswerStatus, Marks 
+        FROM tblStudentScholarshipAnswerSubmission 
+        WHERE ScholarshipID = @scholarshipId AND StudentID = @studentId AND SubjectID = @subjectId
+        ORDER BY SubmissionID";
+
+                var answeredQuestions = (await connection.QueryAsync<(int QuestionID, string AnswerStatus, decimal Marks)>(
+                    answeredQuestionsQuery, new { scholarshipId, studentId, subjectId })).ToList();
+
+                if (!answeredQuestions.Any())
+                    return new ServiceResponse<TimeSpentReport>(false, "No answers submitted for the subject", null, 404);
+
+                var regularQuestions = answeredQuestions.Take(cutoff).ToList();
+                var extraQuestions = answeredQuestions.Skip(cutoff).ToList();
+
+                // 3. Fetch All Time Logs for the Given Subject (Joining with Question Table)
+                var timeQuery = @"
+SELECT QN.QuestionID, QN.StartTime, QN.EndTime 
+FROM tblQuestionNavigation QN
+INNER JOIN tblStudentScholarship SS ON QN.QuestionID = SS.QuestionID 
+    AND QN.ScholarshipID = SS.ScholarshipID 
+    AND QN.StudentID = SS.StudentID
+WHERE QN.ScholarshipID = @scholarshipId 
+AND QN.StudentID = @studentId 
+AND SS.SubjectID = @subjectId";
+
+                var timeLogs = (await connection.QueryAsync<(int QuestionID, DateTime StartTime, DateTime EndTime)>(
+                    timeQuery, new { scholarshipId, studentId, subjectId })).ToList();
+
+                // 4. Compute Total Time Spent per Question
+                var timeSpentPerQuestion = timeLogs
+                    .GroupBy(x => x.QuestionID)
+                    .ToDictionary(
+                        g => g.Key,
+                        g => (int)g.Sum(x => (x.EndTime - x.StartTime).TotalSeconds)
+                    );
+
+                int totalTime = 0, correctTotal = 0, incorrectTotal = 0, partialTotal = 0, unattemptedTotal = 0, extraTotal = 0;
+                int correctCount = 0, incorrectCount = 0, partialCount = 0, unattemptedCount = 0, extraCount = 0;
+
+                foreach (var question in answeredQuestions)
+                {
+                    int timeSpent = timeSpentPerQuestion.ContainsKey(question.QuestionID) ? timeSpentPerQuestion[question.QuestionID] : 0;
+                    totalTime += timeSpent;
+
+                    if (extraQuestions.Any(q => q.QuestionID == question.QuestionID))
+                    {
+                        extraTotal += timeSpent;
+                        extraCount++;
+                    }
+                    else
+                    {
+                        switch (question.AnswerStatus)
+                        {
+                            case "Correct":
+                                correctTotal += timeSpent;
+                                correctCount++;
+                                break;
+                            case "Incorrect":
+                                incorrectTotal += timeSpent;
+                                incorrectCount++;
+                                break;
+                            case "PartialCorrect":
+                                partialTotal += timeSpent;
+                                partialCount++;
+                                break;
+                        }
+                    }
+                }
+
+                // 5. Construct Response with Formatted Time
+                var formattedReport = new TimeSpentReport
+                {
+                    TotalTime = ConvertSecondsToTimeFormat(totalTime),
+                    CorrectTotalTime = ConvertSecondsToTimeFormat(correctTotal),
+                    CorrectAvgTime = correctCount > 0 ? ConvertSecondsToTimeFormat(correctTotal / correctCount) : "0 seconds",
+                    IncorrectTotalTime = ConvertSecondsToTimeFormat(incorrectTotal),
+                    IncorrectAvgTime = incorrectCount > 0 ? ConvertSecondsToTimeFormat(incorrectTotal / incorrectCount) : "0 seconds",
+                    PartialTotalTime = ConvertSecondsToTimeFormat(partialTotal),
+                    PartialAvgTime = partialCount > 0 ? ConvertSecondsToTimeFormat(partialTotal / partialCount) : "0 seconds",
+                    UnattemptedTotalTime = ConvertSecondsToTimeFormat(unattemptedTotal),
+                    UnattemptedAvgTime = unattemptedCount > 0 ? ConvertSecondsToTimeFormat(unattemptedTotal / unattemptedCount) : "0 seconds",
+                    ExtraQuestionTotalTime = ConvertSecondsToTimeFormat(extraTotal),
+                    ExtraQuestionAvgTime = extraCount > 0 ? ConvertSecondsToTimeFormat(extraTotal / extraCount) : "0 seconds"
+                };
+
+                return new ServiceResponse<TimeSpentReport>(true, "Operation successful", formattedReport, 200);
+            }
+        }
+        // Helper Method to Convert Seconds to X minutes Y seconds Format
         private string ConvertSecondsToTimeFormat(int seconds)
         {
             TimeSpan time = TimeSpan.FromSeconds(seconds);
@@ -1899,121 +1931,6 @@ FROM AggregatedTime;";
                 return $"{time.Minutes} minutes {time.Seconds} seconds";
             else
                 return $"{time.Seconds} seconds";
-        }
-        public async Task<ServiceResponse<TimeSpentReport>> GetSubjectWiseTimeSpentReportAsync(int studentId, int scholarshipId, int subjectId)
-        {
-            var sql = @"WITH Settings AS (
-    SELECT ScholarshipTestId, TotalNumberOfQuestions, NoOfQuestionsPerChoice
-    FROM tblSSQuestionSection
-    WHERE ScholarshipTestId = @ScholarshipId AND SubjectID = @SubjectId
-),
-RankedAnswers AS (
-    SELECT sa.*, 
-           ROW_NUMBER() OVER (PARTITION BY sa.StudentID, sa.ScholarshipID ORDER BY sa.SubmissionID) AS rn
-    FROM tblStudentScholarshipAnswerSubmission sa
-    WHERE sa.ScholarshipID = @ScholarshipId AND sa.StudentID = @StudentId AND sa.SubjectID = @SubjectId
-),
-LatestNavigations AS (
-    SELECT qn.StudentID, qn.ScholarshipID, qn.QuestionID, MAX(qn.EndTime) AS LastVisitTime
-    FROM tblQuestionNavigation qn
-    JOIN tblStudentScholarshipAnswerSubmission sa ON qn.QuestionID = sa.QuestionID 
-                                                 AND qn.ScholarshipID = sa.ScholarshipID 
-                                                 AND qn.StudentID = sa.StudentID
-    WHERE qn.ScholarshipID = @ScholarshipId AND qn.StudentID = @StudentId AND sa.SubjectID = @SubjectId
-    GROUP BY qn.StudentID, qn.ScholarshipID, qn.QuestionID
-),
-ExtraAttemptedQuestions AS (
-    SELECT ra.QuestionID, ra.Marks, ln.LastVisitTime AS ExtraAttemptedTime
-    FROM RankedAnswers ra
-    JOIN Settings s ON ra.ScholarshipID = s.ScholarshipTestId
-    LEFT JOIN LatestNavigations ln ON ra.StudentID = ln.StudentID 
-                                    AND ra.ScholarshipID = ln.ScholarshipID 
-                                    AND ra.QuestionID = ln.QuestionID
-    WHERE ra.rn > (s.TotalNumberOfQuestions - s.NoOfQuestionsPerChoice)
-),
-QuestionTimeAggregates AS (
-    SELECT
-        qn.QuestionID,
-        COALESCE(s.AnswerStatus, 'Unattempted') AS AnswerStatus,
-        SUM(DATEDIFF(SECOND, qn.StartTime, qn.EndTime)) AS TotalTimeSpent,
-        CASE WHEN eq.QuestionID IS NOT NULL THEN 1 ELSE 0 END AS IsExtraAttempted
-    FROM tblQuestionNavigation qn
-    JOIN tblStudentScholarshipAnswerSubmission sa ON qn.QuestionID = sa.QuestionID 
-                                                 AND qn.ScholarshipID = sa.ScholarshipID 
-                                                 AND qn.StudentID = sa.StudentID
-    LEFT JOIN tblStudentScholarshipAnswerSubmission s
-        ON qn.QuestionID = s.QuestionID
-        AND qn.StudentID = s.StudentID
-        AND qn.ScholarshipID = s.ScholarshipID
-        AND s.SubjectID = @SubjectId
-    LEFT JOIN ExtraAttemptedQuestions eq 
-        ON qn.QuestionID = eq.QuestionID
-    WHERE qn.StudentID = @StudentId
-      AND qn.ScholarshipID = @ScholarshipId
-      AND sa.SubjectID = @SubjectId
-    GROUP BY qn.QuestionID, s.AnswerStatus, eq.QuestionID
-),
-AggregatedTime AS (
-    SELECT
-        SUM(TotalTimeSpent) AS TotalTime,
-        SUM(CASE WHEN IsExtraAttempted = 0 AND AnswerStatus = 'Correct' THEN TotalTimeSpent ELSE 0 END) AS CorrectTotalTime,
-        COUNT(CASE WHEN IsExtraAttempted = 0 AND AnswerStatus = 'Correct' THEN 1 ELSE NULL END) AS CorrectCount,
-        SUM(CASE WHEN IsExtraAttempted = 0 AND AnswerStatus = 'Incorrect' THEN TotalTimeSpent ELSE 0 END) AS IncorrectTotalTime,
-        COUNT(CASE WHEN IsExtraAttempted = 0 AND AnswerStatus = 'Incorrect' THEN 1 ELSE NULL END) AS IncorrectCount,
-        SUM(CASE WHEN IsExtraAttempted = 0 AND AnswerStatus = 'PartialCorrect' THEN TotalTimeSpent ELSE 0 END) AS PartialTotalTime,
-        COUNT(CASE WHEN IsExtraAttempted = 0 AND AnswerStatus = 'PartialCorrect' THEN 1 ELSE NULL END) AS PartialCount,
-        SUM(CASE WHEN IsExtraAttempted = 0 AND AnswerStatus = 'Unattempted' THEN TotalTimeSpent ELSE 0 END) AS UnattemptedTotalTime,
-        COUNT(CASE WHEN IsExtraAttempted = 0 AND AnswerStatus = 'Unattempted' THEN 1 ELSE NULL END) AS UnattemptedCount,
-        SUM(CASE WHEN IsExtraAttempted = 1 THEN TotalTimeSpent ELSE 0 END) AS ExtraQuestionTotalTime,
-        COUNT(CASE WHEN IsExtraAttempted = 1 THEN 1 ELSE NULL END) AS ExtraQuestionCount
-    FROM QuestionTimeAggregates
-)
-SELECT
-    ISNULL(TotalTime, 0) AS TotalTime,
-    ISNULL(CorrectTotalTime, 0) AS CorrectTotalTime,
-    ISNULL(CASE WHEN CorrectCount > 0 THEN CorrectTotalTime / CorrectCount ELSE 0 END, 0) AS CorrectAvgTime,
-    ISNULL(IncorrectTotalTime, 0) AS IncorrectTotalTime,
-    ISNULL(CASE WHEN IncorrectCount > 0 THEN IncorrectTotalTime / IncorrectCount ELSE 0 END, 0) AS IncorrectAvgTime,
-    ISNULL(PartialTotalTime, 0) AS PartialTotalTime,
-    ISNULL(CASE WHEN PartialCount > 0 THEN PartialTotalTime / PartialCount ELSE 0 END, 0) AS PartialAvgTime,
-    ISNULL(UnattemptedTotalTime, 0) AS UnattemptedTotalTime,
-    ISNULL(CASE WHEN UnattemptedCount > 0 THEN UnattemptedTotalTime / UnattemptedCount ELSE 0 END, 0) AS UnattemptedAvgTime,
-    ISNULL(ExtraQuestionTotalTime, 0) AS ExtraQuestionTotalTime,
-    ISNULL(CASE WHEN ExtraQuestionCount > 0 THEN ExtraQuestionTotalTime / ExtraQuestionCount ELSE 0 END, 0) AS ExtraQuestionAvgTime
-FROM AggregatedTime;";
-
-            try
-            {
-                using (var multi = await _connection.QueryMultipleAsync(sql, new { StudentId = studentId, ScholarshipId = scholarshipId, SubjectId = subjectId }))
-                {
-                    var report = await multi.ReadFirstOrDefaultAsync<dynamic>();
-                    if (report == null)
-                    {
-                        return new ServiceResponse<TimeSpentReport>(false, "No data found.", null, 404);
-                    }
-
-                    var formattedReport = new TimeSpentReport
-                    {
-                        TotalTime = ConvertSecondsToTimeFormat((int)(report.TotalTime ?? 0)),
-                        CorrectTotalTime = ConvertSecondsToTimeFormat((int)(report.CorrectTotalTime ?? 0)),
-                        CorrectAvgTime = ConvertSecondsToTimeFormat((int)(report.CorrectAvgTime ?? 0)),
-                        IncorrectTotalTime = ConvertSecondsToTimeFormat((int)(report.IncorrectTotalTime ?? 0)),
-                        IncorrectAvgTime = ConvertSecondsToTimeFormat((int)(report.IncorrectAvgTime ?? 0)),
-                        PartialTotalTime = ConvertSecondsToTimeFormat((int)(report.PartialTotalTime ?? 0)),
-                        PartialAvgTime = ConvertSecondsToTimeFormat((int)(report.PartialAvgTime ?? 0)),
-                        UnattemptedTotalTime = ConvertSecondsToTimeFormat((int)(report.UnattemptedTotalTime ?? 0)),
-                        UnattemptedAvgTime = ConvertSecondsToTimeFormat((int)(report.UnattemptedAvgTime ?? 0)),
-                        ExtraQuestionTotalTime = ConvertSecondsToTimeFormat((int)(report.ExtraQuestionTotalTime ?? 0)),
-                        ExtraQuestionAvgTime = ConvertSecondsToTimeFormat((int)(report.ExtraQuestionAvgTime ?? 0))
-                    };
-
-                    return new ServiceResponse<TimeSpentReport>(true, "Operation successful", formattedReport, 200);
-                }
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<TimeSpentReport>(false, $"An error occurred: {ex.Message}", null, 500);
-            }
         }
         public async Task<ServiceResponse<int>> AddReviewAsync(int scholarshipId, int studentId, int questionId)
         {
