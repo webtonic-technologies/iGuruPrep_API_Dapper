@@ -30,8 +30,8 @@
         public DateTime? ModifiedOn { get; set; }
         public string ModifiedBy { get; set; }
         public int EmployeeID { get; set; }
-        public decimal TotalMarks {  get; set; }
-        public string Discount {  get; set; }
+        public decimal TotalMarks { get; set; }
+        public string Discount { get; set; }
     }
 
     public class ScholarshipTestInstruction
@@ -60,7 +60,7 @@
         public int QuestionId { get; set; }
         public string QuestionDescription { get; set; } = string.Empty;
         public int QuestionTypeId { get; set; }
-        public string QuestionTypeName {  get; set; }
+        public string QuestionTypeName { get; set; }
         public bool? Status { get; set; }
         public string? CreatedBy { get; set; }
         public DateTime? CreatedOn { get; set; }
@@ -115,9 +115,9 @@
     public class MarksAcquiredAfterAnswerSubmission
     {
         public int RegistrationId { get; set; }
-        public int ScholarshipId {  get; set; }
-        public int QuestionId {  get; set; }
-        public decimal MarksAcquired {  get; set; }
+        public int ScholarshipId { get; set; }
+        public int QuestionId { get; set; }
+        public decimal MarksAcquired { get; set; }
     }
     public class QuestionTypeResponse
     {
@@ -155,7 +155,7 @@
         public decimal PartiallyCorrectPercentage { get; set; }
         public int UnattemptedCount { get; set; }
         public decimal UnattemptedPercentage { get; set; }
-        public int ExtraQuestionsCount {  get; set; }
+        public int ExtraQuestionsCount { get; set; }
         public decimal ExtraQuestionsPercentage { get; set; }
     }
     public class MarksCalculation
@@ -197,5 +197,10 @@
         public bool? IsCorrect { get; set; } // True if correct, false otherwise
         public List<AnswerMultipleChoiceCategory>? AnswerMultipleChoiceCategories { get; set; }
         public Answersingleanswercategory? Answersingleanswercategories { get; set; }
+    }
+    public class PartialMarksResult
+    {
+        public decimal AcquiredMarks { get; set; }
+        public decimal SuccessRate { get; set; }
     }
 }
