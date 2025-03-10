@@ -906,10 +906,10 @@ namespace StudentApp_API.Repository.Implementations
 
                         if (questionTypeInSection.QuestionTypeId == questionTypePartialMarkRule)
                         {
-                            var (partialMarks, successRate) = await CalculatePartialMarksAsync(
-                                actualCorrectCount,
-                                studentCorrectCount,
-                                isNegative);
+                            var partialMarksResult = await CalculatePartialMarksAsync(actualCorrectCount, studentCorrectCount, isNegative, questionTypeInSection.PartialMarkRuleId);
+
+                            decimal partialMarks = partialMarksResult.AcquiredMarks;
+                            decimal successRate = partialMarksResult.SuccessRate;
 
                             marksAwarded = partialMarks;
                             answerStatus = successRate == 1 ? "Correct" : successRate > 0 ? "PartialCorrect" : "Incorrect";
@@ -2078,26 +2078,27 @@ namespace StudentApp_API.Repository.Implementations
 
             return new ServiceResponse<string>(true, "status updated successfully", string.Empty, 200);
         }
-        private async Task<(decimal acquiredMarks, decimal successRate)> CalculatePartialMarksAsync(
+        private async Task<PartialMarksResult> CalculatePartialMarksAsync(
                     int actualCorrectCount,
                     int studentCorrectCount,
-                    bool isNegative)
+                    bool isNegative, int PartiaMarkRuleId)
         {
             var query = @"
         SELECT TOP 1 AcquiredMarks, SuccessRate
         FROM tbl_PartialMarksMapping
         WHERE NoOfCorrectOptions = @ActualCorrectCount
           AND NoOfOptionsSelected = @StudentCorrectCount
-          AND IsNegative = @IsNegative";
+          AND IsNegative = @IsNegative AND PartialMarksId = @PartialMarksId";
 
-            var result = await _connection.QueryFirstOrDefaultAsync<(decimal AcquiredMarks, decimal SuccessRate)>(query, new
+            var result = await _connection.QueryFirstOrDefaultAsync<PartialMarksResult>(query, new
             {
                 ActualCorrectCount = actualCorrectCount,
                 StudentCorrectCount = studentCorrectCount,
-                IsNegative = isNegative
+                IsNegative = isNegative,
+                PartialMarksId = PartiaMarkRuleId
             });
 
-            return result == default ? (0, 0) : result;
+            return result == default ? null : result;
         }
         private bool IsSingleAnswerType(int questionTypeId)
         {
