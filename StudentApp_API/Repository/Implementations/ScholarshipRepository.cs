@@ -854,23 +854,82 @@ namespace StudentApp_API.Repository.Implementations
                     // Handle single answer types
                     if (IsSingleAnswerType(questionData.QuestionTypeId))
                     {
-                        var singleAnswerQuery = @"
-                    SELECT sac.Answerid
-                    FROM tblAnswersingleanswercategory sac
-                    INNER JOIN tblAnswerMaster am ON sac.Answerid = am.Answerid
-                    WHERE am.Questionid = @QuestionID";
-
-                        var correctAnswerId = await _connection.QueryFirstOrDefaultAsync<int>(singleAnswerQuery, new { QuestionID = answer.QuestionID });
-
-                        if (correctAnswerId == answer.MultiOrSingleAnswerId.FirstOrDefault())
+                        if (answer.QuestionTypeID == 4 || answer.QuestionTypeID == 9)
                         {
-                            marksAwarded = questionData.MarksPerQuestion;
-                            answerStatus = "Correct";
+                            var singleAnswerQuery = @"
+    SELECT sac.Answer
+    FROM tblAnswersingleanswercategory sac
+    INNER JOIN tblAnswerMaster am ON sac.Answerid = am.Answerid
+    WHERE am.Questionid = @QuestionID";
+
+                            var correctAnswerText = await _connection.QueryFirstOrDefaultAsync<string>(singleAnswerQuery, new { QuestionID = answer.QuestionID });
+
+                            if (answer.QuestionTypeID == 4) // Text comparison (case-insensitive)
+                            {
+                                bool isCorrect = string.Equals(correctAnswerText, answer.SubjectiveAnswers?.Trim(), StringComparison.OrdinalIgnoreCase);
+
+                                marksAwarded = isCorrect ? questionData.MarksPerQuestion : -questionData.NegativeMarks;
+                                answerStatus = isCorrect ? "Correct" : "Incorrect";
+                            }
+                            else if (answer.QuestionTypeID == 9) // Numerical comparison
+                            {
+                                bool isCorrect = decimal.TryParse(correctAnswerText, out var correctValue) &&
+                                                 decimal.TryParse(answer.SubjectiveAnswers?.Trim(), out var studentValue) &&
+                                                 correctValue == studentValue;
+
+                                marksAwarded = isCorrect ? questionData.MarksPerQuestion : -questionData.NegativeMarks;
+                                answerStatus = isCorrect ? "Correct" : "Incorrect";
+                            }
                         }
-                        else
+                    }
+                    else if (answer.QuestionTypeID == 13 || answer.QuestionTypeID == 15)
+                    {
+                        var multiAnswerQuery = @"
+                    SELECT amc.Answer
+                    FROM tblAnswerMultipleChoiceCategory amc
+                    INNER JOIN tblAnswerMaster am ON amc.Answerid = am.Answerid
+                    WHERE am.Questionid = @QuestionID AND amc.IsCorrect = 1";
+
+                        var correctAnswerTexts = await _connection.QueryAsync<string>(multiAnswerQuery, new { QuestionID = answer.QuestionID });
+                        var correctAnswers = correctAnswerTexts.ToList();
+
+                        var studentAnswers = answer.SubjectiveAnswers?.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                                                    .Select(s => s.Trim())
+                                                                    .ToList() ?? new List<string>();
+
+                        int actualCorrectCount = correctAnswers.Count;
+                        int studentCorrectCount = 0;
+                        bool isNegative = false;
+                        var questionTypeInSection1 = await _connection.QueryFirstOrDefaultAsync<dynamic>(@"
+                    SELECT PartialMarkRuleId, QuestionTypeId
+                    FROM tblSSQuestionSection 
+                    WHERE SSTSectionId = @sectionId", new { sectionId });
+                        // Check correctness and order
+                        for (int i = 0; i < Math.Min(correctAnswers.Count, studentAnswers.Count); i++)
                         {
-                            marksAwarded = -questionData.NegativeMarks;
+                            if (string.Equals(correctAnswers[i], studentAnswers[i], StringComparison.OrdinalIgnoreCase))
+                            {
+                                studentCorrectCount++;
+                            }
+                            else
+                            {
+                                isNegative = true;
+                                break;
+                            }
                         }
+
+                        // Partial marks calculation
+                        var partialMarksResult = await CalculatePartialMarksAsync(
+                            actualCorrectCount,
+                            studentCorrectCount,
+                            isNegative,
+                            questionTypeInSection1.PartialMarkRuleId);
+
+                        decimal partialMarks = partialMarksResult.AcquiredMarks;
+                        decimal successRate = partialMarksResult.SuccessRate;
+
+                        marksAwarded = partialMarks;
+                        answerStatus = successRate == 100 ? "Correct" : successRate > 0 ? "PartialCorrect" : "Incorrect";
                     }
                     // Handle multiple-answer types
                     else
@@ -912,7 +971,7 @@ namespace StudentApp_API.Repository.Implementations
                             decimal successRate = partialMarksResult.SuccessRate;
 
                             marksAwarded = partialMarks;
-                            answerStatus = successRate == 1 ? "Correct" : successRate > 0 ? "PartialCorrect" : "Incorrect";
+                            answerStatus = successRate == 100 ? "Correct" : successRate > 0 ? "PartialCorrect" : "Incorrect";
                         }
                         else
                         {
