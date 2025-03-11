@@ -115,17 +115,17 @@ namespace StudentApp_API.Controllers
 
             return BadRequest(response);
         }
-        [HttpPost("SubmitAnswer")]
-        public async Task<IActionResult> SubmitAnswer(List<AnswerSubmissionRequest> request)
-        {
-            var response = await _scholarshipService.SubmitAnswer(request);
-            if (response.Success)
-            {
-                return Ok(response);
-            }
+        //[HttpPost("SubmitAnswer")]
+        //public async Task<IActionResult> SubmitAnswer(List<AnswerSubmissionRequest> request)
+        //{
+        //    var response = await _scholarshipService.SubmitAnswer(request);
+        //    if (response.Success)
+        //    {
+        //        return Ok(response);
+        //    }
 
-            return BadRequest(response);
-        }
+        //    return BadRequest(response);
+        //}
         [HttpPost("Save")]
         public async Task<IActionResult> MarkQuestionAsSave(ScholarshipQuestionSaveRequest request)
         {
