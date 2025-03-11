@@ -700,6 +700,7 @@ namespace StudentApp_API.Repository.Implementations
                 QuestionID = question.QuestionID,
                 SubjectID = subject.SubjectId,
                 QuestionTypeID = question.QuestionTypeID,
+                SubjectiveAnswers = question.SubjectiveAnswers,
                 MultiOrSingleAnswerId = question.MultiOrSingleAnswerId // Assuming question.AnswerID is a List<int>
             }
         };

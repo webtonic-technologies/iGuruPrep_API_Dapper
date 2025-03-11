@@ -34,6 +34,7 @@
         public int QuestionTypeID { get; set; }
         public int QuestionstatusId {  get; set; }
         public List<int> MultiOrSingleAnswerId { get; set; }
+        public string? SubjectiveAnswers { get; set; } = string.Empty;
         public List<TimeLog> TimeLogs { get; set; }
     }
 
