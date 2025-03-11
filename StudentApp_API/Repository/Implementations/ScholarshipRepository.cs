@@ -305,7 +305,7 @@ namespace StudentApp_API.Repository.Implementations
               FROM tblQIDCourse qc 
               WHERE qc.QuestionCode = q.QuestionCode 
                 AND qc.LevelId = @DifficultyLevelId AND qc.CourseID = @CourseID
-          ) AND q.IsLive = 1";
+          ) AND q.IsLive = 0";
                         var coureId = _connection.QueryFirstOrDefault<int>(@"select CourseId from tblScholarshipCourse where ScholarshipTestId = @ScholarshipTestId", new { ScholarshipTestId = request.scholarshipTestId });
                         var selectedQuestions = new List<QuestionResponseDTO>();
                         foreach (var difficultyLimit in difficultyLimits)
@@ -689,8 +689,9 @@ namespace StudentApp_API.Repository.Implementations
                     foreach (var question in subject.Questions)
                     {
                         // Check if MultiOrSingleAnswerId is not null and contains at least one valid answer
-                        if (question.MultiOrSingleAnswerId != null && question.MultiOrSingleAnswerId.Any(id => id != 0))
-                        {
+                        if ((question.MultiOrSingleAnswerId != null && question.MultiOrSingleAnswerId.Any(id => id != 0)) ||
+     (!string.IsNullOrEmpty(question.SubjectiveAnswers) && question.SubjectiveAnswers != "string"))
+                        { 
                             var data = new List<AnswerSubmissionRequest>
         {
             new AnswerSubmissionRequest
@@ -1019,9 +1020,9 @@ namespace StudentApp_API.Repository.Implementations
                     // Insert the new submission
                     var insertQuery = @"
                 INSERT INTO tblStudentScholarshipAnswerSubmission 
-                    (ScholarshipID, StudentID, QuestionID, SubjectID, QuestionTypeID, AnswerID, AnswerStatus, Marks)
+                    (ScholarshipID, StudentID, QuestionID, SubjectID, QuestionTypeID, AnswerID, AnswerStatus, Marks, Answer)
                 VALUES 
-                    (@ScholarshipID, @RegistrationId, @QuestionID, @SubjectID, @QuestionTypeID, @AnswerID, @AnswerStatus, @Marks)";
+                    (@ScholarshipID, @RegistrationId, @QuestionID, @SubjectID, @QuestionTypeID, @AnswerID, @AnswerStatus, @Marks, @Answer)";
 
                     await _connection.ExecuteAsync(insertQuery, new
                     {
@@ -1032,7 +1033,8 @@ namespace StudentApp_API.Repository.Implementations
                         QuestionTypeID = answer.QuestionTypeID,
                         AnswerID = string.Join(",", answer.MultiOrSingleAnswerId),
                         AnswerStatus = answerStatus,
-                        Marks = marksAwarded
+                        Marks = marksAwarded,
+                        Answer = answer.SubjectiveAnswers
                     });
 
                     // Add to the response list
@@ -2163,7 +2165,8 @@ namespace StudentApp_API.Repository.Implementations
         private bool IsSingleAnswerType(int questionTypeId)
         {
             // Assuming the following are single answer type IDs based on your data
-            return questionTypeId == 3 || questionTypeId == 7 || questionTypeId == 8 || questionTypeId == 10 || questionTypeId == 11;
+            return questionTypeId == 4 || questionTypeId == 9;
+                //|| questionTypeId == 8 || questionTypeId == 10 || questionTypeId == 11;
         }
     }
 }
