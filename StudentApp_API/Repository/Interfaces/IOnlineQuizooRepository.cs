@@ -6,10 +6,9 @@ namespace StudentApp_API.Repository.Interfaces
 {
     public interface IOnlineQuizooRepository
     {
-        Task<ServiceResponse<List<QuestionResponseDTO>>> InsertQuizooAsync(QuizooDTO quizoo);
+        Task<ServiceResponse<List<QuestionResponseDTO>>> InsertQuizooAsync(OnlineQuizooDTO quizoo);
         Task<ServiceResponse<List<QuestionWithCorrectAnswerDTO>>> GetQuestionsWithCorrectAnswersAsync(int quizooId);
         Task<ServiceResponse<List<StudentRankDTO>>> GetStudentRankListAsync(int quizooId, int userId);
-        Task<ServiceResponse<int>> SetForceExitAsync(int qpid);
-        Task<ServiceResponse<string>> ShareQuestionAsync(int studentId, int questionId, int QuizooId);
+        Task<ServiceResponse<int>> SetForceExitAsync(int QuizooID, int StudentID);
     }
 }

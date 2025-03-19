@@ -153,21 +153,43 @@ namespace StudentApp_API.Repository.Implementations
                 throw new Exception("Invalid Duration format. Unable to parse numeric value.");
             }
             // 8. Fetch questions based on ContentIndexId and IndexTypeId
+            //var questions = await _connection.QueryAsync<QuestionResponseDTO>(
+            //    "SELECT TOP(@Limit) * " +
+            //    "FROM tblQuestion " +
+            //    "WHERE ContentIndexId IN @ContentIndexIds " +
+            //    "AND SubjectID IN @SubjectIds " +
+            //    "AND IndexTypeId IN @IndexTypeIds " + // Apply filter for IndexTypeId (Chapter, Topic, Subtopic)
+            //    "AND IsConfigure = 1 AND IsLive = 1 AND QuestionTypeId IN (1, 2, 10, 6) " +
+            //    "ORDER BY NEWID()", // This orders questions randomly
+            //    new
+            //    {
+            //        ContentIndexIds = filteredContent.Select(c => c.ContentIndexId),
+            //        SubjectIds = filteredContent.Select(c => c.SubjectId),
+            //        IndexTypeIds = filteredContent.Select(c => c.IndexTypeId), // Pass the IndexTypeId values (Chapter, Topic, Subtopic)
+            //        Limit = limit // Use the NoOfQuestions limit from tblQuizoo
+            //    });
             var questions = await _connection.QueryAsync<QuestionResponseDTO>(
-                "SELECT TOP(@Limit) * " +
-                "FROM tblQuestion " +
-                "WHERE ContentIndexId IN @ContentIndexIds " +
-                "AND SubjectID IN @SubjectIds " +
-                "AND IndexTypeId IN @IndexTypeIds " + // Apply filter for IndexTypeId (Chapter, Topic, Subtopic)
-                "AND IsConfigure = 1 AND IsLive = 1 AND QuestionTypeId IN (1, 2, 10, 6) " +
-                "ORDER BY NEWID()", // This orders questions randomly
-                new
-                {
-                    ContentIndexIds = filteredContent.Select(c => c.ContentIndexId),
-                    SubjectIds = filteredContent.Select(c => c.SubjectId),
-                    IndexTypeIds = filteredContent.Select(c => c.IndexTypeId), // Pass the IndexTypeId values (Chapter, Topic, Subtopic)
-                    Limit = limit // Use the NoOfQuestions limit from tblQuizoo
-                });
+    "SELECT TOP(@Limit) q.*, qt.QuestionType AS QuestionTypeName " +
+    "FROM tblQuestion q " +
+    "INNER JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID " +
+    "WHERE q.ContentIndexId IN @ContentIndexIds " +
+    "AND q.SubjectID IN @SubjectIds " +
+    "AND q.IndexTypeId IN @IndexTypeIds " +  // Apply filter for IndexTypeId (Chapter, Topic, Subtopic)
+    "AND q.IsConfigure = 1 AND q.IsLive = 1 " +
+    "AND q.QuestionTypeId IN (1, 2, 10, 6)" +
+    "AND q.IsRejected = 0 " +
+    "AND EXISTS (SELECT 1 FROM tblQIDCourse qc WHERE qc.QuestionCode = q.QuestionCode AND qc.LevelId = 1 " +
+    "AND qc.CourseID = @CourseID)" +
+    "ORDER BY NEWID()",  // Random order
+    new
+    {
+        ContentIndexIds = filteredContent.Select(c => c.ContentIndexId),
+        SubjectIds = filteredContent.Select(c => c.SubjectId),
+        IndexTypeIds = filteredContent.Select(c => c.IndexTypeId),  // Pass the IndexTypeId values
+        Limit = limit,  // Use the NoOfQuestions limit from tblQuizoo
+        CourseID = studentDetails.CourseID
+    });
+
             // Convert the data to a list of DTOs
             var response = questions.Select(item =>
             {
@@ -219,55 +241,42 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
             }
         }
-        public async Task<IEnumerable<AnswerPercentageResponse>> SubmitAnswerAsync(List<SubmitAnswerRequest> requestList)
+        public async Task<ServiceResponse<IEnumerable<AnswerPercentageResponse>>> SubmitAnswerAsync(List<SubmitAnswerRequest> requestList)
         {
             var responseList = new List<AnswerPercentageResponse>();
 
             foreach (var request in requestList)
             {
+                // Query to check if the answer is correct
                 string checkCorrectAnswerQuery = @"
         SELECT AMC.IsCorrect
         FROM tblAnswerMaster AM
-        INNER JOIN tblAnswerMultipleChoiceCategory AMC
-        ON AM.AnswerID = AMC.AnswerID
-        WHERE AM.QuestionID = @QuestionID AND AMC.AnswerID = @AnswerID";
+        INNER JOIN tblAnswerMultipleChoiceCategory AMC ON AM.AnswerID = AMC.AnswerID
+        WHERE AM.QuestionID = @QuestionID AND AMC.Answermultiplechoicecategoryid = @Answermultiplechoicecategoryid;";
 
+                // Query to check if the student has already submitted an answer for this question
                 string checkExistingAnswerQuery = @"
         SELECT COUNT(1)
         FROM tblQuizooPlayersAnswers
-        WHERE QuizooID = @QuizID AND QuestionID = @QuestionID AND StudentID = @StudentID";
+        WHERE QuizooID = @QuizID AND QuestionID = @QuestionID AND StudentID = @StudentID;";
 
+                // Query to update an existing answer
                 string updateQuery = @"
         UPDATE tblQuizooPlayersAnswers
         SET AnswerID = @AnswerID, IsCorrect = @IsCorrect
-        WHERE QuizooID = @QuizID AND QuestionID = @QuestionID AND StudentID = @StudentID";
+        WHERE QuizooID = @QuizID AND QuestionID = @QuestionID AND StudentID = @StudentID;";
 
+                // Query to insert a new answer
                 string insertQuery = @"
         INSERT INTO tblQuizooPlayersAnswers (QuizooID, StudentID, QuestionID, AnswerID, IsCorrect)
-        VALUES (@QuizID, @StudentID, @QuestionID, @AnswerID, @IsCorrect)";
-
-                string percentageQuery = @"
-        SELECT 
-            QPA.AnswerID,
-            COUNT(QPA.AnswerID) AS AnswerCount,
-            (COUNT(QPA.AnswerID) * 100.0 / NULLIF(TotalResponses.TotalCount, 0)) AS AnswerPercentage
-        FROM 
-            tblQuizooPlayersAnswers QPA
-        INNER JOIN 
-            (SELECT COUNT(*) AS TotalCount
-             FROM tblQuizooPlayersAnswers
-             WHERE QuizooID = @QuizID AND QuestionID = @QuestionID) AS TotalResponses
-        ON 1 = 1
-        WHERE 
-            QPA.QuizooID = @QuizID AND QPA.QuestionID = @QuestionID
-        GROUP BY 
-            QPA.AnswerID, TotalResponses.TotalCount";
+        VALUES (@QuizID, @StudentID, @QuestionID, @AnswerID, @IsCorrect);";
 
                 // Check if the answer is correct
                 bool isCorrect = await _connection.ExecuteScalarAsync<bool>(checkCorrectAnswerQuery, new
                 {
                     QuestionID = request.QuestionID,
-                    AnswerID = request.AnswerID
+                    AnswerID = request.AnswerID,
+                    Answermultiplechoicecategoryid = request.AnswerID
                 });
 
                 // Check if there is an existing answer for the student
@@ -302,108 +311,45 @@ namespace StudentApp_API.Repository.Implementations
                         IsCorrect = isCorrect
                     });
                 }
-
-                // Fetch updated percentages for this question
-                var percentages = await _connection.QueryAsync<AnswerPercentageResponse>(percentageQuery, new
-                {
-                    QuizID = request.QuizID,
-                    QuestionID = request.QuestionID
-                });
-
-                responseList.AddRange(percentages);
             }
 
-            return responseList.Distinct().ToList(); // Remove duplicates if any
+            // Query to calculate the answer percentages and counts after all submissions
+            string percentageQuery = @"
+SELECT 
+    QPA.QuizooID as QuizID,
+    QPA.QuestionID,
+    QPA.AnswerID,
+    COUNT(QPA.AnswerID) AS AnswerCount,
+    (COUNT(QPA.AnswerID) * 100.0 / NULLIF(TotalResponses.TotalCount, 0)) AS AnswerPercentage,
+    AMC.Answer AS AnswerText,
+    AMC.IsCorrect
+FROM 
+    tblQuizooPlayersAnswers QPA
+INNER JOIN 
+    (SELECT COUNT(*) AS TotalCount
+     FROM tblQuizooPlayersAnswers
+     WHERE QuizooID = @QuizID AND QuestionID = @QuestionID) AS TotalResponses ON 1 = 1
+INNER JOIN 
+    tblAnswerMultipleChoiceCategory AMC ON QPA.AnswerID = AMC.Answermultiplechoicecategoryid
+WHERE 
+    QPA.QuizooID = @QuizID 
+    AND QPA.QuestionID = @QuestionID
+GROUP BY 
+    QPA.QuizooID, QPA.QuestionID, QPA.AnswerID, AMC.Answer, AMC.IsCorrect, TotalResponses.TotalCount
+ORDER BY 
+    AnswerPercentage DESC;";
+
+            // Fetch the updated percentages and counts after processing all submissions
+            var percentages = await _connection.QueryAsync<AnswerPercentageResponse>(percentageQuery, new
+            {
+                QuizID = requestList.First().QuizID,
+                QuestionID = requestList.First().QuestionID
+            });
+
+            responseList.AddRange(percentages);
+
+            return new ServiceResponse<IEnumerable<AnswerPercentageResponse>>(true, "Answers submitted successfully", responseList.Distinct().ToList(), 200);
         }
-        //    public async Task<IEnumerable<AnswerPercentageResponse>> SubmitAnswerAsync(List<SubmitAnswerRequest> request)
-        //    {
-        //        string checkCorrectAnswerQuery = @"
-        //SELECT AMC.IsCorrect
-        //FROM tblAnswerMaster AM
-        //INNER JOIN tblAnswerMultipleChoiceCategory AMC
-        //ON AM.AnswerID = AMC.AnswerID
-        //WHERE AM.QuestionID = @QuestionID AND AMC.AnswerID = @AnswerID";
-
-        //        string checkExistingAnswerQuery = @"
-        //SELECT COUNT(1)
-        //FROM tblQuizooPlayersAnswers
-        //WHERE QuizooID = @QuizID AND QuestionID = @QuestionID AND StudentID = @StudentID";
-
-        //        string updateQuery = @"
-        //UPDATE tblQuizooPlayersAnswers
-        //SET AnswerID = @AnswerID, IsCorrect = @IsCorrect
-        //WHERE QuizooID = @QuizID AND QuestionID = @QuestionID AND StudentID = @StudentID";
-
-        //        string insertQuery = @"
-        //INSERT INTO tblQuizooPlayersAnswers (QuizooID, StudentID, QuestionID, AnswerID, IsCorrect)
-        //VALUES (@QuizID, @StudentID, @QuestionID, @AnswerID, @IsCorrect)";
-
-        //        string percentageQuery = @"
-        //SELECT 
-        //    QPA.AnswerID,
-        //    COUNT(QPA.AnswerID) AS AnswerCount,
-        //    (COUNT(QPA.AnswerID) * 100.0 / NULLIF(TotalResponses.TotalCount, 0)) AS AnswerPercentage
-        //FROM 
-        //    tblQuizooPlayersAnswers QPA
-        //INNER JOIN 
-        //    (SELECT COUNT(*) AS TotalCount
-        //     FROM tblQuizooPlayersAnswers
-        //     WHERE QuizooID = @QuizID AND QuestionID = @QuestionID) AS TotalResponses
-        //ON 1 = 1
-        //WHERE 
-        //    QPA.QuizooID = @QuizID AND QPA.QuestionID = @QuestionID
-        //GROUP BY 
-        //    QPA.AnswerID, TotalResponses.TotalCount";
-
-        //        // Check if the answer is correct
-        //        bool isCorrect = await _connection.ExecuteScalarAsync<bool>(checkCorrectAnswerQuery, new
-        //        {
-        //            QuestionID = request.QuestionID,
-        //            AnswerID = request.AnswerID
-        //        });
-
-        //        // Check if there is an existing answer for the student
-        //        bool hasExistingAnswer = await _connection.ExecuteScalarAsync<bool>(checkExistingAnswerQuery, new
-        //        {
-        //            QuizID = request.QuizID,
-        //            QuestionID = request.QuestionID,
-        //            StudentID = request.StudentID
-        //        });
-
-        //        if (hasExistingAnswer)
-        //        {
-        //            // Update the existing answer
-        //            await _connection.ExecuteAsync(updateQuery, new
-        //            {
-        //                QuizID = request.QuizID,
-        //                StudentID = request.StudentID,
-        //                QuestionID = request.QuestionID,
-        //                AnswerID = request.AnswerID,
-        //                IsCorrect = isCorrect
-        //            });
-        //        }
-        //        else
-        //        {
-        //            // Insert a new answer
-        //            await _connection.ExecuteAsync(insertQuery, new
-        //            {
-        //                QuizID = request.QuizID,
-        //                StudentID = request.StudentID,
-        //                QuestionID = request.QuestionID,
-        //                AnswerID = request.AnswerID,
-        //                IsCorrect = isCorrect
-        //            });
-        //        }
-
-        //        // Fetch updated percentages
-        //        var percentages = await _connection.QueryAsync<AnswerPercentageResponse>(percentageQuery, new
-        //        {
-        //            QuizID = request.QuizID,
-        //            QuestionID = request.QuestionID
-        //        });
-
-        //        return percentages;
-        //    }
         private List<MatchPair> GetMatchPairs(string questionCode, int questionId)
         {
             const string query = @"

@@ -15,7 +15,7 @@ namespace StudentApp_API.Controllers
             _onlineQuizooServices = onlineQuizooServices;
         }
         [HttpPost("InsertQuizoo")]
-        public async Task<IActionResult> InsertQuizooAsync(QuizooDTO quizoo)
+        public async Task<IActionResult> InsertQuizooAsync(OnlineQuizooDTO quizoo)
         {
             try
             {
@@ -78,36 +78,15 @@ namespace StudentApp_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
-        [HttpPost("SetForceExit/{qpid}")]
-        public async Task<IActionResult> SetForceExitAsync(int qpid)
+        [HttpPost("SetForceExit")]
+        public async Task<IActionResult> SetForceExitAsync(int QuizooID, int StudentID)
         {
             try
             {
-                var data = await _onlineQuizooServices.SetForceExitAsync(qpid);
+                var data = await _onlineQuizooServices.SetForceExitAsync(QuizooID, StudentID);
                 if (data != null)
                 {
                     return Ok(data);
-                }
-                else
-                {
-                    return BadRequest("Bad Request");
-                }
-            }
-            catch (Exception e)
-            {
-                return this.BadRequest(e.Message);
-            }
-        }
-        [HttpGet("ShareQuestion")]
-        public async Task<IActionResult> ShareQuestionAsync(int studentId, int questionId, int QuizooId)
-        {
-            try
-            {
-                var data = await _onlineQuizooServices.ShareQuestionAsync(studentId, questionId, QuizooId);
-                if (data != null)
-                {
-                    return Ok(data);
-
                 }
                 else
                 {

@@ -1,4 +1,6 @@
-﻿namespace StudentApp_API.DTOs.Response
+﻿using System.Globalization;
+
+namespace StudentApp_API.DTOs.Response
 {
     public class QuestionResponseDTO
     {
@@ -91,7 +93,7 @@
         public int PairRow { get; set; }
         public string PairValue { get; set; }
     }
-    
+
     public class AnswerPercentageResponse
     {
         public int QuizID { get; set; }
@@ -99,7 +101,10 @@
         public int AnswerID { get; set; }
         public int AnswerCount { get; set; }
         public double AnswerPercentage { get; set; }
+        public string AnswerText { get; set; }  // Text of the answer
+        public bool IsCorrect { get; set; }     // Correctness flag
     }
+
     public class SyllabusSubjectMapping
     {
         public int SyllabusID { get; set; }  // The ID of the syllabus
@@ -113,7 +118,7 @@
         public int QuestionID { get; set; }
         public string QuestionCode { get; set; }
         public string QuestionDescription { get; set; }
-        public int Answerid { get; set; }
+        public int MultiAnswerid { get; set; }
         public string Answer { get; set; }
     }
 
@@ -122,6 +127,7 @@
     {
         public int StudentID { get; set; }
         public int CorrectAnswers { get; set; }
+        public string Country {  get; set; }
         public int Rank { get; set; }
         public string FirstName { get; set; }
         public string LastName { get; set; }

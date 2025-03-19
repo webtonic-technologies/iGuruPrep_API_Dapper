@@ -5,7 +5,7 @@
     {
         public int SubjectID { get; set; }
         public string SubjectName { get; set; }
-        public int ConceptCount {  get; set; }
+        public int ChapterCount {  get; set; }
     }
 
     public class ChapterDTO
@@ -27,5 +27,4 @@
         public int Percentage { get; set; }
         public bool IsChallengeApplicable { get; set; }
     }
-
 }

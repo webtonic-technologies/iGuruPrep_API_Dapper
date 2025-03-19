@@ -35,12 +35,12 @@ namespace Quizoo_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
-        [HttpGet("GetOnlineQuizoosByRegistrationId/{registrationId}")]
-        public async Task<IActionResult> GetOnlineQuizoosByRegistrationIdAsync(int registrationId)
+        [HttpPost("GetOnlineQuizoosByRegistrationId")]
+        public async Task<IActionResult> GetOnlineQuizoosByRegistrationIdAsync(QuizooListFilters request)
         {
             try
             {
-                var data = await _quizooServices.GetOnlineQuizoosByRegistrationIdAsync(registrationId);
+                var data = await _quizooServices.GetOnlineQuizoosByRegistrationIdAsync(request);
                 if (data != null)
                 {
                     return Ok(data);
@@ -140,12 +140,12 @@ namespace Quizoo_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
-        [HttpGet("GetQuizoosByRegistrationId/{registrationId}")]
-        public async Task<IActionResult> GetQuizoosByRegistrationIdAsync(int registrationId)
+        [HttpPost("GetQuizoosByRegistrationId")]
+        public async Task<IActionResult> GetQuizoosByRegistrationIdAsync(QuizooListFilters request)
         {
             try
             {
-                var data = await _quizooServices.GetQuizoosByRegistrationIdAsync(registrationId);
+                var data = await _quizooServices.GetQuizoosByRegistrationIdAsync(request);
                 if (data != null)
                 {
                     return Ok(data);
@@ -161,12 +161,117 @@ namespace Quizoo_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
-        [HttpGet("GetInvitedQuizoosByRegistrationId/{registrationId}")]
-        public async Task<IActionResult> GetInvitedQuizoosByRegistrationId(int registrationId)
+        [HttpPost("GetInvitedQuizoosByRegistrationId")]
+        public async Task<IActionResult> GetInvitedQuizoosByRegistrationId(QuizooListFilters request)
         {
             try
             {
-                var data = await _quizooServices.GetInvitedQuizoosByRegistrationId(registrationId);
+                var data = await _quizooServices.GetInvitedQuizoosByRegistrationId(request);
+                if (data != null)
+                {
+                    return Ok(data);
+
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
+        [HttpPost("ShareQuizoo")]
+        public async Task<IActionResult> ShareQuizooAsync(int studentId, int quizooId)
+        {
+            try
+            {
+                var data = await _quizooServices.ShareQuizooAsync(studentId, quizooId);
+                if (data != null)
+                {
+                    return Ok(data);
+
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
+        [HttpPost("QuizooStart")]
+        public async Task<IActionResult> ValidateQuizStartAsync(int quizooId, int studentId)
+        {
+            try
+            {
+                var data = await _quizooServices.ValidateQuizStartAsync(quizooId, studentId);
+                if (data != null)
+                {
+                    return Ok(data);
+
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
+        [HttpPost("CheckAndDismissQuizoo")]
+        public async Task<IActionResult> CheckAndDismissQuizAsync(int quizooId)
+        {
+            try
+            {
+                var data = await _quizooServices.CheckAndDismissQuizAsync(quizooId);
+                if (data != null)
+                {
+                    return Ok(data);
+
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
+        [HttpGet("GetParticipants/{quizooId}/{studentId}")]
+        public async Task<IActionResult> GetParticipantsAsync(int quizooId, int studentId)
+        {
+            try
+            {
+                var data = await _quizooServices.GetParticipantsAsync(quizooId, studentId);
+                if (data != null)
+                {
+                    return Ok(data);
+
+                }
+                else
+                {
+                    return BadRequest("Bad Request");
+                }
+            }
+            catch (Exception e)
+            {
+                return this.BadRequest(e.Message);
+            }
+        }
+        [HttpPost("SetForceExit/{QuizooID}/{StudentID}")]
+        public async Task<IActionResult> SetForceExitAsync(int QuizooID, int StudentID)
+        {
+            try
+            {
+                var data = await _quizooServices.SetForceExitAsync(QuizooID, StudentID);
                 if (data != null)
                 {
                     return Ok(data);

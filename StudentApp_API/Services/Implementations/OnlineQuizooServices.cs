@@ -25,19 +25,14 @@ namespace StudentApp_API.Services.Implementations
             return await _onlineQuizooRepository.GetStudentRankListAsync(quizooId, userId);
         }
 
-        public async Task<ServiceResponse<List<QuestionResponseDTO>>> InsertQuizooAsync(QuizooDTO quizoo)
+        public async Task<ServiceResponse<List<QuestionResponseDTO>>> InsertQuizooAsync(OnlineQuizooDTO quizoo)
         {
             return await _onlineQuizooRepository.InsertQuizooAsync(quizoo);
         }
 
-        public async Task<ServiceResponse<int>> SetForceExitAsync(int qpid)
+        public async Task<ServiceResponse<int>> SetForceExitAsync(int QuizooID, int StudentID)
         {
-            return await _onlineQuizooRepository.SetForceExitAsync(qpid);
-        }
-
-        public async Task<ServiceResponse<string>> ShareQuestionAsync(int studentId, int questionId, int QuizooId)
-        {
-            return await _onlineQuizooRepository.ShareQuestionAsync(studentId, questionId, QuizooId);
+            return await _onlineQuizooRepository.SetForceExitAsync(QuizooID, StudentID);
         }
     }
 }

@@ -5,6 +5,8 @@ using StudentApp_API.DTOs.ServiceResponse;
 using StudentApp_API.Repository.Interfaces;
 using StudentApp_API.Models;
 using System.Data;
+using System.Threading.Channels;
+using System.Collections.Generic;
 
 namespace StudentApp_API.Repository.Implementations
 {
@@ -16,61 +18,95 @@ namespace StudentApp_API.Repository.Implementations
         {
             _connection = connection;
         }
-        public async Task<ServiceResponse<List<QuestionResponseDTO>>> InsertQuizooAsync(QuizooDTO quizoo)
+        public async Task<ServiceResponse<List<QuestionResponseDTO>>> InsertQuizooAsync(OnlineQuizooDTO quizoo)
         {
             try
             {
-                // Step 1: Validate Quiz Start Time
-                if (quizoo.QuizooStartTime <= DateTime.Now.AddMinutes(15))
+                // Step 1: Check for an ongoing quiz for the same user
+                var ongoingQuiz = await _connection.QueryFirstOrDefaultAsync<DateTime?>(
+                    @"SELECT TOP 1 QuizooStartTime
+              FROM tblQuizoo
+              WHERE CreatedBy = @CreatedBy 
+                AND IsSystemGenerated = 1
+                AND DATEADD(MINUTE, CAST(SUBSTRING(Duration, 1, CHARINDEX(' ', Duration) - 1) AS INT), QuizooStartTime) > GETDATE()
+              ORDER BY QuizooStartTime DESC",
+                    new { quizoo.CreatedBy });
+
+                if (ongoingQuiz.HasValue)
                 {
-                    return new ServiceResponse<List<QuestionResponseDTO>>(false, "Quiz start time must be at least 15 minutes from the current time.", [], 400);
+                    return new ServiceResponse<List<QuestionResponseDTO>>(false,
+                        $"You cannot create a new quiz while an existing quiz is ongoing. Current ongoing quiz started at {ongoingQuiz.Value}.",
+                        new List<QuestionResponseDTO>(), 400);
                 }
 
-                // Step 2: Validate against existing quizzes for the same user
+                // Step 2: Validate against existing quizzes for the same user (15-minute gap)
                 var conflictingQuiz = await _connection.QueryFirstOrDefaultAsync<DateTime?>(
                     @"SELECT TOP 1 QuizooStartTime
               FROM tblQuizoo
               WHERE CreatedBy = @CreatedBy 
                 AND ABS(DATEDIFF(MINUTE, QuizooStartTime, @QuizooStartTime)) < 15",
-                    new { quizoo.CreatedBy, quizoo.QuizooStartTime });
+                    new { quizoo.CreatedBy, QuizooStartTime = DateTime.Now });
 
                 if (conflictingQuiz.HasValue)
                 {
                     return new ServiceResponse<List<QuestionResponseDTO>>(false,
                         $"A quiz is already scheduled at {conflictingQuiz.Value}. Ensure at least a 15-minute gap between quizzes.",
-                        [], 400);
+                        new List<QuestionResponseDTO>(), 400);
+                }
+
+                // Step 3: Get Student Mapping (Board, Class, Course)
+                string queryMapping = @"
+            SELECT TOP 1 [BoardId], [ClassID], [CourseID]
+            FROM [tblStudentClassCourseMapping]
+            WHERE [RegistrationID] = @RegistrationId";
+
+                var studentMapping = await _connection.QueryFirstOrDefaultAsync<StudentMappingDTO>(
+                    queryMapping, new { RegistrationId = quizoo.CreatedBy });
+
+                if (studentMapping == null)
+                {
+                    return new ServiceResponse<List<QuestionResponseDTO>>(false,
+                        "Student mapping not found.", new List<QuestionResponseDTO>(), 404);
                 }
 
                 int quizooId;
-                quizoo.IsSystemGenerated = true;
+                var quizooDto = new
+                {
+                    QuizooDate = DateTime.Now,
+                    QuizooStartTime = DateTime.Now,
+                    Duration = "30 min",
+                    NoOfQuestions = 30,
+                    NoOfPlayers = 10,
+                    CreatedBy = quizoo.CreatedBy,
+                    IsSystemGenerated = true,
+                    ClassID = studentMapping.ClassID,
+                    CourseID = studentMapping.CourseID,
+                    BoardID = studentMapping.BoardId
+                };
 
-                // Step 3: Insert or Update `tblQuizoo`
-               
-                    // Insert
-                    var insertQuery = @"
-                INSERT INTO tblQuizoo (
-                    QuizooName, QuizooDate, QuizooStartTime, Duration, NoOfQuestions, 
-                    NoOfPlayers, QuizooLink, CreatedBy, QuizooDuration, IsSystemGenerated, CreatedOn,
-                    ClassID, CourseID, BoardID
-                ) VALUES (
-                    @QuizooName, @QuizooDate, @QuizooStartTime, @Duration, @NoOfQuestions, 
-                    @NoOfPlayers, @QuizooLink, @CreatedBy, @QuizooDuration, @IsSystemGenerated, GETDATE()
-                    @ClassID, @CourseID, @BoardID
-                ); 
-                SELECT CAST(SCOPE_IDENTITY() as int)";
-                //quizoo.QuizooStartTime
-                    quizooId = await _connection.ExecuteScalarAsync<int>(insertQuery, quizoo);
-                    quizoo.QuizooLink = $"iGuruQuizooLink/{quizooId}";
-                    await _connection.ExecuteAsync(@"update tblQuizoo set QuizooLink = @QuizooLink", new { QuizooLink = quizoo.QuizooLink });
+                // Step 4: Insert `tblQuizoo`
+                var insertQuery = @"
+            INSERT INTO tblQuizoo (
+                QuizooDate, QuizooStartTime, Duration, NoOfQuestions, 
+                NoOfPlayers, CreatedBy, IsSystemGenerated, CreatedOn,
+                ClassID, CourseID, BoardID
+            ) VALUES (
+                @QuizooDate, @QuizooStartTime, @Duration, @NoOfQuestions, 
+                @NoOfPlayers, @CreatedBy, @IsSystemGenerated, GETDATE(),
+                @ClassID, @CourseID, @BoardID
+            ); 
+            SELECT CAST(SCOPE_IDENTITY() as int)";
 
+                quizooId = await _connection.ExecuteScalarAsync<int>(insertQuery, quizooDto);
 
-                var response = await GetQuizQuestions(quizoo.BoardID, quizoo.ClassID, quizoo.CourseID, quizooId);
+                // Step 5: Get Quiz Questions
+                var response = await GetQuizQuestions(studentMapping.BoardId, studentMapping.ClassID, studentMapping.CourseID, quizooId);
 
                 return new ServiceResponse<List<QuestionResponseDTO>>(true, "Quizoo inserted/updated successfully.", response.Data, 200);
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<QuestionResponseDTO>>(false, $"Error: {ex.Message}", [], 500);
+                return new ServiceResponse<List<QuestionResponseDTO>>(false, $"Error: {ex.Message}", new List<QuestionResponseDTO>(), 500);
             }
         }
         public async Task<ServiceResponse<List<QuestionWithCorrectAnswerDTO>>> GetQuestionsWithCorrectAnswersAsync(int quizooId)
@@ -82,7 +118,7 @@ namespace StudentApp_API.Repository.Implementations
         qq.QuestionID,
         q.QuestionCode,
         q.QuestionDescription,
-        mc.Answermultiplechoicecategoryid,
+        mc.Answermultiplechoicecategoryid as MultiAnswerid,
         mc.Answer
     FROM 
         tblQuizooQuestions qq
@@ -117,43 +153,81 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<List<StudentRankDTO>>(false, "User not found in registration.", null, 404);
             }
             // SQL query to fetch student rank list with name, with the passed userId coming first
-            var query = @"
-    WITH StudentCorrectAnswers AS (
-        SELECT 
-            s.StudentID,
-            COUNT(*) AS CorrectAnswers
-        FROM 
-            tblQuizooPlayersAnswers s
-        WHERE 
-            s.QuizooID = @QuizooID AND s.IsCorrect = 1
-        GROUP BY 
-            s.StudentID
-    ),
-    RankedStudents AS (
-        SELECT 
-            s.StudentID,
-            COALESCE(ca.CorrectAnswers, 0) AS CorrectAnswers,
-            ROW_NUMBER() OVER (ORDER BY 
-                CASE WHEN s.StudentID = @UserID THEN 0 ELSE ca.CorrectAnswers END DESC
-            ) AS Rank
-        FROM 
-            (SELECT DISTINCT StudentID FROM tblQuizooPlayersAnswers WHERE QuizooID = @QuizooID) s
-        LEFT JOIN 
-            StudentCorrectAnswers ca ON s.StudentID = ca.StudentID
-    )
+    //        var query = @"
+    //WITH StudentCorrectAnswers AS (
+    //    SELECT 
+    //        s.StudentID,
+    //        COUNT(*) AS CorrectAnswers
+    //    FROM 
+    //        tblQuizooPlayersAnswers s
+    //    WHERE 
+    //        s.QuizooID = @QuizooID AND s.IsCorrect = 1
+    //    GROUP BY 
+    //        s.StudentID
+    //),
+    //RankedStudents AS (
+    //    SELECT 
+    //        s.StudentID,
+    //        COALESCE(ca.CorrectAnswers, 0) AS CorrectAnswers,
+    //        ROW_NUMBER() OVER (ORDER BY 
+    //            CASE WHEN s.StudentID = @UserID THEN 0 ELSE ca.CorrectAnswers END DESC
+    //        ) AS Rank
+    //    FROM 
+    //        (SELECT DISTINCT StudentID FROM tblQuizooPlayersAnswers WHERE QuizooID = @QuizooID) s
+    //    LEFT JOIN 
+    //        StudentCorrectAnswers ca ON s.StudentID = ca.StudentID
+    //)
+    //SELECT 
+    //    rs.StudentID,
+    //    rs.CorrectAnswers,
+    //    rs.Rank,
+    //    r.FirstName,
+    //    r.LastName,
+    //    c.CountryName as Country
+    //FROM 
+    //    RankedStudents rs
+    //JOIN 
+    //    tblRegistration r ON rs.StudentID = r.RegistrationID
+    //    Join tblCountries c on r.CountryID = c.CountryId
+    //ORDER BY 
+    //    rs.Rank;";
+            var query = @"WITH StudentCorrectAnswers AS (
     SELECT 
-        rs.StudentID,
-        rs.CorrectAnswers,
-        rs.Rank,
-        r.FirstName,
-        r.LastName
+        s.StudentID,
+        COUNT(*) AS CorrectAnswers
     FROM 
-        RankedStudents rs
-    JOIN 
-        tblRegistration r ON rs.StudentID = r.RegistrationID
-    ORDER BY 
-        rs.Rank;";
-
+        tblQuizooPlayersAnswers s
+    WHERE 
+        s.QuizooID = @QuizooID AND s.IsCorrect = 1
+    GROUP BY 
+        s.StudentID
+),
+RankedStudents AS (
+    SELECT 
+        s.StudentID,
+        COALESCE(ca.CorrectAnswers, 0) AS CorrectAnswers,
+        ROW_NUMBER() OVER (ORDER BY COALESCE(ca.CorrectAnswers, 0) DESC) AS Rank
+    FROM 
+        (SELECT DISTINCT StudentID FROM tblQuizooPlayersAnswers WHERE QuizooID = @QuizooID) s
+    LEFT JOIN 
+        StudentCorrectAnswers ca ON s.StudentID = ca.StudentID
+)
+SELECT 
+    rs.StudentID,
+    rs.CorrectAnswers,
+    rs.Rank,
+    r.FirstName,
+    r.LastName,
+    c.CountryName AS Country
+FROM 
+    RankedStudents rs
+JOIN 
+    tblRegistration r ON rs.StudentID = r.RegistrationID
+JOIN 
+    tblCountries c ON r.CountryID = c.CountryId
+ORDER BY 
+    CASE WHEN rs.StudentID = @UserID THEN 0 ELSE rs.Rank END;
+";
             // Execute the query and map results to a list of StudentRankDTO
             var result = await _connection.QueryAsync<StudentRankDTO>(query, new { QuizooID = quizooId, UserID = userId });
             if (!result.Any())
@@ -163,12 +237,12 @@ namespace StudentApp_API.Repository.Implementations
             // Return the result as a list
             return new ServiceResponse<List<StudentRankDTO>>(true, "operation successful", result.ToList(), 200);
         }
-        public async Task<ServiceResponse<int>> SetForceExitAsync(int qpid)
+        public async Task<ServiceResponse<int>> SetForceExitAsync(int QuizooID, int StudentID)
         {
-            const string query = "UPDATE tblQuizooOnlinePlayers SET IsForceExit = 1 WHERE QPID = @QPID";
+            const string query = "UPDATE tblQuizooOnlinePlayers SET IsForceExit = 1 WHERE QuizooID = @QuizooID and StudentID = @StudentID";
             try
             {
-                int rowsAffected = await _connection.ExecuteAsync(query, new { QPID = qpid });
+                int rowsAffected = await _connection.ExecuteAsync(query, new { QuizooID, StudentID });
 
                 if (rowsAffected == 0)
                 {
@@ -180,77 +254,6 @@ namespace StudentApp_API.Repository.Implementations
             catch (Exception ex)
             {
                 return new ServiceResponse<int>(false, ex.Message, 0, 500);
-            }
-        }
-        public async Task<ServiceResponse<string>> ShareQuestionAsync(int studentId, int questionId, int QuizooId)
-        {
-            try
-            {
-                // Step 1: Fetch board, class, and course details for the given student.
-                string mappingQuery = @"
-            SELECT BoardId, ClassID, CourseID
-            FROM tblStudentClassCourseMapping
-            WHERE RegistrationID = @StudentId";
-
-                var studentMapping = await _connection.QueryFirstOrDefaultAsync<dynamic>(
-                    mappingQuery, new { StudentId = studentId });
-
-                if (studentMapping == null)
-                {
-                    return new ServiceResponse<string>(false, "Student mapping not found.", string.Empty, 404);
-                }
-
-                int boardId = studentMapping.BoardId;
-                int classId = studentMapping.ClassID;
-                int courseId = studentMapping.CourseID;
-
-                // Step 2: Find classmates (students with the same board, class, and course, excluding the given student)
-                string classmatesQuery = @"
-            SELECT RegistrationID
-            FROM tblStudentClassCourseMapping
-            WHERE BoardId = @BoardId
-              AND ClassID = @ClassID
-              AND CourseID = @CourseID
-              AND RegistrationID <> @StudentId";
-
-                var classmates = (await _connection.QueryAsync<int>(classmatesQuery, new
-                {
-                    BoardId = boardId,
-                    ClassID = classId,
-                    CourseID = courseId,
-                    StudentId = studentId
-                })).ToList();
-
-                if (classmates == null || !classmates.Any())
-                {
-                    return new ServiceResponse<string>(false, "No classmates found.", string.Empty, 404);
-                }
-
-                // Step 3: Insert a shared question record for each classmate
-                string insertQuery = @"
-            INSERT INTO tblQuizooSharedQuestions (QuizooId, QuestionId, SharedBy, SharedTo)
-            VALUES (@QuizooId, @QuestionId, @SharedBy, @SharedTo)";
-
-                int totalInserted = 0;
-                foreach (var classmateId in classmates)
-                {
-                    int rows = await _connection.ExecuteAsync(insertQuery, new
-                    {
-                        QuizooId = QuizooId,
-                        QuestionId = questionId,
-                        SharedBy = studentId,
-                        SharedTo = classmateId
-                    });
-                    totalInserted += rows;
-                }
-
-                var data = GetQuestionById(questionId);
-
-                return new ServiceResponse<string>(true, "Question shared successfully.", $"Shared with {classmates.Count} classmates", 200);
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
             }
         }
         private List<MatchPair> GetMatchPairs(string questionCode, int questionId)
@@ -320,22 +323,45 @@ namespace StudentApp_API.Repository.Implementations
             var filteredContent = syllabusDetails.ToList();
 
             // 4. Fetch questions based on ContentIndexId and IndexTypeId
+//            var questions = await _connection.QueryAsync<QuestionResponseDTO>(
+//"SELECT TOP(@Limit) q.*, qt.QuestionType AS QuestionTypeName " +
+//"FROM tblQuestion q " +
+//"INNER JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID " +
+//"WHERE q.ContentIndexId IN @ContentIndexIds " +
+//"AND q.SubjectID IN @SubjectIds " +
+//"AND q.IndexTypeId IN @IndexTypeIds " +  // Apply filter for IndexTypeId (Chapter, Topic, Subtopic)
+//"AND q.IsConfigure = 1 AND q.IsLive = 1 " +
+//"AND q.QuestionTypeId IN (1, 2, 10, 6)" +
+//"AND q.IsRejected = 0 " +
+//"ORDER BY NEWID()",  // Random order
+//new
+//{
+//    ContentIndexIds = filteredContent.Select(c => c.ContentIndexId),
+//    SubjectIds = filteredContent.Select(c => c.SubjectId),
+//    IndexTypeIds = filteredContent.Select(c => c.IndexTypeId),  // Pass the IndexTypeId values
+//    Limit = 30  // Use the NoOfQuestions limit from tblQuizoo
+//});
             var questions = await _connection.QueryAsync<QuestionResponseDTO>(
-                @"SELECT TOP(@Limit) *
-          FROM tblQuestion
-          WHERE ContentIndexId IN @ContentIndexIds
-            AND SubjectID IN @SubjectIds
-            AND IndexTypeId IN @IndexTypeIds
-            AND IsConfigure = 1 AND IsLive = 1 AND QuestionTypeId IN (1, 2, 10, 6)
-          ORDER BY NEWID()",
-                new
-                {
-                    ContentIndexIds = filteredContent.Select(c => c.ContentIndexId),
-                    SubjectIds = filteredContent.Select(c => c.SubjectId),
-                    IndexTypeIds = filteredContent.Select(c => c.IndexTypeId),
-                    Limit = 30
-                });
-
+"SELECT TOP(@Limit) q.*, qt.QuestionType AS QuestionTypeName " +
+"FROM tblQuestion q " +
+"INNER JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID " +
+"WHERE q.ContentIndexId IN @ContentIndexIds " +
+"AND q.SubjectID IN @SubjectIds " +
+"AND q.IndexTypeId IN @IndexTypeIds " +  // Apply filter for IndexTypeId (Chapter, Topic, Subtopic)
+"AND q.IsConfigure = 1 AND q.IsLive = 1 " +
+"AND q.QuestionTypeId IN (1, 2, 10, 6)" +
+"AND q.IsRejected = 0 " +
+"AND EXISTS (SELECT 1 FROM tblQIDCourse qc WHERE qc.QuestionCode = q.QuestionCode AND qc.LevelId = 1 " +
+"AND qc.CourseID = @CourseID)" +
+"ORDER BY NEWID()",  // Random order
+new
+{
+    ContentIndexIds = filteredContent.Select(c => c.ContentIndexId),
+    SubjectIds = filteredContent.Select(c => c.SubjectId),
+    IndexTypeIds = filteredContent.Select(c => c.IndexTypeId),  // Pass the IndexTypeId values
+    Limit = 30,  // Use the NoOfQuestions limit from tblQuizoo
+    CourseID = CourseId
+});
             if (!questions.Any())
                 return new ServiceResponse<List<QuestionResponseDTO>>(false, "No questions found", new List<QuestionResponseDTO>(), 404);
 
@@ -600,4 +626,10 @@ namespace StudentApp_API.Repository.Implementations
             }
         }
     }
+}
+public class StudentMappingDTO
+{
+    public int BoardId { get; set; }
+    public int ClassID { get; set; }
+    public int CourseID { get; set; }
 }
