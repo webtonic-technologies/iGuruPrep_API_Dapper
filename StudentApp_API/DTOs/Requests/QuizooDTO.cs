@@ -33,7 +33,6 @@
         public int AnswerID { get; set; }
         public DateTime StartTime { get; set; }
         public DateTime EndTime { get; set; }
-        //      public bool IsCorrect { get; set; }
     }
     public class QuizooDTOResponse
     {

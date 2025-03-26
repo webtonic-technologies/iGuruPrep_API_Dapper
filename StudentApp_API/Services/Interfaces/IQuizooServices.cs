@@ -6,7 +6,7 @@ namespace StudentApp_API.Services.Interfaces
     public interface IQuizooServices
     {
         Task<ServiceResponse<List<SubjectDTO>>> GetSubjectsAsync(int registrationId);
-        Task<ServiceResponse<List<ChapterDTO>>> GetChaptersAsync(int registrationId, int subjectId);
+        Task<ServiceResponse<List<ChapterDTO>>> GetChaptersAsync(int registrationId, List<int> subjectIds);
         Task<ServiceResponse<int>> InsertOrUpdateQuizooAsync(QuizooDTO quizoo);
         Task<ServiceResponse<bool>> UpdateQuizooSyllabusAsync(int quizooId, List<QuizooSyllabusDTO> syllabusList);
         Task<ServiceResponse<List<QuizooDTOResponse>>> GetQuizoosByRegistrationIdAsync(QuizooListFilters request);

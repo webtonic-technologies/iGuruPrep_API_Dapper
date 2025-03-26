@@ -1,4 +1,6 @@
-﻿namespace StudentApp_API.DTOs.Requests
+﻿using System.Diagnostics.CodeAnalysis;
+
+namespace StudentApp_API.DTOs.Requests
 {
     public class CYOTDTO
     {
@@ -6,14 +8,11 @@
         public string ChallengeName { get; set; }
         public DateTime ChallengeDate { get; set; }
         public DateTime ChallengeStartTime { get; set; }
-        public int? Duration { get; set; }
-        public int? NoOfQuestions { get; set; }
-        public int? MarksPerCorrectAnswer { get; set; }
-        public decimal? MarksPerIncorrectAnswer { get; set; }
-        public int? CreatedBy { get; set; }
-        public int? ClassID { get; set; }
-        public int? CourseID { get; set; }
-        public int? BoardID { get; set; }
+        public string Duration { get; set; }
+        public int NoOfQuestions { get; set; }
+        public int MarksPerCorrectAnswer { get; set; }
+        public int MarksPerIncorrectAnswer { get; set; }
+        public int CreatedBy { get; set; }
         public List<CYOTSyllabusDTO> CYOTSyllabus { get; set; }
     }
     public class CYOTListRequest
@@ -26,6 +25,7 @@
         public int cyotId { get; set; }
         public int registrationId { get; set; }
         public List<int>? QuestionTypeId { get; set; }
+        public List<int>? QuestionStatusId {  get; set; }
     }
     public class CYOTSyllabusDTO
     {
@@ -46,5 +46,54 @@
         public bool IsStarted { get; set; }
         public int CYOTStatusID { get; set; }
     }
-
+    public class SaveQuestionCYOTRequest
+    {
+        public int QuestionId { get; set; }
+        public string QuestionCode { get; set; } = string.Empty;
+        public int RegistrationId { get; set; }
+        public int SubjectId { get; set; }
+        public int CYOTId { get; set; }
+    }
+    public class CYOTQuestionNavigationRequest
+    {
+        public int StudentID { get; set; }
+        public int CYOTId { get; set; }
+        public int TotalTime { get; set; }
+        public List<CYOTSubjectRequest> Subjects { get; set; }
+    }
+    public class CYOTSubjectRequest
+    {
+        public int SubjectId { get; set; }
+        public List<CYOTQuestionRequest> Questions { get; set; }
+    }
+    public class CYOTQuestionRequest
+    {
+        public int QuestionID { get; set; }
+        public int QuestionTypeID { get; set; }
+        public int QuestionstatusId { get; set; }
+        public int AnswerID { get; set; }
+        public List<TimeLog> TimeLogs { get; set; }
+    }
+    public class CYOTAnswerSubmissionRequest
+    {
+        public int CYOTId { get; set; }
+        public int RegistrationId { get; set; }
+        public int QuestionID { get; set; }
+        public int AnswerID { get; set; }
+        public int SubjectID { get; set; }
+        public int QuestionTypeID { get; set; }
+    }
+    public class StudentData
+    {
+        public int BoardId { get; set; }
+        public int ClassId { get; set; }
+        public int CourseId { get; set; }
+    }
+    public class MarksResult
+    {
+        public int MarksObtained { get; set; }
+        public int TotalMarks { get; set; }
+        public int AttemptedQuestions { get; set; }
+        public int TotalQuestions { get; set; }
+    }
 }

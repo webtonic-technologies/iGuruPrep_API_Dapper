@@ -21,9 +21,9 @@ namespace StudentApp_API.Services.Implementations
             return await _quizooRepository.CheckAndDismissQuizAsync(quizooId);
         }
 
-        public async Task<ServiceResponse<List<ChapterDTO>>> GetChaptersAsync(int registrationId, int subjectId)
+        public async Task<ServiceResponse<List<ChapterDTO>>> GetChaptersAsync(int registrationId, List<int> subjectIds)
         {
-            return await _quizooRepository.GetChaptersAsync(registrationId, subjectId);
+            return await _quizooRepository.GetChaptersAsync(registrationId, subjectIds);
         }
 
         public async Task<ServiceResponse<List<QuizooDTOResponse>>> GetInvitedQuizoosByRegistrationId(QuizooListFilters request)

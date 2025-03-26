@@ -77,12 +77,12 @@ namespace Quizoo_API.Controllers
                 return this.BadRequest(e.Message);
             }
         }
-        [HttpGet("GetChapters/{registrationId}/{subjectId}")]
-        public async Task<IActionResult> GetChaptersAsync(int registrationId, int subjectId)
+        [HttpPost("GetChapters")]
+        public async Task<IActionResult> GetChaptersAsync(int registrationId, List<int> subjectIds)
         {
             try
             {
-                var data = await _quizooServices.GetChaptersAsync(registrationId, subjectId);
+                var data = await _quizooServices.GetChaptersAsync(registrationId, subjectIds);
                 if (data != null)
                 {
                     return Ok(data);

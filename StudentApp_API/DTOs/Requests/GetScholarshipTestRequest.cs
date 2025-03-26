@@ -14,8 +14,6 @@ namespace StudentApp_API.DTOs.Requests
         public int QuestionID { get; set; }
         public int SubjectID { get; set; }
         public int QuestionTypeID { get; set; }
-        public DateTime StartTime { get; set; }
-        public DateTime EndTime {  get; set; }
         [AllowNull]
         public List<int>? MultiOrSingleAnswerId { get; set; }
         public string? SubjectiveAnswers { get; set; } = string.Empty;

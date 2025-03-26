@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using StudentApp_API.DTOs.Requests;
+using StudentApp_API.DTOs.Response;
 using StudentApp_API.Services.Interfaces;
 
 namespace StudentApp_API.Controllers
@@ -26,10 +27,10 @@ namespace StudentApp_API.Controllers
 
             return BadRequest(response);
         }
-        [HttpGet("GetChapters/{registrationId}/{subjectId}")]
-        public async Task<IActionResult> GetChaptersAsync(int registrationId, int subjectId)
+        [HttpPost("GetChapters")]
+        public async Task<IActionResult> GetChaptersAsync(int registrationId,  List<int> subjectIds)
         {
-            var response = await _cYOTServices.GetChaptersAsync(registrationId, subjectId);
+            var response = await _cYOTServices.GetChaptersAsync(registrationId, subjectIds);
             if (response.Success)
             {
                 return Ok(response);
@@ -78,24 +79,24 @@ namespace StudentApp_API.Controllers
                 return Ok(result);
             return StatusCode(result.StatusCode, result);
         }
-        [HttpPost("SubmitCYOTAnswerAsync")]
-        public async Task<IActionResult> SubmitCYOTAnswerAsync(List<SubmitAnswerRequest> request)
+        [HttpPost("UpdateQuestionNavigation")]
+        public async Task<IActionResult> UpdateQuestionNavigationAsync(CYOTQuestionNavigationRequest request)
         {
-            var result = await _cYOTServices.SubmitCYOTAnswerAsync(request);
+            var result = await _cYOTServices.UpdateQuestionNavigationAsync(request);
 
             if (result.Success)
             {
-                return Ok(result.Data); // Return 200 OK with the data (distinct Question Types)
+                return Ok(result.Message); // Return 200 OK with the data (distinct Question Types)
             }
             else
             {
                 return NotFound(result.Message); // Return 404 if no data found
             }
         }
-        [HttpGet("GetCYOTQuestionsWithOptions/{cyotId}")]
-        public async Task<IActionResult> GetCYOTQuestionsWithOptionsAsync(int cyotId)
+        [HttpPost("GetCYOTQuestionsWithOptions")]
+        public async Task<IActionResult> GetCYOTQuestionsWithOptionsAsync(GetCYOTQuestionsRequest request)
         {
-            var response = await _cYOTServices.GetCYOTQuestionsWithOptionsAsync(cyotId);
+            var response = await _cYOTServices.GetCYOTQuestionsWithOptionsAsync(request);
             if (response.Success)
             {
                 return Ok(response);
@@ -123,6 +124,89 @@ namespace StudentApp_API.Controllers
         public async Task<IActionResult> GetCYOTListByStudent(CYOTListRequest request)
         {
             var result = await _cYOTServices.GetCYOTListByStudent(request);
+            if (result.Success)
+                return Ok(result);
+            return StatusCode(result.StatusCode, result);
+        }
+        [HttpPost("MarkQuestionAsSave")]
+        public async Task<IActionResult> MarkQuestionAsSave(SaveQuestionCYOTRequest request)
+        {
+            var result = await _cYOTServices.MarkQuestionAsSave(request);
+            if (result.Success)
+                return Ok(result);
+            return StatusCode(result.StatusCode, result);
+        }
+        [HttpPost("ShareQuestion")]
+        public async Task<IActionResult> ShareQuestionAsync(int studentId, int questionId, int CYOTId)
+        {
+            var result = await _cYOTServices.ShareQuestionAsync(studentId, questionId, CYOTId);
+            if (result.Success)
+                return Ok(result);
+            return StatusCode(result.StatusCode, result);
+        }
+        [HttpDelete("DeleteCYOT")]
+        public async Task<IActionResult> DeleteCYOT(int CYOTId)
+        {
+            var result = await _cYOTServices.DeleteCYOT(CYOTId);
+            if (result.Success)
+                return Ok(result);
+            return StatusCode(result.StatusCode, result);
+        }
+        [HttpGet("GetCYOTQestionReport")]
+        public async Task<IActionResult> GetCYOTQestionReportAsync(int studentId, int cyotId)
+        {
+            var result = await _cYOTServices.GetCYOTQestionReportAsync(studentId, cyotId);
+            if (result.Success)
+                return Ok(result);
+            return StatusCode(result.StatusCode, result);
+        }
+        [HttpGet("GetCYOTAnalytics")]
+        public async Task<IActionResult> GetCYOTAnalyticsAsync(int studentId, int cyotId)
+        {
+            var result = await _cYOTServices.GetCYOTAnalyticsAsync(studentId, cyotId);
+            if (result.Success)
+                return Ok(result);
+            return StatusCode(result.StatusCode, result);
+        }
+        [HttpGet("GetCYOTTimeAnalytics")]
+        public async Task<IActionResult> GetCYOTTimeAnalyticsAsync(int studentId, int cyotId)
+        {
+            var result = await _cYOTServices.GetCYOTTimeAnalyticsAsync(studentId, cyotId);
+            if (result.Success)
+                return Ok(result);
+            return StatusCode(result.StatusCode, result);
+        }
+        [HttpGet("GetCYOTQestionReportBySubject")]
+        public async Task<IActionResult> GetCYOTQestionReportBySubjectAsync(int cyotId, int studentId, int subjectId)
+        {
+            var result = await _cYOTServices.GetCYOTQestionReportBySubjectAsync(cyotId, studentId, subjectId);
+            if (result.Success)
+                return Ok(result);
+            return StatusCode(result.StatusCode, result);
+        }
+        [HttpGet("GetCYOTTimeAnalyticsBySubject")]
+        public async Task<IActionResult> GetCYOTTimeAnalyticsBySubjectAsync(int cyotId, int studentId, int subjectId)
+        {
+            var result = await _cYOTServices.GetCYOTTimeAnalyticsBySubjectAsync(cyotId, studentId, subjectId);
+            if (result.Success)
+                return Ok(result);
+            return StatusCode(result.StatusCode, result);
+        }
+        [HttpPut("UpdateQuestionStatus")]
+        public async Task<IActionResult> UpdateQuestionStatusAsync(int cyotId, int studentId, int questionId, bool isAnswered)
+        {
+            var response = await _cYOTServices.UpdateQuestionStatusAsync(cyotId, studentId, questionId, isAnswered);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+
+            return BadRequest(response);
+        }
+        [HttpGet("GetCYOTAnalyticsBySubject")]
+        public async Task<IActionResult> GetCYOTAnalyticsBySubjectAsync(int cyotId, int studentId, int subjectId)
+        {
+            var result = await _cYOTServices.GetCYOTAnalyticsBySubjectAsync(cyotId, studentId, subjectId);
             if (result.Success)
                 return Ok(result);
             return StatusCode(result.StatusCode, result);

@@ -1,7 +1,6 @@
 ﻿using StudentApp_API.DTOs.Requests;
 using StudentApp_API.DTOs.Response;
 using StudentApp_API.DTOs.ServiceResponse;
-using StudentApp_API.Models;
 using StudentApp_API.Repository.Interfaces;
 using StudentApp_API.Services.Interfaces;
 
@@ -15,9 +14,20 @@ namespace StudentApp_API.Services.Implementations
         {
             _cYOTRepository = cYOTRepository;
         }
-        public async Task<ServiceResponse<List<ChapterDTO>>> GetChaptersAsync(int registrationId, int subjectId)
+
+        public async Task<ServiceResponse<string>> DeleteCYOT(int CYOTId)
         {
-            return await _cYOTRepository.GetChaptersAsync(registrationId, subjectId);
+            return await _cYOTRepository.DeleteCYOT(CYOTId);
+        }
+
+        public async Task<ServiceResponse<List<ChapterDTO>>> GetChaptersAsync(int registrationId, List<int> subjectIds)
+        {
+            return await _cYOTRepository.GetChaptersAsync(registrationId, subjectIds);
+        }
+
+        public async Task<ServiceResponse<CYOTAnalyticsResponse>> GetCYOTAnalyticsAsync(int studentId, int cyotId)
+        {
+            return await _cYOTRepository.GetCYOTAnalyticsAsync(studentId, cyotId);
         }
 
         public async Task<ServiceResponse<CYOTDTO>> GetCYOTByIdAsync(int cyotId)
@@ -30,14 +40,28 @@ namespace StudentApp_API.Services.Implementations
             return await _cYOTRepository.GetCYOTListByStudent(request);
         }
 
+        public async Task<ServiceResponse<CYOTQestionReportResponse>> GetCYOTQestionReportBySubjectAsync(int cyotId, int studentId, int subjectId)
+        {
+            return await _cYOTRepository.GetCYOTQestionReportBySubjectAsync(cyotId, studentId, subjectId);
+        }
+
+        public async Task<ServiceResponse<CYOTQestionReportResponse>> GetCYOTQestionReportAsync(int studentId, int cyotId)
+        {
+            return await _cYOTRepository.GetCYOTQestionReportAsync(studentId, cyotId);
+        }
         public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetCYOTQuestions(GetCYOTQuestionsRequest request)
         {
             return await _cYOTRepository.GetCYOTQuestions(request);
         }
 
-        public async Task<ServiceResponse<List<CYOTQuestionWithAnswersDTO>>> GetCYOTQuestionsWithOptionsAsync(int cyotId)
+        public async Task<ServiceResponse<List<CYOTQuestionWithAnswersDTO>>> GetCYOTQuestionsWithOptionsAsync(GetCYOTQuestionsRequest request)
         {
-            return await _cYOTRepository.GetCYOTQuestionsWithOptionsAsync(cyotId);
+            return await _cYOTRepository.GetCYOTQuestionsWithOptionsAsync(request);
+        }
+
+        public async Task<ServiceResponse<CYOTTimeAnalytics>> GetCYOTTimeAnalyticsAsync(int studentId, int cyotId)
+        {
+            return await _cYOTRepository.GetCYOTTimeAnalyticsAsync(studentId, cyotId);
         }
 
         public async Task<ServiceResponse<List<SubjectDTO>>> GetSubjectsAsync(int registrationId)
@@ -55,9 +79,19 @@ namespace StudentApp_API.Services.Implementations
             return await _cYOTRepository.MakeCYOTOpenChallenge(CYOTId);
         }
 
-        public async Task<ServiceResponse<IEnumerable<AnswerPercentageResponse>>> SubmitCYOTAnswerAsync(List<SubmitAnswerRequest> request)
+        public async Task<ServiceResponse<string>> MarkQuestionAsSave(SaveQuestionCYOTRequest request)
         {
-            return await _cYOTRepository.SubmitCYOTAnswerAsync(request);
+            return await _cYOTRepository.MarkQuestionAsSave(request);
+        }
+
+        public async Task<ServiceResponse<string>> ShareQuestionAsync(int studentId, int questionId, int CYOTId)
+        {
+            return await _cYOTRepository.ShareQuestionAsync(studentId, questionId, CYOTId);
+        }
+
+        public async Task<ServiceResponse<string>> UpdateQuestionNavigationAsync(CYOTQuestionNavigationRequest request)
+        {
+            return await _cYOTRepository.UpdateQuestionNavigationAsync(request);
         }
 
         public async Task<ServiceResponse<bool>> UpdateCYOTSyllabusAsync(int cyotId, List<CYOTSyllabusDTO> syllabusList)
@@ -65,9 +99,24 @@ namespace StudentApp_API.Services.Implementations
             return await _cYOTRepository.UpdateCYOTSyllabusAsync(cyotId, syllabusList);
         }
 
+        public async Task<ServiceResponse<string>> UpdateQuestionStatusAsync(int cyotId, int studentId, int questionId, bool isAnswered)
+        {
+            return await _cYOTRepository.UpdateQuestionStatusAsync(cyotId, studentId, questionId, isAnswered);
+        }
+
         public async Task<ServiceResponse<bool>> UpsertCYOTParticipantsAsync(List<CYOTParticipantRequest> requests)
         {
             return await _cYOTRepository.UpsertCYOTParticipantsAsync(requests);
+        }
+
+        public async Task<ServiceResponse<CYOTAnalyticsResponse>> GetCYOTAnalyticsBySubjectAsync(int cyotId, int studentId, int subjectId)
+        {
+            return await _cYOTRepository.GetCYOTAnalyticsBySubjectAsync(cyotId, studentId, subjectId);
+        }
+
+        public async Task<ServiceResponse<CYOTTimeAnalytics>> GetCYOTTimeAnalyticsBySubjectAsync(int cyotId, int studentId, int subjectId)
+        {
+            return await _cYOTRepository.GetCYOTTimeAnalyticsBySubjectAsync(cyotId, studentId, subjectId);
         }
     }
 }

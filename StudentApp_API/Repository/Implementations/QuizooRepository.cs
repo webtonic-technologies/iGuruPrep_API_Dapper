@@ -3,9 +3,7 @@ using StudentApp_API.DTOs.Requests;
 using StudentApp_API.DTOs.Response;
 using StudentApp_API.DTOs.Responses;
 using StudentApp_API.DTOs.ServiceResponse;
-using StudentApp_API.Models;
 using StudentApp_API.Repository.Interfaces;
-using System.Collections.Generic;
 using System.Data;
 
 namespace StudentApp_API.Repository.Implementations
@@ -74,7 +72,7 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<List<SubjectDTO>>(false, ex.Message, new List<SubjectDTO>(), 500);
             }
         }
-        public async Task<ServiceResponse<List<ChapterDTO>>> GetChaptersAsync(int registrationId, int subjectId)
+        public async Task<ServiceResponse<List<ChapterDTO>>> GetChaptersAsync(int registrationId, List<int> subjectIds)
         {
             try
             {
@@ -95,30 +93,32 @@ namespace StudentApp_API.Repository.Implementations
                 if (!actualSyllabusId.HasValue)
                     throw new Exception("Syllabus ID does not match or no syllabus found.");
 
-                // Step 3: Fetch Chapters mapped to SyllabusID and SubjectID
+                // Step 3: Fetch Chapters mapped to SyllabusID and multiple SubjectIDs
                 var chapters = (await _connection.QueryAsync<ChapterDTO>(
                     @"SELECT C.ContentIndexId AS ChapterId, C.ContentName_Chapter AS ChapterName, C.ChapterCode, C.DisplayOrder
               FROM tblSyllabusDetails S
               INNER JOIN tblContentIndexChapters C ON S.ContentIndexId = C.ContentIndexId
-              WHERE S.SyllabusID = @SyllabusID AND S.SubjectID = @SubjectID AND S.IndexTypeId = 1",
-                    new { SyllabusID = actualSyllabusId, SubjectID = subjectId })).ToList();
+              WHERE S.SyllabusID = @SyllabusID 
+                AND S.SubjectID IN @SubjectIDs
+                AND S.IndexTypeId = 1",
+                    new { SyllabusID = actualSyllabusId, SubjectIDs = subjectIds })).ToList();
 
                 if (!chapters.Any())
-                    return new ServiceResponse<List<ChapterDTO>>(false, "No chapters found for the given SyllabusID and SubjectID.", new List<ChapterDTO>(), 404);
-
+                    return new ServiceResponse<List<ChapterDTO>>(false, "No chapters found for the given SyllabusID and SubjectIDs.", new List<ChapterDTO>(), 404);
+                int totalChapterCount = 0;
                 // Step 4: Fetch and assign the count of topics and subtopics for each chapter
                 foreach (var chapter in chapters)
                 {
                     // Count Topics directly mapped to the chapter and syllabus
                     var topicCount = await _connection.QueryFirstOrDefaultAsync<int>(
                         @"SELECT COUNT(*)
-          FROM tblContentIndexTopics T
-          INNER JOIN tblSyllabusDetails S ON S.ContentIndexId = T.ContInIdTopic
-          WHERE T.ChapterCode = @ChapterCode 
-            AND T.Status = 1 
-            AND T.IsActive = 1
-            AND S.IndexTypeId = 2
-            AND S.Status = 1",
+                  FROM tblContentIndexTopics T
+                  INNER JOIN tblSyllabusDetails S ON S.ContentIndexId = T.ContInIdTopic
+                  WHERE T.ChapterCode = @ChapterCode 
+                    AND T.Status = 1 
+                    AND T.IsActive = 1
+                    AND S.IndexTypeId = 2
+                    AND S.Status = 1",
                         new { ChapterCode = chapter.ChapterCode });
 
                     // Count Subtopics mapped to the topics of the chapter
@@ -126,14 +126,16 @@ namespace StudentApp_API.Repository.Implementations
                         @"SELECT COUNT(*)
                   FROM tblContentIndexSubTopics ST
                   INNER JOIN tblContentIndexTopics T ON ST.TopicCode = T.TopicCode
-                  WHERE T.ChapterCode = @ChapterCode AND ST.Status = 1 AND ST.IsActive = 1",
+                  WHERE T.ChapterCode = @ChapterCode 
+                    AND ST.Status = 1 
+                    AND ST.IsActive = 1",
                         new { ChapterCode = chapter.ChapterCode });
 
                     // Assign the total count of concepts (topics + subtopics) to the chapter
-                    chapter.ConceptCount = topicCount; //+ subTopicCount;
+                    chapter.ConceptCount = topicCount;//+ subTopicCount;
+                    totalChapterCount = totalChapterCount + chapter.ConceptCount;
                 }
-
-                return new ServiceResponse<List<ChapterDTO>>(true, "Records found", chapters, 200);
+                return new ServiceResponse<List<ChapterDTO>>(true, "Records found", chapters, 200, totalChapterCount);
             }
             catch (Exception ex)
             {

@@ -137,6 +137,8 @@ namespace StudentApp_API.DTOs.Response
         public int CYOTID { get; set; }
         public int QuestionID { get; set; }
         public string QuestionCode { get; set; }
+        public int QuestionStatusId {  get; set; }
+        public int QuestionTypeId {  get; set; }
         public string QuestionDescription { get; set; }
         public string Explanation {  get; set; }
         public string ExtraInformation {  get; set; }
@@ -147,6 +149,8 @@ namespace StudentApp_API.DTOs.Response
         public int AnswerMultipleChoiceCategoryID { get; set; }
         public string Answer { get; set; }
         public bool IsCorrect { get; set; }
+        public bool IsStudentAnswer { get; set; }  // New field to indicate if this answer was chosen by the student
+        public bool IsStudentAnswerCorrect { get; set; }  // New field to indicate whether the given answer was correct
     }
     public class AnswerMasters
     {
@@ -164,7 +168,7 @@ namespace StudentApp_API.DTOs.Response
     public class CYOTQestionReportResponse
     {
         public int TotalQuestions { get; set; }
-        public int TotalDuration { get; set; }
+        public string TotalDuration { get; set; }
         public decimal TotalMarks { get; set; }
         public int CorrectCount { get; set; }
         public int IncorrectCount { get; set; }
@@ -175,15 +179,6 @@ namespace StudentApp_API.DTOs.Response
     }
     public class CYOTAnalyticsResponse
     {
-        public int TotalQuestions { get; set; }
-        public int TotalDuration { get; set; }
-        public decimal TotalMarks { get; set; }
-        public int CorrectCount { get; set; }
-        public int IncorrectCount { get; set; }
-        public int UnansweredCount { get; set; }
-        public decimal CorrectPercentage { get; set; }
-        public decimal IncorrectPercentage { get; set; }
-        public decimal UnansweredPercentage { get; set; }
         public decimal AchievedMarks { get; set; }
         public decimal NegativeMarks { get; set; }
         public decimal FinalMarks { get; set; }
@@ -191,17 +186,17 @@ namespace StudentApp_API.DTOs.Response
     }
     public class CYOTTimeAnalytics
     {
-        public decimal TotalTimeSpent { get; set; }            // Total time (all questions) in minutes
-        public decimal AvgTimePerQuestion { get; set; }          // Average time per question in minutes
+        public string? TotalTimeSpent { get; set; }            // Total time (all questions) in minutes
+        public string? AvgTimePerQuestion { get; set; }          // Average time per question in minutes
 
-        public decimal TotalTimeSpentCorrect { get; set; }       // Total time for correct answers in minutes
-        public decimal AvgTimeSpentCorrect { get; set; }         // Average time for correct answers in minutes
+        public string? TotalTimeSpentCorrect { get; set; }       // Total time for correct answers in minutes
+        public string? AvgTimeSpentCorrect { get; set; }         // Average time for correct answers in minutes
 
-        public decimal TotalTimeSpentWrong { get; set; }         // Total time for wrong answers in minutes
-        public decimal AvgTimeSpentWrong { get; set; }           // Average time for wrong answers in minutes
+        public string? TotalTimeSpentWrong { get; set; }         // Total time for wrong answers in minutes
+        public string? AvgTimeSpentWrong { get; set; }           // Average time for wrong answers in minutes
 
-        public decimal TotalTimeSpentUnattempted { get; set; }   // Total time for unattempted questions in minutes
-        public decimal AvgTimeSpentUnattempted { get; set; }     // Average time for unattempted questions in minutes
+        public string? TotalTimeSpentUnattempted { get; set; }   // Total time for unattempted questions in minutes
+        public string? AvgTimeSpentUnattempted { get; set; }     // Average time for unattempted questions in minutes
     }
     public class CYOTPerformancePerSubjectDTO
     {
