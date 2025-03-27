@@ -26,5 +26,6 @@
         public string CYOTStatus { get; set; }
         public int Percentage { get; set; }
         public bool IsChallengeApplicable { get; set; }
+        public DateTime? CreatedOn { get; set; }
     }
 }

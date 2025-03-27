@@ -146,10 +146,10 @@ namespace StudentApp_API.Repository.Implementations
             try
             {
                 // Step 1: Validate CYOT Start Time
-                if (cyot.ChallengeStartTime <= DateTime.Now.AddMinutes(15))
-                {
-                    return new ServiceResponse<int>(false, "Challenge start time must be at least 15 minutes from the current time.", 0, 400);
-                }
+                //if (cyot.ChallengeStartTime <= DateTime.Now.AddMinutes(15))
+                //{
+                //    return new ServiceResponse<int>(false, "Challenge start time must be at least 15 minutes from the current time.", 0, 400);
+                //}
                 if (cyot.CYOTSyllabus == null || !cyot.CYOTSyllabus.Any() || cyot.CYOTSyllabus.Any(s => s.SubjectID <= 0 || s.ChapterID <= 0))
                 {
                     throw new ArgumentException("At least one valid subject and chapter must be selected.");
@@ -188,11 +188,11 @@ namespace StudentApp_API.Repository.Implementations
             INSERT INTO tblCYOT (
                 ChallengeName, ChallengeDate, ChallengeStartTime, Duration, 
                 NoOfQuestions, MarksPerCorrectAnswer, MarksPerIncorrectAnswer, CreatedBy,
-                ClassID, CourseID, BoardID
+                ClassID, CourseID, BoardID,CreatedOn
             ) VALUES (
                 @ChallengeName, @ChallengeDate, @ChallengeStartTime, @Duration, 
                 @NoOfQuestions, @MarksPerCorrectAnswer, @MarksPerIncorrectAnswer, @CreatedBy,
-                @ClassID, @CourseID, @BoardID
+                @ClassID, @CourseID, @BoardID,GETDATE()
             ); 
             SELECT CAST(SCOPE_IDENTITY() as int)";
 
@@ -622,6 +622,7 @@ GROUP BY CYOT.MarksPerCorrectAnswer, CYOT.MarksPerIncorrectAnswer;";
             CYOT.ChallengeName AS CYOTName,
             CYOT.NoOfQuestions AS TotalQuestions,
             CYOT.Duration,
+            CYOT.CreatedOn,
             CYOT.CYOTStatusID,
             CYOT.MarksPerIncorrectAnswer,
             CYOT.MarksPerCorrectAnswer,
@@ -680,11 +681,12 @@ GROUP BY CYOT.MarksPerCorrectAnswer, CYOT.MarksPerIncorrectAnswer;";
                             CYOTID = cyot.CYOTID,
                             CYOTName = cyot.CYOTName,
                             TotalQuestions = cyot.TotalQuestions,
-                            Duration = cyot.Duration,
+                            Duration = cyot.Duration + " min",
                             CYOTStatusID = cyot.CYOTStatusID,
                             CYOTStatus = cyotStatus,
                             Percentage = percentage,
-                            IsChallengeApplicable = isChallengeApplicable
+                            IsChallengeApplicable = isChallengeApplicable,
+                            CreatedOn = cyot.CreatedOn
                         });
                     }
                 }
@@ -1162,7 +1164,7 @@ ORDER BY
             var query = @"
     SELECT 
         CYOT.NoOfQuestions AS TotalQuestions,
-        CYOT.Duration AS TotalDuration,
+        CAST(CYOT.Duration AS VARCHAR) + ' min' AS TotalDuration,
         CYOT.NoOfQuestions * CYOT.MarksPerCorrectAnswer AS TotalMarks,
         COUNT(CASE WHEN A.IsCorrect = 1 THEN 1 END) AS CorrectCount,
         COUNT(CASE WHEN A.IsCorrect = 0 THEN 1 END) AS IncorrectCount,
