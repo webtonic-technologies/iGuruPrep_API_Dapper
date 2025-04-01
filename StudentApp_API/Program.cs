@@ -48,9 +48,14 @@ builder.Services.AddTransient<IQuizooQuestionBoardRepository, QuizooQuestionBoar
 builder.Services.AddTransient<ICYOTRepository, CYOTRepository>();
 builder.Services.AddTransient<ICYOTServices, CYOTServices>();
 
+builder.Services.AddTransient<IOpenChallengesRepository, OpenChallengesRepository>();
+builder.Services.AddTransient<IOpenChallengesServices, OpenChallengesServices>();
 
 builder.Services.AddTransient<IConceptwisePracticeRepository, ConceptwisePracticeRepository>();
 builder.Services.AddTransient<IConceptwisePracticeServices, ConceptwisePracticeServices>();
+
+builder.Services.AddTransient<IMyChallengesRepository, MyChallengesRepository>();
+builder.Services.AddTransient<IMyChallengesServices, MyChallengesServices>();
 
 // Add other services as needed in the future
 // builder.Services.AddTransient<IOtherService, OtherService>();

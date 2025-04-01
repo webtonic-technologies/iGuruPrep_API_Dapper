@@ -15,14 +15,9 @@ namespace StudentApp_API.Services.Implementations
             _cYOTRepository = cYOTRepository;
         }
 
-        public async Task<ServiceResponse<string>> DeleteCYOT(int CYOTId)
+        public async Task<ServiceResponse<List<ChapterDTO>>> GetChaptersAsync(GetChaptersRequestCYOT request)
         {
-            return await _cYOTRepository.DeleteCYOT(CYOTId);
-        }
-
-        public async Task<ServiceResponse<List<ChapterDTO>>> GetChaptersAsync(int registrationId, List<int> subjectIds)
-        {
-            return await _cYOTRepository.GetChaptersAsync(registrationId, subjectIds);
+            return await _cYOTRepository.GetChaptersAsync(request);
         }
 
         public async Task<ServiceResponse<CYOTAnalyticsResponse>> GetCYOTAnalyticsAsync(int studentId, int cyotId)
@@ -33,11 +28,6 @@ namespace StudentApp_API.Services.Implementations
         public async Task<ServiceResponse<CYOTDTO>> GetCYOTByIdAsync(int cyotId)
         {
             return await _cYOTRepository.GetCYOTByIdAsync(cyotId);
-        }
-
-        public async Task<ServiceResponse<List<CYOTResponse>>> GetCYOTListByStudent(CYOTListRequest request)
-        {
-            return await _cYOTRepository.GetCYOTListByStudent(request);
         }
 
         public async Task<ServiceResponse<CYOTQestionReportResponse>> GetCYOTQestionReportBySubjectAsync(int cyotId, int studentId, int subjectId)
@@ -74,11 +64,6 @@ namespace StudentApp_API.Services.Implementations
             return await _cYOTRepository.InsertOrUpdateCYOTAsync(cyot);
         }
 
-        public async Task<ServiceResponse<bool>> MakeCYOTOpenChallenge(int CYOTId)
-        {
-            return await _cYOTRepository.MakeCYOTOpenChallenge(CYOTId);
-        }
-
         public async Task<ServiceResponse<string>> MarkQuestionAsSave(SaveQuestionCYOTRequest request)
         {
             return await _cYOTRepository.MarkQuestionAsSave(request);
@@ -102,11 +87,6 @@ namespace StudentApp_API.Services.Implementations
         public async Task<ServiceResponse<string>> UpdateQuestionStatusAsync(int cyotId, int studentId, int questionId, bool isAnswered)
         {
             return await _cYOTRepository.UpdateQuestionStatusAsync(cyotId, studentId, questionId, isAnswered);
-        }
-
-        public async Task<ServiceResponse<bool>> UpsertCYOTParticipantsAsync(List<CYOTParticipantRequest> requests)
-        {
-            return await _cYOTRepository.UpsertCYOTParticipantsAsync(requests);
         }
 
         public async Task<ServiceResponse<CYOTAnalyticsResponse>> GetCYOTAnalyticsBySubjectAsync(int cyotId, int studentId, int subjectId)

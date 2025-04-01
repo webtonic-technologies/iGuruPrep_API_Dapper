@@ -6,7 +6,7 @@ namespace StudentApp_API.DTOs.Response
     {
         public int QuestionId { get; set; }
         public string QuestionDescription { get; set; } = string.Empty;
-        public int? QuestionTypeId { get; set; }
+        public int QuestionTypeId { get; set; }
         public bool? Status { get; set; }
         public string? CreatedBy { get; set; }
         public DateTime? CreatedOn { get; set; }
@@ -37,6 +37,7 @@ namespace StudentApp_API.DTOs.Response
         public List<AnswerMultipleChoiceCategory>? AnswerMultipleChoiceCategories { get; set; }
         public List<ParagraphQuestions>? ComprehensiveChildQuestions { get; set; }
         public int DurationperQuestion {  get; set; }
+        public int QuestionStatusId {  get; set; }
     }
     public class ParagraphQuestions
     {

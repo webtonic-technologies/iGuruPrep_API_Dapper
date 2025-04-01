@@ -96,4 +96,9 @@ namespace StudentApp_API.DTOs.Requests
         public int AttemptedQuestions { get; set; }
         public int TotalQuestions { get; set; }
     }
+    public class GetChaptersRequestCYOT
+    {
+        public int registrationId {  get; set; }
+        public List<int> SubjectIds { get; set; }
+    }
 }

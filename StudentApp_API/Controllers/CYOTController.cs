@@ -28,9 +28,9 @@ namespace StudentApp_API.Controllers
             return BadRequest(response);
         }
         [HttpPost("GetChapters")]
-        public async Task<IActionResult> GetChaptersAsync(int registrationId,  List<int> subjectIds)
+        public async Task<IActionResult> GetChaptersAsync(GetChaptersRequestCYOT request)
         {
-            var response = await _cYOTServices.GetChaptersAsync(registrationId, subjectIds);
+            var response = await _cYOTServices.GetChaptersAsync(request);
             if (response.Success)
             {
                 return Ok(response);
@@ -104,30 +104,7 @@ namespace StudentApp_API.Controllers
 
             return BadRequest(response);
         }
-        [HttpPost("AddUpdateCYOTParticipants")]
-        public async Task<IActionResult> UpsertCYOTParticipantsAsync(List<CYOTParticipantRequest> request)
-        {
-            var result = await _cYOTServices.UpsertCYOTParticipantsAsync(request);
-            if (result.Success)
-                return Ok(result);
-            return StatusCode(result.StatusCode, result);
-        }
-        [HttpPost("MakeCYOTOpenChallenge/{CYOTId}")]
-        public async Task<IActionResult> MakeCYOTOpenChallenge(int CYOTId)
-        {
-            var result = await _cYOTServices.MakeCYOTOpenChallenge(CYOTId);
-            if (result.Success)
-                return Ok(result);
-            return StatusCode(result.StatusCode, result);
-        }
-        [HttpPost("GetCYOTListByStudent")]
-        public async Task<IActionResult> GetCYOTListByStudent(CYOTListRequest request)
-        {
-            var result = await _cYOTServices.GetCYOTListByStudent(request);
-            if (result.Success)
-                return Ok(result);
-            return StatusCode(result.StatusCode, result);
-        }
+       
         [HttpPost("MarkQuestionAsSave")]
         public async Task<IActionResult> MarkQuestionAsSave(SaveQuestionCYOTRequest request)
         {
@@ -144,14 +121,7 @@ namespace StudentApp_API.Controllers
                 return Ok(result);
             return StatusCode(result.StatusCode, result);
         }
-        [HttpDelete("DeleteCYOT")]
-        public async Task<IActionResult> DeleteCYOT(int CYOTId)
-        {
-            var result = await _cYOTServices.DeleteCYOT(CYOTId);
-            if (result.Success)
-                return Ok(result);
-            return StatusCode(result.StatusCode, result);
-        }
+       
         [HttpGet("GetCYOTQestionReport")]
         public async Task<IActionResult> GetCYOTQestionReportAsync(int studentId, int cyotId)
         {

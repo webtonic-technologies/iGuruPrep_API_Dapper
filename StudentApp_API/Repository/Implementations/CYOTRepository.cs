@@ -71,7 +71,7 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<List<SubjectDTO>>(false, ex.Message, new List<SubjectDTO>(), 500);
             }
         }
-        public async Task<ServiceResponse<List<ChapterDTO>>> GetChaptersAsync(int registrationId, List<int> subjectIds)
+        public async Task<ServiceResponse<List<ChapterDTO>>> GetChaptersAsync(GetChaptersRequestCYOT request)
         {
             try
             {
@@ -80,7 +80,7 @@ namespace StudentApp_API.Repository.Implementations
                     @"SELECT BoardId, ClassId, CourseId
               FROM tblStudentClassCourseMapping
               WHERE RegistrationID = @RegistrationID",
-                    new { RegistrationID = registrationId }) ?? throw new Exception("No mapping found for the given RegistrationID.");
+                    new { RegistrationID = request.registrationId }) ?? throw new Exception("No mapping found for the given RegistrationID.");
 
                 // Step 2: Fetch SyllabusID using Board, Class, and Course
                 var actualSyllabusId = await _connection.QueryFirstOrDefaultAsync<int?>(
@@ -100,7 +100,7 @@ namespace StudentApp_API.Repository.Implementations
               WHERE S.SyllabusID = @SyllabusID 
                 AND S.SubjectID IN @SubjectIDs
                 AND S.IndexTypeId = 1",
-                    new { SyllabusID = actualSyllabusId, SubjectIDs = subjectIds })).ToList();
+                    new { SyllabusID = actualSyllabusId, SubjectIDs = request.SubjectIds })).ToList();
 
                 if (!chapters.Any())
                     return new ServiceResponse<List<ChapterDTO>>(false, "No chapters found for the given SyllabusID and SubjectIDs.", new List<ChapterDTO>(), 404);
@@ -358,7 +358,7 @@ new
             {
                 // Define the base query to fetch questions with their statuses
                 string fetchExistingQuery = @"
-    SELECT q.QuestionId, q.QuestionDescription, q.QuestionTypeId, q.QuestionCode, q.IsActive, 
+    SELECT q.*, 
            ISNULL(csqm.QuestionStatusId, 4) AS QuestionStatusId  -- Default to 'Not Visited' if no mapping exists
     FROM tblCYOTQuestions cyot
     INNER JOIN tblQuestion q ON cyot.QuestionID = q.QuestionId
@@ -369,7 +369,7 @@ new
     WHERE cyot.CYOTID = @CYOTID";
 
                 // Fetch the questions along with their statuses
-                var questionsList = (await _connection.QueryAsync<dynamic>(fetchExistingQuery, new
+                var questionsList = (await _connection.QueryAsync<QuestionResponseDTO>(fetchExistingQuery, new
                 {
                     CYOTID = request.cyotId,
                     RegistrationId = request.registrationId
@@ -390,7 +390,77 @@ new
                         .Where(q => request.QuestionStatusId.Contains(q.QuestionStatusId))
                         .ToList();
                 }
-
+                // Convert the data to a list of DTOs
+                var response = questionsList.Select(item =>
+                {
+                    if (item.QuestionTypeId == 11)
+                    {
+                        return new QuestionResponseDTO
+                        {
+                            QuestionId = item.QuestionId,
+                            Paragraph = item.Paragraph,
+                            SubjectName = item.SubjectName,
+                            //  EmployeeName = item.EmpFirstName,
+                            IndexTypeName = item.IndexTypeName,
+                            ContentIndexName = item.ContentIndexName,
+                            // QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+                            ContentIndexId = item.ContentIndexId,
+                            CreatedBy = item.CreatedBy,
+                            CreatedOn = item.CreatedOn,
+                            EmployeeId = item.EmployeeId,
+                            IndexTypeId = item.IndexTypeId,
+                            subjectID = item.subjectID,
+                            ModifiedOn = item.ModifiedOn,
+                            QuestionTypeId = item.QuestionTypeId,
+                            QuestionTypeName = item.QuestionTypeName,
+                            QuestionCode = item.QuestionCode,
+                            Explanation = item.Explanation,
+                            ExtraInformation = item.ExtraInformation,
+                            IsActive = item.IsActive,
+                            ComprehensiveChildQuestions = GetChildQuestions(item.QuestionCode)
+                        };
+                    }
+                    else
+                    {
+                        return new QuestionResponseDTO
+                        {
+                            QuestionId = item.QuestionId,
+                            QuestionDescription = item.QuestionDescription,
+                            QuestionTypeId = item.QuestionTypeId,
+                            Status = item.Status,
+                            CreatedBy = item.CreatedBy,
+                            CreatedOn = item.CreatedOn,
+                            ModifiedBy = item.ModifiedBy,
+                            ModifiedOn = item.ModifiedOn,
+                            subjectID = item.subjectID,
+                            SubjectName = item.SubjectName,
+                            EmployeeId = item.EmployeeId,
+                            // EmployeeName = item.EmpFirstName,
+                            IndexTypeId = item.IndexTypeId,
+                            IndexTypeName = item.IndexTypeName,
+                            ContentIndexId = item.ContentIndexId,
+                            ContentIndexName = item.ContentIndexName,
+                            IsRejected = item.IsRejected,
+                            IsApproved = item.IsApproved,
+                            QuestionTypeName = item.QuestionTypeName,
+                            QuestionCode = item.QuestionCode,
+                            Explanation = item.Explanation,
+                            ExtraInformation = item.ExtraInformation,
+                            IsActive = item.IsActive,
+                            //  QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+                            //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
+                            //Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
+                            //AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
+                            MatchPairs = item.QuestionTypeId == 6 || item.QuestionTypeId == 12 ? GetMatchPairs(item.QuestionCode, item.QuestionId) : null,
+                            MatchThePairType2Answers = item.QuestionTypeId == 12 ? GetMatchThePairType2Answers(item.QuestionCode, item.QuestionId) : null,
+                            // Answersingleanswercategories = (item.QuestionTypeId != 6 && item.QuestionTypeId != 12) ? GetSingleAnswer(item.QuestionCode, item.QuestionId) : null,
+                            AnswerMultipleChoiceCategories = (item.QuestionTypeId != 12) ? GetMultipleAnswers(item.QuestionCode) : null
+                        };
+                    }
+                });
+                return questionsList.Any()
+                    ? new ServiceResponse<List<QuestionResponseDTO>>(true, "Operation Successful", questionsList.ToList(), 200, questionsList.Count())
+                    : new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
                 // Continue with your existing logic to process the filtered questionsList
             }
             else
@@ -417,78 +487,78 @@ new
                     QuestionStatusId = 4,
                     SubjectId = q.subjectID
                 }));
+                // Convert the data to a list of DTOs
+                var response = questions.Select(item =>
+                {
+                    if (item.QuestionTypeId == 11)
+                    {
+                        return new QuestionResponseDTO
+                        {
+                            QuestionId = item.QuestionId,
+                            Paragraph = item.Paragraph,
+                            SubjectName = item.SubjectName,
+                            //  EmployeeName = item.EmpFirstName,
+                            IndexTypeName = item.IndexTypeName,
+                            ContentIndexName = item.ContentIndexName,
+                            // QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+                            ContentIndexId = item.ContentIndexId,
+                            CreatedBy = item.CreatedBy,
+                            CreatedOn = item.CreatedOn,
+                            EmployeeId = item.EmployeeId,
+                            IndexTypeId = item.IndexTypeId,
+                            subjectID = item.subjectID,
+                            ModifiedOn = item.ModifiedOn,
+                            QuestionTypeId = item.QuestionTypeId,
+                            QuestionTypeName = item.QuestionTypeName,
+                            QuestionCode = item.QuestionCode,
+                            Explanation = item.Explanation,
+                            ExtraInformation = item.ExtraInformation,
+                            IsActive = item.IsActive,
+                            ComprehensiveChildQuestions = GetChildQuestions(item.QuestionCode)
+                        };
+                    }
+                    else
+                    {
+                        return new QuestionResponseDTO
+                        {
+                            QuestionId = item.QuestionId,
+                            QuestionDescription = item.QuestionDescription,
+                            QuestionTypeId = item.QuestionTypeId,
+                            Status = item.Status,
+                            CreatedBy = item.CreatedBy,
+                            CreatedOn = item.CreatedOn,
+                            ModifiedBy = item.ModifiedBy,
+                            ModifiedOn = item.ModifiedOn,
+                            subjectID = item.subjectID,
+                            SubjectName = item.SubjectName,
+                            EmployeeId = item.EmployeeId,
+                            // EmployeeName = item.EmpFirstName,
+                            IndexTypeId = item.IndexTypeId,
+                            IndexTypeName = item.IndexTypeName,
+                            ContentIndexId = item.ContentIndexId,
+                            ContentIndexName = item.ContentIndexName,
+                            IsRejected = item.IsRejected,
+                            IsApproved = item.IsApproved,
+                            QuestionTypeName = item.QuestionTypeName,
+                            QuestionCode = item.QuestionCode,
+                            Explanation = item.Explanation,
+                            ExtraInformation = item.ExtraInformation,
+                            IsActive = item.IsActive,
+                            //  QIDCourses = GetListOfQIDCourse(item.QuestionCode),
+                            //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
+                            //Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
+                            //AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
+                            MatchPairs = item.QuestionTypeId == 6 || item.QuestionTypeId == 12 ? GetMatchPairs(item.QuestionCode, item.QuestionId) : null,
+                            MatchThePairType2Answers = item.QuestionTypeId == 12 ? GetMatchThePairType2Answers(item.QuestionCode, item.QuestionId) : null,
+                            // Answersingleanswercategories = (item.QuestionTypeId != 6 && item.QuestionTypeId != 12) ? GetSingleAnswer(item.QuestionCode, item.QuestionId) : null,
+                            AnswerMultipleChoiceCategories = (item.QuestionTypeId != 12) ? GetMultipleAnswers(item.QuestionCode) : null
+                        };
+                    }
+                });
+                return questions.Any()
+                    ? new ServiceResponse<List<QuestionResponseDTO>>(true, "Operation Successful", response.ToList(), 200, questions.Count())
+                    : new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
             }
-            // Convert the data to a list of DTOs
-            var response = questions.Select(item =>
-            {
-                if (item.QuestionTypeId == 11)
-                {
-                    return new QuestionResponseDTO
-                    {
-                        QuestionId = item.QuestionId,
-                        Paragraph = item.Paragraph,
-                        SubjectName = item.SubjectName,
-                        //  EmployeeName = item.EmpFirstName,
-                        IndexTypeName = item.IndexTypeName,
-                        ContentIndexName = item.ContentIndexName,
-                        // QIDCourses = GetListOfQIDCourse(item.QuestionCode),
-                        ContentIndexId = item.ContentIndexId,
-                        CreatedBy = item.CreatedBy,
-                        CreatedOn = item.CreatedOn,
-                        EmployeeId = item.EmployeeId,
-                        IndexTypeId = item.IndexTypeId,
-                        subjectID = item.subjectID,
-                        ModifiedOn = item.ModifiedOn,
-                        QuestionTypeId = item.QuestionTypeId,
-                        QuestionTypeName = item.QuestionTypeName,
-                        QuestionCode = item.QuestionCode,
-                        Explanation = item.Explanation,
-                        ExtraInformation = item.ExtraInformation,
-                        IsActive = item.IsActive,
-                        ComprehensiveChildQuestions = GetChildQuestions(item.QuestionCode)
-                    };
-                }
-                else
-                {
-                    return new QuestionResponseDTO
-                    {
-                        QuestionId = item.QuestionId,
-                        QuestionDescription = item.QuestionDescription,
-                        QuestionTypeId = item.QuestionTypeId,
-                        Status = item.Status,
-                        CreatedBy = item.CreatedBy,
-                        CreatedOn = item.CreatedOn,
-                        ModifiedBy = item.ModifiedBy,
-                        ModifiedOn = item.ModifiedOn,
-                        subjectID = item.subjectID,
-                        SubjectName = item.SubjectName,
-                        EmployeeId = item.EmployeeId,
-                        // EmployeeName = item.EmpFirstName,
-                        IndexTypeId = item.IndexTypeId,
-                        IndexTypeName = item.IndexTypeName,
-                        ContentIndexId = item.ContentIndexId,
-                        ContentIndexName = item.ContentIndexName,
-                        IsRejected = item.IsRejected,
-                        IsApproved = item.IsApproved,
-                        QuestionTypeName = item.QuestionTypeName,
-                        QuestionCode = item.QuestionCode,
-                        Explanation = item.Explanation,
-                        ExtraInformation = item.ExtraInformation,
-                        IsActive = item.IsActive,
-                        //  QIDCourses = GetListOfQIDCourse(item.QuestionCode),
-                        //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
-                        //Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
-                        //AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
-                        MatchPairs = item.QuestionTypeId == 6 || item.QuestionTypeId == 12 ? GetMatchPairs(item.QuestionCode, item.QuestionId) : null,
-                        MatchThePairType2Answers = item.QuestionTypeId == 12 ? GetMatchThePairType2Answers(item.QuestionCode, item.QuestionId) : null,
-                        // Answersingleanswercategories = (item.QuestionTypeId != 6 && item.QuestionTypeId != 12) ? GetSingleAnswer(item.QuestionCode, item.QuestionId) : null,
-                        AnswerMultipleChoiceCategories = (item.QuestionTypeId != 12) ? GetMultipleAnswers(item.QuestionCode) : null
-                    };
-                }
-            });
-            return questions.Any()
-                ? new ServiceResponse<List<QuestionResponseDTO>>(true, "Operation Successful", response.ToList(), 200, questions.Count())
-                : new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
         }
         public async Task<ServiceResponse<string>> UpdateQuestionNavigationAsync(CYOTQuestionNavigationRequest request)
         {
@@ -579,19 +649,21 @@ GROUP BY CYOT.MarksPerCorrectAnswer, CYOT.MarksPerIncorrectAnswer;";
                 // Calculate the percentage
                 var percentage = totalMarks > 0 ? (marksObtained * 100) / totalMarks : 0;
                 var statusId = percentage >= 80 ? 3 : 2; // 3 = Challenge Open, 2 = Completed
-
-                // Update the CYOT status
-                await _connection.ExecuteAsync(
-                    @"UPDATE [tblCYOT] 
+                int owner = await _connection.QueryFirstOrDefaultAsync<int>(@"select CreatedBy from tblCYOT where CYOTID = @cyotid", new { cyotid = request.CYOTId });
+                if(request.StudentID == owner)
+                {
+                    // Update the CYOT status
+                    await _connection.ExecuteAsync(
+                        @"UPDATE [tblCYOT] 
       SET CYOTStatusID = @StatusID 
       WHERE CYOTID = @CYOTID",
-                    new
-                    {
-                        CYOTID = request.CYOTId,
-                        StatusID = statusId
-                    }
-                );
-
+                        new
+                        {
+                            CYOTID = request.CYOTId,
+                            StatusID = statusId
+                        }
+                    );
+                }
                 // Include marks in the response message
                 return new ServiceResponse<string>(
                     true,
@@ -604,103 +676,6 @@ GROUP BY CYOT.MarksPerCorrectAnswer, CYOT.MarksPerIncorrectAnswer;";
             catch (Exception ex)
             {
                 return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
-            }
-        }
-        public async Task<ServiceResponse<bool>> MakeCYOTOpenChallenge(int CYOTId)
-        {
-            await _connection.ExecuteAsync(@"update [tblCYOT] set CYOTStatusID = 3 where CYOTID = @CYOTID", new { CYOTID = CYOTId });
-            return new ServiceResponse<bool>(true, "marked as open challenge", true, 200);
-        }
-        public async Task<ServiceResponse<List<CYOTResponse>>> GetCYOTListByStudent(CYOTListRequest request)
-        {
-            try
-            {
-                // Query to get CYOT details filtered by StudentID
-                var cyotQuery = @"
-        SELECT 
-            CYOT.CYOTID,
-            CYOT.ChallengeName AS CYOTName,
-            CYOT.NoOfQuestions AS TotalQuestions,
-            CYOT.Duration,
-            CYOT.CreatedOn,
-            CYOT.CYOTStatusID,
-            CYOT.MarksPerIncorrectAnswer,
-            CYOT.MarksPerCorrectAnswer,
-            CYOT.IsStarted,
-            COALESCE((
-                SELECT COUNT(*)
-                FROM tblCYOTAnswers AS A
-                WHERE A.CYOTID = CYOT.CYOTID AND A.StudentID = @StudentID
-            ), 0) AS AttemptedQuestions,
-            COALESCE((
-                SELECT SUM(CASE WHEN A.IsCorrect = 1 THEN 1 ELSE 0 END)
-                FROM tblCYOTAnswers AS A
-                WHERE A.CYOTID = CYOT.CYOTID AND A.StudentID = @StudentID
-            ), 0) AS CorrectAnswers,
-            COALESCE((
-                SELECT SUM(CASE WHEN A.IsCorrect = 0 THEN 1 ELSE 0 END)
-                FROM tblCYOTAnswers AS A
-                WHERE A.CYOTID = CYOT.CYOTID AND A.StudentID = @StudentID
-            ), 0) AS IncorrectAnswers
-        FROM tblCYOT AS CYOT
-        WHERE CYOT.CreatedBy = @StudentID";
-
-                // Fetch CYOT data
-                var cyotList = (await _connection.QueryAsync<dynamic>(cyotQuery, new { StudentID = request.RegistrationId })).ToList();
-
-                var typedResponse = new List<CYOTResponse>();
-
-                foreach (var cyot in cyotList)
-                {
-                    // Calculate total marks obtained
-                    decimal totalMarksObtained = (cyot.CorrectAnswers * cyot.MarksPerCorrectAnswer) - (cyot.IncorrectAnswers * cyot.MarksPerIncorrectAnswer);
-                    int totalPossibleMarks = cyot.TotalQuestions * cyot.MarksPerCorrectAnswer;
-                    int percentage = totalPossibleMarks > 0 ? (int)((totalMarksObtained / totalPossibleMarks) * 100) : 0;
-                    bool isChallengeApplicable = percentage >= 80;
-
-                    // Determine status
-                    string cyotStatus;
-                    if (cyot.AttemptedQuestions == 0)
-                    {
-                        cyotStatus = "Pending";
-                    }
-                    else if (isChallengeApplicable)
-                    {
-                        cyotStatus = "Challenged";
-                    }
-                    else
-                    {
-                        cyotStatus = "Complete";
-                    }
-
-                    // Filter by status if a specific status ID is provided
-                    if (request.StatusId == 0 || request.StatusId == cyot.CYOTStatusID)
-                    {
-                        typedResponse.Add(new CYOTResponse
-                        {
-                            CYOTID = cyot.CYOTID,
-                            CYOTName = cyot.CYOTName,
-                            TotalQuestions = cyot.TotalQuestions,
-                            Duration = cyot.Duration + " min",
-                            CYOTStatusID = cyot.CYOTStatusID,
-                            CYOTStatus = cyotStatus,
-                            Percentage = percentage,
-                            IsChallengeApplicable = isChallengeApplicable,
-                            CreatedOn = cyot.CreatedOn
-                        });
-                    }
-                }
-
-                if (!typedResponse.Any())
-                {
-                    return new ServiceResponse<List<CYOTResponse>>(false, "No records found.", new List<CYOTResponse>(), 200);
-                }
-
-                return new ServiceResponse<List<CYOTResponse>>(true, "CYOT list fetched successfully.", typedResponse, 200);
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<List<CYOTResponse>>(false, ex.Message, null, 500);
             }
         }
         public async Task<ServiceResponse<CYOTDTO>> GetCYOTByIdAsync(int cyotId)
@@ -964,42 +939,6 @@ ORDER BY
                 200, groupedData.Count
             );
         }
-        public async Task<ServiceResponse<bool>> UpsertCYOTParticipantsAsync(List<CYOTParticipantRequest> requests)
-        {
-            try
-            {
-                var query = @"
-        IF EXISTS (SELECT 1 FROM tblCYOTParticipant WHERE StudentID = @StudentID AND CYOTID = @CYOTID)
-        BEGIN
-            -- Update existing record
-            UPDATE tblCYOTParticipant
-            SET 
-                IsCompleted = @IsCompleted,
-                IsStarted = @IsStarted,
-                CYOTStatusID = @CYOTStatusID
-            WHERE 
-                StudentID = @StudentID AND CYOTID = @CYOTID;
-        END
-        ELSE
-        BEGIN
-            -- Insert new record
-            INSERT INTO tblCYOTParticipant (StudentID, CYOTID, IsCompleted, IsStarted, CYOTStatusID)
-            VALUES (@StudentID, @CYOTID, @IsCompleted, @IsStarted, @CYOTStatusID);
-        END"
-                ;
-                foreach (var request in requests)
-                {
-                    // Execute the query for each request
-                    await _connection.ExecuteAsync(query, request);
-                }
-
-                return new ServiceResponse<bool>(true, "All participant records processed successfully.", true, 200);
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<bool>(false, $"Error: {ex.Message}", false, 500);
-            }
-        }
         public async Task<ServiceResponse<string>> MarkQuestionAsSave(SaveQuestionCYOTRequest request)
         {
             try
@@ -1133,32 +1072,6 @@ ORDER BY
             }
 
         }
-        public async Task<ServiceResponse<string>> DeleteCYOT(int CYOTId)
-        {
-            try
-            {
-                // Check if the record exists
-                string existsQuery = "SELECT COUNT(*) FROM tblCYOT WHERE CYOTID = @CYOTID";
-                int count = await _connection.ExecuteScalarAsync<int>(existsQuery, new { CYOTID = CYOTId });
-
-                if (count == 0)
-                {
-                    return new ServiceResponse<string>(false, "Record not found", string.Empty, 404);
-                }
-
-                // Delete the record
-                string deleteQuery = @"
-            DELETE FROM tblCYOT
-            WHERE CYOTID = @CYOTID";
-                await _connection.ExecuteAsync(deleteQuery, new { CYOTID = CYOTId });
-
-                return new ServiceResponse<string>(true, "Operation successful", "Record deleted successfully", 200);
-            }
-            catch (Exception ex)
-            {
-                return new ServiceResponse<string>(false, ex.Message, string.Empty, 500);
-            }
-        }
         public async Task<ServiceResponse<CYOTQestionReportResponse>> GetCYOTQestionReportAsync(int studentId, int cyotId)
         {
             var query = @"
@@ -1256,9 +1169,9 @@ ORDER BY
             {
                 var query = @"
 SELECT 
-    -- Total time spent (in minutes)
+    -- Total time spent (in seconds)
     SUM(DATEDIFF(SECOND, N.StartTime, N.EndTime)) / 60.0 AS TotalTimeSpent,
-    -- Average time per question (in minutes)
+    -- Average time per question (in seconds)
     AVG(DATEDIFF(SECOND, N.StartTime, N.EndTime)) / 60.0 AS AvgTimePerQuestion,
 
     -- Time spent on correct answers
@@ -1826,7 +1739,7 @@ WHERE N.CYOTId = @CYOTId AND N.StudentId = @StudentId AND SQM.SubjectID = @Subje
                 return null;
             }
         }
-        private string ConvertSecondsToTimeFormat(int seconds)
+        private string ConvertSecondsToTimeFormat(double seconds)
         {
             TimeSpan time = TimeSpan.FromSeconds(seconds);
             if (time.Hours > 0)
