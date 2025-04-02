@@ -671,6 +671,57 @@ SELECT
                 );
             }
         }
+        public async Task<ServiceResponse<List<LeaderboardResponse>>> GetCYOTLeaderboardAsync(int cyotId, int studentId)
+        {
+            try
+            {
+                var query = @"
+            WITH Leaderboard AS (
+                SELECT 
+                    r.RegistrationID AS StudentID,
+                    r.FirstName,
+                    r.LastName,
+                    COALESCE(SUM(ca.Marks), 0) AS TotalScore
+                FROM tblRegistration r
+                LEFT JOIN tblCYOTAnswers ca ON r.RegistrationID = ca.StudentID
+                WHERE ca.CYOTID = @CYOTID
+                GROUP BY r.RegistrationID, r.FirstName, r.LastName
+            )
+            SELECT 
+                StudentID,
+                FirstName,
+                LastName,
+                TotalScore
+            FROM Leaderboard
+            ORDER BY 
+                CASE 
+                    WHEN StudentID = @StudentID THEN 0 
+                    ELSE 1 
+                END,
+                TotalScore DESC;";
+
+                var leaderboard = await _connection.QueryAsync<LeaderboardResponse>(
+                    query,
+                    new { CYOTID = cyotId, StudentID = studentId }
+                );
+
+                return new ServiceResponse<List<LeaderboardResponse>>(
+                    true,
+                    "Leaderboard fetched successfully",
+                    leaderboard.ToList(),
+                    200
+                );
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<LeaderboardResponse>>(
+                    false,
+                    $"Error: {ex.Message}",
+                    null,
+                    500
+                );
+            }
+        }
         private static string ConvertSecondsToTimeFormat(int seconds)
         {
             TimeSpan time = TimeSpan.FromSeconds(seconds);

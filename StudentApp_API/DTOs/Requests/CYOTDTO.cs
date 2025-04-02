@@ -71,7 +71,8 @@ namespace StudentApp_API.DTOs.Requests
         public int QuestionID { get; set; }
         public int QuestionTypeID { get; set; }
         public int QuestionstatusId { get; set; }
-        public int AnswerID { get; set; }
+        public List<int>? MultiOrSingleAnswerId { get; set; }
+        public string? SubjectiveAnswers { get; set; } = string.Empty;
         public List<TimeLog> TimeLogs { get; set; }
     }
     public class CYOTAnswerSubmissionRequest
@@ -79,7 +80,8 @@ namespace StudentApp_API.DTOs.Requests
         public int CYOTId { get; set; }
         public int RegistrationId { get; set; }
         public int QuestionID { get; set; }
-        public int AnswerID { get; set; }
+        public List<int>? MultiOrSingleAnswerId { get; set; }
+        public string? SubjectiveAnswers { get; set; } = string.Empty;
         public int SubjectID { get; set; }
         public int QuestionTypeID { get; set; }
     }

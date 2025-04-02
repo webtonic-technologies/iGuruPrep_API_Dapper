@@ -95,5 +95,16 @@ namespace StudentApp_API.Controllers
                 return Ok(result);
             return StatusCode(result.StatusCode, result);
         }
+        [HttpGet("GetCYOTLeaderboard/{cyotId}/{studentId}")]
+        public async Task<IActionResult> GetCYOTLeaderboardAsync(int cyotId, int studentId)
+        {
+            var response = await _myChallengesServices.GetCYOTLeaderboardAsync(cyotId, studentId);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+
+            return BadRequest(response);
+        }
     }
 }

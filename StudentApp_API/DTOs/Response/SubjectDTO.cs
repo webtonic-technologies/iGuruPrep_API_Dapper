@@ -76,5 +76,11 @@
         public decimal MarksByTopper { get; set; }
         public decimal AvgMarksByOthers { get; set; }
     }
-
+    public class LeaderboardResponse
+    {
+        public int StudentID { get; set; }
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public int TotalScore { get; set; }
+    }
 }

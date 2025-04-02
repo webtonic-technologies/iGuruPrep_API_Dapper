@@ -314,7 +314,7 @@ namespace StudentApp_API.Repository.Implementations
             {
                 throw new Exception("Invalid Duration format. Unable to parse numeric value.");
             }
-
+            int remainingLimit = limit;
             // Step 9: Fetch questions
             var questions = await _connection.QueryAsync<QuestionResponseDTO>(
  "SELECT TOP(@Limit) q.*, qt.QuestionType AS QuestionTypeName, sub.SubjectName AS SubjectName " +
@@ -465,11 +465,32 @@ new
             }
             else
             {
+                var questionsResponse = new List<QuestionResponseDTO>();
+                foreach (var questionData in questions)
+                {
+                    if (questionData.QuestionTypeId == 11)
+                    {
+                        var childQuestions = GetChildQuestions(questionData.QuestionCode);
+                        questionData.ComprehensiveChildQuestions = childQuestions;
+
+                        // Deduct child questions count from remaining limit
+                        remainingLimit -= childQuestions.Count;
+                    }
+                    else
+                    {
+                        remainingLimit -= 1;  // Regular questions count as 1
+                    }
+
+                    questionsResponse.Add(questionData);
+
+                    if (remainingLimit <= 0)
+                        break;
+                }
                 // Step 10: Insert questions into tblCYOTQuestions
                 var insertQuery = @"
         INSERT INTO tblCYOTQuestions (CYOTID, QuestionID, DisplayOrder)
         VALUES (@CYOTID, @QuestionID, @DisplayOrder)";
-                await _connection.ExecuteAsync(insertQuery, questions.Select((q, index) => new
+                await _connection.ExecuteAsync(insertQuery, questionsResponse.Select((q, index) => new
                 {
                     CYOTID = request.cyotId,
                     QuestionID = q.QuestionId,
@@ -479,7 +500,7 @@ new
                 var studentQuestionMappingQuery = @"
         INSERT INTO tblCYOTStudentQuestionMapping (CYOTId, StudentId, QuestionId, QuestionStatusId, SubjectId)
         VALUES (@CYOTId, @StudentId, @QuestionId, @QuestionStatusId, @SubjectId)";
-                await _connection.ExecuteAsync(studentQuestionMappingQuery, questions.Select((q, index) => new
+                await _connection.ExecuteAsync(studentQuestionMappingQuery, questionsResponse.Select((q, index) => new
                 {
                     CYOTId = request.cyotId,
                     StudentId = request.registrationId,
@@ -488,7 +509,7 @@ new
                     SubjectId = q.subjectID
                 }));
                 // Convert the data to a list of DTOs
-                var response = questions.Select(item =>
+                var response = questionsResponse.Select(item =>
                 {
                     if (item.QuestionTypeId == 11)
                     {
@@ -555,8 +576,8 @@ new
                         };
                     }
                 });
-                return questions.Any()
-                    ? new ServiceResponse<List<QuestionResponseDTO>>(true, "Operation Successful", response.ToList(), 200, questions.Count())
+                return questionsResponse.Any()
+                    ? new ServiceResponse<List<QuestionResponseDTO>>(true, "Operation Successful", response.ToList(), 200, questionsResponse.Count())
                     : new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
             }
         }
@@ -574,7 +595,8 @@ new
                     foreach (var question in subject.Questions)
                     {
                         // Check if MultiOrSingleAnswerId is not null and contains at least one valid answer
-                        if (question.AnswerID != null && question.AnswerID != 0)
+                        if ((question.MultiOrSingleAnswerId != null && question.MultiOrSingleAnswerId.Any(id => id != 0)) ||
+     (!string.IsNullOrEmpty(question.SubjectiveAnswers) && question.SubjectiveAnswers != "string"))
                         {
                             var data = new List<CYOTAnswerSubmissionRequest>
         {
@@ -585,7 +607,8 @@ new
                 QuestionID = question.QuestionID,
                 SubjectID = subject.SubjectId,
                 QuestionTypeID = question.QuestionTypeID,
-                AnswerID = question.AnswerID, // Assuming question.AnswerID is a List<int>
+                SubjectiveAnswers = question.SubjectiveAnswers,
+                MultiOrSingleAnswerId = question.MultiOrSingleAnswerId // Assuming question.AnswerID is a List<int>
             }
         };
                             // Submit the answer(s)
@@ -725,26 +748,11 @@ GROUP BY CYOT.MarksPerCorrectAnswer, CYOT.MarksPerIncorrectAnswer;";
                 return new ServiceResponse<CYOTDTO>(false, $"Error: {ex.Message}", null, 500);
             }
         }
-        public async Task<ServiceResponse<string>> SubmitCYOTAnswerAsync(List<CYOTAnswerSubmissionRequest> requests)
+        public async Task<ServiceResponse<string>> SubmitCYOTAnswerAsync(List<CYOTAnswerSubmissionRequest> request)
         {
+
             try
             {
-                // Step 1: Fetch correct answers for all QuestionIDs and AnswerIDs
-                var correctAnswersQuery = @"
-        SELECT AM.QuestionID, AMC.Answermultiplechoicecategoryid, AMC.IsCorrect
-        FROM tblAnswerMaster AM
-        INNER JOIN tblAnswerMultipleChoiceCategory AMC ON AM.AnswerID = AMC.AnswerID
-        WHERE AM.QuestionID IN @QuestionIDs AND AMC.Answermultiplechoicecategoryid IN @AnswerIDs";
-
-                var correctAnswers = (await _connection.QueryAsync<(int QuestionID, int AnswerID, bool IsCorrect)>(
-                    correctAnswersQuery,
-                    new
-                    {
-                        QuestionIDs = requests.Select(r => r.QuestionID).Distinct(),
-                        AnswerIDs = requests.Select(r => r.AnswerID).Distinct()
-                    }
-                )).ToList();
-
                 // Step 2: Fetch CYOT marks per correct and incorrect answer
                 var cyotMarksQuery = @"
         SELECT MarksPerCorrectAnswer, MarksPerIncorrectAnswer
@@ -753,18 +761,127 @@ GROUP BY CYOT.MarksPerCorrectAnswer, CYOT.MarksPerIncorrectAnswer;";
 
                 var cyotMarks = await _connection.QueryFirstOrDefaultAsync<(int MarksPerCorrect, int MarksPerIncorrect)>(
                     cyotMarksQuery,
-                    new { CYOTID = requests.First().CYOTId }
+                    new { CYOTID = request.First().CYOTId }
                 );
-
-                // Step 3: Process each request to insert or update answers
-                foreach (var request in requests)
+                foreach (var answer in request)
                 {
-                    var correctAnswer = correctAnswers
-                        .FirstOrDefault(ca => ca.QuestionID == request.QuestionID && ca.AnswerID == request.AnswerID);
+                  
+                    string answerStatus = "Incorrect";
+                    bool isCorrect = false; // ✅ Initialize isCorrect
+                    decimal marks = 0; // ✅ Initialize marks
 
-                    bool isCorrect = correctAnswer.IsCorrect;
-                    int marks = isCorrect ? cyotMarks.MarksPerCorrect : -cyotMarks.MarksPerIncorrect;
-                    string answerStatus = isCorrect ? "Correct" : "Incorrect";
+                    // Fetch question and answer details
+                    var query = @"
+                SELECT 
+                    q.QuestionId, 
+                    q.QuestionTypeId, 
+                    s.MarksPerQuestion, 
+                    s.NegativeMarks
+                FROM tblQuestion q
+                LEFT JOIN tblSSQuestionSection s ON s.SSTSectionId = @SectionID
+                WHERE q.QuestionId = @QuestionID";
+
+                    var questionData = await _connection.QueryFirstOrDefaultAsync<QuestionAnswerData>(query, new
+                    {
+                        QuestionID = answer.QuestionID
+                    });
+                    // Handle single answer types
+                    if (IsSingleAnswerType(questionData.QuestionTypeId))
+                    {
+                        if (answer.QuestionTypeID == 4 || answer.QuestionTypeID == 9)
+                        {
+                            var singleAnswerQuery = @"
+    SELECT sac.Answer
+    FROM tblAnswersingleanswercategory sac
+    INNER JOIN tblAnswerMaster am ON sac.Answerid = am.Answerid
+    WHERE am.Questionid = @QuestionID";
+
+                            var correctAnswerText = await _connection.QueryFirstOrDefaultAsync<string>(singleAnswerQuery, new { QuestionID = answer.QuestionID });
+
+                            if (answer.QuestionTypeID == 4) // Text comparison (case-insensitive)
+                            {
+                                 isCorrect = string.Equals(correctAnswerText, answer.SubjectiveAnswers?.Trim(), StringComparison.OrdinalIgnoreCase);
+
+                                marks = isCorrect ? questionData.MarksPerQuestion : -questionData.NegativeMarks;
+                                answerStatus = isCorrect ? "Correct" : "Incorrect";
+                            }
+                            else if (answer.QuestionTypeID == 9) // Numerical comparison
+                            {
+                                 isCorrect = decimal.TryParse(correctAnswerText, out var correctValue) &&
+                                                 decimal.TryParse(answer.SubjectiveAnswers?.Trim(), out var studentValue) &&
+                                                 correctValue == studentValue;
+
+                                marks = isCorrect ? questionData.MarksPerQuestion : -questionData.NegativeMarks;
+                                answerStatus = isCorrect ? "Correct" : "Incorrect";
+                            }
+                        }
+                    }
+                    else if (answer.QuestionTypeID == 13 || answer.QuestionTypeID == 15)
+                    {
+                        var multiAnswerQuery = @"
+                    SELECT amc.Answer
+                    FROM tblAnswerMultipleChoiceCategory amc
+                    INNER JOIN tblAnswerMaster am ON amc.Answerid = am.Answerid
+                    WHERE am.Questionid = @QuestionID AND amc.IsCorrect = 1";
+
+                        var correctAnswerTexts = await _connection.QueryAsync<string>(multiAnswerQuery, new { QuestionID = answer.QuestionID });
+                        var correctAnswers = correctAnswerTexts.ToList();
+
+                        var studentAnswers = answer.SubjectiveAnswers?.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                                                    .Select(s => s.Trim())
+                                                                    .ToList() ?? new List<string>();
+
+                        int actualCorrectCount = correctAnswers.Count;
+                        int studentCorrectCount = 0;
+                        bool isNegative = false;
+                        // Check correctness and order
+                        for (int i = 0; i < Math.Min(correctAnswers.Count, studentAnswers.Count); i++)
+                        {
+                            if (string.Equals(correctAnswers[i], studentAnswers[i], StringComparison.OrdinalIgnoreCase))
+                            {
+                                studentCorrectCount++;
+                            }
+                            else
+                            {
+                                isNegative = true;
+                                break;
+                            }
+                        }
+                        answerStatus = actualCorrectCount == studentCorrectCount ? "Correct" : "Incorrect";
+                    }
+                    // Handle multiple-answer types
+                    else
+                    {
+                        var multipleAnswersQuery = @"
+                    SELECT amc.Answermultiplechoicecategoryid
+                    FROM tblAnswerMultipleChoiceCategory amc
+                    INNER JOIN tblAnswerMaster am ON amc.Answerid = am.Answerid
+                    WHERE am.Questionid = @QuestionID AND amc.IsCorrect = 1";
+
+                        var correctAnswers = await _connection.QueryAsync<int>(multipleAnswersQuery, new { QuestionID = answer.QuestionID });
+
+                        var actualCorrectCount = correctAnswers.Count();
+
+                        // Check if any of the submitted answers are incorrect
+                        bool hasIncorrectAnswer = answer.MultiOrSingleAnswerId.Any(submittedAnswer => !correctAnswers.Contains(submittedAnswer));
+
+                        // Calculate studentCorrectCount based on the correctness of the answers
+                        int studentCorrectCount = hasIncorrectAnswer ? -1 : answer.MultiOrSingleAnswerId.Intersect(correctAnswers).Count();
+
+                        // Determine if negative marking applies
+                        bool isNegative = hasIncorrectAnswer;
+
+                        if (actualCorrectCount == studentCorrectCount && answer.MultiOrSingleAnswerId.All(correctAnswers.Contains))
+                        {
+                            marks = questionData.MarksPerQuestion;
+                            answerStatus = "Correct";
+                        }
+                        else
+                        {
+                            marks = -questionData.NegativeMarks;
+                            answerStatus = "Incorrect";
+                        }
+                    }
 
                     var existingAnswerQuery = @"
             SELECT COUNT(1)
@@ -775,9 +892,9 @@ GROUP BY CYOT.MarksPerCorrectAnswer, CYOT.MarksPerIncorrectAnswer;";
                         existingAnswerQuery,
                         new
                         {
-                            CYOTID = request.CYOTId,
-                            QuestionID = request.QuestionID,
-                            StudentID = request.RegistrationId
+                            CYOTID = answer.CYOTId,
+                            QuestionID = answer.QuestionID,
+                            StudentID = answer.RegistrationId
                         }
                     );
 
@@ -795,16 +912,16 @@ GROUP BY CYOT.MarksPerCorrectAnswer, CYOT.MarksPerIncorrectAnswer;";
                             updateQuery,
                             new
                             {
-                                CYOTID = request.CYOTId,
-                                StudentID = request.RegistrationId,
-                                QuestionID = request.QuestionID,
-                                AnswerId = request.AnswerID,
+                                CYOTID = answer.CYOTId,
+                                StudentID = answer.RegistrationId,
+                                QuestionID = answer.QuestionID,
+                                AnswerId = string.Join(",", answer.MultiOrSingleAnswerId),
                                 IsCorrect = isCorrect,
-                                SubjectId = request.SubjectID,
-                                QuestionTypeId = request.QuestionTypeID,
+                                SubjectId = answer.SubjectID,
+                                QuestionTypeId = answer.QuestionTypeID,
                                 AnswerStatus = answerStatus,
                                 Marks = marks,
-                                Answer = ""
+                                Answer = answer.SubjectiveAnswers
                             }
                         );
                     }
@@ -819,16 +936,16 @@ GROUP BY CYOT.MarksPerCorrectAnswer, CYOT.MarksPerIncorrectAnswer;";
                             insertQuery,
                             new
                             {
-                                CYOTID = request.CYOTId,
-                                StudentID = request.RegistrationId,
-                                QuestionID = request.QuestionID,
-                                AnswerId = request.AnswerID,
+                                CYOTID = answer.CYOTId,
+                                StudentID = answer.RegistrationId,
+                                QuestionID = answer.QuestionID,
+                                AnswerId = string.Join(",", answer.MultiOrSingleAnswerId),
                                 IsCorrect = isCorrect,
-                                SubjectId = request.SubjectID,
-                                QuestionTypeId = request.QuestionTypeID,
+                                SubjectId = answer.SubjectID,
+                                QuestionTypeId = answer.QuestionTypeID,
                                 AnswerStatus = answerStatus,
                                 Marks = marks,
-                                Answer = ""
+                                Answer = answer.SubjectiveAnswers
                             }
                         );
                     }
@@ -1748,6 +1865,12 @@ WHERE N.CYOTId = @CYOTId AND N.StudentId = @StudentId AND SQM.SubjectID = @Subje
                 return $"{time.Minutes} minutes {time.Seconds} seconds";
             else
                 return $"{time.Seconds} seconds";
+        }
+        private bool IsSingleAnswerType(int questionTypeId)
+        {
+            // Assuming the following are single answer type IDs based on your data
+            return questionTypeId == 4 || questionTypeId == 9;
+            //|| questionTypeId == 8 || questionTypeId == 10 || questionTypeId == 11;
         }
     }
 }

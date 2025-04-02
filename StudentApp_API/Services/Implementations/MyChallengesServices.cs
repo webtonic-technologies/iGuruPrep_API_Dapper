@@ -25,6 +25,11 @@ namespace StudentApp_API.Services.Implementations
             return await _myChallengesRepository.GetCYOTAnalyticsAsync(studentId, cyotId);
         }
 
+        public async Task<ServiceResponse<List<LeaderboardResponse>>> GetCYOTLeaderboardAsync(int cyotId, int studentId)
+        {
+            return await _myChallengesRepository.GetCYOTLeaderboardAsync(cyotId, studentId);
+        }
+
         public async Task<ServiceResponse<List<CYOTResponse>>> GetCYOTListByStudent(CYOTListRequest request)
         {
             return await _myChallengesRepository.GetCYOTListByStudent(request);
