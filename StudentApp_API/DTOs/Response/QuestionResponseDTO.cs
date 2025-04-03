@@ -180,10 +180,10 @@ namespace StudentApp_API.DTOs.Response
     }
     public class CYOTAnalyticsResponse
     {
-        public decimal AchievedMarks { get; set; }
-        public decimal NegativeMarks { get; set; }
-        public decimal FinalMarks { get; set; }
-        public decimal FinalPercentage { get; set; }
+        public decimal? AchievedMarks { get; set; }
+        public decimal? NegativeMarks { get; set; }
+        public decimal? FinalMarks { get; set; }
+        public decimal? FinalPercentage { get; set; }
     }
     public class CYOTTimeAnalytics
     {

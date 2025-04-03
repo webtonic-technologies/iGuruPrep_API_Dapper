@@ -8,6 +8,13 @@
         public int ChapterCount {  get; set; }
     }
 
+    public class GetChaptersDTO
+    {
+        public int SubjectId { get; set; }
+        public string SubjectName { get; set; }
+        public List<ChapterDTO> Chapters { get; set; } = new List<ChapterDTO>();
+    }
+
     public class ChapterDTO
     {
         public int ChapterId { get; set; }
@@ -16,6 +23,7 @@
         public int DisplayOrder { get; set; }
         public int ConceptCount { get; set; }
     }
+
     public class CYOTResponse
     {
         public int CYOTID { get; set; }
@@ -83,4 +91,17 @@
         public string LastName { get; set; }
         public int TotalScore { get; set; }
     }
+    public class CorrectAnswersComparison
+    {
+        public int CorrectByMe { get; set; }
+        public int CorrectByTopper { get; set; }
+        public double AvgCorrectByOthers { get; set; }
+    }
+    public class IncorrectAnswersComparison
+    {
+        public int IncorrectByMe { get; set; }
+        public int IncorrectByTopper { get; set; }
+        public double AvgIncorrectByOthers { get; set; }
+    }
+
 }

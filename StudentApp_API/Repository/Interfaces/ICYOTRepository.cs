@@ -6,7 +6,7 @@ namespace StudentApp_API.Repository.Interfaces
     public interface ICYOTRepository
     {
         Task<ServiceResponse<List<SubjectDTO>>> GetSubjectsAsync(int registrationId);
-        Task<ServiceResponse<List<ChapterDTO>>> GetChaptersAsync(GetChaptersRequestCYOT request);
+        Task<ServiceResponse<List<GetChaptersDTO>>> GetChaptersAsync(GetChaptersRequestCYOT request);
         Task<ServiceResponse<int>> InsertOrUpdateCYOTAsync(CYOTDTO cyot);
         Task<ServiceResponse<CYOTDTO>> GetCYOTByIdAsync(int cyotId);
         Task<ServiceResponse<bool>> UpdateCYOTSyllabusAsync(int cyotId, List<CYOTSyllabusDTO> syllabusList);

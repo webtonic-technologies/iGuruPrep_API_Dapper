@@ -8,7 +8,7 @@ using StudentApp_API.Repository.Interfaces;
 
 namespace StudentApp_API.Repository.Implementations
 {
-    public class MyChallengesRepository: IMyChallengesRepository
+    public class MyChallengesRepository : IMyChallengesRepository
     {
         private readonly IDbConnection _connection;
 
@@ -223,11 +223,18 @@ namespace StudentApp_API.Repository.Implementations
                         false, "No analytics data found", null, 404);
                 }
 
-                decimal achievedMarks = (decimal)studentResult.AchievedMarks;
-                decimal negativeMarks = (decimal)studentResult.NegativeMarks;
-                decimal totalMarks = (decimal)studentResult.TotalMarks;
+                decimal achievedMarks = (decimal)(studentResult.AchievedMarks ?? 0);
+                decimal negativeMarks = (decimal)(studentResult.NegativeMarks ?? 0);
+                decimal totalMarks = (decimal)(studentResult.TotalMarks ?? 0);
+
                 decimal finalMarks = achievedMarks - negativeMarks;
                 decimal percentage = totalMarks > 0 ? Math.Round(finalMarks / totalMarks * 100, 2) : 0;
+
+                //decimal achievedMarks = (decimal)studentResult.AchievedMarks;
+                //decimal negativeMarks = (decimal)studentResult.NegativeMarks;
+                //decimal totalMarks = (decimal)studentResult.TotalMarks;
+                //decimal finalMarks = achievedMarks - negativeMarks;
+                //decimal percentage = totalMarks > 0 ? Math.Round(finalMarks / totalMarks * 100, 2) : 0;
 
                 // Step 2: Fetch All Participants' Performance
                 var allScoresQuery = @"
@@ -251,25 +258,25 @@ namespace StudentApp_API.Repository.Implementations
 
                 // Step 3: Fetch Country Rank
                 var studentCountryId = allScores.FirstOrDefault(x => x.StudentID == studentId)?.CountryID;
-        //        var countryRankQuery = @"
-        //SELECT COUNT(*) + 1 
-        //FROM tblCYOTAnswers AS A
-        //JOIN tblRegistration AS R ON A.StudentID = R.RegistrationID
-        //WHERE A.CYOTID = @CYOTID AND R.CountryID = @CountryID
-        //AND (SUM(CASE WHEN A.IsCorrect = 1 THEN CYOT.MarksPerCorrectAnswer ELSE 0 END) 
-        //- SUM(CASE WHEN A.IsCorrect = 0 THEN CYOT.MarksPerIncorrectAnswer ELSE 0 END)) > @FinalMarks;";
+                //        var countryRankQuery = @"
+                //SELECT COUNT(*) + 1 
+                //FROM tblCYOTAnswers AS A
+                //JOIN tblRegistration AS R ON A.StudentID = R.RegistrationID
+                //WHERE A.CYOTID = @CYOTID AND R.CountryID = @CountryID
+                //AND (SUM(CASE WHEN A.IsCorrect = 1 THEN CYOT.MarksPerCorrectAnswer ELSE 0 END) 
+                //- SUM(CASE WHEN A.IsCorrect = 0 THEN CYOT.MarksPerIncorrectAnswer ELSE 0 END)) > @FinalMarks;";
 
-        //        var countryRank = await _connection.ExecuteScalarAsync<int>(countryRankQuery, new { CYOTID = cyotId, CountryID = studentCountryId, FinalMarks = finalMarks });
+                //        var countryRank = await _connection.ExecuteScalarAsync<int>(countryRankQuery, new { CYOTID = cyotId, CountryID = studentCountryId, FinalMarks = finalMarks });
 
-        //        // Step 4: Fetch National Rank
-        //        var nationalRankQuery = @"
-        //SELECT COUNT(*) + 1 
-        //FROM tblCYOTAnswers AS A
-        //WHERE A.CYOTID = @CYOTID
-        //    AND (SUM(CASE WHEN A.IsCorrect = 1 THEN CYOT.MarksPerCorrectAnswer ELSE 0 END) 
-        //    - SUM(CASE WHEN A.IsCorrect = 0 THEN CYOT.MarksPerIncorrectAnswer ELSE 0 END)) > @FinalMarks;";
+                //        // Step 4: Fetch National Rank
+                //        var nationalRankQuery = @"
+                //SELECT COUNT(*) + 1 
+                //FROM tblCYOTAnswers AS A
+                //WHERE A.CYOTID = @CYOTID
+                //    AND (SUM(CASE WHEN A.IsCorrect = 1 THEN CYOT.MarksPerCorrectAnswer ELSE 0 END) 
+                //    - SUM(CASE WHEN A.IsCorrect = 0 THEN CYOT.MarksPerIncorrectAnswer ELSE 0 END)) > @FinalMarks;";
 
-        //        var nationalRank = await _connection.ExecuteScalarAsync<int>(nationalRankQuery, new { CYOTID = cyotId, FinalMarks = finalMarks });
+                //        var nationalRank = await _connection.ExecuteScalarAsync<int>(nationalRankQuery, new { CYOTID = cyotId, FinalMarks = finalMarks });
 
                 // Step 5: Prepare Response
                 var response = new CYOTMyChallengesAnalyticsResponse
@@ -456,31 +463,31 @@ GROUP BY A.SubjectId;";
 
                 // Fetch country rank for this subject
                 var studentCountryId = allScores.FirstOrDefault(x => x.StudentID == studentId)?.CountryID;
-        //        var countryRankQuery = @"
-        //SELECT COUNT(*) + 1 
-        //FROM tblCYOTAnswers AS A
-        //JOIN tblRegistration AS R ON A.StudentID = R.RegistrationID
-        //JOIN tblCYOTQuestions AS Q ON A.QuestionID = Q.QuestionID
-        //WHERE A.CYOTID = @CYOTID AND R.CountryID = @CountryID AND Q.SubjectID = @SubjectID
-        //AND (SUM(CASE WHEN A.IsCorrect = 1 THEN CYOT.MarksPerCorrectAnswer ELSE 0 END) 
-        //- SUM(CASE WHEN A.IsCorrect = 0 THEN CYOT.MarksPerIncorrectAnswer ELSE 0 END)) > @FinalMarks;";
+                //        var countryRankQuery = @"
+                //SELECT COUNT(*) + 1 
+                //FROM tblCYOTAnswers AS A
+                //JOIN tblRegistration AS R ON A.StudentID = R.RegistrationID
+                //JOIN tblCYOTQuestions AS Q ON A.QuestionID = Q.QuestionID
+                //WHERE A.CYOTID = @CYOTID AND R.CountryID = @CountryID AND Q.SubjectID = @SubjectID
+                //AND (SUM(CASE WHEN A.IsCorrect = 1 THEN CYOT.MarksPerCorrectAnswer ELSE 0 END) 
+                //- SUM(CASE WHEN A.IsCorrect = 0 THEN CYOT.MarksPerIncorrectAnswer ELSE 0 END)) > @FinalMarks;";
 
-        //        var countryRank = await _connection.ExecuteScalarAsync<int>(countryRankQuery, new { CYOTID = cyotId, CountryID = studentCountryId, SubjectID = subjectId, FinalMarks = finalMarks });
+                //        var countryRank = await _connection.ExecuteScalarAsync<int>(countryRankQuery, new { CYOTID = cyotId, CountryID = studentCountryId, SubjectID = subjectId, FinalMarks = finalMarks });
 
-        //        // Fetch national rank for this subject
-        //        var nationalRankQuery = @"
-        //SELECT COUNT(*) + 1 
-        //FROM tblCYOTAnswers AS A
-        //JOIN tblCYOTQuestions AS Q ON A.QuestionID = Q.QuestionID
-        //WHERE A.CYOTID = @CYOTID AND Q.SubjectID = @SubjectID
-        //    AND (SUM(CASE WHEN A.IsCorrect = 1 THEN CYOT.MarksPerCorrectAnswer ELSE 0 END) 
-        //    - SUM(CASE WHEN A.IsCorrect = 0 THEN CYOT.MarksPerIncorrectAnswer ELSE 0 END)) > @FinalMarks;";
+                //        // Fetch national rank for this subject
+                //        var nationalRankQuery = @"
+                //SELECT COUNT(*) + 1 
+                //FROM tblCYOTAnswers AS A
+                //JOIN tblCYOTQuestions AS Q ON A.QuestionID = Q.QuestionID
+                //WHERE A.CYOTID = @CYOTID AND Q.SubjectID = @SubjectID
+                //    AND (SUM(CASE WHEN A.IsCorrect = 1 THEN CYOT.MarksPerCorrectAnswer ELSE 0 END) 
+                //    - SUM(CASE WHEN A.IsCorrect = 0 THEN CYOT.MarksPerIncorrectAnswer ELSE 0 END)) > @FinalMarks;";
 
-        //        var nationalRank = await _connection.ExecuteScalarAsync<int>(nationalRankQuery, new { CYOTID = cyotId, SubjectID = subjectId, FinalMarks = finalMarks });
+                //        var nationalRank = await _connection.ExecuteScalarAsync<int>(nationalRankQuery, new { CYOTID = cyotId, SubjectID = subjectId, FinalMarks = finalMarks });
 
                 var response = new CYOTMyChallengesAnalyticsResponse
                 {
-                  //  SubjectID = subjectId,
+                    //  SubjectID = subjectId,
                     AchievedMarks = achievedMarks,
                     NegativeMarks = negativeMarks,
                     FinalMarks = finalMarks,
@@ -613,23 +620,23 @@ WHERE ST.StudentId = @StudentId;";
             try
             {
                 var query = @"WITH StudentMarks AS (
-    SELECT 
-        StudentID,
-        SUM(Marks) AS TotalMarks
-    FROM tblCYOTAnswers
-    WHERE CYOTID = @CYOTID
-    GROUP BY StudentID
-),
-TopperMarks AS (
-    SELECT MAX(TotalMarks) AS MarksByTopper FROM StudentMarks
-),
-AverageMarks AS (
-    SELECT AVG(TotalMarks) AS AvgMarksByOthers FROM StudentMarks WHERE StudentID != @StudentID
-)
-SELECT 
-    (SELECT TotalMarks FROM StudentMarks WHERE StudentID = @StudentID) AS MarksByMe,
-    (SELECT MarksByTopper FROM TopperMarks) AS MarksByTopper,
-    (SELECT AvgMarksByOthers FROM AverageMarks) AS AvgMarksByOthers;";
+            SELECT 
+                StudentID,
+                SUM(Marks) AS TotalMarks
+            FROM tblCYOTAnswers
+            WHERE CYOTID = @CYOTID
+            GROUP BY StudentID
+        ),
+        TopperMarks AS (
+            SELECT MAX(TotalMarks) AS MarksByTopper FROM StudentMarks
+        ),
+        AverageMarks AS (
+            SELECT AVG(TotalMarks) AS AvgMarksByOthers FROM StudentMarks WHERE StudentID != @StudentID
+        )
+        SELECT 
+            (SELECT TotalMarks FROM StudentMarks WHERE StudentID = @StudentID) AS MarksByMe,
+            (SELECT MarksByTopper FROM TopperMarks) AS MarksByTopper,
+            (SELECT AvgMarksByOthers FROM AverageMarks) AS AvgMarksByOthers;";
 
                 var result = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new
                 {
@@ -664,6 +671,206 @@ SELECT
             catch (Exception ex)
             {
                 return new ServiceResponse<MarksComparison>(
+                    false,
+                    ex.Message,
+                    null,
+                    500
+                );
+            }
+        }
+        public async Task<ServiceResponse<MarksComparison>> GetCYOTPercentageComparisonAsync(int studentId, int cyotId)
+        {
+            try
+            {
+                var query = @"
+        WITH StudentMarks AS (
+            SELECT 
+                StudentID,
+                SUM(Marks) AS TotalMarks
+            FROM tblCYOTAnswers
+            WHERE CYOTID = @CYOTID
+            GROUP BY StudentID
+        ),
+        TopperMarks AS (
+            SELECT MAX(TotalMarks) AS MarksByTopper FROM StudentMarks
+        ),
+        AverageMarks AS (
+            SELECT AVG(TotalMarks) AS AvgMarksByOthers FROM StudentMarks WHERE StudentID != @StudentID
+        ),
+        CYOTDetails AS (
+            SELECT 
+                NoOfQuestions, 
+                MarksPerCorrectAnswer,
+                (NoOfQuestions * MarksPerCorrectAnswer) AS TotalObtainableMarks
+            FROM tblCYOT 
+            WHERE CYOTID = @CYOTID
+        )
+        SELECT 
+            (SELECT TotalMarks FROM StudentMarks WHERE StudentID = @StudentID) * 100.0 / (SELECT TotalObtainableMarks FROM CYOTDetails) AS PercentageByMe,
+            (SELECT MarksByTopper FROM TopperMarks) * 100.0 / (SELECT TotalObtainableMarks FROM CYOTDetails) AS PercentageByTopper,
+            (SELECT AvgMarksByOthers FROM AverageMarks) * 100.0 / (SELECT TotalObtainableMarks FROM CYOTDetails) AS AvgPercentageByOthers;";
+
+                var result = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new
+                {
+                    CYOTID = cyotId,
+                    StudentID = studentId
+                });
+
+                if (result != null)
+                {
+                    var response = new MarksComparison
+                    {
+                        MarksByMe = result.PercentageByMe ?? 0,
+                        MarksByTopper = result.PercentageByTopper ?? 0,
+                        AvgMarksByOthers = result.AvgPercentageByOthers ?? 0
+                    };
+
+                    return new ServiceResponse<MarksComparison>(
+                        true,
+                        "Percentage comparison fetched successfully",
+                        response,
+                        200
+                    );
+                }
+
+                return new ServiceResponse<MarksComparison>(
+                    false,
+                    "No percentage data found",
+                    null,
+                    404
+                );
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<MarksComparison>(
+                    false,
+                    ex.Message,
+                    null,
+                    500
+                );
+            }
+        }
+        public async Task<ServiceResponse<CorrectAnswersComparison>> GetCYOTCorrectAnswersComparisonAsync(int studentId, int cyotId)
+        {
+            try
+            {
+                var query = @"
+        WITH StudentCorrectAnswers AS (
+            SELECT 
+                StudentID,
+                COUNT(*) AS CorrectAnswers
+            FROM tblCYOTAnswers
+            WHERE CYOTID = @CYOTID AND IsCorrect = 1
+            GROUP BY StudentID
+        ),
+        TopperCorrect AS (
+            SELECT MAX(CorrectAnswers) AS CorrectByTopper FROM StudentCorrectAnswers
+        ),
+        AverageCorrect AS (
+            SELECT AVG(CorrectAnswers) AS AvgCorrectByOthers FROM StudentCorrectAnswers WHERE StudentID != @StudentID
+        )
+        SELECT 
+            (SELECT CorrectAnswers FROM StudentCorrectAnswers WHERE StudentID = @StudentID) AS CorrectByMe,
+            (SELECT CorrectByTopper FROM TopperCorrect) AS CorrectByTopper,
+            (SELECT AvgCorrectByOthers FROM AverageCorrect) AS AvgCorrectByOthers;";
+
+                var result = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new
+                {
+                    CYOTID = cyotId,
+                    StudentID = studentId
+                });
+
+                if (result != null)
+                {
+                    var response = new CorrectAnswersComparison
+                    {
+                        CorrectByMe = result.CorrectByMe ?? 0,
+                        CorrectByTopper = result.CorrectByTopper ?? 0,
+                        AvgCorrectByOthers = result.AvgCorrectByOthers ?? 0
+                    };
+
+                    return new ServiceResponse<CorrectAnswersComparison>(
+                        true,
+                        "Correct answers comparison fetched successfully",
+                        response,
+                        200
+                    );
+                }
+
+                return new ServiceResponse<CorrectAnswersComparison>(
+                    false,
+                    "No correct answers data found",
+                    null,
+                    404
+                );
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<CorrectAnswersComparison>(
+                    false,
+                    ex.Message,
+                    null,
+                    500
+                );
+            }
+        }
+        public async Task<ServiceResponse<IncorrectAnswersComparison>> GetCYOTIncorrectAnswersComparisonAsync(int studentId, int cyotId)
+        {
+            try
+            {
+                var query = @"
+        WITH StudentIncorrectAnswers AS (
+            SELECT 
+                StudentID,
+                COUNT(*) AS IncorrectAnswers
+            FROM tblCYOTAnswers
+            WHERE CYOTID = @CYOTID AND IsCorrect = 0
+            GROUP BY StudentID
+        ),
+        TopperIncorrect AS (
+            SELECT MAX(IncorrectAnswers) AS IncorrectByTopper FROM StudentIncorrectAnswers
+        ),
+        AverageIncorrect AS (
+            SELECT AVG(IncorrectAnswers) AS AvgIncorrectByOthers FROM StudentIncorrectAnswers WHERE StudentID != @StudentID
+        )
+        SELECT 
+            (SELECT IncorrectAnswers FROM StudentIncorrectAnswers WHERE StudentID = @StudentID) AS IncorrectByMe,
+            (SELECT IncorrectByTopper FROM TopperIncorrect) AS IncorrectByTopper,
+            (SELECT AvgIncorrectByOthers FROM AverageIncorrect) AS AvgIncorrectByOthers;";
+
+                var result = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new
+                {
+                    CYOTID = cyotId,
+                    StudentID = studentId
+                });
+
+                if (result != null)
+                {
+                    var response = new IncorrectAnswersComparison
+                    {
+                        IncorrectByMe = result.IncorrectByMe ?? 0,
+                        IncorrectByTopper = result.IncorrectByTopper ?? 0,
+                        AvgIncorrectByOthers = result.AvgIncorrectByOthers ?? 0
+                    };
+
+                    return new ServiceResponse<IncorrectAnswersComparison>(
+                        true,
+                        "Incorrect answers comparison fetched successfully",
+                        response,
+                        200
+                    );
+                }
+
+                return new ServiceResponse<IncorrectAnswersComparison>(
+                    false,
+                    "No incorrect answers data found",
+                    null,
+                    404
+                );
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<IncorrectAnswersComparison>(
                     false,
                     ex.Message,
                     null,

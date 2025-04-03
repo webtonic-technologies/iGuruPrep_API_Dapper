@@ -15,7 +15,7 @@ namespace StudentApp_API.Services.Implementations
             _cYOTRepository = cYOTRepository;
         }
 
-        public async Task<ServiceResponse<List<ChapterDTO>>> GetChaptersAsync(GetChaptersRequestCYOT request)
+        public async Task<ServiceResponse<List<GetChaptersDTO>>> GetChaptersAsync(GetChaptersRequestCYOT request)
         {
             return await _cYOTRepository.GetChaptersAsync(request);
         }

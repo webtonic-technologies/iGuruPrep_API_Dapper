@@ -106,5 +106,38 @@ namespace StudentApp_API.Controllers
 
             return BadRequest(response);
         }
+        [HttpGet("GetCYOTPercentageComparison/{studentId}/{cyotId}")]
+        public async Task<IActionResult> GetCYOTPercentageComparisonAsync(int studentId, int cyotId)
+        {
+            var response = await _myChallengesServices.GetCYOTPercentageComparisonAsync(studentId, cyotId);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+
+            return BadRequest(response);
+        }
+        [HttpGet("GetCYOTCorrectAnswersComparison/{studentId}/{cyotId}")]
+        public async Task<IActionResult> GetCYOTCorrectAnswersComparisonAsync(int studentId, int cyotId)
+        {
+            var response = await _myChallengesServices.GetCYOTCorrectAnswersComparisonAsync(studentId, cyotId);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+
+            return BadRequest(response);
+        }
+        [HttpGet("GetCYOTIncorrectAnswersComparison/{studentId}/{cyotId}")]
+        public async Task<IActionResult> GetCYOTIncorrectAnswersComparisonAsync(int studentId, int cyotId)
+        {
+            var response = await _myChallengesServices.GetCYOTIncorrectAnswersComparisonAsync(studentId, cyotId);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+
+            return BadRequest(response);
+        }
     }
 }

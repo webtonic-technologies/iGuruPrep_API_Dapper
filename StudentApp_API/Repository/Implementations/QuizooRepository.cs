@@ -118,8 +118,8 @@ namespace StudentApp_API.Repository.Implementations
                     AND T.Status = 1 
                     AND T.IsActive = 1
                     AND S.IndexTypeId = 2
-                    AND S.Status = 1",
-                        new { ChapterCode = chapter.ChapterCode });
+                    AND S.Status = 1  AND S.SyllabusID = @SyllabusID",
+                        new { ChapterCode = chapter.ChapterCode, SyllabusID = actualSyllabusId });
 
                     // Count Subtopics mapped to the topics of the chapter
                     var subTopicCount = await _connection.QueryFirstOrDefaultAsync<int>(

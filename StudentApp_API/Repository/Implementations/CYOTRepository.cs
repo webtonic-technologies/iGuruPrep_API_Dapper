@@ -71,7 +71,7 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<List<SubjectDTO>>(false, ex.Message, new List<SubjectDTO>(), 500);
             }
         }
-        public async Task<ServiceResponse<List<ChapterDTO>>> GetChaptersAsync(GetChaptersRequestCYOT request)
+        public async Task<ServiceResponse<List<GetChaptersDTO>>> GetChaptersAsync(GetChaptersRequestCYOT request)
         {
             try
             {
@@ -80,7 +80,8 @@ namespace StudentApp_API.Repository.Implementations
                     @"SELECT BoardId, ClassId, CourseId
               FROM tblStudentClassCourseMapping
               WHERE RegistrationID = @RegistrationID",
-                    new { RegistrationID = request.registrationId }) ?? throw new Exception("No mapping found for the given RegistrationID.");
+                    new { RegistrationID = request.registrationId })
+                    ?? throw new Exception("No mapping found for the given RegistrationID.");
 
                 // Step 2: Fetch SyllabusID using Board, Class, and Course
                 var actualSyllabusId = await _connection.QueryFirstOrDefaultAsync<int?>(
@@ -92,53 +93,84 @@ namespace StudentApp_API.Repository.Implementations
                 if (!actualSyllabusId.HasValue)
                     throw new Exception("Syllabus ID does not match or no syllabus found.");
 
-                // Step 3: Fetch Chapters mapped to SyllabusID and multiple SubjectIDs
-                var chapters = (await _connection.QueryAsync<ChapterDTO>(
-                    @"SELECT C.ContentIndexId AS ChapterId, C.ContentName_Chapter AS ChapterName, C.ChapterCode, C.DisplayOrder
+                // Step 3: Fetch Chapters along with SubjectID
+                var chapterResults = await _connection.QueryAsync(
+                    @"SELECT S.SubjectID, 
+                     C.ContentIndexId AS ChapterId, 
+                     C.ContentName_Chapter AS ChapterName, 
+                     C.ChapterCode, 
+                     C.DisplayOrder
               FROM tblSyllabusDetails S
               INNER JOIN tblContentIndexChapters C ON S.ContentIndexId = C.ContentIndexId
               WHERE S.SyllabusID = @SyllabusID 
                 AND S.SubjectID IN @SubjectIDs
                 AND S.IndexTypeId = 1",
-                    new { SyllabusID = actualSyllabusId, SubjectIDs = request.SubjectIds })).ToList();
+                    new { SyllabusID = actualSyllabusId, SubjectIDs = request.SubjectIds });
 
-                if (!chapters.Any())
-                    return new ServiceResponse<List<ChapterDTO>>(false, "No chapters found for the given SyllabusID and SubjectIDs.", new List<ChapterDTO>(), 404);
+                if (!chapterResults.Any())
+                    return new ServiceResponse<List<GetChaptersDTO>>(false, "No chapters found for the given SyllabusID and SubjectIDs.", new List<GetChaptersDTO>(), 404);
+
                 int totalChapterCount = 0;
-                // Step 4: Fetch and assign the count of topics and subtopics for each chapter
-                foreach (var chapter in chapters)
+
+                // Step 4: Fetch Subject Names
+                var subjects = (await _connection.QueryAsync<GetChaptersDTO>(
+                    @"SELECT SubjectID AS SubjectId, SubjectName 
+              FROM tblSubject 
+              WHERE SubjectID IN @SubjectIDs",
+                    new { SubjectIDs = request.SubjectIds })).ToList();
+
+                // Step 5: Assign Chapters to Respective Subjects
+                foreach (var subject in subjects)
                 {
-                    // Count Topics directly mapped to the chapter and syllabus
-                    var topicCount = await _connection.QueryFirstOrDefaultAsync<int>(
-                        @"SELECT COUNT(*)
-                  FROM tblContentIndexTopics T
-                  INNER JOIN tblSyllabusDetails S ON S.ContentIndexId = T.ContInIdTopic
-                  WHERE T.ChapterCode = @ChapterCode 
-                    AND T.Status = 1 
-                    AND T.IsActive = 1
-                    AND S.IndexTypeId = 2
-                    AND S.Status = 1",
-                        new { ChapterCode = chapter.ChapterCode });
+                    var subjectChapters = chapterResults
+                        .Where(c => c.SubjectID == subject.SubjectId)
+                        .Select(c => new ChapterDTO
+                        {
+                            ChapterId = c.ChapterId,
+                            ChapterName = c.ChapterName,
+                            ChapterCode = c.ChapterCode,
+                            DisplayOrder = c.DisplayOrder,
+                            ConceptCount = 0 // Initially set to 0
+                        })
+                        .ToList();
 
-                    // Count Subtopics mapped to the topics of the chapter
-                    var subTopicCount = await _connection.QueryFirstOrDefaultAsync<int>(
-                        @"SELECT COUNT(*)
-                  FROM tblContentIndexSubTopics ST
-                  INNER JOIN tblContentIndexTopics T ON ST.TopicCode = T.TopicCode
-                  WHERE T.ChapterCode = @ChapterCode 
-                    AND ST.Status = 1 
-                    AND ST.IsActive = 1",
-                        new { ChapterCode = chapter.ChapterCode });
+                    foreach (var chapter in subjectChapters)
+                    {
+                        // Count Topics
+                        var topicCount = await _connection.QueryFirstOrDefaultAsync<int>(
+                            @"SELECT COUNT(*)
+                      FROM tblContentIndexTopics T
+                      INNER JOIN tblSyllabusDetails S ON S.ContentIndexId = T.ContInIdTopic
+                      WHERE T.ChapterCode = @ChapterCode 
+                        AND T.Status = 1 
+                        AND T.IsActive = 1
+                        AND S.IndexTypeId = 2
+                        AND S.Status = 1 
+                        AND S.SyllabusID = @SyllabusID",
+                            new { ChapterCode = chapter.ChapterCode, SyllabusID = actualSyllabusId });
 
-                    // Assign the total count of concepts (topics + subtopics) to the chapter
-                    chapter.ConceptCount = topicCount;//+ subTopicCount;
-                    totalChapterCount += chapter.ConceptCount;
+                        // Count Subtopics
+                        var subTopicCount = await _connection.QueryFirstOrDefaultAsync<int>(
+                            @"SELECT COUNT(*)
+                      FROM tblContentIndexSubTopics ST
+                      INNER JOIN tblContentIndexTopics T ON ST.TopicCode = T.TopicCode
+                      WHERE T.ChapterCode = @ChapterCode 
+                        AND ST.Status = 1 
+                        AND ST.IsActive = 1",
+                            new { ChapterCode = chapter.ChapterCode });
+
+                        chapter.ConceptCount = topicCount;//+ subTopicCount;
+                        totalChapterCount += chapter.ConceptCount;
+                    }
+
+                    subject.Chapters = subjectChapters;
                 }
-                return new ServiceResponse<List<ChapterDTO>>(true, "Records found", chapters, 200, totalChapterCount);
+
+                return new ServiceResponse<List<GetChaptersDTO>>(true, "Records found", subjects, 200, totalChapterCount);
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<ChapterDTO>>(false, ex.Message, new List<ChapterDTO>(), 500);
+                return new ServiceResponse<List<GetChaptersDTO>>(false, ex.Message, new List<GetChaptersDTO>(), 500);
             }
         }
         public async Task<ServiceResponse<int>> InsertOrUpdateCYOTAsync(CYOTDTO cyot)
@@ -358,10 +390,12 @@ new
             {
                 // Define the base query to fetch questions with their statuses
                 string fetchExistingQuery = @"
-    SELECT q.*, 
+    SELECT q.*,  sub.SubjectName AS SubjectName, qt.QuestionType AS QuestionTypeName,
            ISNULL(csqm.QuestionStatusId, 4) AS QuestionStatusId  -- Default to 'Not Visited' if no mapping exists
     FROM tblCYOTQuestions cyot
     INNER JOIN tblQuestion q ON cyot.QuestionID = q.QuestionId
+    INNER JOIN tblSubject sub ON q.SubjectID = sub.SubjectId
+    INNER JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
     LEFT JOIN tblCYOTStudentQuestionMapping csqm 
            ON cyot.CYOTID = csqm.CYOTId 
            AND q.QuestionId = csqm.QuestionId 
@@ -1072,7 +1106,8 @@ ORDER BY
                 {
                     request.RegistrationId,
                     request.QuestionId,
-                    request.QuestionCode
+                    request.QuestionCode,
+                    request.CYOTId
                 });
 
                 if (recordExists > 0)
@@ -1088,7 +1123,7 @@ ORDER BY
                     {
                         request.RegistrationId,
                         request.QuestionId,
-                        request.QuestionCode
+                        request.QuestionCode, request.CYOTId
                     });
 
                     return new ServiceResponse<string>(true, "Question unsaved (deleted).", null, 200);
@@ -1249,11 +1284,13 @@ ORDER BY
                 {
                     var response = new CYOTAnalyticsResponse
                     {
-                        AchievedMarks = (decimal)result.AchievedMarks,
-                        NegativeMarks = (decimal)result.NegativeMarks,
-                        FinalMarks = (decimal)result.AchievedMarks - (decimal)result.NegativeMarks,
-                        FinalPercentage = (decimal)result.TotalMarks > 0 ? Math.Round(((decimal)result.AchievedMarks - (decimal)result.NegativeMarks) / (decimal)result.TotalMarks * 100, 2) : 0
-                    };
+                        AchievedMarks = (decimal)(result.AchievedMarks ?? 0),
+                        NegativeMarks = (decimal)(result.NegativeMarks ?? 0),
+                        FinalMarks = (decimal)(result.AchievedMarks ?? 0) - (decimal)(result.NegativeMarks ?? 0),
+                        //FinalPercentage = (decimal)result.TotalMarks > 0 ? Math.Round(((decimal)result.AchievedMarks - (decimal)result.NegativeMarks) / (decimal)result.TotalMarks * 100, 2) : 0
+                        FinalPercentage = (decimal)(result.TotalMarks ?? 0) > 0
+                        ? Math.Round(((decimal)(result.AchievedMarks ?? 0) - (decimal)(result.NegativeMarks ?? 0))/ (decimal)(result.TotalMarks ?? 1) * 100, 2): 0
+                };
 
                     return new ServiceResponse<CYOTAnalyticsResponse>(
                         true,
@@ -1322,17 +1359,17 @@ WHERE N.CYOTId = @CYOTId AND N.StudentId = @StudentId;";
                 {
                     var response = new CYOTTimeAnalytics
                     {
-                        TotalTimeSpent = ConvertSecondsToTimeFormat(result.TotalTimeSpent ?? 0),
-                        AvgTimePerQuestion = ConvertSecondsToTimeFormat(result.AvgTimePerQuestion ?? 0),
+                        TotalTimeSpent = ConvertSecondsToTimeFormat((int)Math.Floor(result.TotalTimeSpent ?? 0)),
+                        AvgTimePerQuestion = ConvertSecondsToTimeFormat((int)Math.Floor(result.AvgTimePerQuestion ?? 0)),
 
-                        TotalTimeSpentCorrect = ConvertSecondsToTimeFormat(result.TotalTimeSpentCorrect ?? 0),
-                        AvgTimeSpentCorrect = ConvertSecondsToTimeFormat(result.AvgTimeSpentCorrect ?? 0),
+                        TotalTimeSpentCorrect = ConvertSecondsToTimeFormat((int)Math.Floor(result.TotalTimeSpentCorrect ?? 0)),
+                        AvgTimeSpentCorrect = ConvertSecondsToTimeFormat((int)Math.Floor(result.AvgTimeSpentCorrect ?? 0)),
 
-                        TotalTimeSpentWrong = ConvertSecondsToTimeFormat(result.TotalTimeSpentWrong ?? 0),
-                        AvgTimeSpentWrong = ConvertSecondsToTimeFormat(result.AvgTimeSpentWrong ?? 0),
+                        TotalTimeSpentWrong = ConvertSecondsToTimeFormat((int)Math.Floor(result.TotalTimeSpentWrong ?? 0)),
+                        AvgTimeSpentWrong = ConvertSecondsToTimeFormat((int)Math.Floor(result.AvgTimeSpentWrong ?? 0)),
 
-                        TotalTimeSpentUnattempted = ConvertSecondsToTimeFormat(result.TotalTimeSpentUnattempted ?? 0),
-                        AvgTimeSpentUnattempted = ConvertSecondsToTimeFormat(result.AvgTimeSpentUnattempted ?? 0)
+                        TotalTimeSpentUnattempted = ConvertSecondsToTimeFormat((int)Math.Floor(result.TotalTimeSpentUnattempted ?? 0)),
+                        AvgTimeSpentUnattempted = ConvertSecondsToTimeFormat((int)Math.Floor(result.AvgTimeSpentUnattempted ?? 0))
                     };
 
                     return new ServiceResponse<CYOTTimeAnalytics>(
@@ -1466,9 +1503,9 @@ GROUP BY S.SubjectName;";
             {
                 var query = @"
 SELECT 
-    -- Total time spent (in minutes)
+    -- Total time spent (in seconds)
     SUM(DATEDIFF(SECOND, N.StartTime, N.EndTime)) / 60.0 AS TotalTimeSpent,
-    -- Average time per question (in minutes)
+    -- Average time per question (in seconds)
     AVG(DATEDIFF(SECOND, N.StartTime, N.EndTime)) / 60.0 AS AvgTimePerQuestion,
 
     -- Time spent on correct answers
@@ -1489,8 +1526,35 @@ SELECT
 FROM tblCYOTQuestionNavigation AS N
 LEFT JOIN tblCYOTAnswers AS A ON N.QuestionId = A.QuestionID AND N.StudentId = A.StudentID AND N.CYOTId = A.CYOTID
 LEFT JOIN tblCYOTStudentQuestionMapping AS SQM ON N.QuestionId = SQM.QuestionId AND N.StudentId = SQM.StudentId AND N.CYOTId = SQM.CYOTId
-LEFT JOIN tblCYOTQuestions AS Q ON N.QuestionId = Q.QuestionID
-WHERE N.CYOTId = @CYOTId AND N.StudentId = @StudentId AND SQM.SubjectID = @SubjectID;";
+
+WHERE N.CYOTId = @CYOTId AND N.StudentId = @StudentId  AND SQM.SubjectID = @SubjectID;";
+                //                var query = @"
+                //SELECT 
+                //    -- Total time spent (in minutes)
+                //    SUM(DATEDIFF(SECOND, N.StartTime, N.EndTime)) / 60.0 AS TotalTimeSpent,
+                //    -- Average time per question (in minutes)
+                //    AVG(DATEDIFF(SECOND, N.StartTime, N.EndTime)) / 60.0 AS AvgTimePerQuestion,
+
+                //    -- Time spent on correct answers
+                //    SUM(CASE WHEN A.IsCorrect = 1 THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE 0 END) / 60.0 AS TotalTimeSpentCorrect,
+                //    -- Average time for correct answers
+                //    AVG(CASE WHEN A.IsCorrect = 1 THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE NULL END) / 60.0 AS AvgTimeSpentCorrect,
+
+                //    -- Time spent on incorrect answers
+                //    SUM(CASE WHEN A.IsCorrect = 0 THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE 0 END) / 60.0 AS TotalTimeSpentWrong,
+                //    -- Average time for incorrect answers
+                //    AVG(CASE WHEN A.IsCorrect = 0 THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE NULL END) / 60.0 AS AvgTimeSpentWrong,
+
+                //    -- Time spent on unattempted questions (Status ID 2 and 4)
+                //    SUM(CASE WHEN SQM.QuestionStatusId IN (2, 4) THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE 0 END) / 60.0 AS TotalTimeSpentUnattempted,
+                //    -- Average time for unattempted questions
+                //    AVG(CASE WHEN SQM.QuestionStatusId IN (2, 4) THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE NULL END) / 60.0 AS AvgTimeSpentUnattempted
+
+                //FROM tblCYOTQuestionNavigation AS N
+                //LEFT JOIN tblCYOTAnswers AS A ON N.QuestionId = A.QuestionID AND N.StudentId = A.StudentID AND N.CYOTId = A.CYOTID
+                //LEFT JOIN tblCYOTStudentQuestionMapping AS SQM ON N.QuestionId = SQM.QuestionId AND N.StudentId = SQM.StudentId AND N.CYOTId = SQM.CYOTId
+                //LEFT JOIN tblCYOTQuestions AS Q ON N.QuestionId = Q.QuestionID
+                //WHERE N.CYOTId = @CYOTId AND N.StudentId = @StudentId AND SQM.SubjectID = @SubjectID;";
 
                 var result = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new
                 {
@@ -1503,18 +1567,19 @@ WHERE N.CYOTId = @CYOTId AND N.StudentId = @StudentId AND SQM.SubjectID = @Subje
                 {
                     var response = new CYOTTimeAnalytics
                     {
-                        TotalTimeSpent = ConvertSecondsToTimeFormat(result.TotalTimeSpent ?? 0),
-                        AvgTimePerQuestion = ConvertSecondsToTimeFormat(result.AvgTimePerQuestion ?? 0),
+                        TotalTimeSpent = ConvertSecondsToTimeFormat((int)Math.Floor(result.TotalTimeSpent ?? 0)),
+                        AvgTimePerQuestion = ConvertSecondsToTimeFormat((int)Math.Floor(result.AvgTimePerQuestion ?? 0)),
 
-                        TotalTimeSpentCorrect = ConvertSecondsToTimeFormat(result.TotalTimeSpentCorrect ?? 0),
-                        AvgTimeSpentCorrect = ConvertSecondsToTimeFormat(result.AvgTimeSpentCorrect ?? 0),
+                        TotalTimeSpentCorrect = ConvertSecondsToTimeFormat((int)Math.Floor(result.TotalTimeSpentCorrect ?? 0)),
+                        AvgTimeSpentCorrect = ConvertSecondsToTimeFormat((int)Math.Floor(result.AvgTimeSpentCorrect ?? 0)),
 
-                        TotalTimeSpentWrong = ConvertSecondsToTimeFormat(result.TotalTimeSpentWrong ?? 0),
-                        AvgTimeSpentWrong = ConvertSecondsToTimeFormat(result.AvgTimeSpentWrong ?? 0),
+                        TotalTimeSpentWrong = ConvertSecondsToTimeFormat((int)Math.Floor(result.TotalTimeSpentWrong ?? 0)),
+                        AvgTimeSpentWrong = ConvertSecondsToTimeFormat((int)Math.Floor(result.AvgTimeSpentWrong ?? 0)),
 
-                        TotalTimeSpentUnattempted = ConvertSecondsToTimeFormat(result.TotalTimeSpentUnattempted ?? 0),
-                        AvgTimeSpentUnattempted = ConvertSecondsToTimeFormat(result.AvgTimeSpentUnattempted ?? 0)
+                        TotalTimeSpentUnattempted = ConvertSecondsToTimeFormat((int)Math.Floor(result.TotalTimeSpentUnattempted ?? 0)),
+                        AvgTimeSpentUnattempted = ConvertSecondsToTimeFormat((int)Math.Floor(result.AvgTimeSpentUnattempted ?? 0))
                     };
+
 
                     return new ServiceResponse<CYOTTimeAnalytics>(
                         true,
@@ -1856,7 +1921,7 @@ WHERE N.CYOTId = @CYOTId AND N.StudentId = @StudentId AND SQM.SubjectID = @Subje
                 return null;
             }
         }
-        private string ConvertSecondsToTimeFormat(double seconds)
+        private string ConvertSecondsToTimeFormat(int seconds)
         {
             TimeSpan time = TimeSpan.FromSeconds(seconds);
             if (time.Hours > 0)

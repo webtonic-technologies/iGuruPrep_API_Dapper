@@ -15,5 +15,8 @@ namespace StudentApp_API.Repository.Interfaces
         Task<ServiceResponse<CYOTMyChallengesAnalyticsResponse>> GetCYOTSubjectWiseAnalyticsAsync(int studentId, int cyotId, int subjectId);
         Task<ServiceResponse<CYOTMyChallengesTimeAnalytics>> GetCYOTSubjectWiseTimeAnalyticsAsync(int studentId, int cyotId, int subjectId);
         Task<ServiceResponse<List<LeaderboardResponse>>> GetCYOTLeaderboardAsync(int cyotId, int studentId);
+        Task<ServiceResponse<MarksComparison>> GetCYOTPercentageComparisonAsync(int studentId, int cyotId);
+        Task<ServiceResponse<CorrectAnswersComparison>> GetCYOTCorrectAnswersComparisonAsync(int studentId, int cyotId);
+        Task<ServiceResponse<IncorrectAnswersComparison>> GetCYOTIncorrectAnswersComparisonAsync(int studentId, int cyotId);
     }
 }
