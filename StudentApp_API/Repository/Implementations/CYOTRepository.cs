@@ -812,7 +812,6 @@ GROUP BY CYOT.MarksPerCorrectAnswer, CYOT.MarksPerIncorrectAnswer;";
                     s.MarksPerQuestion, 
                     s.NegativeMarks
                 FROM tblQuestion q
-                LEFT JOIN tblSSQuestionSection s ON s.SSTSectionId = @SectionID
                 WHERE q.QuestionId = @QuestionID";
 
                     var questionData = await _connection.QueryFirstOrDefaultAsync<QuestionAnswerData>(query, new
