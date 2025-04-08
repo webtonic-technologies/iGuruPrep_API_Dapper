@@ -2,6 +2,11 @@
 
 namespace StudentApp_API.DTOs.Response
 {
+    public class QuestionsSetResponse
+    {
+        public int? NumberOfSet { get; set; }
+        public List<QuestionResponseDTO>? QuestionResponseDTOs { get; set; }
+    }
     public class QuestionResponseDTO
     {
         public int QuestionId { get; set; }
@@ -31,6 +36,8 @@ namespace StudentApp_API.DTOs.Response
         public string? Paragraph { get; set; } = string.Empty;
         public int? ParentQId { get; set; }
         public string? ParentQCode { get; set; } = string.Empty;
+        public int LevelId {  get; set; }
+        public string LevelName {  get; set; } = string.Empty;
         public List<MatchPair>? MatchPairs { get; set; }
         public List<MatchThePairAnswer>? MatchThePairType2Answers { get; set; }
         public Answersingleanswercategory? Answersingleanswercategories { get; set; }

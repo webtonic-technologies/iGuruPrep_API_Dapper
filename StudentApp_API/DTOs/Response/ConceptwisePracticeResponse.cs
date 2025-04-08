@@ -12,6 +12,7 @@
         public string SubjectName { get; set; }
         public int? RegistrationId { get; set; }
         public decimal Percentage { get; set; }
+        public int ChapterCount {  get; set; }
     }
     public class ConceptwisePracticeContentResponse
     {
@@ -23,11 +24,15 @@
         public string Synopsis { get; set; } = string.Empty;
         public int RegistrationId { get; set; }
         public decimal Percentage { get; set; }
+        public int ConceptOrSubConceptCount {  get; set; }
+        public int AttemptCount {  get; set; }
+        public bool IsSynopsis {  get; set; }
+        public bool IsAnalytics {  get; set; }
+        public bool IsQuestionAnalytics {  get; set; }
     }
     public class ConceptwiseAnswerResponse
     {
         public int QuestionID { get; set; }
-        public string AnswerID { get; set; }
         public bool IsAnswerCorrect { get; set; }
     }
     public class QuestionAttemptStatsResponse
@@ -90,5 +95,68 @@
         public string FirstName { get; set; }
         public string LastName { get; set; }
         public decimal AccuracyRate { get; set; }
+    }
+    public class QuestionAnalyticsResponseDTO
+    {
+        public decimal YourAccuracy { get; set; }
+        public int YourTimeSpent { get; set; } // seconds
+        public string YourTimeFormatted => ConvertSecondsToTimeFormat(YourTimeSpent);
+
+        public decimal ClassmateAverageAccuracy { get; set; }
+        public int ClassmateAverageTimeSpent { get; set; } // seconds
+        public string ClassmateTimeFormatted => ConvertSecondsToTimeFormat(ClassmateAverageTimeSpent);
+
+        public int TotalCorrectClassmates { get; set; }
+        public int TotalClassmatesAttempted { get; set; }
+
+        private string ConvertSecondsToTimeFormat(int seconds)
+        {
+            TimeSpan time = TimeSpan.FromSeconds(seconds);
+            if (time.Hours > 0)
+                return $"{time.Hours} hours {time.Minutes} minutes {time.Seconds} seconds";
+            else if (time.Minutes > 0)
+                return $"{time.Minutes} minutes {time.Seconds} seconds";
+            else
+                return $"{time.Seconds} seconds";
+        }
+    }
+
+    public class PracticePerformanceStatsDto
+    {
+        public int CorrectAnswers { get; set; }
+        public int IncorrectAnswers { get; set; }
+        public int UnattemptedQuestions { get; set; }
+        public decimal AverageAccuracyRate { get; set; }
+
+        public decimal CorrectPercentage { get; set; }
+        public decimal IncorrectPercentage { get; set; }
+        public decimal UnattemptedPercentage { get; set; }
+    }
+
+    public class ChapterAccuracyReportResponse
+    {
+        public decimal YourAccuracy { get; set; }
+        public decimal AverageClassAccuracy { get; set; }
+        public int StudentsOutperformingYou { get; set; }
+        public int TotalClassmatesAttempted { get; set; }
+        public int YourAttemptCount { get; set; }
+    }
+
+    public class StudentTimeAnalysisDto
+    {
+        public string TotalTimeSpent { get; set; }
+        public string AverageTimePerQuestion { get; set; }
+
+        public string TotalTimeOnCorrectAnswers { get; set; }
+        public string AverageTimePerCorrectAnswer { get; set; }
+
+        public string TotalTimeOnIncorrectAnswers { get; set; }
+        public string AverageTimePerIncorrectAnswer { get; set; }
+
+        public string TotalTimeOnUnansweredQuestions { get; set; }
+        public string AverageTimePerUnansweredQuestion { get; set; }
+
+        public string AverageTimeByClassmates { get; set; }
+        public string AverageTimePerQuestionByClassmates { get; set; }
     }
 }

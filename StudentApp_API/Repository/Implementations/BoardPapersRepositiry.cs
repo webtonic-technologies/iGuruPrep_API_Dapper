@@ -1091,7 +1091,7 @@ WHERE tsq.TestSeriesId = @TestSeriesId AND q.SubjectId = @SubjectId";
             return _connection.Query<MatchPair>(query, new { QuestionCode = questionCode, QuestionId = questionId }).ToList();
 
         }
-        private List<MatchThePairAnswer> GetMatchThePairType2Answers(string questionCode, int questionId)
+        private List<DTOs.Response.MatchThePairAnswer> GetMatchThePairType2Answers(string questionCode, int questionId)
         {
             const string getAnswerIdQuery = @"
         SELECT AnswerId 
@@ -1108,10 +1108,10 @@ WHERE tsq.TestSeriesId = @TestSeriesId AND q.SubjectId = @SubjectId";
 
             if (answerId == null)
             {
-                return new List<MatchThePairAnswer>();
+                return new List<DTOs.Response.MatchThePairAnswer>();
             }
 
-            return _connection.Query<MatchThePairAnswer>(getAnswersQuery, new { AnswerId = answerId }).ToList();
+            return _connection.Query<DTOs.Response.MatchThePairAnswer>(getAnswersQuery, new { AnswerId = answerId }).ToList();
 
         }
         private List<AnswerMultipleChoiceCategory> GetMultipleAnswers(string QuestionCode)
