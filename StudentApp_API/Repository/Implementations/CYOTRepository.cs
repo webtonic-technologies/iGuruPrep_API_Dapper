@@ -1109,47 +1109,50 @@ GROUP BY CYOT.MarksPerCorrectAnswer, CYOT.MarksPerIncorrectAnswer;";
         }
         public async Task<ServiceResponse<List<CYOTQuestionWithAnswersDTO>>> GetCYOTQuestionsWithOptionsAsync(GetCYOTQuestionsRequest request)
         {
-            // SQL query to fetch questions with all answer options and student's given answers
             var query = @"
-SELECT 
-    cq.CYOTID,
-    cq.QuestionID,
-    q.QuestionCode,
-    q.QuestionDescription,
-    q.Explanation as Explanation, 
-    q.ExtraInformation as ExtraInformation,
-    q.QuestionTypeId,
-    mc.Answermultiplechoicecategoryid,
-    mc.Answer,
-    mc.IsCorrect,
-    qt.QuestionType as QuestionType,
-    sub.SubjectName as SubjectName,
-    sqm.QuestionStatusId,
-    COALESCE(a.AnswerId, 0) AS StudentAnswerId,   -- Student's given answer ID (if any)
-    COALESCE(a.IsCorrect, 0) AS IsStudentAnswerCorrect -- Whether the student's answer was correct (if any)
-FROM 
-    tblCYOTQuestions cq
-JOIN 
-    tblQuestion q ON cq.QuestionID = q.QuestionId
-JOIN 
-    tblAnswerMaster am ON q.QuestionId = am.Questionid
-JOIN 
-    tblAnswerMultipleChoiceCategory mc ON am.Answerid = mc.Answerid
-JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
-JOIN tblSubject sub ON q.subjectID = sub.SubjectId
-LEFT JOIN 
-    [tblCYOTStudentQuestionMapping] sqm ON cq.QuestionID = sqm.QuestionID AND sqm.StudentID = @StudentID AND sqm.CYOTID = @CYOTID
-LEFT JOIN 
-    tblCYOTAnswers a ON cq.QuestionID = a.QuestionID AND a.StudentID = @StudentID AND a.CYOTID = @CYOTID
-WHERE 
-    cq.CYOTID = @CYOTID
-ORDER BY 
-    cq.DisplayOrder";
+    SELECT 
+        cq.CYOTID,
+        cq.QuestionID,
+        q.QuestionCode,
+        q.QuestionDescription,
+        q.Explanation as Explanation, 
+        q.ExtraInformation as ExtraInformation,
+        q.QuestionTypeId,
+        mc.Answermultiplechoicecategoryid,
+        mc.Answer,
+        mc.IsCorrect,
+        qt.QuestionType as QuestionType,
+        sub.SubjectName as SubjectName,
+        sqm.QuestionStatusId,
+        COALESCE(a.AnswerId, '') AS StudentAnswerIdCsv,   -- Student's given answer IDs (CSV)
+        COALESCE(a.IsCorrect, 0) AS IsStudentAnswerCorrect
+    FROM 
+        tblCYOTQuestions cq
+    JOIN 
+        tblQuestion q ON cq.QuestionID = q.QuestionId
+    JOIN 
+        tblAnswerMaster am ON q.QuestionId = am.Questionid
+    JOIN 
+        tblAnswerMultipleChoiceCategory mc ON am.Answerid = mc.Answerid
+    JOIN 
+        tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
+    JOIN 
+        tblSubject sub ON q.subjectID = sub.SubjectId
+    LEFT JOIN 
+        [tblCYOTStudentQuestionMapping] sqm ON cq.QuestionID = sqm.QuestionID AND sqm.StudentID = @StudentID AND sqm.CYOTID = @CYOTID
+    LEFT JOIN 
+        tblCYOTAnswers a ON cq.QuestionID = a.QuestionID AND a.StudentID = @StudentID AND a.CYOTID = @CYOTID
+    WHERE 
+        cq.CYOTID = @CYOTID
+    ORDER BY 
+        cq.DisplayOrder";
 
-            // Execute the query and fetch the results
-            var rawData = await _connection.QueryAsync<dynamic>(query, new { CYOTID = request.cyotId, StudentID = request.registrationId });
+            var rawData = await _connection.QueryAsync<dynamic>(query, new
+            {
+                CYOTID = request.cyotId,
+                StudentID = request.registrationId
+            });
 
-            // Group data by QuestionID to include answers in a nested structure
             var groupedData = rawData.GroupBy(
                 item => new
                 {
@@ -1164,27 +1167,41 @@ ORDER BY
                     SubjectName = (string)item.SubjectName,
                     QuestionType = (string)item.QuestionType
                 },
-           (key, answers) => new CYOTQuestionWithAnswersDTO
-           {
-               CYOTID = key.CYOTID,
-               QuestionID = key.QuestionID,
-               QuestionCode = key.QuestionCode,
-               QuestionDescription = key.QuestionDescription,
-               QuestionStatusId = key.QuestionStatusId,
-               QuestionTypeId = key.QuestionTypeId,
-               Explanation = key.Explanation,
-               ExtraInformation = key.ExtraInformation,
-               SubjectName = key.SubjectName,
-               QuestionType = key.QuestionType,
-               Answers = answers.Select(answer => new AnswerOptionDTO
-               {
-                   AnswerMultipleChoiceCategoryID = (int)answer.Answermultiplechoicecategoryid,
-                   Answer = (string)answer.Answer,
-                   IsCorrect = (bool)answer.IsCorrect,
-                   IsStudentAnswer = ((int)answer.Answermultiplechoicecategoryid == (int)answer.StudentAnswerId), // Corrected here
-                   IsStudentAnswerCorrect = ((int)answer.Answermultiplechoicecategoryid == (int)answer.StudentAnswerId) && (bool)answer.IsCorrect // Fixed here
-               }).ToList()
-           }).ToList();
+                (key, answers) => new CYOTQuestionWithAnswersDTO
+                {
+                    CYOTID = key.CYOTID,
+                    QuestionID = key.QuestionID,
+                    QuestionCode = key.QuestionCode,
+                    QuestionDescription = key.QuestionDescription,
+                    QuestionStatusId = key.QuestionStatusId,
+                    QuestionTypeId = key.QuestionTypeId,
+                    Explanation = key.Explanation,
+                    ExtraInformation = key.ExtraInformation,
+                    SubjectName = key.SubjectName,
+                    QuestionType = key.QuestionType,
+                    Answers = answers.Select(answer =>
+                    {
+                        string studentAnswerCsv = (string)answer.StudentAnswerIdCsv ?? string.Empty;
+                        var selectedAnswerIds = studentAnswerCsv
+                            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                            .Select(id => int.TryParse(id, out int parsed) ? parsed : 0)
+                            .Where(id => id != 0)
+                            .ToList();
+
+                        int currentAnswerId = (int)answer.Answermultiplechoicecategoryid;
+
+                        return new AnswerOptionDTO
+                        {
+                            AnswerMultipleChoiceCategoryID = currentAnswerId,
+                            Answer = (string)answer.Answer,
+                            IsCorrect = (bool)answer.IsCorrect,
+                            IsStudentAnswer = selectedAnswerIds.Contains(currentAnswerId),
+                            IsStudentAnswerCorrect = selectedAnswerIds.Contains(currentAnswerId) && (bool)answer.IsCorrect
+                        };
+                    }).ToList()
+                }).ToList();
+
+            // Apply filter on QuestionTypeId if provided
             if (request.QuestionTypeId != null && request.QuestionTypeId.Any(id => id != 0))
             {
                 groupedData = groupedData
@@ -1199,12 +1216,13 @@ ORDER BY
                     .Where(q => request.QuestionStatusId.Contains(q.QuestionStatusId))
                     .ToList();
             }
-            // Return the grouped data
+
             return new ServiceResponse<List<CYOTQuestionWithAnswersDTO>>(
                 true,
                 "Operation successful",
                 groupedData,
-                200, groupedData.Count
+                200,
+                groupedData.Count
             );
         }
         public async Task<ServiceResponse<string>> MarkQuestionAsSave(SaveQuestionCYOTRequest request)
