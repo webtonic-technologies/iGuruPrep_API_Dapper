@@ -147,9 +147,11 @@ namespace StudentApp_API.DTOs.Response
         public string QuestionCode { get; set; }
         public int QuestionStatusId {  get; set; }
         public int QuestionTypeId {  get; set; }
+        public string QuestionType {  get; set; }
         public string QuestionDescription { get; set; }
         public string Explanation {  get; set; }
         public string ExtraInformation {  get; set; }
+        public string SubjectName {  get; set; }
         public List<AnswerOptionDTO> Answers { get; set; } // List of answers for the question
     }
     public class AnswerOptionDTO

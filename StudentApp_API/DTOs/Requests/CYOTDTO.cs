@@ -73,7 +73,14 @@ namespace StudentApp_API.DTOs.Requests
         public int QuestionstatusId { get; set; }
         public List<int>? MultiOrSingleAnswerId { get; set; }
         public string? SubjectiveAnswers { get; set; } = string.Empty;
+        public List<MatchThePairAnswer>? MatchThePairAnswers { get; set; }
         public List<TimeLog> TimeLogs { get; set; }
+    }
+    public class MatchThePairAnswer
+    {
+       // public int MatchThePair2Id { get; set; }
+        public int PairColumn { get; set; }
+        public int PairRow { get; set; }
     }
     public class CYOTAnswerSubmissionRequest
     {
@@ -82,6 +89,7 @@ namespace StudentApp_API.DTOs.Requests
         public int QuestionID { get; set; }
         public List<int>? MultiOrSingleAnswerId { get; set; }
         public string? SubjectiveAnswers { get; set; } = string.Empty;
+        public List<MatchThePairAnswer>? MatchThePairAnswers {  get; set; }
         public int SubjectID { get; set; }
         public int QuestionTypeID { get; set; }
     }

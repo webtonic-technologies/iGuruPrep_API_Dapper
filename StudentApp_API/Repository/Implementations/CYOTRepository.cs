@@ -1,4 +1,5 @@
 ﻿using Dapper;
+using Newtonsoft.Json;
 using StudentApp_API.DTOs.Requests;
 using StudentApp_API.DTOs.Response;
 using StudentApp_API.DTOs.ServiceResponse;
@@ -500,6 +501,10 @@ new
             else
             {
                 var questionsResponse = new List<QuestionResponseDTO>();
+                var questionsToInsert = new List<(int? QuestionId, int DisplayOrder)>();
+                var studentMappingsToInsert = new List<(int? QuestionId, int? SubjectId)>();
+                int displayOrder = 1;
+
                 foreach (var questionData in questions)
                 {
                     if (questionData.QuestionTypeId == 11)
@@ -507,42 +512,91 @@ new
                         var childQuestions = GetChildQuestions(questionData.QuestionCode);
                         questionData.ComprehensiveChildQuestions = childQuestions;
 
-                        // Deduct child questions count from remaining limit
-                        remainingLimit -= childQuestions.Count;
+                        // Add parent question
+                        questionsResponse.Add(questionData);
+                        questionsToInsert.Add((questionData.QuestionId, displayOrder));
+                        studentMappingsToInsert.Add((questionData.QuestionId, questionData.subjectID));
+                        displayOrder++;
+                        remainingLimit--;
+
+                        // Add child questions
+                        foreach (var child in childQuestions)
+                        {
+
+                            var childAsResponse = new QuestionResponseDTO
+                            {
+                                QuestionId = child.QuestionId ?? 0,
+                                QuestionDescription = child.QuestionDescription,
+                                QuestionTypeId = child.QuestionTypeId ?? 0,
+                                Status = child.Status,
+                                CreatedBy = child.CreatedBy,
+                                CreatedOn = child.CreatedOn,
+                                ModifiedBy = child.ModifiedBy,
+                                ModifiedOn = child.ModifiedOn,
+                                subjectID = child.subjectID,
+                                EmployeeId = child.EmployeeId,
+                                IndexTypeId = child.IndexTypeId,
+                                ContentIndexId = child.ContentIndexId,
+                                IsRejected = child.IsRejected,
+                                IsApproved = child.IsApproved,
+                                QuestionTypeName = "", // You can populate this if needed
+                                QuestionCode = child.QuestionCode,
+                                Explanation = child.Explanation,
+                                ExtraInformation = child.ExtraInformation,
+                                IsActive = child.IsActive,
+                                ParentQId = child.ParentQId,
+                                ParentQCode = child.ParentQCode,
+                                Answersingleanswercategories = child.Answersingleanswercategories,
+                                AnswerMultipleChoiceCategories = child.AnswerMultipleChoiceCategories,
+                                ComprehensiveChildQuestions = null // child question won't have more nested children
+                            };
+
+                            questionsResponse.Add(childAsResponse);
+                            //  questionsResponse.Add(child);
+                            questionsToInsert.Add((child.QuestionId, displayOrder));
+                            studentMappingsToInsert.Add((child.QuestionId, child.subjectID));
+                            displayOrder++;
+                            remainingLimit--;
+                        }
                     }
                     else
                     {
-                        remainingLimit -= 1;  // Regular questions count as 1
+                        questionsResponse.Add(questionData);
+                        questionsToInsert.Add((questionData.QuestionId, displayOrder));
+                        studentMappingsToInsert.Add((questionData.QuestionId, questionData.subjectID));
+                        displayOrder++;
+                        remainingLimit--;
                     }
-
-                    questionsResponse.Add(questionData);
 
                     if (remainingLimit <= 0)
                         break;
                 }
-                // Step 10: Insert questions into tblCYOTQuestions
+
+                // Insert into tblCYOTQuestions
                 var insertQuery = @"
-        INSERT INTO tblCYOTQuestions (CYOTID, QuestionID, DisplayOrder)
-        VALUES (@CYOTID, @QuestionID, @DisplayOrder)";
-                await _connection.ExecuteAsync(insertQuery, questionsResponse.Select((q, index) => new
+INSERT INTO tblCYOTQuestions (CYOTID, QuestionID, DisplayOrder)
+VALUES (@CYOTID, @QuestionID, @DisplayOrder)";
+                await _connection.ExecuteAsync(insertQuery, questionsToInsert.Select(q => new
                 {
                     CYOTID = request.cyotId,
                     QuestionID = q.QuestionId,
-                    DisplayOrder = index + 1
+                    DisplayOrder = q.DisplayOrder
                 }));
 
+                // Insert into tblCYOTStudentQuestionMapping
                 var studentQuestionMappingQuery = @"
-        INSERT INTO tblCYOTStudentQuestionMapping (CYOTId, StudentId, QuestionId, QuestionStatusId, SubjectId)
-        VALUES (@CYOTId, @StudentId, @QuestionId, @QuestionStatusId, @SubjectId)";
-                await _connection.ExecuteAsync(studentQuestionMappingQuery, questionsResponse.Select((q, index) => new
+INSERT INTO tblCYOTStudentQuestionMapping (CYOTId, StudentId, QuestionId, QuestionStatusId, SubjectId)
+VALUES (@CYOTId, @StudentId, @QuestionId, @QuestionStatusId, @SubjectId)";
+                await _connection.ExecuteAsync(studentQuestionMappingQuery, studentMappingsToInsert.Select(q => new
                 {
                     CYOTId = request.cyotId,
                     StudentId = request.registrationId,
                     QuestionId = q.QuestionId,
                     QuestionStatusId = 4,
-                    SubjectId = q.subjectID
+                    SubjectId = q.SubjectId
                 }));
-                // Convert the data to a list of DTOs
+
+                // Prepare DTO Response
                 var response = questionsResponse.Select(item =>
                 {
                     if (item.QuestionTypeId == 11)
@@ -552,10 +606,8 @@ new
                             QuestionId = item.QuestionId,
                             Paragraph = item.Paragraph,
                             SubjectName = item.SubjectName,
-                            //  EmployeeName = item.EmpFirstName,
                             IndexTypeName = item.IndexTypeName,
                             ContentIndexName = item.ContentIndexName,
-                            // QIDCourses = GetListOfQIDCourse(item.QuestionCode),
                             ContentIndexId = item.ContentIndexId,
                             CreatedBy = item.CreatedBy,
                             CreatedOn = item.CreatedOn,
@@ -587,7 +639,6 @@ new
                             subjectID = item.subjectID,
                             SubjectName = item.SubjectName,
                             EmployeeId = item.EmployeeId,
-                            // EmployeeName = item.EmpFirstName,
                             IndexTypeId = item.IndexTypeId,
                             IndexTypeName = item.IndexTypeName,
                             ContentIndexId = item.ContentIndexId,
@@ -599,17 +650,13 @@ new
                             Explanation = item.Explanation,
                             ExtraInformation = item.ExtraInformation,
                             IsActive = item.IsActive,
-                            //  QIDCourses = GetListOfQIDCourse(item.QuestionCode),
-                            //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
-                            //Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
-                            //AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
                             MatchPairs = item.QuestionTypeId == 6 || item.QuestionTypeId == 12 ? GetMatchPairs(item.QuestionCode, item.QuestionId) : null,
                             MatchThePairType2Answers = item.QuestionTypeId == 12 ? GetMatchThePairType2Answers(item.QuestionCode, item.QuestionId) : null,
-                            // Answersingleanswercategories = (item.QuestionTypeId != 6 && item.QuestionTypeId != 12) ? GetSingleAnswer(item.QuestionCode, item.QuestionId) : null,
-                            AnswerMultipleChoiceCategories = (item.QuestionTypeId != 12) ? GetMultipleAnswers(item.QuestionCode) : null
+                            AnswerMultipleChoiceCategories = item.QuestionTypeId != 12 ? GetMultipleAnswers(item.QuestionCode) : null
                         };
                     }
                 });
+
                 return questionsResponse.Any()
                     ? new ServiceResponse<List<QuestionResponseDTO>>(true, "Operation Successful", response.ToList(), 200, questionsResponse.Count())
                     : new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
@@ -642,7 +689,8 @@ new
                 SubjectID = subject.SubjectId,
                 QuestionTypeID = question.QuestionTypeID,
                 SubjectiveAnswers = question.SubjectiveAnswers,
-                MultiOrSingleAnswerId = question.MultiOrSingleAnswerId // Assuming question.AnswerID is a List<int>
+                MultiOrSingleAnswerId = question.MultiOrSingleAnswerId,
+                MatchThePairAnswers = question.MatchThePairAnswers// Assuming question.AnswerID is a List<int>
             }
         };
                             // Submit the answer(s)
@@ -808,9 +856,7 @@ GROUP BY CYOT.MarksPerCorrectAnswer, CYOT.MarksPerIncorrectAnswer;";
                     var query = @"
                 SELECT 
                     q.QuestionId, 
-                    q.QuestionTypeId, 
-                    s.MarksPerQuestion, 
-                    s.NegativeMarks
+                    q.QuestionTypeId
                 FROM tblQuestion q
                 WHERE q.QuestionId = @QuestionID";
 
@@ -881,6 +927,54 @@ GROUP BY CYOT.MarksPerCorrectAnswer, CYOT.MarksPerIncorrectAnswer;";
                             }
                         }
                         answerStatus = actualCorrectCount == studentCorrectCount ? "Correct" : "Incorrect";
+                        isCorrect = actualCorrectCount == studentCorrectCount ? true : false;
+                    }
+                    else if (questionData.QuestionTypeId == 12)
+                    {
+                        // STEP 1: Get the submitted answer
+                        var submittedAnswers = answer.MatchThePairAnswers;
+
+                        // STEP 2: Get the correct AnswerId for this Question
+                        var correctAnswerId = await _connection.QueryFirstOrDefaultAsync<int>(
+                            "SELECT AnswerId FROM tblAnswerMaster WHERE QuestionId = @QuestionId AND QuestionTypeId = 12",
+                            new { QuestionId = answer.QuestionID });
+
+                        if (correctAnswerId == 0)
+                        {
+                            // Handle missing correct answer
+                            isCorrect = false;
+                            return new ServiceResponse<string>(false, "Correct answer not found.", string.Empty, 404);
+                        }
+
+                        // STEP 3: Fetch correct pairings from tblOptionsMatchThePair2
+                        var correctPairs = (await _connection.QueryAsync<(int PairColumn, int PairRow)>(
+                            "SELECT PairColumn, PairRow FROM tblOptionsMatchThePair2 WHERE AnswerId = @AnswerId",
+                            new { AnswerId = correctAnswerId })).ToList();
+
+                        // STEP 4: Check if submitted pairs count matches
+                        if (submittedAnswers.Count != correctPairs.Count)
+                        {
+                            isCorrect = false;
+                        }
+                        else
+                        {
+                            // Compare each pair
+                            bool allMatched = correctPairs.All(cp =>
+                                submittedAnswers.Any(sa => sa.PairColumn == cp.PairColumn && sa.PairRow == cp.PairRow));
+
+                            isCorrect = allMatched;
+                        }
+
+                        if (isCorrect)
+                        {
+                            marks = questionData.MarksPerQuestion;
+                            answerStatus = "Correct";
+                        }
+                        else
+                        {
+                            marks = -questionData.NegativeMarks;
+                            answerStatus = "Incorrect";
+                        }
                     }
                     // Handle multiple-answer types
                     else
@@ -908,6 +1002,7 @@ GROUP BY CYOT.MarksPerCorrectAnswer, CYOT.MarksPerIncorrectAnswer;";
                         {
                             marks = questionData.MarksPerQuestion;
                             answerStatus = "Correct";
+                            isCorrect = true;
                         }
                         else
                         {
@@ -915,7 +1010,18 @@ GROUP BY CYOT.MarksPerCorrectAnswer, CYOT.MarksPerIncorrectAnswer;";
                             answerStatus = "Incorrect";
                         }
                     }
+                    string answerToStore;
 
+                    if (answer.QuestionTypeID == 12 && answer.MatchThePairAnswers != null && answer.MatchThePairAnswers.Any())
+                    {
+                        // Match the Pair Type 2 - serialize to JSON
+                        answerToStore = JsonConvert.SerializeObject(answer.MatchThePairAnswers);
+                    }
+                    else
+                    {
+                        // Use SubjectiveAnswers or default fallback
+                        answerToStore = answer.SubjectiveAnswers ?? string.Empty;
+                    }
                     var existingAnswerQuery = @"
             SELECT COUNT(1)
             FROM tblCYOTAnswers
@@ -954,7 +1060,7 @@ GROUP BY CYOT.MarksPerCorrectAnswer, CYOT.MarksPerIncorrectAnswer;";
                                 QuestionTypeId = answer.QuestionTypeID,
                                 AnswerStatus = answerStatus,
                                 Marks = marks,
-                                Answer = answer.SubjectiveAnswers
+                                Answer = answerToStore//answer.SubjectiveAnswers
                             }
                         );
                     }
@@ -978,7 +1084,7 @@ GROUP BY CYOT.MarksPerCorrectAnswer, CYOT.MarksPerIncorrectAnswer;";
                                 QuestionTypeId = answer.QuestionTypeID,
                                 AnswerStatus = answerStatus,
                                 Marks = marks,
-                                Answer = answer.SubjectiveAnswers
+                                Answer = answerToStore//answer.SubjectiveAnswers
                             }
                         );
                     }
@@ -1010,12 +1116,14 @@ SELECT
     cq.QuestionID,
     q.QuestionCode,
     q.QuestionDescription,
-    q.Explanation, 
-    q.ExtraInformation,
+    q.Explanation as Explanation, 
+    q.ExtraInformation as ExtraInformation,
     q.QuestionTypeId,
     mc.Answermultiplechoicecategoryid,
     mc.Answer,
     mc.IsCorrect,
+    qt.QuestionType as QuestionType,
+    sub.SubjectName as SubjectName,
     sqm.QuestionStatusId,
     COALESCE(a.AnswerId, 0) AS StudentAnswerId,   -- Student's given answer ID (if any)
     COALESCE(a.IsCorrect, 0) AS IsStudentAnswerCorrect -- Whether the student's answer was correct (if any)
@@ -1027,6 +1135,8 @@ JOIN
     tblAnswerMaster am ON q.QuestionId = am.Questionid
 JOIN 
     tblAnswerMultipleChoiceCategory mc ON am.Answerid = mc.Answerid
+JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
+JOIN tblSubject sub ON q.subjectID = sub.SubjectId
 LEFT JOIN 
     [tblCYOTStudentQuestionMapping] sqm ON cq.QuestionID = sqm.QuestionID AND sqm.StudentID = @StudentID AND sqm.CYOTID = @CYOTID
 LEFT JOIN 
@@ -1048,7 +1158,11 @@ ORDER BY
                     QuestionCode = (string)item.QuestionCode,
                     QuestionDescription = (string)item.QuestionDescription,
                     QuestionStatusId = (int)item.QuestionStatusId,
-                    QuestionTypeId = (int)item.QuestionTypeId
+                    QuestionTypeId = (int)item.QuestionTypeId,
+                    Explanation = (string)item.Explanation,
+                    ExtraInformation = (string)item.ExtraInformation,
+                    SubjectName = (string)item.SubjectName,
+                    QuestionType = (string)item.QuestionType
                 },
            (key, answers) => new CYOTQuestionWithAnswersDTO
            {
@@ -1058,6 +1172,10 @@ ORDER BY
                QuestionDescription = key.QuestionDescription,
                QuestionStatusId = key.QuestionStatusId,
                QuestionTypeId = key.QuestionTypeId,
+               Explanation = key.Explanation,
+               ExtraInformation = key.ExtraInformation,
+               SubjectName = key.SubjectName,
+               QuestionType = key.QuestionType,
                Answers = answers.Select(answer => new AnswerOptionDTO
                {
                    AnswerMultipleChoiceCategoryID = (int)answer.Answermultiplechoicecategoryid,
@@ -1707,7 +1825,7 @@ WHERE N.CYOTId = @CYOTId AND N.StudentId = @StudentId  AND SQM.SubjectID = @Subj
                 return new List<AnswerMultipleChoiceCategory>();
             }
         }
-        private List<MatchThePairAnswer> GetMatchThePairType2Answers(string questionCode, int questionId)
+        private List<DTOs.Response.MatchThePairAnswer> GetMatchThePairType2Answers(string questionCode, int questionId)
         {
             const string getAnswerIdQuery = @"
         SELECT AnswerId 
@@ -1724,10 +1842,10 @@ WHERE N.CYOTId = @CYOTId AND N.StudentId = @StudentId  AND SQM.SubjectID = @Subj
 
             if (answerId == null)
             {
-                return new List<MatchThePairAnswer>();
+                return new List<DTOs.Response.MatchThePairAnswer>();
             }
 
-            return _connection.Query<MatchThePairAnswer>(getAnswersQuery, new { AnswerId = answerId }).ToList();
+            return _connection.Query<DTOs.Response.MatchThePairAnswer>(getAnswersQuery, new { AnswerId = answerId }).ToList();
 
         }
         private List<ParagraphQuestions> GetChildQuestions(string QuestionCode)
