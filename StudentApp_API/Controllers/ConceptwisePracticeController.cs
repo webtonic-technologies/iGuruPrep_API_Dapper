@@ -59,17 +59,6 @@ namespace StudentApp_API.Controllers
 
             return BadRequest(response);
         }
-        [HttpPost("GetChapterAccuracyReport")]
-        public async Task<IActionResult> GetChapterAccuracyReportAsync(ChapterAccuracyReportRequest request)
-        {
-            var response = await _conceptwisePracticeServices.GetChapterAccuracyReportAsync(request);
-            if (response.Success)
-            {
-                return Ok(response);
-            }
-
-            return BadRequest(response);
-        }
         [HttpPost("GetSyllabusContentDetails")]
         public async Task<IActionResult> GetSyllabusContentDetails(SyllabusDetailsRequest request)
         {
@@ -107,6 +96,50 @@ namespace StudentApp_API.Controllers
         public async Task<IActionResult> SubmitAnswerAsync(ConceptwisePracticeSubmitAnswerRequest request)
         {
             var response = await _conceptwisePracticeServices.SubmitAnswerAsync(request);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+
+            return BadRequest(response);
+        }
+        [HttpPost("GetChapterAccuracyReport")]
+        public async Task<IActionResult> GetChapterAccuracyReportAsync(ChapterAnalyticsRequest request)
+        {
+            var response = await _conceptwisePracticeServices.GetChapterAccuracyReportAsync(request);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+
+            return BadRequest(response);
+        }
+        [HttpPost("GetChapterAnalytics")]
+        public async Task<IActionResult> GetChapterAnalyticsAsync(ChapterAnalyticsRequest request)
+        {
+            var response = await _conceptwisePracticeServices.GetChapterAnalyticsAsync(request);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+
+            return BadRequest(response);
+        }
+        [HttpPost("GetChapterTimeReport")]
+        public async Task<IActionResult> GetChapterTimeReportAsync(ChapterAnalyticsRequest request)
+        {
+            var response = await _conceptwisePracticeServices.GetChapterTimeReportAsync(request);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+
+            return BadRequest(response);
+        }
+        [HttpPost("GetSyllabusContentDetailsWebView")]
+        public async Task<IActionResult> GetSyllabusContentDetailsWebView(SyllabusDetailsRequestWebView request)
+        {
+            var response = await _conceptwisePracticeServices.GetSyllabusContentDetailsWebView(request);
             if (response.Success)
             {
                 return Ok(response);

@@ -14,10 +14,22 @@ namespace StudentApp_API.Services.Implementations
         {
             _conceptwisePracticeRepository = conceptwisePracticeRepository;
         }
-        public async Task<ServiceResponse<ChapterAccuracyReportResponse>> GetChapterAccuracyReportAsync(ChapterAccuracyReportRequest request)
+
+        public async Task<ServiceResponse<ChapterAccuracyReportResponse>> GetChapterAccuracyReportAsync(ChapterAnalyticsRequest request)
         {
             return await _conceptwisePracticeRepository.GetChapterAccuracyReportAsync(request);
         }
+
+        public async Task<ServiceResponse<ChapterAnalyticsResponse>> GetChapterAnalyticsAsync(ChapterAnalyticsRequest request)
+        {
+            return await _conceptwisePracticeRepository.GetChapterAnalyticsAsync(request);
+        }
+
+        public async Task<ServiceResponse<ChapterTimeReportResponse>> GetChapterTimeReportAsync(ChapterAnalyticsRequest request)
+        {
+            return await _conceptwisePracticeRepository.GetChapterTimeReportAsync(request);
+        }
+
         public async Task<ServiceResponse<QuestionAnalyticsResponseDTO>> GetQuestionAnalyticsAsync(int studentId, int questionId, int setId)
         {
             return await _conceptwisePracticeRepository.GetQuestionAnalyticsAsync(studentId, questionId, setId);
@@ -38,6 +50,12 @@ namespace StudentApp_API.Services.Implementations
         {
             return await _conceptwisePracticeRepository.GetSyllabusContentDetails(request);
         }
+
+        public async Task<ServiceResponse<List<ChapterTreeResponse>>> GetSyllabusContentDetailsWebView(SyllabusDetailsRequestWebView request)
+        {
+            return await _conceptwisePracticeRepository.GetSyllabusContentDetailsWebView(request);
+        }
+
         public async Task<ServiceResponse<ConceptwisePracticeResponse>> GetSyllabusSubjects(int RegistrationId)
         {
             return await _conceptwisePracticeRepository.GetSyllabusSubjects(RegistrationId);

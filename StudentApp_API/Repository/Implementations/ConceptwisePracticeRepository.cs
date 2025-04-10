@@ -93,6 +93,98 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<ConceptwisePracticeResponse>(false, ex.Message, null, 500);
             }
         }
+        public async Task<ServiceResponse<List<ChapterTreeResponse>>> GetSyllabusContentDetailsWebView(SyllabusDetailsRequestWebView request)
+        {
+            List<ChapterTreeResponse> chapterList = new();
+
+            if (_connection.State != ConnectionState.Open)
+                _connection.Open();
+
+            try
+            {
+                string queryChapters = @"
+            SELECT DISTINCT
+                c.ContentIndexId AS ContentId,
+                c.ContentName_Chapter AS ContentName,
+                c.SubjectId,
+                s.SyllabusID,
+                c.IndexTypeId
+            FROM tblContentIndexChapters c
+            INNER JOIN tblSyllabusDetails s ON c.ContentIndexId = s.ContentIndexId
+            WHERE s.SyllabusID = @SyllabusId AND c.SubjectId = @SubjectId AND c.IndexTypeId = 1 AND c.IsActive = 1";
+
+                var chapters = await _connection.QueryAsync<ChapterTreeResponse>(queryChapters, new
+                {
+                    SyllabusId = request.SyllabusId,
+                    SubjectId = request.SubjectId
+                });
+
+                foreach (var chapter in chapters)
+                {
+                    chapter.RegistrationId = request.RegistrationId;
+                    chapter.Percentage =  PercentageCalculation(chapter.IndexTypeId, chapter.ContentId, request.RegistrationId, chapter.SubjectId, request.SyllabusId ?? 0);
+                    chapter.Question = await GetAttemptCountAsync(chapter.IndexTypeId, chapter.ContentId, chapter.SubjectId, request.SyllabusId ?? 0, request.RegistrationId);
+                    chapter.TopicCount = 0;
+                    chapter.Topics = new List<TopicResponse>();
+
+                    string queryTopics = @"
+                SELECT DISTINCT
+                    t.ContInIdTopic AS ContentId,
+                    t.ContentName_Topic AS TopicName,
+                    t.IndexTypeId
+                FROM tblContentIndexTopics t
+                INNER JOIN tblSyllabusDetails s ON t.ContentIndexId = s.ContentIndexId
+                WHERE t.ContentIndexId = @ContentIndexId AND t.IndexTypeId = 2 AND t.IsActive = 1 AND s.SyllabusID = @SyllabusId";
+
+                    var topics = await _connection.QueryAsync<TopicResponse>(queryTopics, new
+                    {
+                        ContentIndexId = chapter.ContentId,
+                        SyllabusId = request.SyllabusId
+                    });
+
+                    chapter.TopicCount = topics.Count();
+
+                    foreach (var topic in topics)
+                    {
+                        topic.Percentage =  PercentageCalculation(topic.IndexTypeId, topic.ContentId, request.RegistrationId, chapter.SubjectId, request.SyllabusId ?? 0);
+                        topic.Question = await GetAttemptCountAsync(topic.IndexTypeId, topic.ContentId, chapter.SubjectId, request.SyllabusId ?? 0, request.RegistrationId);
+                        topic.SubTopics = new List<SubTopicResponse>();
+                        topic.SubTopicCount = 0;
+
+                        string querySubTopics = @"
+                    SELECT
+                        s.ContInIdSubTopic AS ContentId,
+                        s.ContentName_SubTopic AS SubTopicName
+                    FROM tblContentIndexSubTopics s
+                    INNER JOIN tblSyllabusDetails d ON s.ContInIdTopic = d.ContentIndexId
+                    WHERE s.ContInIdTopic = @ContentIndexId AND s.IndexTypeId = 3 AND s.IsActive = 1 AND d.SyllabusID = @SyllabusId";
+
+                        var subTopics = await _connection.QueryAsync<SubTopicResponse>(querySubTopics, new
+                        {
+                            ContentIndexId = topic.ContentId,
+                            SyllabusId = request.SyllabusId
+                        });
+
+                        foreach (var subTopic in subTopics)
+                        {
+                            subTopic.Percentage =  PercentageCalculation(3, subTopic.ContentId, request.RegistrationId, chapter.SubjectId, request.SyllabusId ?? 0);
+                            subTopic.Question = await GetAttemptCountAsync(3, subTopic.ContentId, chapter.SubjectId, request.SyllabusId ?? 0, request.RegistrationId);
+                        }
+
+                        topic.SubTopics = subTopics.ToList();
+                        topic.SubTopicCount = subTopics.Count();
+                    }
+
+                    chapter.Topics = topics.ToList();
+                }
+                chapterList = chapters.ToList();
+                return new ServiceResponse<List<ChapterTreeResponse>>(true, "Success", chapterList, 200, chapterList.Count);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<List<ChapterTreeResponse>>(false, ex.Message, null, 500);
+            }
+        }
         public async Task<ServiceResponse<List<ConceptwisePracticeContentResponse>>> GetSyllabusContentDetails(SyllabusDetailsRequest request)
         {
             List<ConceptwisePracticeContentResponse> contentResponse = new List<ConceptwisePracticeContentResponse>();
@@ -229,7 +321,7 @@ namespace StudentApp_API.Repository.Implementations
                 {
                     data.RegistrationId = request.RegistrationId;
                     data.Percentage = PercentageCalculation(data.IndexTypeId, data.ContentId, request.RegistrationId, request.SubjectId, request.SyllabusId);
-
+                    data.AttemptCount = await GetAttemptCountAsync(data.IndexTypeId, data.ContentId, request.SubjectId ?? 0, request.SyllabusId ?? 0, request.RegistrationId);
                     // Check if any valid question was attempted (excluding Not Visited)
                     string questionExistQuery = @"
         SELECT COUNT(1)
@@ -251,8 +343,8 @@ namespace StudentApp_API.Repository.Implementations
                         RegistrationId = request.RegistrationId
                     });
 
-                    data.IsAnalytics = questionCount > 0;
-                    data.IsQuestionAnalytics = questionCount > 0;
+                    data.IsAnalytics = await GetIsAnalyticsAsync(data.IndexTypeId, data.ContentId, request.SubjectId ?? 0, request.SyllabusId ?? 0, request.RegistrationId);
+                    data.IsQuestionAnalytics = data.IndexTypeId == 1 ? questionCount > 0 : false;
 
                     // Enable synopsis button only if synopsis is present
                     data.IsSynopsis = !string.IsNullOrWhiteSpace(data.Synopsis);
@@ -359,17 +451,23 @@ namespace StudentApp_API.Repository.Implementations
             }
             else
             {
-                // Step 3: Questions already exist
                 string existingSetQuery = @"
-            SELECT q.*, cpq.*
-            FROM tblConceptwisePracticeQuestions cpq
-            INNER JOIN tblQuestion q ON q.QuestionId = cpq.QuestionID
-            WHERE cpq.StudentId = @StudentId
-            AND cpq.ContentID = @ContentId
-            AND cpq.IndexTypeID = @IndexTypeId
-            AND cpq.SyllabusID = @SyllabusId
-            AND cpq.SetID = 1
-            AND (cpq.QuestionStatusId = 4 OR (cpq.Iscorrect = 0))";
+SELECT q.*, cpq.*
+FROM tblConceptwisePracticeQuestions cpq
+INNER JOIN tblQuestion q ON q.QuestionId = cpq.QuestionID
+WHERE cpq.StudentId = @StudentId
+AND cpq.ContentID = @ContentId
+AND cpq.IndexTypeID = @IndexTypeId
+AND cpq.SyllabusID = @SyllabusId
+AND cpq.SetID = (
+    SELECT MAX(SetID)
+    FROM tblConceptwisePracticeQuestions
+    WHERE StudentId = @StudentId
+    AND ContentID = @ContentId
+    AND IndexTypeID = @IndexTypeId
+    AND SyllabusID = @SyllabusId
+)
+AND (cpq.QuestionStatusId = 4 OR cpq.Iscorrect = 0)";
 
                 questionsToReturn = (await _connection.QueryAsync<QuestionResponseDTO>(existingSetQuery, new
                 {
@@ -973,10 +1071,7 @@ FROM YourAccuracy YA, ClassmateAccuracy CA;";
                     AverageTimePerIncorrectAnswer = ConvertSecondsToTimeFormat(SafeAverage(incorrectTimes)),
 
                     TotalTimeOnUnansweredQuestions = ConvertSecondsToTimeFormat(unansweredTimes.Sum()),
-                    AverageTimePerUnansweredQuestion = ConvertSecondsToTimeFormat(SafeAverage(unansweredTimes)),
-
-                    AverageTimeByClassmates = ConvertSecondsToTimeFormat(classmatesTimes.Sum()),
-                    AverageTimePerQuestionByClassmates = ConvertSecondsToTimeFormat(SafeAverage(classmatesTimes))
+                    AverageTimePerUnansweredQuestion = ConvertSecondsToTimeFormat(SafeAverage(unansweredTimes))
                 };
 
                 return new ServiceResponse<StudentTimeAnalysisDto>(true, "Time analysis retrieved successfully", dto, 200);
@@ -986,102 +1081,267 @@ FROM YourAccuracy YA, ClassmateAccuracy CA;";
                 return new ServiceResponse<StudentTimeAnalysisDto>(false, ex.Message, null, 500);
             }
         }
-        public async Task<ServiceResponse<ChapterAccuracyReportResponse>> GetChapterAccuracyReportAsync(ChapterAccuracyReportRequest request)
+        public async Task<ServiceResponse<ChapterAccuracyReportResponse>> GetChapterAccuracyReportAsync(ChapterAnalyticsRequest request)
         {
             try
             {
-                // Step 1: Get all questions in the chapter for the given student, setId, indexTypeId, and contentId
-                string fetchQuestionIdsQuery = @"
-            SELECT QuestionID
-            FROM tblConceptwisePracticeQuestions
-            WHERE StudentId = @StudentId AND SetID = @SetId AND IndexTypeID = @IndexTypeId AND ContentID = @ContentId";
+                if (_connection.State != ConnectionState.Open)
+                    _connection.Open();
 
-                var questionIds = (await _connection.QueryAsync<int>(fetchQuestionIdsQuery, request)).ToList();
+                // 1. Latest SetID for the current student and chapter
+                string latestSetQuery = @"
+SELECT MAX(SetID)
+FROM tblConceptwisePracticeQuestions
+WHERE StudentId = @StudentId
+  AND SyllabusID = @SyllabusId
+  AND SubjectId = @SubjectId
+  AND ContentID = @ChapterId
+  AND IndexTypeID = 1";
 
-                if (!questionIds.Any())
-                    return new ServiceResponse<ChapterAccuracyReportResponse>(false, "No questions found for this chapter.", null, 404);
+                int latestSetId = await _connection.ExecuteScalarAsync<int>(latestSetQuery, request);
 
-                // Step 2: Get student’s accuracy
-                string studentAccuracyQuery = @"
-            SELECT 
-                COUNT(*) AS TotalAttempts,
-                SUM(CASE WHEN IsCorrect = 1 THEN 1 ELSE 0 END) AS CorrectAttempts
-            FROM tblConceptwisePracticeAnswers
-            WHERE StudentId = @StudentId AND QuestionId IN @QuestionIds";
-
-                var studentData = await _connection.QueryFirstOrDefaultAsync<(int TotalAttempts, int CorrectAttempts)>(
-                    studentAccuracyQuery, new { request.StudentId, QuestionIds = questionIds });
-
-                decimal yourAccuracy = studentData.TotalAttempts > 0
-                    ? Math.Round((studentData.CorrectAttempts * 100.0m) / studentData.TotalAttempts, 2)
-                    : 0;
-
-                // Step 3: Get Board/Class/Course group
-                var groupQuery = @"
-            SELECT BoardId, ClassID, CourseID
-            FROM tblStudentClassCourseMapping
-            WHERE RegistrationID = @StudentId";
-
-                var group = await _connection.QueryFirstOrDefaultAsync<(int BoardId, int ClassId, int CourseId)>(
-                    groupQuery, new { request.StudentId });
-
-                // Step 4: Get classmates
-                var classmatesQuery = @"
-            SELECT RegistrationID AS StudentID
-            FROM tblStudentClassCourseMapping
-            WHERE BoardId = @BoardId AND ClassID = @ClassId AND CourseID = @CourseId AND RegistrationID <> @StudentId";
-
-                var classmates = (await _connection.QueryAsync<int>(
-                    classmatesQuery, new { request.StudentId, group.BoardId, group.ClassId, group.CourseId })).ToList();
-
-                if (!classmates.Any())
+                if (latestSetId == 0)
                 {
-                    return new ServiceResponse<ChapterAccuracyReportResponse>(true, "No classmates found.", new ChapterAccuracyReportResponse
-                    {
-                        YourAccuracy = yourAccuracy,
-                        AverageClassAccuracy = 0,
-                        StudentsOutperformingYou = 0,
-                        TotalClassmatesAttempted = 0,
-                        YourAttemptCount = request.SetId - 1
-                    }, 200);
+                    return new ServiceResponse<ChapterAccuracyReportResponse>(true, "No data found", new ChapterAccuracyReportResponse(), 200);
                 }
 
-                // Step 5: Get classmates' accuracy
-                string classmateAccuracyQuery = @"
-            SELECT StudentId,
-                   COUNT(*) AS TotalAttempts,
-                   SUM(CASE WHEN IsCorrect = 1 THEN 1 ELSE 0 END) AS CorrectAttempts
-            FROM tblConceptwisePracticeAnswers
-            WHERE StudentId IN @ClassmateIds AND QuestionId IN @QuestionIds
-            GROUP BY StudentId";
+                // 2. My stats
+                string myStatsQuery = @"
+SELECT COUNT(*) AS Total, 
+       SUM(CASE WHEN IsCorrect = 1 THEN 1 ELSE 0 END) AS Correct
+FROM tblConceptwisePracticeQuestions
+WHERE StudentId = @StudentId
+  AND SyllabusID = @SyllabusId
+  AND SubjectId = @SubjectId
+  AND ContentID = @ChapterId
+  AND IndexTypeID = 1
+  AND SetID = @SetId";
 
-                var classmateStats = (await _connection.QueryAsync<(int StudentId, int TotalAttempts, int CorrectAttempts)>(
-                    classmateAccuracyQuery, new { ClassmateIds = classmates, QuestionIds = questionIds })).ToList();
+                var myStats = await _connection.QueryFirstOrDefaultAsync<(int Total, int Correct)>(myStatsQuery,
+                    new { request.StudentId, request.SyllabusId, request.SubjectId, request.ChapterId, SetId = latestSetId });
 
-                var classmateAccuracies = classmateStats
-                    .Where(x => x.TotalAttempts > 0)
-                    .Select(x => Math.Round((x.CorrectAttempts * 100.0m) / x.TotalAttempts, 2))
-                    .ToList();
+                decimal myAccuracy = myStats.Total > 0
+                    ? Math.Round((decimal)myStats.Correct * 100 / myStats.Total, 2)
+                    : 0;
 
-                decimal avgClassAccuracy = classmateAccuracies.Any() ? Math.Round(classmateAccuracies.Average(), 2) : 0;
-                int outperforming = classmateAccuracies.Count(x => x > yourAccuracy);
-                int totalAttempted = classmateStats.Count;
+                // 3. Classmates accuracy (average of all students except me)
+                string classmatesStatsQuery = @"
+SELECT StudentId,
+       COUNT(*) AS Total,
+       SUM(CASE WHEN IsCorrect = 1 THEN 1 ELSE 0 END) AS Correct
+FROM tblConceptwisePracticeQuestions
+WHERE SyllabusID = @SyllabusId
+  AND SubjectId = @SubjectId
+  AND ContentID = @ChapterId
+  AND IndexTypeID = 1
+  AND StudentId != @StudentId
+GROUP BY StudentId";
+
+                var classmates = (await _connection.QueryAsync<(int StudentId, int Total, int Correct)>(classmatesStatsQuery, request)).ToList();
+
+                decimal classmatesAccuracy = 0;
+                if (classmates.Count > 0)
+                {
+                    var average = classmates
+                        .Where(c => c.Total > 0)
+                        .Select(c => (decimal)c.Correct * 100 / c.Total)
+                        .DefaultIfEmpty(0)
+                        .Average();
+                    classmatesAccuracy = Math.Round(average, 2);
+                }
+
+                // 4. Students with better accuracy
+                int studentsWithBetterAccuracy = classmates
+                    .Count(c => c.Total > 0 && ((decimal)c.Correct * 100 / c.Total) > myAccuracy);
+
+                // 5. Total unique students attempted
+                string totalStudentsQuery = @"
+SELECT COUNT(DISTINCT StudentId)
+FROM tblConceptwisePracticeQuestions
+WHERE SyllabusID = @SyllabusId
+  AND SubjectId = @SubjectId
+  AND ContentID = @ChapterId
+  AND IndexTypeID = 1";
+
+                int totalStudents = await _connection.ExecuteScalarAsync<int>(totalStudentsQuery, request);
+
+                // 6. Total attempts of the chapter
+                string totalAttemptsQuery = @"
+SELECT SetID
+FROM tblConceptwisePracticeQuestions
+WHERE SyllabusID = @SyllabusId
+  AND SubjectId = @SubjectId
+  AND ContentID = @ChapterId
+  AND IndexTypeID = 1";
+
+                int totalAttempts = await _connection.ExecuteScalarAsync<int>(totalAttemptsQuery, request);
 
                 var response = new ChapterAccuracyReportResponse
                 {
-                    YourAccuracy = yourAccuracy,
-                    AverageClassAccuracy = avgClassAccuracy,
-                    StudentsOutperformingYou = outperforming,
-                    TotalClassmatesAttempted = totalAttempted,
-                    YourAttemptCount = request.SetId > 1 ? request.SetId - 1 : 0
+                    MyAccuracyPercentage = myAccuracy,
+                    ClassmatesAccuracyPercentage = classmatesAccuracy,
+                    StudentsWithBetterAccuracy = studentsWithBetterAccuracy,
+                    TotalStudentsAttempted = totalStudents,
+                    TotalAttemptsOfChapter = totalAttempts
                 };
 
-                return new ServiceResponse<ChapterAccuracyReportResponse>(true, "Chapter accuracy report generated.", response, 200);
+                return new ServiceResponse<ChapterAccuracyReportResponse>(true, "Success", response, 200);
             }
             catch (Exception ex)
             {
                 return new ServiceResponse<ChapterAccuracyReportResponse>(false, ex.Message, null, 500);
             }
+        }
+        public async Task<ServiceResponse<ChapterAnalyticsResponse>> GetChapterAnalyticsAsync(ChapterAnalyticsRequest request)
+        {
+            try
+            {
+                if (_connection.State != ConnectionState.Open)
+                    _connection.Open();
+
+                // Step 1: Get Latest SetID
+                string latestSetIdQuery = @"
+SELECT MAX(SetID) 
+FROM tblConceptwisePracticeQuestions
+WHERE StudentId = @StudentId
+  AND SyllabusID = @SyllabusId
+  AND SubjectId = @SubjectId
+  AND ContentID = @ChapterId
+  AND IndexTypeID = 1";
+
+                int setId = await _connection.ExecuteScalarAsync<int>(latestSetIdQuery, new
+                {
+                    StudentId = request.StudentId,
+                    SyllabusId = request.SyllabusId,
+                    SubjectId = request.SubjectId,
+                    ChapterId = request.ChapterId
+                });
+
+                if (setId == 0)
+                {
+                    return new ServiceResponse<ChapterAnalyticsResponse>(true, "No attempts found", new ChapterAnalyticsResponse(), 200);
+                }
+
+                // Step 2: Fetch all related questions for Chapter, Topics, and Subtopics
+                string analyticsQuery = @"
+SELECT cpq.*
+FROM tblConceptwisePracticeQuestions cpq
+WHERE cpq.StudentId = @StudentId
+  AND cpq.SyllabusID = @SyllabusId
+  AND cpq.SubjectId = @SubjectId
+  AND cpq.SetID = @SetID
+  AND (
+        (cpq.IndexTypeID = 1 AND cpq.ContentID = @ChapterId)
+     OR (cpq.IndexTypeID = 2 AND cpq.ContentID IN (
+            SELECT t.ContInIdTopic
+            FROM tblContentIndexTopics t
+            WHERE t.ContentIndexId = @ChapterId AND t.IsActive = 1
+        ))
+     OR (cpq.IndexTypeID = 3 AND cpq.ContentID IN (
+            SELECT st.ContInIdSubTopic
+            FROM tblContentIndexTopics t
+            INNER JOIN tblContentIndexSubTopics st ON st.ContInIdTopic = t.ContInIdTopic
+            WHERE t.ContentIndexId = @ChapterId AND t.IsActive = 1 AND st.IsActive = 1
+        ))
+    )";
+
+                var questions = (await _connection.QueryAsync<dynamic>(analyticsQuery, new
+                {
+                    StudentId = request.StudentId,
+                    SyllabusId = request.SyllabusId,
+                    SubjectId = request.SubjectId,
+                    ChapterId = request.ChapterId,
+                    SetID = setId
+                })).ToList();
+
+                int total = questions.Count;
+                int correct = questions.Count(q => q.Iscorrect == true);
+                int unattempted = questions.Count(q => q.QuestionStatusId == 4);
+                int incorrect = total - correct - unattempted;
+
+                var result = new ChapterAnalyticsResponse
+                {
+                    TotalQuestions = total,
+                    CorrectCount = correct,
+                    IncorrectCount = incorrect,
+                    UnattemptedCount = unattempted,
+                    CorrectPercentage = total > 0 ? Math.Round((decimal)correct * 100 / total, 2) : 0,
+                    IncorrectPercentage = total > 0 ? Math.Round((decimal)incorrect * 100 / total, 2) : 0,
+                    UnattemptedPercentage = total > 0 ? Math.Round((decimal)unattempted * 100 / total, 2) : 0
+                };
+
+                return new ServiceResponse<ChapterAnalyticsResponse>(true, "Success", result, 200);
+            }
+            catch (Exception ex)
+            {
+                return new ServiceResponse<ChapterAnalyticsResponse>(false, ex.Message, null, 500);
+            }
+        }
+        public async Task<ServiceResponse<ChapterTimeReportResponse>> GetChapterTimeReportAsync(ChapterAnalyticsRequest request)
+        {
+            var latestSetId = await _connection.ExecuteScalarAsync<int>(
+                "SELECT TOP 1 SetID FROM tblConceptwisePracticeQuestions WHERE ContentID = @ChapterId AND IndexTypeID = 1 AND StudentId = @StudentId ORDER BY CPCID DESC",
+                new { request.ChapterId, request.StudentId });
+
+            var query = @"SELECT
+    -- Student Stats
+    SUM(CASE WHEN q.StudentId = @StudentId THEN DATEDIFF(SECOND, a.StaTime, a.EndTime) ELSE 0 END) AS TotalTimeSpentByMe,
+    COUNT(CASE WHEN q.StudentId = @StudentId THEN 1 ELSE NULL END) AS TotalAttemptedByMe,
+
+    SUM(CASE WHEN q.StudentId = @StudentId AND a.IsCorrect = 1 THEN DATEDIFF(SECOND, a.StaTime, a.EndTime) ELSE 0 END) AS TotalTimeCorrect,
+    COUNT(CASE WHEN q.StudentId = @StudentId AND a.IsCorrect = 1 THEN 1 ELSE NULL END) AS CountCorrect,
+
+    SUM(CASE WHEN q.StudentId = @StudentId AND a.IsCorrect = 0 THEN DATEDIFF(SECOND, a.StaTime, a.EndTime) ELSE 0 END) AS TotalTimeIncorrect,
+    COUNT(CASE WHEN q.StudentId = @StudentId AND a.IsCorrect = 0 THEN 1 ELSE NULL END) AS CountIncorrect,
+
+    SUM(CASE WHEN q.StudentId = @StudentId AND a.IsCorrect IS NULL AND q.QuestionStatusId = 2 THEN DATEDIFF(SECOND, a.StaTime, a.EndTime) ELSE 0 END) AS TotalTimeUnattempted,
+    COUNT(CASE WHEN q.StudentId = @StudentId AND a.IsCorrect IS NULL AND q.QuestionStatusId = 2 THEN 1 ELSE NULL END) AS CountUnattempted,
+
+    -- Classmate Stats
+    SUM(CASE WHEN q.StudentId != @StudentId THEN DATEDIFF(SECOND, a.StaTime, a.EndTime) ELSE 0 END) AS ClassmatesTotalTime,
+    COUNT(CASE WHEN q.StudentId != @StudentId THEN 1 ELSE NULL END) AS ClassmatesTotalAttempt
+FROM tblConceptwisePracticeAnswers a
+INNER JOIN tblConceptwisePracticeQuestions q ON a.QuestionId = q.QuestionID AND a.StudentId = q.StudentId
+WHERE q.ContentID = @ChapterId AND q.IndexTypeID = 1 AND q.SetID = @SetId;";
+
+            var result = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new
+            {
+                request.ChapterId,
+                SetId = latestSetId,
+                request.StudentId
+            });
+
+            if (result == null)
+                return new ServiceResponse<ChapterTimeReportResponse>(false, string.Empty, new ChapterTimeReportResponse(), 500);
+
+            var response = new ChapterTimeReportResponse
+            {
+                TotalTimeSpentByMe = ConvertSecondsToTimeFormat(result.TotalTimeSpentByMe),
+                AvgTimeSpentByMePerQuestion = ConvertSecondsToTimeFormat(SafeDivide(result.TotalTimeSpentByMe, result.TotalAttemptedByMe)),
+
+                TotalTimeCorrect = ConvertSecondsToTimeFormat(result.TotalTimeCorrect),
+                AvgTimeCorrect = ConvertSecondsToTimeFormat(SafeDivide(result.TotalTimeCorrect, result.CountCorrect)),
+
+                TotalTimeIncorrect = ConvertSecondsToTimeFormat(result.TotalTimeIncorrect),
+                AvgTimeIncorrect = ConvertSecondsToTimeFormat(SafeDivide(result.TotalTimeIncorrect, result.CountIncorrect)),
+
+                TotalTimeUnattempted = ConvertSecondsToTimeFormat(result.TotalTimeUnattempted),
+                AvgTimeUnattempted = ConvertSecondsToTimeFormat(SafeDivide(result.TotalTimeUnattempted, result.CountUnattempted)),
+
+                AvgTimeSpentByClassmates = ConvertSecondsToTimeFormat(result.ClassmatesTotalTime),
+                AvgTimeSpentByClassmatesPerQuestion = ConvertSecondsToTimeFormat(SafeDivide(result.ClassmatesTotalTime, result.ClassmatesTotalAttempt))
+            };
+
+            return new ServiceResponse<ChapterTimeReportResponse>(true, "Records found", response, 200);
+        }
+        private string ConvertSecondsToTimeFormat(int seconds)
+        {
+            TimeSpan time = TimeSpan.FromSeconds(seconds);
+            return $"{time.Minutes} minutes {time.Seconds} seconds";
+        }
+        private int SafeDivide(int total, int count)
+        {
+            return count == 0 ? 0 : total / count;
         }
         private decimal PercentageCalculation(int indexTypeId, int? contentIndexId, int studentId, int? subjectId, int? syllabusId)
         {
@@ -1331,15 +1591,194 @@ FROM YourAccuracy YA, ClassmateAccuracy CA;";
         {
             return (values?.Count ?? 0) > 0 ? (int)values.Average() : 0;
         }
-        private string ConvertSecondsToTimeFormat(int seconds)
+        private async Task<bool> GetIsAnalyticsAsync(int indexTypeId, int contentId, int subjectId, int syllabusId, int registrationId)
         {
-            TimeSpan time = TimeSpan.FromSeconds(seconds);
-            if (time.Hours > 0)
-                return $"{time.Hours} hours {time.Minutes} minutes {time.Seconds} seconds";
-            else if (time.Minutes > 0)
-                return $"{time.Minutes} minutes {time.Seconds} seconds";
-            else
-                return $"{time.Seconds} seconds";
+            string query = string.Empty;
+
+            if (indexTypeId == 1) // Chapter → check both child Topics and SubTopics
+            {
+                query = @"
+            SELECT COUNT(1)
+            FROM tblConceptwisePracticeQuestions q
+            WHERE 
+                q.QuestionStatusId != 4 AND
+                q.SubjectId = @SubjectId AND
+                q.SyllabusID = @SyllabusId AND
+                q.StudentId = @RegistrationId AND
+                (
+                    EXISTS (
+                        SELECT 1
+                        FROM tblContentIndexTopics t
+                        WHERE t.ContInIdTopic = q.ContentID AND t.ContentIndexId = @ContentId
+                    )
+                    OR
+                    EXISTS (
+                        SELECT 1
+                        FROM tblContentIndexSubTopics st
+                        INNER JOIN tblContentIndexTopics t ON st.ContInIdTopic = t.ContInIdTopic
+                        WHERE st.ContInIdSubTopic = q.ContentID AND t.ContentIndexId = @ContentId
+                    )
+                )";
+            }
+            else if (indexTypeId == 2) // Topic → check child SubTopics
+            {
+                query = @"
+            SELECT COUNT(1)
+            FROM tblConceptwisePracticeQuestions q
+            INNER JOIN tblContentIndexSubTopics st ON q.ContentID = st.ContInIdSubTopic
+            WHERE 
+                st.ContInIdTopic = @ContentId AND
+                q.IndexTypeID = 3 AND
+                q.SubjectId = @SubjectId AND
+                q.SyllabusID = @SyllabusId AND
+                q.StudentId = @RegistrationId AND
+                q.QuestionStatusId != 4";
+            }
+            else if (indexTypeId == 3) // SubTopic → self check
+            {
+                query = @"
+            SELECT COUNT(1)
+            FROM tblConceptwisePracticeQuestions q
+            WHERE 
+                q.ContentID = @ContentId AND
+                q.IndexTypeID = 3 AND
+                q.SubjectId = @SubjectId AND
+                q.SyllabusID = @SyllabusId AND
+                q.StudentId = @RegistrationId AND
+                q.QuestionStatusId != 4";
+            }
+
+            int count = await _connection.ExecuteScalarAsync<int>(query, new
+            {
+                ContentId = contentId,
+                SubjectId = subjectId,
+                SyllabusId = syllabusId,
+                RegistrationId = registrationId
+            });
+
+            return count > 0;
+        }
+        private async Task<int> GetAttemptCountAsync(int indexTypeId, int contentId, int subjectId, int syllabusId, int registrationId)
+        {
+            var setIdsQuery = @"
+        SELECT DISTINCT SetID
+        FROM tblConceptwisePracticeQuestions
+        WHERE 
+            SyllabusID = @SyllabusId AND
+            SubjectId = @SubjectId AND
+            StudentId = @RegistrationId AND
+            SetID IS NOT NULL AND SetID > 0";
+
+            var setIds = (await _connection.QueryAsync<int>(setIdsQuery, new
+            {
+                SyllabusId = syllabusId,
+                SubjectId = subjectId,
+                RegistrationId = registrationId
+            })).ToList();
+
+            int attemptCount = 0;
+
+            foreach (int setId in setIds)
+            {
+                bool isAttemptComplete = false;
+
+                if (indexTypeId == 1) // Chapter
+                {
+                    string chapterCheckQuery = @"
+                ;WITH TopicIDs AS (
+                    SELECT ContInIdTopic
+                    FROM tblContentIndexTopics
+                    WHERE ContentIndexId = @ContentId AND IsActive = 1
+                ),
+                SubTopicIDs AS (
+                    SELECT st.ContInIdSubTopic
+                    FROM tblContentIndexSubTopics st
+                    INNER JOIN TopicIDs t ON st.ContInIdTopic = t.ContInIdTopic
+                    WHERE st.IsActive = 1
+                )
+                SELECT COUNT(1)
+                FROM tblConceptwisePracticeQuestions q
+                WHERE 
+                    (
+                        (q.ContentID = @ContentId AND q.IndexTypeID = 1) OR
+                        (q.ContentID IN (SELECT ContInIdTopic FROM TopicIDs) AND q.IndexTypeID = 2) OR
+                        (q.ContentID IN (SELECT ContInIdSubTopic FROM SubTopicIDs) AND q.IndexTypeID = 3)
+                    )
+                    AND q.SubjectId = @SubjectId
+                    AND q.SyllabusID = @SyllabusId
+                    AND q.StudentId = @RegistrationId
+                    AND q.SetID = @SetId
+                    AND q.QuestionStatusId != 2";  // != Correct
+
+                    int incorrectCount = await _connection.ExecuteScalarAsync<int>(chapterCheckQuery, new
+                    {
+                        ContentId = contentId,
+                        SubjectId = subjectId,
+                        SyllabusId = syllabusId,
+                        RegistrationId = registrationId,
+                        SetId = setId
+                    });
+
+                    isAttemptComplete = incorrectCount == 0;
+                }
+                else if (indexTypeId == 2) // Topic
+                {
+                    string topicCheckQuery = @"
+                SELECT COUNT(1)
+                FROM tblConceptwisePracticeQuestions q
+                INNER JOIN tblContentIndexSubTopics st ON q.ContentID = st.ContInIdSubTopic
+                WHERE 
+                    st.ContInIdTopic = @ContentId AND
+                    st.IsActive = 1 AND
+                    q.IndexTypeID = 3 AND
+                    q.SubjectId = @SubjectId AND
+                    q.SyllabusID = @SyllabusId AND
+                    q.StudentId = @RegistrationId AND
+                    q.SetID = @SetId AND
+                    q.QuestionStatusId != 2";
+
+                    int incorrectCount = await _connection.ExecuteScalarAsync<int>(topicCheckQuery, new
+                    {
+                        ContentId = contentId,
+                        SubjectId = subjectId,
+                        SyllabusId = syllabusId,
+                        RegistrationId = registrationId,
+                        SetId = setId
+                    });
+
+                    isAttemptComplete = incorrectCount == 0;
+                }
+                else if (indexTypeId == 3) // SubTopic
+                {
+                    string subtopicCheckQuery = @"
+                SELECT COUNT(1)
+                FROM tblConceptwisePracticeQuestions
+                WHERE 
+                    ContentID = @ContentId AND
+                    IndexTypeID = 3 AND
+                    SubjectId = @SubjectId AND
+                    SyllabusID = @SyllabusId AND
+                    StudentId = @RegistrationId AND
+                    SetID = @SetId AND
+                    QuestionStatusId != 2";
+
+                    int incorrectCount = await _connection.ExecuteScalarAsync<int>(subtopicCheckQuery, new
+                    {
+                        ContentId = contentId,
+                        SubjectId = subjectId,
+                        SyllabusId = syllabusId,
+                        RegistrationId = registrationId,
+                        SetId = setId
+                    });
+
+                    isAttemptComplete = incorrectCount == 0;
+                }
+
+                if (isAttemptComplete)
+                    attemptCount++;
+            }
+
+            return attemptCount;
         }
     }
 }

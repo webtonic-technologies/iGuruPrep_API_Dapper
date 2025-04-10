@@ -135,11 +135,39 @@
 
     public class ChapterAccuracyReportResponse
     {
-        public decimal YourAccuracy { get; set; }
-        public decimal AverageClassAccuracy { get; set; }
-        public int StudentsOutperformingYou { get; set; }
-        public int TotalClassmatesAttempted { get; set; }
-        public int YourAttemptCount { get; set; }
+        public decimal MyAccuracyPercentage { get; set; }
+        public decimal ClassmatesAccuracyPercentage { get; set; }
+        public int StudentsWithBetterAccuracy { get; set; }
+        public int TotalStudentsAttempted { get; set; }
+        public int TotalAttemptsOfChapter { get; set; }
+    }
+
+    public class ChapterAnalyticsResponse
+    {
+        public int TotalQuestions { get; set; }
+        public int CorrectCount { get; set; }
+        public int IncorrectCount { get; set; }
+        public int UnattemptedCount { get; set; }
+        public decimal CorrectPercentage { get; set; }
+        public decimal IncorrectPercentage { get; set; }
+        public decimal UnattemptedPercentage { get; set; }
+    }
+    public class ChapterTimeReportResponse
+    {
+        public string TotalTimeSpentByMe { get; set; }
+        public string AvgTimeSpentByMePerQuestion { get; set; }
+
+        public string TotalTimeCorrect { get; set; }
+        public string AvgTimeCorrect { get; set; }
+
+        public string TotalTimeIncorrect { get; set; }
+        public string AvgTimeIncorrect { get; set; }
+
+        public string TotalTimeUnattempted { get; set; }
+        public string AvgTimeUnattempted { get; set; }
+
+        public string AvgTimeSpentByClassmates { get; set; }
+        public string AvgTimeSpentByClassmatesPerQuestion { get; set; }
     }
 
     public class StudentTimeAnalysisDto
@@ -155,8 +183,39 @@
 
         public string TotalTimeOnUnansweredQuestions { get; set; }
         public string AverageTimePerUnansweredQuestion { get; set; }
-
-        public string AverageTimeByClassmates { get; set; }
-        public string AverageTimePerQuestionByClassmates { get; set; }
     }
+    public class ChapterTreeResponse
+    {
+        public int SubjectId { get; set; }
+        public int SyllabusId { get; set; }
+        public int IndexTypeId { get; set; }
+        public int ContentId { get; set; }
+        public string ContentName { get; set; }
+        public string Synopsis { get; set; }
+        public int RegistrationId { get; set; }
+        public decimal Percentage { get; set; }
+        public int Question { get; set; }
+        public int TopicCount { get; set; }
+        public List<TopicResponse> Topics { get; set; }
+    }
+
+    public class TopicResponse
+    {
+        public string TopicName { get; set; }
+        public int ContentId { get; set; }
+        public int IndexTypeId { get; set; }
+        public int SubTopicCount { get; set; }
+        public decimal Percentage { get; set; }
+        public int Question { get; set; }
+        public List<SubTopicResponse> SubTopics { get; set; }
+    }
+
+    public class SubTopicResponse
+    {
+        public int ContentId { get; set; }
+        public string SubTopicName { get; set; }
+        public decimal Percentage { get; set; }
+        public int Question { get; set; }
+    }
+
 }

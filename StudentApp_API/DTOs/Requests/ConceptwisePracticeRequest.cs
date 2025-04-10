@@ -13,14 +13,13 @@ namespace StudentApp_API.DTOs.Requests
         public int QuestionTypeID { get; set; }
         public List<int> AnswerID { get; set; }
     }
-    public class ChapterAccuracyReportRequest
+    public class ChapterAnalyticsRequest
     {
+        public int ChapterId { get; set; }
+        public int SyllabusId { get; set; }
+        public int SubjectId { get; set; }
         public int StudentId { get; set; }
-        public int SetId { get; set; }
-        public int IndexTypeId { get; set; } = 1; // Fixed for chapter
-        public int ContentId { get; set; }
     }
-
     public class ConceptwisePracticeSubmitAnswerRequest
     {
         public int StudentID { get; set; }
@@ -50,5 +49,12 @@ namespace StudentApp_API.DTOs.Requests
         public string QuestionCode { get; set; } = string.Empty;
         public int RegistrationId { get; set; }
         public int SubjectId { get; set; }
+    }
+    public class SyllabusDetailsRequestWebView
+    {
+
+        public int? SyllabusId { get; set; }
+        public int? SubjectId { get; set; }
+        public int RegistrationId { get; set; }
     }
 }
