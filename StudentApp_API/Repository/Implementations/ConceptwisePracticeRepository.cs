@@ -273,7 +273,7 @@ namespace StudentApp_API.Repository.Implementations
             LEFT JOIN tblSyllabusDetails s ON t.ContInIdTopic = s.ContentIndexId
             WHERE 
                 t.ContentIndexId = @ContentIndexId AND 
-                s.IndexTypeId = 2 AND s.SyllabusID = @SyllabusID
+                s.IndexTypeId = 2 AND s.SyllabusID = @SyllabusID AND
                 t.IsActive = 1";
 
                     contentResponse = (await _connection.QueryAsync<ConceptwisePracticeContentResponse>(queryTopics, new
@@ -306,7 +306,7 @@ namespace StudentApp_API.Repository.Implementations
             LEFT JOIN tblSyllabusDetails d ON s.ContInIdSubTopic = d.ContentIndexId
             WHERE 
                 s.ContInIdTopic = @ContentIndexId AND 
-                d.IndexTypeId = 3 AND d.SyllabusID = @SyllabusID
+                d.IndexTypeId = 3 AND d.SyllabusID = @SyllabusID AND
                 s.IsActive = 1";
 
                     contentResponse = (await _connection.QueryAsync<ConceptwisePracticeContentResponse>(querySubTopics, new
