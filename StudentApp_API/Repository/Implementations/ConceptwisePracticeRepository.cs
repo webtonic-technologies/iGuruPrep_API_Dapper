@@ -204,7 +204,7 @@ namespace StudentApp_API.Repository.Implementations
                 c.ContentIndexId AS ContentId, 
                 c.SubjectId, 
                 c.ContentName_Chapter AS ContentName, 
-                s.SyllabusID, 
+                s.SyllabusID, s.Synopsis,
                 c.IndexTypeId,
                 (
                     SELECT COUNT(*) 
@@ -231,7 +231,7 @@ namespace StudentApp_API.Repository.Implementations
             WHERE 
                 s.SyllabusID = @SyllabusId AND 
                 c.SubjectId = @SubjectId AND 
-                c.IndexTypeId = 1 AND 
+                s.IndexTypeId = 1 AND 
                 c.IsActive = 1";
 
                     contentResponse = (await _connection.QueryAsync<ConceptwisePracticeContentResponse>(queryChaptersWithTopicCount, new
@@ -248,7 +248,7 @@ namespace StudentApp_API.Repository.Implementations
             SELECT 
                 t.ContInIdTopic AS ContentId, 
                 t.ContentName_Topic AS ContentName, 
-                s.SyllabusID, 
+                s.SyllabusID, s.Synopsis,
                 t.IndexTypeId,
                 (
                     SELECT COUNT(*) 
@@ -270,10 +270,10 @@ namespace StudentApp_API.Repository.Implementations
                         q.StudentId = @RegistrationId
                 ) AS AttemptCount
             FROM tblContentIndexTopics t
-            LEFT JOIN tblSyllabusDetails s ON t.ContentIndexId = s.ContentIndexId
+            LEFT JOIN tblSyllabusDetails s ON t.ContInIdTopic = s.ContentIndexId
             WHERE 
                 t.ContentIndexId = @ContentIndexId AND 
-                t.IndexTypeId = 2 AND 
+                s.IndexTypeId = 2 AND 
                 t.IsActive = 1";
 
                     contentResponse = (await _connection.QueryAsync<ConceptwisePracticeContentResponse>(queryTopics, new
@@ -289,7 +289,7 @@ namespace StudentApp_API.Repository.Implementations
             SELECT 
                 s.ContInIdSubTopic AS ContentId, 
                 s.ContentName_SubTopic AS ContentName, 
-                d.SyllabusID, 
+                d.SyllabusID, d.Synopsis,
                 s.IndexTypeId,
                 0 AS ConceptOrSubConceptCount,
                 (
@@ -302,10 +302,10 @@ namespace StudentApp_API.Repository.Implementations
                         q.StudentId = @RegistrationId
                 ) AS AttemptCount
             FROM tblContentIndexSubTopics s
-            LEFT JOIN tblSyllabusDetails d ON s.ContInIdTopic = d.ContentIndexId
+            LEFT JOIN tblSyllabusDetails d ON s.ContInIdSubTopic = d.ContentIndexId
             WHERE 
                 s.ContInIdTopic = @ContentIndexId AND 
-                s.IndexTypeId = 3 AND 
+                d.IndexTypeId = 3 AND 
                 s.IsActive = 1";
 
                     contentResponse = (await _connection.QueryAsync<ConceptwisePracticeContentResponse>(querySubTopics, new
@@ -319,6 +319,7 @@ namespace StudentApp_API.Repository.Implementations
                 // Add registration ID and calculate percentage
                 foreach (var data in contentResponse)
                 {
+                    data.SubjectId = request.SubjectId;
                     data.RegistrationId = request.RegistrationId;
                     data.Percentage = PercentageCalculation(data.IndexTypeId, data.ContentId, request.RegistrationId, request.SubjectId, request.SyllabusId);
                     data.AttemptCount = await GetAttemptCountAsync(data.IndexTypeId, data.ContentId, request.SubjectId ?? 0, request.SyllabusId ?? 0, request.RegistrationId);
@@ -349,8 +350,12 @@ namespace StudentApp_API.Repository.Implementations
                     // Enable synopsis button only if synopsis is present
                     data.IsSynopsis = !string.IsNullOrWhiteSpace(data.Synopsis);
                 }
+                var response = (contentResponse == null || !contentResponse.Any())
+    ? new ServiceResponse<List<ConceptwisePracticeContentResponse>>(false, "No records found", [], 404, 0)
+    : new ServiceResponse<List<ConceptwisePracticeContentResponse>>(true, "Success", contentResponse, 200, contentResponse.Count);
 
-                return new ServiceResponse<List<ConceptwisePracticeContentResponse>>(true, "Success", contentResponse, 200, contentResponse.Count);
+                return response;
+
             }
             catch (Exception ex)
             {
@@ -404,11 +409,19 @@ namespace StudentApp_API.Repository.Implementations
                     q.ExtraInformation,
                     q.IsConfigure,
                     q.CategoryId,
-                    qt.QuestionType AS QuestionType
+                    qt.QuestionType AS QuestionTypeName,
+   CASE 
+                   WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
+                   WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
+                   WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+               END AS ContentIndexName
                 FROM tblQuestion q
                 INNER JOIN tblQIDCourse qc ON q.QuestionId = qc.QID
                 LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
                 LEFT JOIN tbldifficultylevel dl ON qc.LevelId = dl.LevelId
+  LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
+        LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
+        LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
                 WHERE q.SubjectId = @SubjectId
                 AND q.IndexTypeId = @IndexTypeId
                 AND q.ContentIndexId = @ContentIndexId
@@ -426,35 +439,96 @@ namespace StudentApp_API.Repository.Implementations
                         Count = level.NoofQperLevel
                     })).ToList();
 
-                    foreach (var question in questions)
+                   // var questionsResponse = new List<QuestionResponseDTO>();
+                    var questionsToInsert = new List<(int? QuestionId, int DisplayOrder)>();
+                    var studentMappingsToInsert = new List<(int? QuestionId, int? SubjectId)>();
+                    int displayOrder = 1, remainingLimit = 0;
+                    
+                    foreach (var questionData in questions)
                     {
-                        string insertQuestionQuery = @"
-                    INSERT INTO tblConceptwisePracticeQuestions
-                    (ContentID, IndexTypeID, QuestionID, SyllabusID, SetID, StudentId, LevelId, QuestionStatusId, Iscorrect, SubjectId)
-                    VALUES (@ContentID, @IndexTypeID, @QuestionID, @SyllabusID, @SetID, @StudentId, @LevelId, 4, 0, @SubjectId)";
+                        if (remainingLimit <= 0)
+                            break;
 
-                        await _connection.ExecuteAsync(insertQuestionQuery, new
+                        if (questionData.QuestionTypeId == 11)
                         {
-                            ContentID = request.contentId,
-                            IndexTypeID = request.indexTypeId,
-                            QuestionID = question.QuestionId,
-                            SyllabusID = request.SyllabusId,
-                            SetID = setId,
-                            StudentId = request.StudentId,
-                            LevelId = level.LevelId,
-                            SubjectId = request.subjectId
-                        });
+                            var childQuestions = GetChildQuestions(questionData.QuestionCode);
+                            int totalRequiredForThis = 1 + childQuestions.Count;
 
-                        questionsToReturn.Add(question);
+                            if (remainingLimit < totalRequiredForThis)
+                                continue; // Skip this comprehensive block if not enough space left
+
+                            questionData.ComprehensiveChildQuestions = childQuestions;
+
+                            // Add parent question
+                            questionsToReturn.Add(questionData);
+                            questionsToInsert.Add((questionData.QuestionId, displayOrder));
+                            studentMappingsToInsert.Add((questionData.QuestionId, questionData.subjectID));
+                            displayOrder++;
+                            remainingLimit--;
+
+                            // Add child questions
+                            foreach (var child in childQuestions)
+                            {
+                                var childAsResponse = new QuestionResponseDTO
+                                {
+                                    QuestionId = child.QuestionId ?? 0,
+                                    QuestionDescription = child.QuestionDescription,
+                                    QuestionTypeId = child.QuestionTypeId ?? 0,
+                                    Status = child.Status,
+                                    CreatedBy = child.CreatedBy,
+                                    CreatedOn = child.CreatedOn,
+                                    ModifiedBy = child.ModifiedBy,
+                                    ModifiedOn = child.ModifiedOn,
+                                    subjectID = child.subjectID,
+                                    EmployeeId = child.EmployeeId,
+                                    IndexTypeId = child.IndexTypeId,
+                                    ContentIndexId = child.ContentIndexId,
+                                    IsRejected = child.IsRejected,
+                                    IsApproved = child.IsApproved,
+                                    QuestionTypeName = "", // Optional
+                                    QuestionCode = child.QuestionCode,
+                                    Explanation = child.Explanation,
+                                    ExtraInformation = child.ExtraInformation,
+                                    IsActive = child.IsActive,
+                                    ParentQId = child.ParentQId,
+                                    ParentQCode = child.ParentQCode,
+                                    Answersingleanswercategories = child.Answersingleanswercategories,
+                                    AnswerMultipleChoiceCategories = child.AnswerMultipleChoiceCategories,
+                                    ComprehensiveChildQuestions = null // child won't have nested children
+                                };
+
+                                questionsToReturn.Add(childAsResponse);
+                                questionsToInsert.Add((child.QuestionId, displayOrder));
+                                studentMappingsToInsert.Add((child.QuestionId, child.subjectID));
+                                displayOrder++;
+                                remainingLimit--;
+                            }
+                        }
+                        else
+                        {
+                            questionsToReturn.Add(questionData);
+                            questionsToInsert.Add((questionData.QuestionId, displayOrder));
+                            studentMappingsToInsert.Add((questionData.QuestionId, questionData.subjectID));
+                            displayOrder++;
+                            remainingLimit--;
+                        }
                     }
                 }
             }
             else
             {
                 string existingSetQuery = @"
-SELECT q.*, cpq.*
+SELECT q.*, cpq.*, qt.QuestionType AS QuestionTypeName,    CASE 
+                   WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
+                   WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
+                   WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+               END AS ContentIndexName
 FROM tblConceptwisePracticeQuestions cpq
 INNER JOIN tblQuestion q ON q.QuestionId = cpq.QuestionID
+LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
+  LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
+        LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
+        LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
 WHERE cpq.StudentId = @StudentId
 AND cpq.ContentID = @ContentId
 AND cpq.IndexTypeID = @IndexTypeId
@@ -516,11 +590,19 @@ AND (cpq.QuestionStatusId = 4 OR cpq.Iscorrect = 0)";
                         q.ExtraInformation,
                         q.IsConfigure,
                         q.CategoryId,
-                        qt.QuestionType AS QuestionType
+                        qt.QuestionType AS QuestionTypeName,
+   CASE 
+                   WHEN q.IndexTypeId = 1 THEN ci.ContentName_Chapter
+                   WHEN q.IndexTypeId = 2 THEN ct.ContentName_Topic
+                   WHEN q.IndexTypeId = 3 THEN cst.ContentName_SubTopic
+               END AS ContentIndexName
                     FROM tblQuestion q
                     INNER JOIN tblQIDCourse qc ON q.QuestionId = qc.QID
                     LEFT JOIN tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
                     LEFT JOIN tbldifficultylevel dl ON qc.LevelId = dl.LevelId
+  LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
+        LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
+        LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
                     WHERE q.SubjectId = @SubjectId
                     AND q.IndexTypeId = @IndexTypeId
                     AND q.ContentIndexId = @ContentIndexId
@@ -616,14 +698,17 @@ AND (cpq.QuestionStatusId = 4 OR cpq.Iscorrect = 0)";
                         QuestionCode = item.QuestionCode,
                         Explanation = item.Explanation,
                         ExtraInformation = item.ExtraInformation,
-                        IsActive = item.IsActive,
-                        MatchPairs = item.QuestionTypeId == 6 || item.QuestionTypeId == 12 ? GetMatchPairs(item.QuestionCode, item.QuestionId) : null,
-                        MatchThePairType2Answers = item.QuestionTypeId == 12 ? GetMatchThePairType2Answers(item.QuestionCode, item.QuestionId) : null,
-                        Answersingleanswercategories = (item.QuestionTypeId != 6 && item.QuestionTypeId != 12) ? GetSingleAnswer(item.QuestionCode, item.QuestionId) : null,
-                        AnswerMultipleChoiceCategories = (item.QuestionTypeId != 12) ? GetMultipleAnswers(item.QuestionCode) : null
+                        IsActive = item.IsActive
                     };
                 }
             }).ToList();
+            foreach (var item in questionsToReturn)
+            {
+                item.MatchPairs = item.QuestionTypeId == 6 || item.QuestionTypeId == 12 ? GetMatchPairs(item.QuestionCode, item.QuestionId) : null;
+                item.MatchThePairType2Answers = item.QuestionTypeId == 12 ? GetMatchThePairType2Answers(item.QuestionCode, item.QuestionId) : null;
+                item.Answersingleanswercategories = (item.QuestionTypeId != 6 && item.QuestionTypeId != 12) ? GetSingleAnswer(item.QuestionCode, item.QuestionId) : null;
+                item.AnswerMultipleChoiceCategories = (item.QuestionTypeId != 12) ? GetMultipleAnswers(item.QuestionCode) : null;
+            }
             var levelOrder = new List<int> { 1, 2, 3 };
             if (request.QuestionStatus != null && request.QuestionStatus.Any(id => id != 0))
             {
@@ -755,8 +840,8 @@ AND (cpq.QuestionStatusId = 4 OR cpq.Iscorrect = 0)";
                 bool isCorrect = false;
 
                 // Step 1: Get question type
-                var questionData = await _connection.QueryFirstOrDefaultAsync<(int QuestionId, int QuestionTypeId)>(
-                    @"SELECT QuestionId, QuestionTypeId FROM tblQuestion WHERE QuestionId = @QuestionID",
+                var questionData = await _connection.QueryFirstOrDefaultAsync<(int QuestionId, int QuestionTypeId, string Explanation)>(
+                    @"SELECT QuestionId, QuestionTypeId, Explanation FROM tblQuestion WHERE QuestionId = @QuestionID",
                     new { QuestionID = request.QuestionID });
 
                 if (questionData.QuestionId == 0)
@@ -824,7 +909,7 @@ AND (cpq.QuestionStatusId = 4 OR cpq.Iscorrect = 0)";
                         AnswerIds = request.MultiOrSingleAnswerId != null && request.MultiOrSingleAnswerId.Any()
                                         ? string.Join(",", request.MultiOrSingleAnswerId):string.Empty,
                         IsCorrect = isCorrect,
-                        AnswerStatus = "string",
+                        AnswerStatus = isCorrect ? "Correct" : "Incorrect",
                         Answer = request.SubjectiveAnswers ?? string.Empty,
                         Marks = 0,
                         SubjectId = request.SubjectID,
@@ -834,6 +919,7 @@ AND (cpq.QuestionStatusId = 4 OR cpq.Iscorrect = 0)";
                         TimeTaken = timeTaken?.TotalSeconds
                     });
                 response.IsAnswerCorrect = isCorrect;
+                response.Explanation = questionData.Explanation;
                 var latestSetId = await _connection.ExecuteScalarAsync<int?>(
     @"SELECT TOP 1 SetID 
       FROM tblConceptwisePracticeQuestions 
@@ -842,7 +928,7 @@ AND (cpq.QuestionStatusId = 4 OR cpq.Iscorrect = 0)";
     new { StudentId = request.StudentID });
 
                 await _connection.ExecuteAsync(@"update [tblConceptwisePracticeQuestions] set Iscorrect = @IsCorrect and QuestionStatusId = @QuestionStatusId 
-where StudentId = @StudentId and SetID = @setid and QuestionID = @QuestionId and ", new
+where StudentId = @StudentId and SetID = @setid and QuestionID = @QuestionId", new
                 {
                     IsCorrect = isCorrect,
                     QuestionStatusId = request.QuestionstatusId,
@@ -1566,12 +1652,14 @@ WHERE q.ContentID = @ChapterId AND q.IndexTypeID = 1 AND q.SetID = @SetId;";
         private List<AnswerMultipleChoiceCategory> GetMultipleAnswers(string QuestionCode)
         {
             var answerMaster = _connection.QueryFirstOrDefault<AnswerMasters>(@"
-         SELECT TOP 1 * FROM tblAnswerMaster WHERE QuestionCode = @QuestionCode ORDER BY AnswerId DESC", new { QuestionCode });
+         SELECT * FROM tblAnswerMaster WHERE QuestionCode = @QuestionCode ORDER BY AnswerId DESC", new { QuestionCode });
 
             if (answerMaster != null)
             {
                 string getQuery = @"
-            SELECT * FROM [tblAnswerMultipleChoiceCategory] WHERE [Answerid] = @Answerid";
+            SELECT Answermultiplechoicecategoryid as Answermultiplechoicecategoryid,
+Answerid as Answerid, Answer as Answer, Iscorrect as Iscorrect
+FROM [tblAnswerMultipleChoiceCategory] WHERE [Answerid] = @Answerid";
 
                 var response = _connection.Query<AnswerMultipleChoiceCategory>(getQuery, new { answerMaster.Answerid });
                 return response.AsList() ?? new List<AnswerMultipleChoiceCategory>();

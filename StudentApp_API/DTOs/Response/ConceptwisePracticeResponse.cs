@@ -16,7 +16,7 @@
     }
     public class ConceptwisePracticeContentResponse
     {
-        public int SubjectId { get; set; }
+        public int? SubjectId { get; set; }
         public int SyllabusId { get; set; }
         public int IndexTypeId { get; set; }
         public int ContentId { get; set; }
@@ -34,6 +34,7 @@
     {
         public int QuestionID { get; set; }
         public bool IsAnswerCorrect { get; set; }
+        public string Explanation {  get; set; }
     }
     public class QuestionAttemptStatsResponse
     {
