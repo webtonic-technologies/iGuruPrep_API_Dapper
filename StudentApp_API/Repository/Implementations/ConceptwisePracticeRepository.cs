@@ -4,6 +4,7 @@ using StudentApp_API.DTOs.Response;
 using StudentApp_API.DTOs.ServiceResponse;
 using StudentApp_API.Repository.Interfaces;
 using System.Data;
+using System.Linq;
 namespace StudentApp_API.Repository.Implementations
 {
     public class ConceptwisePracticeRepository: IConceptwisePracticeRepository
@@ -711,7 +712,7 @@ AND (cpq.QuestionStatusId = 4 OR cpq.Iscorrect = 0)";
                 item.Answersingleanswercategories = (item.QuestionTypeId != 6 && item.QuestionTypeId != 12) ? GetSingleAnswer(item.QuestionCode, item.QuestionId) : null;
                 item.AnswerMultipleChoiceCategories = (item.QuestionTypeId != 12) ? GetMultipleAnswers(item.QuestionCode) : null;
             }
-            var levelOrder = new List<int> { 1, 2, 3 };
+      
             if (request.QuestionStatus != null && request.QuestionStatus.Any(id => id != 0))
             {
                 // Step 1: Get all QuestionIds from current list
@@ -745,13 +746,57 @@ AND (cpq.QuestionStatusId = 4 OR cpq.Iscorrect = 0)";
                 }
             }
 
-            // Apply filter on QuestionStatusId if provided
-            if (request.DifficultyLevel != null && request.DifficultyLevel.Any(id => id != 0))
+            // Step 1: Fetch all attempted questions for the student from tblConceptwisePracticeQuestions
+            var allMappedQuestions = await _connection.QueryAsync<ConceptwisePracticeQuestion>(
+                @"SELECT * FROM tblConceptwisePracticeQuestions 
+      WHERE StudentId = @StudentId",
+                new { StudentId = request.StudentId });
+
+            // Step 2: Get difficulty levels from tbldifficultylevel
+            var allLevels = await _connection.QueryAsync<DifficultyLevel>(
+                @"SELECT * FROM tbldifficultylevel");
+
+            // Step 3: Check current level status
+            bool canProceedToNextLevel = true;
+            int allowedLevelId = 0;
+            foreach (var level in allLevels.OrderBy(l => l.LevelId))
             {
-                questionsToReturn = questionsToReturn
-                    .Where(q => request.DifficultyLevel.Contains(q.LevelId))
+                var questionsInLevel = allMappedQuestions
+                    .Where(q => q.LevelId == level.LevelId)
                     .ToList();
+
+                if (!questionsInLevel.Any())
+                    continue;
+
+                int correctAnswers = questionsInLevel
+                    .Count(q => q.IsCorrect == 1 && q.QuestionStatusId == 1); // 1 = answered
+
+                int requiredCorrectAnswers = (int)Math.Ceiling(level.SuccessRate ?? 0);
+
+                if (correctAnswers < requiredCorrectAnswers)
+                {
+                    canProceedToNextLevel = false;
+                    allowedLevelId = level.LevelId;
+                    break;
+                }
             }
+
+            // Only allow fetching of levels already unlocked
+            questionsToReturn = questionsToReturn
+  .Where(q => q.LevelId <= allowedLevelId)
+  .ToList();
+
+
+            // Step 4: Apply DifficultyLevel filter ONLY if explicitly provided (non-null and not only 0)
+            bool shouldApplyLevelFilter = request.DifficultyLevel != null &&
+                                          request.DifficultyLevel.Any(id => id != 0);
+
+            if (shouldApplyLevelFilter)
+            {
+                // Allow all levels in request
+                questionsToReturn = questionsToReturn.Where(q => request.DifficultyLevel.Contains(q.LevelId)).ToList();
+            }
+            var levelOrder = new List<int> { 1, 2, 3 };
             questionsToReturn = questionsToReturn
                 .OrderBy(q => levelOrder.IndexOf(q.LevelId))
                 .ToList();
@@ -929,7 +974,7 @@ AND (cpq.QuestionStatusId = 4 OR cpq.Iscorrect = 0)";
       ORDER BY SetID DESC",
     new { StudentId = request.StudentID });
 
-                await _connection.ExecuteAsync(@"update [tblConceptwisePracticeQuestions] set Iscorrect = @IsCorrect and QuestionStatusId = @QuestionStatusId 
+                await _connection.ExecuteAsync(@"update [tblConceptwisePracticeQuestions] set Iscorrect = @IsCorrect , QuestionStatusId = @QuestionStatusId 
 where StudentId = @StudentId and SetID = @setid and QuestionID = @QuestionId", new
                 {
                     IsCorrect = isCorrect,

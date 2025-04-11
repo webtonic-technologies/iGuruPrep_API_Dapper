@@ -218,5 +218,34 @@
         public decimal Percentage { get; set; }
         public int Question { get; set; }
     }
-
+    public class ConceptwisePracticeQuestion
+    {
+        public int CPCID { get; set; }
+        public int ContentID { get; set; }
+        public int IndexTypeID { get; set; }
+        public int QuestionID { get; set; }
+        public int SyllabusID { get; set; }
+        public int SetID { get; set; }
+        public int StudentId { get; set; }
+        public int LevelId { get; set; }
+        public int IsCorrect { get; set; }         // 1 = Correct, 0 = Incorrect
+        public int QuestionStatusId { get; set; }  // 4 = Not Visited, 1 = Answered
+        public int SubjectId { get; set; }
+    }
+    public class DifficultyLevel
+    {
+        public int LevelId { get; set; }
+        public string LevelName { get; set; }
+        public string LevelCode { get; set; }
+        public int Status { get; set; }
+        public int NoofQperLevel { get; set; }
+        public double? SuccessRate { get; set; }  // % of correct answers required to unlock next level
+        public DateTime? CreatedOn { get; set; }
+        public string PatternCode { get; set; }
+        public DateTime? ModifiedOn { get; set; }
+        public int? ModifiedBy { get; set; }
+        public string? CreatedBy { get; set; }
+        public int? EmployeeID { get; set; }
+        public string EmpFirstName { get; set; }
+    }
 }
