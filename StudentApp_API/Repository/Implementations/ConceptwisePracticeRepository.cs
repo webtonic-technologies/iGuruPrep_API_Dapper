@@ -209,7 +209,7 @@ namespace StudentApp_API.Repository.Implementations
                 (
                     SELECT COUNT(*) 
                     FROM tblContentIndexTopics t
-                    INNER JOIN tblSyllabusDetails sd ON t.ContentIndexId = sd.ContentIndexId
+                    INNER JOIN tblSyllabusDetails sd ON t.ContInIdTopic = sd.ContentIndexId
                     WHERE 
                         t.ContentIndexId = c.ContentIndexId AND 
                         sd.SyllabusID = s.SyllabusID AND 
@@ -273,13 +273,14 @@ namespace StudentApp_API.Repository.Implementations
             LEFT JOIN tblSyllabusDetails s ON t.ContInIdTopic = s.ContentIndexId
             WHERE 
                 t.ContentIndexId = @ContentIndexId AND 
-                s.IndexTypeId = 2 AND 
+                s.IndexTypeId = 2 AND s.SyllabusID = @SyllabusID
                 t.IsActive = 1";
 
                     contentResponse = (await _connection.QueryAsync<ConceptwisePracticeContentResponse>(queryTopics, new
                     {
                         ContentIndexId = request.ContentIndexId,
-                        RegistrationId = request.RegistrationId
+                        RegistrationId = request.RegistrationId,
+                        SyllabusID = request.SyllabusId
                     })).ToList();
                 }
                 // Fetch subtopics (children of topics)
@@ -305,13 +306,14 @@ namespace StudentApp_API.Repository.Implementations
             LEFT JOIN tblSyllabusDetails d ON s.ContInIdSubTopic = d.ContentIndexId
             WHERE 
                 s.ContInIdTopic = @ContentIndexId AND 
-                d.IndexTypeId = 3 AND 
+                d.IndexTypeId = 3 AND d.SyllabusID = @SyllabusID
                 s.IsActive = 1";
 
                     contentResponse = (await _connection.QueryAsync<ConceptwisePracticeContentResponse>(querySubTopics, new
                     {
                         ContentIndexId = request.ContentIndexId,
-                        RegistrationId = request.RegistrationId
+                        RegistrationId = request.RegistrationId,
+                        SyllabusID = request.SyllabusId
                     })).ToList();
 
                 }
