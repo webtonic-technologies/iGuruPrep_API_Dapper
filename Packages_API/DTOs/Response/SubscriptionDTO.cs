@@ -6,6 +6,8 @@ namespace Packages_API.DTOs.Response
     {
         public int SubscriptionID { get; set; }
         public int CountryID { get; set; }
+        public int ExamTypeId {  get; set; }
+        public string ExamTypeName {  get; set; }
         public int CategoryID { get; set; }
         public string CategoryName { get; set; }  // Added
         public int BoardID { get; set; }

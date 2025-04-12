@@ -27,9 +27,10 @@
     }
     public class SubjectRequestDTO
     {
+        public int CategoryTypeId { get; set; }  // 1 = Academic, 2 = Professional
         public int BoardID { get; set; }
         public int ClassID { get; set; }
         public int CourseID { get; set; }
+        public int ExamTypeID { get; set; }
     }
-
 }

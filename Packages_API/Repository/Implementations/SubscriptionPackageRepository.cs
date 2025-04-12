@@ -93,11 +93,13 @@ namespace Packages_API.Repository.Implementations
                    c.ClassName, 
                    cr.CourseName, 
                    cat.APName AS CategoryName
+                   ex.ExamTypeName as ExamTypeName
             FROM tblSubscriptionPackage sp
             LEFT JOIN tblBoard b ON sp.BoardID = b.BoardId
             LEFT JOIN tblClass c ON sp.ClassID = c.ClassId
             LEFT JOIN tblCourse cr ON sp.CourseID = cr.CourseId
             LEFT JOIN tblCategory cat ON sp.CategoryID = cat.APId
+            LEFT JOIN tblExamType ex ON sp.ExamTypeId = ex.ExamTypeID
             WHERE sp.IsDeleted = 0";
 
                 var subscriptions = (await _connection.QueryAsync<SubscriptionDTO>(query)).ToList();
@@ -130,17 +132,35 @@ namespace Packages_API.Repository.Implementations
         {
             try
             {
-                // Step 1: Get Syllabus mapped to Board, Class, and Course
-                string syllabusQuery = @"SELECT SyllabusId FROM tblSyllabus 
-                                 WHERE BoardID = @BoardID AND CourseID = @CourseID AND ClassID = @ClassID";
+                List<int> syllabusIds = new();
 
-                var syllabusIds = (await _connection.QueryAsync<int>(syllabusQuery,
-                                    new { BoardID = request.BoardID, CourseID = request.CourseID, ClassID = request.ClassID }))
-                                    .ToList();
+                // Step 1: Get Syllabus based on CategoryType
+                if (request.CategoryTypeId == 1) // Academic
+                {
+                    string syllabusQuery = @"SELECT SyllabusId FROM tblSyllabus 
+                                     WHERE BoardID = @BoardID AND CourseID = @CourseID AND ClassID = @ClassID";
+
+                    syllabusIds = (await _connection.QueryAsync<int>(syllabusQuery, new
+                    {
+                        BoardID = request.BoardID,
+                        CourseID = request.CourseID,
+                        ClassID = request.ClassID
+                    })).ToList();
+                }
+                else if (request.CategoryTypeId == 2) // Professional
+                {
+                    string syllabusQuery = @"SELECT SyllabusId FROM tblSyllabus 
+                                     WHERE ExamTypeId = @ExamTypeId";
+
+                    syllabusIds = (await _connection.QueryAsync<int>(syllabusQuery, new
+                    {
+                        ExamTypeId = request.ExamTypeID
+                    })).ToList();
+                }
 
                 if (!syllabusIds.Any())
                 {
-                    return new ServiceResponse<List<SubjectDTO>>(false, "No syllabus found for the given Board, Class, and Course.", [], 404);
+                    return new ServiceResponse<List<SubjectDTO>>(false, "No syllabus found for the given input.", [], 404);
                 }
 
                 // Step 2: Get Subject IDs mapped to these syllabi
@@ -155,7 +175,8 @@ namespace Packages_API.Repository.Implementations
                 }
 
                 // Step 3: Get Subject Names
-                string subjectQuery = @"SELECT SubjectId, SubjectName FROM tblSubject WHERE SubjectId IN @SubjectIDs";
+                string subjectQuery = @"SELECT SubjectId, SubjectName FROM tblSubject 
+                                WHERE SubjectId IN @SubjectIDs";
 
                 var subjects = (await _connection.QueryAsync<SubjectDTO>(subjectQuery, new { SubjectIDs = subjectIds })).ToList();
 
