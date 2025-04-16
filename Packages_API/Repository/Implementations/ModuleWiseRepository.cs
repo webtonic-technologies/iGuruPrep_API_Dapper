@@ -90,7 +90,7 @@ namespace Packages_API.Repository.Implementations
                 var configList = (await _connection.QueryAsync<ModuleWiseConfigDTO>(query)).ToList();
 
                 if (configList == null || !configList.Any())
-                    return new ServiceResponse<List<ModuleWiseConfigDTO>>(false, "No configurations found.", null, 404);
+                    return new ServiceResponse<List<ModuleWiseConfigDTO>>(false, "No configurations found.", [], 404);
 
                 return new ServiceResponse<List<ModuleWiseConfigDTO>>(true, "Module configurations fetched successfully.", configList, 200);
             }

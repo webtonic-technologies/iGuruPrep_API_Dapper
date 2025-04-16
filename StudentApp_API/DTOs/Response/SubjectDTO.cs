@@ -89,18 +89,22 @@
         public int StudentID { get; set; }
         public string FirstName { get; set; }
         public string LastName { get; set; }
-        public int TotalScore { get; set; }
+       // public int TotalScore { get; set; }
     }
     public class CorrectAnswersComparison
     {
+        public string ChallengeName {  get; set; }
+        public DateTime ChallengeDate {  get; set; }
         public int CorrectByMe { get; set; }
-        public int CorrectByTopper { get; set; }
+        public int HighestCorrect { get; set; }
         public double AvgCorrectByOthers { get; set; }
     }
     public class IncorrectAnswersComparison
     {
+        public string ChallengeName { get; set; }
+        public DateTime ChallengeDate { get; set; }
         public int IncorrectByMe { get; set; }
-        public int IncorrectByTopper { get; set; }
+        public int HighestIncorrect { get; set; }
         public double AvgIncorrectByOthers { get; set; }
     }
 

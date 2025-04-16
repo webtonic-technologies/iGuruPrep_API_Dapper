@@ -209,9 +209,9 @@ namespace StudentApp_API.Repository.Implementations
                     MarksPerCorrectAnswer = cyot.MarksPerCorrectAnswer,
                     MarksPerIncorrectAnswer = cyot.MarksPerIncorrectAnswer,
                     CreatedBy = cyot.CreatedBy,
-                    ClassID = studentMapping.ClassId,
-                    CourseID = studentMapping.CourseId,
-                    BoardID = studentMapping.BoardId
+                    ClassID = studentMapping?.ClassId,
+                    CourseID = studentMapping?.CourseId,
+                    BoardID = studentMapping?.BoardId
                 };
                 // Step 2: Insert or Update `tblCYOT`
                 if (cyot.CYOTID == 0)
@@ -425,76 +425,92 @@ new
                         .Where(q => request.QuestionStatusId.Contains(q.QuestionStatusId))
                         .ToList();
                 }
-                // Convert the data to a list of DTOs
-                var response = questionsList.Select(item =>
+
+                List<QuestionResponseDTO> response = new List<QuestionResponseDTO>();
+
+                // Step 1: Get all child question codes to filter them out from main loop
+                var comprehensiveParentCodes = questionsList
+                    .Where(q => q.QuestionTypeId == 11)
+                    .Select(q => q.QuestionCode)
+                    .ToList();
+
+                var childQuestionsLookup = new Dictionary<string, List<ParagraphQuestions>>();
+
+                foreach (var parentCode in comprehensiveParentCodes)
                 {
+                    var childQuestions = GetChildQuestions(parentCode);
+                    if (childQuestions != null && childQuestions.Any())
+                    {
+                        childQuestionsLookup[parentCode] = childQuestions;
+                    }
+                }
+
+                // Step 2: Process only distinct main questions (excluding those that are children)
+                var parentAndIndependentQuestions = questionsList
+                    .Where(q => !childQuestionsLookup.SelectMany(kvp => kvp.Value.Select(c => c.QuestionId)).Contains(q.QuestionId))
+                    .GroupBy(q => q.QuestionId)
+                    .Select(g => g.First()) // Ensure distinct QuestionId
+                    .ToList();
+
+                foreach (var item in parentAndIndependentQuestions)
+                {
+                    var dto = new QuestionResponseDTO
+                    {
+                        QuestionId = item.QuestionId,
+                        QuestionTypeId = item.QuestionTypeId,
+                        QuestionTypeName = item.QuestionTypeName,
+                        QuestionCode = item.QuestionCode,
+                        Explanation = item.Explanation,
+                        ExtraInformation = item.ExtraInformation,
+                        IsActive = item.IsActive,
+                        CreatedBy = item.CreatedBy,
+                        CreatedOn = item.CreatedOn,
+                        ModifiedBy = item.ModifiedBy,
+                        ModifiedOn = item.ModifiedOn,
+                        subjectID = item.subjectID,
+                        SubjectName = item.SubjectName,
+                        EmployeeId = item.EmployeeId,
+                        IndexTypeId = item.IndexTypeId,
+                        IndexTypeName = item.IndexTypeName,
+                        ContentIndexId = item.ContentIndexId,
+                        ContentIndexName = item.ContentIndexName,
+                        IsRejected = item.IsRejected,
+                        IsApproved = item.IsApproved,
+                        Status = item.Status
+                    };
+
                     if (item.QuestionTypeId == 11)
                     {
-                        return new QuestionResponseDTO
-                        {
-                            QuestionId = item.QuestionId,
-                            Paragraph = item.Paragraph,
-                            SubjectName = item.SubjectName,
-                            //  EmployeeName = item.EmpFirstName,
-                            IndexTypeName = item.IndexTypeName,
-                            ContentIndexName = item.ContentIndexName,
-                            // QIDCourses = GetListOfQIDCourse(item.QuestionCode),
-                            ContentIndexId = item.ContentIndexId,
-                            CreatedBy = item.CreatedBy,
-                            CreatedOn = item.CreatedOn,
-                            EmployeeId = item.EmployeeId,
-                            IndexTypeId = item.IndexTypeId,
-                            subjectID = item.subjectID,
-                            ModifiedOn = item.ModifiedOn,
-                            QuestionTypeId = item.QuestionTypeId,
-                            QuestionTypeName = item.QuestionTypeName,
-                            QuestionCode = item.QuestionCode,
-                            Explanation = item.Explanation,
-                            ExtraInformation = item.ExtraInformation,
-                            IsActive = item.IsActive,
-                            ComprehensiveChildQuestions = GetChildQuestions(item.QuestionCode)
-                        };
+                        dto.Paragraph = item.Paragraph;
+                        dto.ComprehensiveChildQuestions = childQuestionsLookup.ContainsKey(item.QuestionCode)
+                            ? childQuestionsLookup[item.QuestionCode]
+                            : [];
                     }
                     else
                     {
-                        return new QuestionResponseDTO
+                        dto.QuestionDescription = item.QuestionDescription;
+
+                        if (item.QuestionTypeId == 6 || item.QuestionTypeId == 12)
                         {
-                            QuestionId = item.QuestionId,
-                            QuestionDescription = item.QuestionDescription,
-                            QuestionTypeId = item.QuestionTypeId,
-                            Status = item.Status,
-                            CreatedBy = item.CreatedBy,
-                            CreatedOn = item.CreatedOn,
-                            ModifiedBy = item.ModifiedBy,
-                            ModifiedOn = item.ModifiedOn,
-                            subjectID = item.subjectID,
-                            SubjectName = item.SubjectName,
-                            EmployeeId = item.EmployeeId,
-                            // EmployeeName = item.EmpFirstName,
-                            IndexTypeId = item.IndexTypeId,
-                            IndexTypeName = item.IndexTypeName,
-                            ContentIndexId = item.ContentIndexId,
-                            ContentIndexName = item.ContentIndexName,
-                            IsRejected = item.IsRejected,
-                            IsApproved = item.IsApproved,
-                            QuestionTypeName = item.QuestionTypeName,
-                            QuestionCode = item.QuestionCode,
-                            Explanation = item.Explanation,
-                            ExtraInformation = item.ExtraInformation,
-                            IsActive = item.IsActive,
-                            //  QIDCourses = GetListOfQIDCourse(item.QuestionCode),
-                            //QuestionSubjectMappings = GetListOfQuestionSubjectMapping(item.QuestionCode),
-                            //Answersingleanswercategories = GetSingleAnswer(item.QuestionCode),
-                            //AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode)
-                            MatchPairs = item.QuestionTypeId == 6 || item.QuestionTypeId == 12 ? GetMatchPairs(item.QuestionCode, item.QuestionId) : null,
-                            MatchThePairType2Answers = item.QuestionTypeId == 12 ? GetMatchThePairType2Answers(item.QuestionCode, item.QuestionId) : null,
-                            // Answersingleanswercategories = (item.QuestionTypeId != 6 && item.QuestionTypeId != 12) ? GetSingleAnswer(item.QuestionCode, item.QuestionId) : null,
-                            AnswerMultipleChoiceCategories = (item.QuestionTypeId != 12) ? GetMultipleAnswers(item.QuestionCode) : null
-                        };
+                            dto.MatchPairs = GetMatchPairs(item.QuestionCode, item.QuestionId);
+                        }
+
+                        if (item.QuestionTypeId == 12)
+                        {
+                            dto.MatchThePairType2Answers = GetMatchThePairType2Answers(item.QuestionCode, item.QuestionId);
+                        }
+
+                        if (item.QuestionTypeId != 12)
+                        {
+                            dto.AnswerMultipleChoiceCategories = GetMultipleAnswers(item.QuestionCode);
+                        }
                     }
-                });
+
+                    response.Add(dto);
+                }
+
                 return questionsList.Any()
-                    ? new ServiceResponse<List<QuestionResponseDTO>>(true, "Operation Successful", questionsList.ToList(), 200, questionsList.Count())
+                    ? new ServiceResponse<List<QuestionResponseDTO>>(true, "Operation Successful", response.ToList(), 200, questionsList.Count())
                     : new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
                 // Continue with your existing logic to process the filtered questionsList
             }
@@ -677,7 +693,8 @@ VALUES (@CYOTId, @StudentId, @QuestionId, @QuestionStatusId, @SubjectId)";
                     {
                         // Check if MultiOrSingleAnswerId is not null and contains at least one valid answer
                         if ((question.MultiOrSingleAnswerId != null && question.MultiOrSingleAnswerId.Any(id => id != 0)) ||
-     (!string.IsNullOrEmpty(question.SubjectiveAnswers) && question.SubjectiveAnswers != "string"))
+     (!string.IsNullOrEmpty(question.SubjectiveAnswers) && question.SubjectiveAnswers != "string") ||
+     question.MatchThePairAnswers != null && question.MatchThePairAnswers.Any(s => s.PairRow != 0 && s.PairColumn != 0))
                         {
                             var data = new List<CYOTAnswerSubmissionRequest>
         {
@@ -755,7 +772,7 @@ GROUP BY CYOT.MarksPerCorrectAnswer, CYOT.MarksPerIncorrectAnswer;";
                 var percentage = totalMarks > 0 ? (marksObtained * 100) / totalMarks : 0;
                 var statusId = percentage >= 80 ? 3 : 2; // 3 = Challenge Open, 2 = Completed
                 int owner = await _connection.QueryFirstOrDefaultAsync<int>(@"select CreatedBy from tblCYOT where CYOTID = @cyotid", new { cyotid = request.CYOTId });
-                if(request.StudentID == owner)
+                if (request.StudentID == owner)
                 {
                     // Update the CYOT status
                     await _connection.ExecuteAsync(
@@ -808,7 +825,7 @@ GROUP BY CYOT.MarksPerCorrectAnswer, CYOT.MarksPerIncorrectAnswer;";
 
                 if (cyot == null)
                 {
-                    return new ServiceResponse<CYOTDTO>(false, "CYOT record not found.", null, 404);
+                    return new ServiceResponse<CYOTDTO>(false, "CYOT record not found.", new CYOTDTO(), 404);
                 }
                 // Query to fetch associated syllabus details
                 var syllabusQuery = @"
@@ -827,7 +844,7 @@ GROUP BY CYOT.MarksPerCorrectAnswer, CYOT.MarksPerIncorrectAnswer;";
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<CYOTDTO>(false, $"Error: {ex.Message}", null, 500);
+                return new ServiceResponse<CYOTDTO>(false, $"Error: {ex.Message}", new CYOTDTO(), 500);
             }
         }
         public async Task<ServiceResponse<string>> SubmitCYOTAnswerAsync(List<CYOTAnswerSubmissionRequest> request)
@@ -847,7 +864,7 @@ GROUP BY CYOT.MarksPerCorrectAnswer, CYOT.MarksPerIncorrectAnswer;";
                 );
                 foreach (var answer in request)
                 {
-                  
+                    string answerIdToStore = string.Empty;
                     string answerStatus = "Incorrect";
                     bool isCorrect = false; // ✅ Initialize isCorrect
                     decimal marks = 0; // ✅ Initialize marks
@@ -890,7 +907,7 @@ GROUP BY CYOT.MarksPerCorrectAnswer, CYOT.MarksPerIncorrectAnswer;";
                                                  decimal.TryParse(answer.SubjectiveAnswers?.Trim(), out var studentValue) &&
                                                  correctValue == studentValue;
 
-                                marks = isCorrect ? questionData.MarksPerQuestion : -questionData.NegativeMarks;
+                                marks = isCorrect ? cyotMarks.MarksPerCorrect : -cyotMarks.MarksPerIncorrect;
                                 answerStatus = isCorrect ? "Correct" : "Incorrect";
                             }
                         }
@@ -928,6 +945,7 @@ GROUP BY CYOT.MarksPerCorrectAnswer, CYOT.MarksPerIncorrectAnswer;";
                         }
                         answerStatus = actualCorrectCount == studentCorrectCount ? "Correct" : "Incorrect";
                         isCorrect = actualCorrectCount == studentCorrectCount ? true : false;
+                        marks = isCorrect ? cyotMarks.MarksPerCorrect : -cyotMarks.MarksPerIncorrect;
                     }
                     else if (questionData.QuestionTypeId == 12)
                     {
@@ -960,21 +978,52 @@ GROUP BY CYOT.MarksPerCorrectAnswer, CYOT.MarksPerIncorrectAnswer;";
                         {
                             // Compare each pair
                             bool allMatched = correctPairs.All(cp =>
-                                submittedAnswers.Any(sa => sa.PairColumn == cp.PairColumn && sa.PairRow == cp.PairRow));
+     submittedAnswers.Any(sa => sa.PairColumn == cp.PairColumn && sa.PairRow == cp.PairRow))
+     &&
+     submittedAnswers.All(sa =>
+         correctPairs.Any(cp => cp.PairColumn == sa.PairColumn && cp.PairRow == sa.PairRow));
 
                             isCorrect = allMatched;
                         }
 
                         if (isCorrect)
                         {
-                            marks = questionData.MarksPerQuestion;
+                            marks = cyotMarks.MarksPerCorrect;
                             answerStatus = "Correct";
                         }
                         else
                         {
-                            marks = -questionData.NegativeMarks;
+                            marks = -cyotMarks.MarksPerIncorrect;
                             answerStatus = "Incorrect";
                         }
+                        // Get MatchThePair2Id for each submitted pair
+                        var submittedPairIds = new List<int>();
+
+                        foreach (var pair in submittedAnswers)
+                        {
+                            var pairId = await _connection.QueryFirstOrDefaultAsync<int>(
+     @"SELECT omp.MatchThePairId
+      FROM tblQuestionMatchThePair omp
+      WHERE omp.PairColumn = @PairColumn 
+        AND omp.PairRow = @PairRow
+        AND omp.QuestionId = @QuestionId",
+     new
+     {
+         PairColumn = pair.PairColumn,
+         PairRow = pair.PairRow,
+         QuestionId = answer.QuestionID
+     });
+
+
+                            if (pairId != 0)
+                            {
+                                submittedPairIds.Add(pairId);
+                            }
+                        }
+
+                        // Use this wherever needed
+                         answerIdToStore = string.Join(",", submittedPairIds);
+
                     }
                     // Handle multiple-answer types
                     else
@@ -1009,6 +1058,7 @@ GROUP BY CYOT.MarksPerCorrectAnswer, CYOT.MarksPerIncorrectAnswer;";
                             marks = -questionData.NegativeMarks;
                             answerStatus = "Incorrect";
                         }
+                        marks = isCorrect ? cyotMarks.MarksPerCorrect : -cyotMarks.MarksPerIncorrect;
                     }
                     string answerToStore;
 
@@ -1054,7 +1104,8 @@ GROUP BY CYOT.MarksPerCorrectAnswer, CYOT.MarksPerIncorrectAnswer;";
                                 CYOTID = answer.CYOTId,
                                 StudentID = answer.RegistrationId,
                                 QuestionID = answer.QuestionID,
-                                AnswerId = string.Join(",", answer.MultiOrSingleAnswerId),
+                                AnswerId = questionData.QuestionTypeId == 12 ? answerIdToStore :
+                                string.Join(",", answer.MultiOrSingleAnswerId),
                                 IsCorrect = isCorrect,
                                 SubjectId = answer.SubjectID,
                                 QuestionTypeId = answer.QuestionTypeID,

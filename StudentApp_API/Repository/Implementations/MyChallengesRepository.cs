@@ -55,6 +55,7 @@ namespace StudentApp_API.Repository.Implementations
 
                 var typedResponse = new List<CYOTResponse>();
 
+                bool ViewKey = false, Analytics = false;
                 foreach (var cyot in cyotList)
                 {
                     // Calculate total marks obtained
@@ -65,10 +66,11 @@ namespace StudentApp_API.Repository.Implementations
 
                     // Determine status
                     string cyotStatus;
-                    bool ViewKey, Analytics;
                     if (cyot.AttemptedQuestions == 0)
                     {
                         cyotStatus = "Pending";
+                        ViewKey = false;
+                        Analytics = false;
                     }
                     else if (isChallengeApplicable)
                     {
@@ -96,7 +98,9 @@ namespace StudentApp_API.Repository.Implementations
                             CYOTStatus = cyotStatus,
                             Percentage = percentage,
                             IsChallengeApplicable = isChallengeApplicable,
-                            CreatedOn = cyot.CreatedOn
+                            CreatedOn = cyot.CreatedOn,
+                            IsViewKey = ViewKey,
+                            IsAnalytics = Analytics,
                         });
                     }
                 }
@@ -253,7 +257,7 @@ namespace StudentApp_API.Repository.Implementations
                 var allScores = (await _connection.QueryAsync<dynamic>(allScoresQuery, new { CYOTID = cyotId })).ToList();
                 int totalStudents = allScores.Count;
                 int rank = allScores.FindIndex(x => x.StudentID == studentId) + 1;
-                int studentsAbove = rank - 1;
+                int studentsAbove = rank > 0 ? rank - 1 : 0;
                 decimal percentile = Math.Round(((totalStudents - rank) / (decimal)totalStudents) * 100, 2);
 
                 // Step 3: Fetch Country Rank
@@ -458,7 +462,7 @@ GROUP BY A.SubjectId;";
                 var allScores = (await _connection.QueryAsync<dynamic>(allScoresQuery, new { CYOTID = cyotId, SubjectID = subjectId })).ToList();
                 int totalStudents = allScores.Count;
                 int rank = allScores.FindIndex(x => x.StudentID == studentId) + 1;
-                int studentsAbove = rank - 1;
+                int studentsAbove = rank > 0 ? rank - 1 : 0;
                 decimal percentile = Math.Round(((totalStudents - rank) / (decimal)totalStudents) * 100, 2);
 
                 // Fetch country rank for this subject
@@ -772,7 +776,11 @@ WHERE ST.StudentId = @StudentId;";
         SELECT 
             (SELECT CorrectAnswers FROM StudentCorrectAnswers WHERE StudentID = @StudentID) AS CorrectByMe,
             (SELECT CorrectByTopper FROM TopperCorrect) AS CorrectByTopper,
-            (SELECT AvgCorrectByOthers FROM AverageCorrect) AS AvgCorrectByOthers;";
+            (SELECT AvgCorrectByOthers FROM AverageCorrect) AS AvgCorrectByOthers,
+c.ChallengeName,
+    c.ChallengeDate
+FROM tblCYOT c
+WHERE c.CYOTID = @CYOTID;;";
 
                 var result = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new
                 {
@@ -785,8 +793,10 @@ WHERE ST.StudentId = @StudentId;";
                     var response = new CorrectAnswersComparison
                     {
                         CorrectByMe = result.CorrectByMe ?? 0,
-                        CorrectByTopper = result.CorrectByTopper ?? 0,
-                        AvgCorrectByOthers = result.AvgCorrectByOthers ?? 0
+                        HighestCorrect = result.CorrectByTopper ?? 0,
+                        AvgCorrectByOthers = result.AvgCorrectByOthers ?? 0,
+                        ChallengeDate = result.ChallengeDate ?? DateTime.MinValue,
+                        ChallengeName = result.ChallengeName ?? string.Empty
                     };
 
                     return new ServiceResponse<CorrectAnswersComparison>(
@@ -836,7 +846,11 @@ WHERE ST.StudentId = @StudentId;";
         SELECT 
             (SELECT IncorrectAnswers FROM StudentIncorrectAnswers WHERE StudentID = @StudentID) AS IncorrectByMe,
             (SELECT IncorrectByTopper FROM TopperIncorrect) AS IncorrectByTopper,
-            (SELECT AvgIncorrectByOthers FROM AverageIncorrect) AS AvgIncorrectByOthers;";
+            (SELECT AvgIncorrectByOthers FROM AverageIncorrect) AS AvgIncorrectByOthers,
+   c.ChallengeName,
+    c.ChallengeDate
+FROM tblCYOT c
+WHERE c.CYOTID = @CYOTID;";
 
                 var result = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new
                 {
@@ -849,17 +863,13 @@ WHERE ST.StudentId = @StudentId;";
                     var response = new IncorrectAnswersComparison
                     {
                         IncorrectByMe = result.IncorrectByMe ?? 0,
-                        IncorrectByTopper = result.IncorrectByTopper ?? 0,
-                        AvgIncorrectByOthers = result.AvgIncorrectByOthers ?? 0
+                        HighestIncorrect = result.IncorrectByTopper ?? 0,
+                        AvgIncorrectByOthers = result.AvgIncorrectByOthers ?? 0,
+                        ChallengeDate = result.ChallengeDate ?? DateTime.MinValue,
+                        ChallengeName = result.ChallengeName ?? string.Empty
                     };
-
-                    return new ServiceResponse<IncorrectAnswersComparison>(
-                        true,
-                        "Incorrect answers comparison fetched successfully",
-                        response,
-                        200
-                    );
                 }
+
 
                 return new ServiceResponse<IncorrectAnswersComparison>(
                     false,

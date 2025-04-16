@@ -108,7 +108,7 @@ namespace Packages_API.Repository.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<SubscriptionDTO>>(false, ex.Message, null, 500);
+                return new ServiceResponse<List<SubscriptionDTO>>(false, ex.Message, [], 500);
             }
         }
         public async Task<ServiceResponse<List<CountryDTO>>> GetAllCountry()
@@ -119,13 +119,13 @@ namespace Packages_API.Repository.Implementations
                 var countries = (await _connection.QueryAsync<CountryDTO>(query)).ToList();
 
                 if (!countries.Any())
-                    return new ServiceResponse<List<CountryDTO>>(false, "No countries found.", null, 404);
+                    return new ServiceResponse<List<CountryDTO>>(false, "No countries found.", [], 404);
 
                 return new ServiceResponse<List<CountryDTO>>(true, "Countries retrieved successfully.", countries, 200);
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<List<CountryDTO>>(false, ex.Message, null, 500);
+                return new ServiceResponse<List<CountryDTO>>(false, ex.Message, [], 500);
             }
         }
         public async Task<ServiceResponse<List<SubjectDTO>>> GetSubjectsByBoardClassCourse(SubjectRequestDTO request)
@@ -207,7 +207,7 @@ namespace Packages_API.Repository.Implementations
                 var subscription = await _connection.QueryFirstOrDefaultAsync<SubscriptionDTO>(query, new { SubscriptionID = subscriptionID });
 
                 if (subscription == null)
-                    return new ServiceResponse<SubscriptionDTO>(false, "Subscription not found.", null, 404);
+                    return new ServiceResponse<SubscriptionDTO>(false, "Subscription not found.", new SubscriptionDTO(), 404);
 
                 // Fetch subject-wise discounts
                 string discountQuery = "SELECT * FROM tblSubjectWiseDiscount WHERE SubscriptionID = @SubscriptionID";
@@ -217,7 +217,7 @@ namespace Packages_API.Repository.Implementations
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<SubscriptionDTO>(false, ex.Message, null, 500);
+                return new ServiceResponse<SubscriptionDTO>(false, ex.Message, new SubscriptionDTO(), 500);
             }
         }
         public async Task<ServiceResponse<bool>> DeleteSubscription(int subscriptionID)
