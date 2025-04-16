@@ -590,10 +590,15 @@ GROUP BY A.SubjectId;";
             SQM.QuestionStatusId
         FROM tblCYOTQuestionNavigation AS N
         LEFT JOIN tblCYOTAnswers AS A 
-            ON N.QuestionId = A.QuestionID AND N.StudentId = A.StudentID AND N.CYOTId = A.CYOTID
+            ON N.QuestionId = A.QuestionID 
+            AND N.StudentId = A.StudentID 
+            AND N.CYOTId = A.CYOTID 
+            AND A.SubjectID = @SubjectId
         LEFT JOIN tblCYOTStudentQuestionMapping AS SQM 
-            ON N.QuestionId = SQM.QuestionId AND N.StudentId = SQM.StudentId AND N.CYOTId = SQM.CYOTId
-        WHERE N.CYOTId = @CYOTId AND A.SubjectID = @SubjectId";
+            ON N.QuestionId = SQM.QuestionId 
+            AND N.StudentId = SQM.StudentId 
+            AND N.CYOTId = SQM.CYOTId
+        WHERE N.CYOTId = @CYOTId";
 
                 var data = (await _connection.QueryAsync(query, new { CYOTId = cyotId, SubjectId = subjectId })).ToList();
 
