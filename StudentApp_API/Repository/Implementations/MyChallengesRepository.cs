@@ -5,6 +5,8 @@ using StudentApp_API.DTOs.Response;
 using StudentApp_API.DTOs.Requests;
 using StudentApp_API.DTOs.Responses;
 using StudentApp_API.Repository.Interfaces;
+using System.Linq;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace StudentApp_API.Repository.Implementations
 {
@@ -259,7 +261,7 @@ namespace StudentApp_API.Repository.Implementations
 
                 var allScores = (await _connection.QueryAsync<dynamic>(allScoresQuery, new { CYOTID = cyotId })).ToList();
                 int totalStudents = allScores.Count;
-                int rank = allScores.FindIndex(x => x.StudentID == studentId) + 1;
+                int rank = allScores.FindIndex(x => x.RegistrationID == studentId) + 1;
                 int studentsAbove = rank > 0 ? rank - 1 : 0;
                 decimal percentile = Math.Round(((totalStudents - rank) / (decimal)totalStudents) * 100, 2);
 
@@ -312,104 +314,58 @@ namespace StudentApp_API.Repository.Implementations
         {
             try
             {
-                var query = @"WITH StudentTime AS (
-    SELECT 
-        N.StudentId,
-        SUM(DATEDIFF(SECOND, N.StartTime, N.EndTime)) AS TotalTimeSpent,
-        AVG(DATEDIFF(SECOND, N.StartTime, N.EndTime)) AS AvgTimePerQuestion,
-        
-        SUM(CASE WHEN A.IsCorrect = 1 THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE 0 END) AS TotalTimeSpentCorrect,
-        AVG(CASE WHEN A.IsCorrect = 1 THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE NULL END) AS AvgTimeSpentCorrect,
+                string query = @"
+SELECT 
+    N.StudentId,
+    N.QuestionId,
+    N.StartTime,
+    N.EndTime,
+    A.IsCorrect,
+    SQM.QuestionStatusId
+FROM tblCYOTQuestionNavigation N
+LEFT JOIN tblCYOTAnswers A ON N.QuestionId = A.QuestionID AND N.StudentId = A.StudentID AND N.CYOTId = A.CYOTID
+LEFT JOIN tblCYOTStudentQuestionMapping SQM ON N.QuestionId = SQM.QuestionId AND N.StudentId = SQM.StudentId AND N.CYOTId = SQM.CYOTId
+WHERE N.CYOTId = @CYOTId";
 
-        SUM(CASE WHEN A.IsCorrect = 0 THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE 0 END) AS TotalTimeSpentWrong,
-        AVG(CASE WHEN A.IsCorrect = 0 THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE NULL END) AS AvgTimeSpentWrong,
+                var data = (await _connection.QueryAsync(query, new { CYOTID = cyotId })).ToList();
 
-        SUM(CASE WHEN SQM.QuestionStatusId IN (2, 4) THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE 0 END) AS TotalTimeSpentUnattempted,
-        AVG(CASE WHEN SQM.QuestionStatusId IN (2, 4) THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE NULL END) AS AvgTimeSpentUnattempted
-    FROM tblCYOTQuestionNavigation AS N
-    LEFT JOIN tblCYOTAnswers AS A ON N.QuestionId = A.QuestionID AND N.StudentId = A.StudentID AND N.CYOTId = A.CYOTID
-    LEFT JOIN tblCYOTStudentQuestionMapping AS SQM ON N.QuestionId = SQM.QuestionId AND N.StudentId = SQM.StudentId AND N.CYOTId = SQM.CYOTId
-    WHERE N.CYOTId = @CYOTId
-    GROUP BY N.StudentId
-),
-OthersTime AS (
-    SELECT 
-        AVG(TotalTimeSpent) AS AvgTimeSpentByOthers,
-        AVG(AvgTimePerQuestion) AS AvgTimePerQuestionByOthers,
-        AVG(TotalTimeSpentCorrect) AS AvgTimeSpentCorrectByOthers,
-        AVG(AvgTimeSpentCorrect) AS AvgAvgTimeSpentCorrectByOthers,
-        AVG(TotalTimeSpentWrong) AS AvgTimeSpentWrongByOthers,
-        AVG(AvgTimeSpentWrong) AS AvgAvgTimeSpentWrongByOthers,
-        AVG(TotalTimeSpentUnattempted) AS AvgTimeSpentUnattemptedByOthers,
-        AVG(AvgTimeSpentUnattempted) AS AvgAvgTimeSpentUnattemptedByOthers
-    FROM StudentTime
-    WHERE StudentId != @StudentId
-)
-SELECT ST.*, OT.*
-FROM StudentTime ST
-CROSS JOIN OthersTime OT
-WHERE ST.StudentId = @StudentId;";
+                if (data == null || data.Count == 0)
+                    return new ServiceResponse<CYOTMyChallengesTimeAnalytics>(false, "No analytics data found", null, 404);
 
-                var result = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new
+                var studentData = data.Where(x => x.StudentId == studentId).ToList();
+                var othersData = data.Where(x => x.StudentId != studentId).ToList();
+
+                var studentAnalytics = CalculateTimeAnalytics(studentData);
+                var othersAnalytics = CalculateAverageTimeAnalytics(othersData);
+
+                var result = new CYOTMyChallengesTimeAnalytics
                 {
-                    CYOTID = cyotId,
-                    StudentID = studentId
-                });
+                    // Student analytics
+                    TotalTimeSpent = ConvertSecondsToTimeFormat(studentAnalytics.TotalTimeSpent),
+                    AvgTimePerQuestion = ConvertSecondsToTimeFormat(studentAnalytics.AvgTimePerQuestion),
+                    TotalTimeSpentCorrect = ConvertSecondsToTimeFormat(studentAnalytics.TotalCorrect),
+                    AvgTimeSpentCorrect = ConvertSecondsToTimeFormat(studentAnalytics.AvgCorrect),
+                    TotalTimeSpentWrong = ConvertSecondsToTimeFormat(studentAnalytics.TotalWrong),
+                    AvgTimeSpentWrong = ConvertSecondsToTimeFormat(studentAnalytics.AvgWrong),
+                    TotalTimeSpentUnattempted = ConvertSecondsToTimeFormat(studentAnalytics.TotalUnattempted),
+                    AvgTimeSpentUnattempted = ConvertSecondsToTimeFormat(studentAnalytics.AvgUnattempted),
 
-                if (result != null)
-                {
-                    var response = new CYOTMyChallengesTimeAnalytics
-                    {
-                        // Student's time analytics
-                        TotalTimeSpent = ConvertSecondsToTimeFormat(result.TotalTimeSpent ?? 0),
-                        AvgTimePerQuestion = ConvertSecondsToTimeFormat(result.AvgTimePerQuestion ?? 0),
+                    // Others (average)
+                    AvgTimeSpentByOthers = ConvertSecondsToTimeFormat(othersAnalytics.TotalTimeSpent),
+                    AvgTimePerQuestionByOthers = ConvertSecondsToTimeFormat(othersAnalytics.AvgTimePerQuestion),
+                    AvgTimeSpentCorrectByOthers = ConvertSecondsToTimeFormat(othersAnalytics.TotalCorrect),
+                    AvgAvgTimeSpentCorrectByOthers = ConvertSecondsToTimeFormat(othersAnalytics.AvgCorrect),
+                    AvgTimeSpentWrongByOthers = ConvertSecondsToTimeFormat(othersAnalytics.TotalWrong),
+                    AvgAvgTimeSpentWrongByOthers = ConvertSecondsToTimeFormat(othersAnalytics.AvgWrong),
+                    AvgTimeSpentUnattemptedByOthers = ConvertSecondsToTimeFormat(othersAnalytics.TotalUnattempted),
+                    AvgAvgTimeSpentUnattemptedByOthers = ConvertSecondsToTimeFormat(othersAnalytics.AvgUnattempted),
+                };
 
-                        TotalTimeSpentCorrect = ConvertSecondsToTimeFormat(result.TotalTimeSpentCorrect ?? 0),
-                        AvgTimeSpentCorrect = ConvertSecondsToTimeFormat(result.AvgTimeSpentCorrect ?? 0),
-
-                        TotalTimeSpentWrong = ConvertSecondsToTimeFormat(result.TotalTimeSpentWrong ?? 0),
-                        AvgTimeSpentWrong = ConvertSecondsToTimeFormat(result.AvgTimeSpentWrong ?? 0),
-
-                        TotalTimeSpentUnattempted = ConvertSecondsToTimeFormat(result.TotalTimeSpentUnattempted ?? 0),
-                        AvgTimeSpentUnattempted = ConvertSecondsToTimeFormat(result.AvgTimeSpentUnattempted ?? 0),
-
-                        // Other students' average time analytics
-                        AvgTimeSpentByOthers = ConvertSecondsToTimeFormat(result.AvgTimeSpentByOthers ?? 0),
-                        AvgTimePerQuestionByOthers = ConvertSecondsToTimeFormat(result.AvgTimePerQuestionByOthers ?? 0),
-
-                        AvgTimeSpentCorrectByOthers = ConvertSecondsToTimeFormat(result.AvgTimeSpentCorrectByOthers ?? 0),
-                        AvgAvgTimeSpentCorrectByOthers = ConvertSecondsToTimeFormat(result.AvgAvgTimeSpentCorrectByOthers ?? 0),
-
-                        AvgTimeSpentWrongByOthers = ConvertSecondsToTimeFormat(result.AvgTimeSpentWrongByOthers ?? 0),
-                        AvgAvgTimeSpentWrongByOthers = ConvertSecondsToTimeFormat(result.AvgAvgTimeSpentWrongByOthers ?? 0),
-
-                        AvgTimeSpentUnattemptedByOthers = ConvertSecondsToTimeFormat(result.AvgTimeSpentUnattemptedByOthers ?? 0),
-                        AvgAvgTimeSpentUnattemptedByOthers = ConvertSecondsToTimeFormat(result.AvgAvgTimeSpentUnattemptedByOthers ?? 0)
-                    };
-
-                    return new ServiceResponse<CYOTMyChallengesTimeAnalytics>(
-                        true,
-                        "Time analytics fetched successfully",
-                        response,
-                        200
-                    );
-                }
-
-                return new ServiceResponse<CYOTMyChallengesTimeAnalytics>(
-                    false,
-                    "No analytics data found",
-                    null,
-                    404
-                );
+                return new ServiceResponse<CYOTMyChallengesTimeAnalytics>(true, "Time analytics fetched successfully", result, 200);
             }
             catch (Exception ex)
             {
-                return new ServiceResponse<CYOTMyChallengesTimeAnalytics>(
-                    false,
-                    ex.Message,
-                    null,
-                    500
-                );
+                return new ServiceResponse<CYOTMyChallengesTimeAnalytics>(false, ex.Message, null, 500);
             }
         }
         public async Task<ServiceResponse<CYOTMyChallengesAnalyticsResponse>> GetCYOTSubjectWiseAnalyticsAsync(int studentId, int cyotId, int subjectId)
@@ -519,91 +475,65 @@ GROUP BY A.SubjectId;";
         {
             try
             {
-                var query = @"WITH StudentTime AS (
-    SELECT 
-        N.StudentId,
-        SUM(DATEDIFF(SECOND, N.StartTime, N.EndTime)) AS TotalTimeSpent,
-        AVG(DATEDIFF(SECOND, N.StartTime, N.EndTime)) AS AvgTimePerQuestion,
+                var query = @"SELECT 
+                        N.StartTime,
+                        N.EndTime,
+                        A.IsCorrect,
+                        SQM.QuestionStatusId,
+                        A.SubjectID
+                      FROM tblCYOTQuestionNavigation AS N
+                      LEFT JOIN tblCYOTAnswers AS A ON N.QuestionId = A.QuestionID AND N.StudentId = A.StudentID AND N.CYOTId = A.CYOTID
+                      LEFT JOIN tblCYOTStudentQuestionMapping AS SQM ON N.QuestionId = SQM.QuestionId AND N.StudentId = SQM.StudentId AND N.CYOTId = SQM.CYOTId
+                      JOIN tblCYOTQuestions AS Q ON N.QuestionId = Q.QuestionID
+                      WHERE N.CYOTId = @CYOTId AND N.StudentId = @StudentId AND A.SubjectID = @SubjectId";
 
-        SUM(CASE WHEN A.IsCorrect = 1 THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE 0 END) AS TotalTimeSpentCorrect,
-        AVG(CASE WHEN A.IsCorrect = 1 THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE NULL END) AS AvgTimeSpentCorrect,
-
-        SUM(CASE WHEN A.IsCorrect = 0 THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE 0 END) AS TotalTimeSpentWrong,
-        AVG(CASE WHEN A.IsCorrect = 0 THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE NULL END) AS AvgTimeSpentWrong,
-
-        SUM(CASE WHEN SQM.QuestionStatusId IN (2, 4) THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE 0 END) AS TotalTimeSpentUnattempted,
-        AVG(CASE WHEN SQM.QuestionStatusId IN (2, 4) THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE NULL END) AS AvgTimeSpentUnattempted
-    FROM tblCYOTQuestionNavigation AS N
-    LEFT JOIN tblCYOTAnswers AS A ON N.QuestionId = A.QuestionID AND N.StudentId = A.StudentID AND N.CYOTId = A.CYOTID
-    LEFT JOIN tblCYOTStudentQuestionMapping AS SQM ON N.QuestionId = SQM.QuestionId AND N.StudentId = SQM.StudentId AND N.CYOTId = SQM.CYOTId
-    JOIN tblCYOTQuestions AS Q ON N.QuestionId = Q.QuestionID  -- Ensuring only questions for the subject are considered
-    WHERE N.CYOTId = @CYOTId AND A.SubjectID = @SubjectID
-    GROUP BY N.StudentId
-),
-OthersTime AS (
-    SELECT 
-        1 AS DummyKey, -- Adding a static key for JOIN
-        AVG(TotalTimeSpent) AS AvgTimeSpentByOthers,
-        AVG(AvgTimePerQuestion) AS AvgTimePerQuestionByOthers,
-        AVG(TotalTimeSpentCorrect) AS AvgTimeSpentCorrectByOthers,
-        AVG(AvgTimeSpentCorrect) AS AvgAvgTimeSpentCorrectByOthers,
-        AVG(TotalTimeSpentWrong) AS AvgTimeSpentWrongByOthers,
-        AVG(AvgTimeSpentWrong) AS AvgAvgTimeSpentWrongByOthers,
-        AVG(TotalTimeSpentUnattempted) AS AvgTimeSpentUnattemptedByOthers,
-        AVG(AvgTimeSpentUnattempted) AS AvgAvgTimeSpentUnattemptedByOthers
-    FROM StudentTime
-    WHERE StudentId != @StudentId
-)
-SELECT ST.*, OT.*
-FROM StudentTime ST
-LEFT JOIN OthersTime OT ON 1=1
-WHERE ST.StudentId = @StudentId;";
-
-                var result = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new
+                var data = (await _connection.QueryAsync<dynamic>(query, new
                 {
                     CYOTID = cyotId,
                     StudentID = studentId,
                     SubjectID = subjectId
-                });
+                })).ToList();
 
+                if (data == null || data.Count == 0)
+                    return new ServiceResponse<CYOTMyChallengesTimeAnalytics>(false, "No analytics data found", null, 404);
+
+                var studentData = data.Where(x => x.StudentId == studentId).ToList();
+                var othersData = data.Where(x => x.StudentId != studentId).ToList();
+
+                var studentAnalytics = CalculateTimeAnalytics(studentData);
+                var othersAnalytics = CalculateAverageTimeAnalytics(othersData);
+
+                var result = new CYOTMyChallengesTimeAnalytics
+                {
+                    // Student analytics
+                    TotalTimeSpent = ConvertSecondsToTimeFormat(studentAnalytics.TotalTimeSpent),
+                    AvgTimePerQuestion = ConvertSecondsToTimeFormat(studentAnalytics.AvgTimePerQuestion),
+                    TotalTimeSpentCorrect = ConvertSecondsToTimeFormat(studentAnalytics.TotalCorrect),
+                    AvgTimeSpentCorrect = ConvertSecondsToTimeFormat(studentAnalytics.AvgCorrect),
+                    TotalTimeSpentWrong = ConvertSecondsToTimeFormat(studentAnalytics.TotalWrong),
+                    AvgTimeSpentWrong = ConvertSecondsToTimeFormat(studentAnalytics.AvgWrong),
+                    TotalTimeSpentUnattempted = ConvertSecondsToTimeFormat(studentAnalytics.TotalUnattempted),
+                    AvgTimeSpentUnattempted = ConvertSecondsToTimeFormat(studentAnalytics.AvgUnattempted),
+
+                    // Others (average)
+                    AvgTimeSpentByOthers = ConvertSecondsToTimeFormat(othersAnalytics.TotalTimeSpent),
+                    AvgTimePerQuestionByOthers = ConvertSecondsToTimeFormat(othersAnalytics.AvgTimePerQuestion),
+                    AvgTimeSpentCorrectByOthers = ConvertSecondsToTimeFormat(othersAnalytics.TotalCorrect),
+                    AvgAvgTimeSpentCorrectByOthers = ConvertSecondsToTimeFormat(othersAnalytics.AvgCorrect),
+                    AvgTimeSpentWrongByOthers = ConvertSecondsToTimeFormat(othersAnalytics.TotalWrong),
+                    AvgAvgTimeSpentWrongByOthers = ConvertSecondsToTimeFormat(othersAnalytics.AvgWrong),
+                    AvgTimeSpentUnattemptedByOthers = ConvertSecondsToTimeFormat(othersAnalytics.TotalUnattempted),
+                    AvgAvgTimeSpentUnattemptedByOthers = ConvertSecondsToTimeFormat(othersAnalytics.AvgUnattempted),
+                };
                 if (result != null)
                 {
-                    var response = new CYOTMyChallengesTimeAnalytics
-                    {
-                        // Student's time analytics
-                        TotalTimeSpent = ConvertSecondsToTimeFormat(result.TotalTimeSpent ?? 0),
-                        AvgTimePerQuestion = ConvertSecondsToTimeFormat(result.AvgTimePerQuestion ?? 0),
-
-                        TotalTimeSpentCorrect = ConvertSecondsToTimeFormat(result.TotalTimeSpentCorrect ?? 0),
-                        AvgTimeSpentCorrect = ConvertSecondsToTimeFormat(result.AvgTimeSpentCorrect ?? 0),
-
-                        TotalTimeSpentWrong = ConvertSecondsToTimeFormat(result.TotalTimeSpentWrong ?? 0),
-                        AvgTimeSpentWrong = ConvertSecondsToTimeFormat(result.AvgTimeSpentWrong ?? 0),
-
-                        TotalTimeSpentUnattempted = ConvertSecondsToTimeFormat(result.TotalTimeSpentUnattempted ?? 0),
-                        AvgTimeSpentUnattempted = ConvertSecondsToTimeFormat(result.AvgTimeSpentUnattempted ?? 0),
-
-                        // Other students' average time analytics
-                        AvgTimeSpentByOthers = ConvertSecondsToTimeFormat(result.AvgTimeSpentByOthers ?? 0),
-                        AvgTimePerQuestionByOthers = ConvertSecondsToTimeFormat(result.AvgTimePerQuestionByOthers ?? 0),
-
-                        AvgTimeSpentCorrectByOthers = ConvertSecondsToTimeFormat(result.AvgTimeSpentCorrectByOthers ?? 0),
-                        AvgAvgTimeSpentCorrectByOthers = ConvertSecondsToTimeFormat(result.AvgAvgTimeSpentCorrectByOthers ?? 0),
-
-                        AvgTimeSpentWrongByOthers = ConvertSecondsToTimeFormat(result.AvgTimeSpentWrongByOthers ?? 0),
-                        AvgAvgTimeSpentWrongByOthers = ConvertSecondsToTimeFormat(result.AvgAvgTimeSpentWrongByOthers ?? 0),
-
-                        AvgTimeSpentUnattemptedByOthers = ConvertSecondsToTimeFormat(result.AvgTimeSpentUnattemptedByOthers ?? 0),
-                        AvgAvgTimeSpentUnattemptedByOthers = ConvertSecondsToTimeFormat(result.AvgAvgTimeSpentUnattemptedByOthers ?? 0)
-                    };
-
                     return new ServiceResponse<CYOTMyChallengesTimeAnalytics>(
-                        true,
-                        "Subject-wise time analytics fetched successfully",
-                        response,
-                        200
-                    );
+               true,
+               "analytics data found for this subject",
+               result,
+               200);
                 }
+
 
                 return new ServiceResponse<CYOTMyChallengesTimeAnalytics>(
                     false,
@@ -952,5 +882,83 @@ WHERE c.CYOTID = @CYOTID;";
             else
                 return $"{time.Seconds} seconds";
         }
+
+        private TimeAnalytics CalculateTimeAnalytics(List<dynamic> records)
+        {
+            var result = new TimeAnalytics();
+
+            var totalDurations = records.Select(r => (int)GetDuration(r.StartTime, r.EndTime)).ToList();
+            result.TotalTimeSpent = totalDurations.Sum();
+            result.AvgTimePerQuestion = totalDurations.Any() ? (int)totalDurations.Average() : 0;
+
+            var correctDurations = records
+                .Where(r => r.IsCorrect == true)
+                .Select(r => (int)GetDuration(r.StartTime, r.EndTime)).ToList();
+            result.TotalCorrect = correctDurations.Sum();
+            result.AvgCorrect = correctDurations.Any() ? (int)correctDurations.Average() : 0;
+
+            var wrongDurations = records
+                .Where(r => r.IsCorrect == false)
+                .Select(r => (int)GetDuration(r.StartTime, r.EndTime)).ToList();
+            result.TotalWrong = wrongDurations.Sum();
+            result.AvgWrong = wrongDurations.Any() ? (int)wrongDurations.Average() : 0;
+
+            var unattemptedDurations = records
+                .Where(r => r.QuestionStatusId == 2 || r.QuestionStatusId == 4)
+                .Select(r => (int)GetDuration(r.StartTime, r.EndTime)).ToList();
+            result.TotalUnattempted = unattemptedDurations.Sum();
+            result.AvgUnattempted = unattemptedDurations.Any() ? (int)unattemptedDurations.Average() : 0;
+
+            return result;
+        }
+
+
+        private TimeAnalytics CalculateAverageTimeAnalytics(List<dynamic> allRecords)
+        {
+            var grouped = allRecords.GroupBy(x => x.StudentId);
+            var studentAnalyticsList = grouped.Select(g => CalculateTimeAnalytics(g.ToList())).ToList();
+
+            var avg = new TimeAnalytics();
+            int count = studentAnalyticsList.Count;
+
+            if (count == 0) return avg;
+
+            avg.TotalTimeSpent = (int)studentAnalyticsList.Average(x => x.TotalTimeSpent);
+            avg.AvgTimePerQuestion = (int)studentAnalyticsList.Average(x => x.AvgTimePerQuestion);
+
+            avg.TotalCorrect = (int)studentAnalyticsList.Average(x => x.TotalCorrect);
+            avg.AvgCorrect = (int)studentAnalyticsList.Average(x => x.AvgCorrect);
+
+            avg.TotalWrong = (int)studentAnalyticsList.Average(x => x.TotalWrong);
+            avg.AvgWrong = (int)studentAnalyticsList.Average(x => x.AvgWrong);
+
+            avg.TotalUnattempted = (int)studentAnalyticsList.Average(x => x.TotalUnattempted);
+            avg.AvgUnattempted = (int)studentAnalyticsList.Average(x => x.AvgUnattempted);
+
+            return avg;
+        }
+
+        private int GetDuration(DateTime? start, DateTime? end)
+        {
+            if (start.HasValue && end.HasValue)
+                return (int)(end.Value - start.Value).TotalSeconds;
+
+            return 0;
+        }
+        private class TimeAnalytics
+        {
+            public int TotalTimeSpent;
+            public int AvgTimePerQuestion;
+
+            public int TotalCorrect;
+            public int AvgCorrect;
+
+            public int TotalWrong;
+            public int AvgWrong;
+
+            public int TotalUnattempted;
+            public int AvgUnattempted;
+        }
     }
+
 }

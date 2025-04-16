@@ -1539,69 +1539,82 @@ WHERE
             {
                 var query = @"
 SELECT 
-    -- Total time spent (in seconds)
-    SUM(DATEDIFF(SECOND, N.StartTime, N.EndTime)) / 60.0 AS TotalTimeSpent,
-    -- Average time per question (in seconds)
-    AVG(DATEDIFF(SECOND, N.StartTime, N.EndTime)) / 60.0 AS AvgTimePerQuestion,
-
-    -- Time spent on correct answers
-    SUM(CASE WHEN A.IsCorrect = 1 THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE 0 END) / 60.0 AS TotalTimeSpentCorrect,
-    -- Average time for correct answers
-    AVG(CASE WHEN A.IsCorrect = 1 THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE NULL END) / 60.0 AS AvgTimeSpentCorrect,
-
-    -- Time spent on incorrect answers
-    SUM(CASE WHEN A.IsCorrect = 0 THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE 0 END) / 60.0 AS TotalTimeSpentWrong,
-    -- Average time for incorrect answers
-    AVG(CASE WHEN A.IsCorrect = 0 THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE NULL END) / 60.0 AS AvgTimeSpentWrong,
-
-    -- Time spent on unattempted questions (Status ID 2 and 4)
-    SUM(CASE WHEN SQM.QuestionStatusId IN (2, 4) THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE 0 END) / 60.0 AS TotalTimeSpentUnattempted,
-    -- Average time for unattempted questions
-    AVG(CASE WHEN SQM.QuestionStatusId IN (2, 4) THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE NULL END) / 60.0 AS AvgTimeSpentUnattempted
-
-FROM tblCYOTQuestionNavigation AS N
-LEFT JOIN tblCYOTAnswers AS A ON N.QuestionId = A.QuestionID AND N.StudentId = A.StudentID AND N.CYOTId = A.CYOTID
-LEFT JOIN tblCYOTStudentQuestionMapping AS SQM ON N.QuestionId = SQM.QuestionId AND N.StudentId = SQM.StudentId AND N.CYOTId = SQM.CYOTId
-
+    N.StartTime,
+    N.EndTime,
+    A.IsCorrect,
+    SQM.QuestionStatusId
+FROM tblCYOTQuestionNavigation N
+LEFT JOIN tblCYOTAnswers A 
+    ON N.QuestionId = A.QuestionID AND N.StudentId = A.StudentID AND N.CYOTId = A.CYOTID
+LEFT JOIN tblCYOTStudentQuestionMapping SQM 
+    ON N.QuestionId = SQM.QuestionId AND N.StudentId = SQM.StudentId AND N.CYOTId = SQM.CYOTId
 WHERE N.CYOTId = @CYOTId AND N.StudentId = @StudentId;";
 
-                var result = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new
+                var data = (await _connection.QueryAsync(query, new
                 {
-                    CYOTID = cyotId,
-                    StudentID = studentId
-                });
+                    CYOTId = cyotId,
+                    StudentId = studentId
+                })).ToList();
 
-                if (result != null)
+                if (data == null || data.Count == 0)
                 {
-                    var response = new CYOTTimeAnalytics
-                    {
-                        TotalTimeSpent = ConvertSecondsToTimeFormat((int)Math.Floor(result.TotalTimeSpent ?? 0)),
-                        AvgTimePerQuestion = ConvertSecondsToTimeFormat((int)Math.Floor(result.AvgTimePerQuestion ?? 0)),
-
-                        TotalTimeSpentCorrect = ConvertSecondsToTimeFormat((int)Math.Floor(result.TotalTimeSpentCorrect ?? 0)),
-                        AvgTimeSpentCorrect = ConvertSecondsToTimeFormat((int)Math.Floor(result.AvgTimeSpentCorrect ?? 0)),
-
-                        TotalTimeSpentWrong = ConvertSecondsToTimeFormat((int)Math.Floor(result.TotalTimeSpentWrong ?? 0)),
-                        AvgTimeSpentWrong = ConvertSecondsToTimeFormat((int)Math.Floor(result.AvgTimeSpentWrong ?? 0)),
-
-                        TotalTimeSpentUnattempted = ConvertSecondsToTimeFormat((int)Math.Floor(result.TotalTimeSpentUnattempted ?? 0)),
-                        AvgTimeSpentUnattempted = ConvertSecondsToTimeFormat((int)Math.Floor(result.AvgTimeSpentUnattempted ?? 0))
-                    };
-
                     return new ServiceResponse<CYOTTimeAnalytics>(
-                        true,
-                        "Time analytics fetched successfully",
-                        response,
-                        200
+                        false,
+                        "No analytics data found",
+                        null,
+                        404
                     );
                 }
 
+                var durations = data
+                    .Where(row => row.StartTime != null && row.EndTime != null)
+                    .Select(row =>
+                    {
+                        var duration = ((DateTime)row.EndTime - (DateTime)row.StartTime).TotalSeconds;
+
+                        return new
+                        {
+                            Duration = duration,
+                            IsCorrect = (bool?)row.IsCorrect,
+                            StatusId = (int?)row.QuestionStatusId
+                        };
+                    }).ToList();
+
+                double totalTime = durations.Sum(d => d.Duration);
+                double avgTime = durations.Count > 0 ? durations.Average(d => d.Duration) : 0;
+
+                var correct = durations.Where(d => d.IsCorrect == true).ToList();
+                double totalCorrect = correct.Sum(d => d.Duration);
+                double avgCorrect = correct.Count > 0 ? correct.Average(d => d.Duration) : 0;
+
+                var wrong = durations.Where(d => d.IsCorrect == false).ToList();
+                double totalWrong = wrong.Sum(d => d.Duration);
+                double avgWrong = wrong.Count > 0 ? wrong.Average(d => d.Duration) : 0;
+
+                var unattempted = durations.Where(d => d.StatusId == 2 || d.StatusId == 4).ToList();
+                double totalUnattempted = unattempted.Sum(d => d.Duration);
+                double avgUnattempted = unattempted.Count > 0 ? unattempted.Average(d => d.Duration) : 0;
+
+                var response = new CYOTTimeAnalytics
+                {
+                    TotalTimeSpent = ConvertSecondsToTimeFormat((int)totalTime),
+                    AvgTimePerQuestion = ConvertSecondsToTimeFormat((int)avgTime),
+
+                    TotalTimeSpentCorrect = ConvertSecondsToTimeFormat((int)totalCorrect),
+                    AvgTimeSpentCorrect = ConvertSecondsToTimeFormat((int)avgCorrect),
+
+                    TotalTimeSpentWrong = ConvertSecondsToTimeFormat((int)totalWrong),
+                    AvgTimeSpentWrong = ConvertSecondsToTimeFormat((int)avgWrong),
+
+                    TotalTimeSpentUnattempted = ConvertSecondsToTimeFormat((int)totalUnattempted),
+                    AvgTimeSpentUnattempted = ConvertSecondsToTimeFormat((int)avgUnattempted)
+                };
 
                 return new ServiceResponse<CYOTTimeAnalytics>(
-                    false,
-                    "No analytics data found",
-                    null,
-                    404
+                    true,
+                    "Time analytics fetched successfully",
+                    response,
+                    200
                 );
             }
             catch (Exception ex)
@@ -1719,97 +1732,83 @@ GROUP BY S.SubjectName;";
             {
                 var query = @"
 SELECT 
-    -- Total time spent (in seconds)
-    SUM(DATEDIFF(SECOND, N.StartTime, N.EndTime)) / 60.0 AS TotalTimeSpent,
-    -- Average time per question (in seconds)
-    AVG(DATEDIFF(SECOND, N.StartTime, N.EndTime)) / 60.0 AS AvgTimePerQuestion,
-
-    -- Time spent on correct answers
-    SUM(CASE WHEN A.IsCorrect = 1 THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE 0 END) / 60.0 AS TotalTimeSpentCorrect,
-    -- Average time for correct answers
-    AVG(CASE WHEN A.IsCorrect = 1 THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE NULL END) / 60.0 AS AvgTimeSpentCorrect,
-
-    -- Time spent on incorrect answers
-    SUM(CASE WHEN A.IsCorrect = 0 THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE 0 END) / 60.0 AS TotalTimeSpentWrong,
-    -- Average time for incorrect answers
-    AVG(CASE WHEN A.IsCorrect = 0 THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE NULL END) / 60.0 AS AvgTimeSpentWrong,
-
-    -- Time spent on unattempted questions (Status ID 2 and 4)
-    SUM(CASE WHEN SQM.QuestionStatusId IN (2, 4) THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE 0 END) / 60.0 AS TotalTimeSpentUnattempted,
-    -- Average time for unattempted questions
-    AVG(CASE WHEN SQM.QuestionStatusId IN (2, 4) THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE NULL END) / 60.0 AS AvgTimeSpentUnattempted
-
+    N.StartTime,
+    N.EndTime,
+    A.IsCorrect,
+    SQM.QuestionStatusId
 FROM tblCYOTQuestionNavigation AS N
 LEFT JOIN tblCYOTAnswers AS A ON N.QuestionId = A.QuestionID AND N.StudentId = A.StudentID AND N.CYOTId = A.CYOTID
 LEFT JOIN tblCYOTStudentQuestionMapping AS SQM ON N.QuestionId = SQM.QuestionId AND N.StudentId = SQM.StudentId AND N.CYOTId = SQM.CYOTId
+WHERE N.CYOTId = @CYOTId AND N.StudentId = @StudentId AND SQM.SubjectID = @SubjectId;";
 
-WHERE N.CYOTId = @CYOTId AND N.StudentId = @StudentId  AND SQM.SubjectID = @SubjectID;";
-                //                var query = @"
-                //SELECT 
-                //    -- Total time spent (in minutes)
-                //    SUM(DATEDIFF(SECOND, N.StartTime, N.EndTime)) / 60.0 AS TotalTimeSpent,
-                //    -- Average time per question (in minutes)
-                //    AVG(DATEDIFF(SECOND, N.StartTime, N.EndTime)) / 60.0 AS AvgTimePerQuestion,
-
-                //    -- Time spent on correct answers
-                //    SUM(CASE WHEN A.IsCorrect = 1 THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE 0 END) / 60.0 AS TotalTimeSpentCorrect,
-                //    -- Average time for correct answers
-                //    AVG(CASE WHEN A.IsCorrect = 1 THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE NULL END) / 60.0 AS AvgTimeSpentCorrect,
-
-                //    -- Time spent on incorrect answers
-                //    SUM(CASE WHEN A.IsCorrect = 0 THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE 0 END) / 60.0 AS TotalTimeSpentWrong,
-                //    -- Average time for incorrect answers
-                //    AVG(CASE WHEN A.IsCorrect = 0 THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE NULL END) / 60.0 AS AvgTimeSpentWrong,
-
-                //    -- Time spent on unattempted questions (Status ID 2 and 4)
-                //    SUM(CASE WHEN SQM.QuestionStatusId IN (2, 4) THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE 0 END) / 60.0 AS TotalTimeSpentUnattempted,
-                //    -- Average time for unattempted questions
-                //    AVG(CASE WHEN SQM.QuestionStatusId IN (2, 4) THEN DATEDIFF(SECOND, N.StartTime, N.EndTime) ELSE NULL END) / 60.0 AS AvgTimeSpentUnattempted
-
-                //FROM tblCYOTQuestionNavigation AS N
-                //LEFT JOIN tblCYOTAnswers AS A ON N.QuestionId = A.QuestionID AND N.StudentId = A.StudentID AND N.CYOTId = A.CYOTID
-                //LEFT JOIN tblCYOTStudentQuestionMapping AS SQM ON N.QuestionId = SQM.QuestionId AND N.StudentId = SQM.StudentId AND N.CYOTId = SQM.CYOTId
-                //LEFT JOIN tblCYOTQuestions AS Q ON N.QuestionId = Q.QuestionID
-                //WHERE N.CYOTId = @CYOTId AND N.StudentId = @StudentId AND SQM.SubjectID = @SubjectID;";
-
-                var result = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new
+                var rawData = (await _connection.QueryAsync(query, new
                 {
-                    CYOTID = cyotId,
-                    StudentID = studentId,
-                    SubjectID = subjectId
-                });
+                    CYOTId = cyotId,
+                    StudentId = studentId,
+                    SubjectId = subjectId
+                })).ToList();
 
-                if (result != null)
+                if (!rawData.Any())
                 {
-                    var response = new CYOTTimeAnalytics
-                    {
-                        TotalTimeSpent = ConvertSecondsToTimeFormat((int)Math.Floor(result.TotalTimeSpent ?? 0)),
-                        AvgTimePerQuestion = ConvertSecondsToTimeFormat((int)Math.Floor(result.AvgTimePerQuestion ?? 0)),
-
-                        TotalTimeSpentCorrect = ConvertSecondsToTimeFormat((int)Math.Floor(result.TotalTimeSpentCorrect ?? 0)),
-                        AvgTimeSpentCorrect = ConvertSecondsToTimeFormat((int)Math.Floor(result.AvgTimeSpentCorrect ?? 0)),
-
-                        TotalTimeSpentWrong = ConvertSecondsToTimeFormat((int)Math.Floor(result.TotalTimeSpentWrong ?? 0)),
-                        AvgTimeSpentWrong = ConvertSecondsToTimeFormat((int)Math.Floor(result.AvgTimeSpentWrong ?? 0)),
-
-                        TotalTimeSpentUnattempted = ConvertSecondsToTimeFormat((int)Math.Floor(result.TotalTimeSpentUnattempted ?? 0)),
-                        AvgTimeSpentUnattempted = ConvertSecondsToTimeFormat((int)Math.Floor(result.AvgTimeSpentUnattempted ?? 0))
-                    };
-
-
                     return new ServiceResponse<CYOTTimeAnalytics>(
-                        true,
-                        "Subject-wise time analytics fetched successfully",
-                        response,
-                        200
+                        false,
+                        "No analytics data found",
+                        null,
+                        404
                     );
                 }
 
+                double totalTimeSpent = 0;
+                var correctTimes = new List<double>();
+                var wrongTimes = new List<double>();
+                var unattemptedTimes = new List<double>();
+
+                foreach (var item in rawData)
+                {
+                    if (item.StartTime == null || item.EndTime == null)
+                        continue;
+
+                    var start = (DateTime)item.StartTime;
+                    var end = (DateTime)item.EndTime;
+                    var duration = (end - start).TotalSeconds;
+
+                    totalTimeSpent += duration;
+
+                    if (item.QuestionStatusId == 2 || item.QuestionStatusId == 4)
+                    {
+                        unattemptedTimes.Add(duration);
+                    }
+                    else if (item.IsCorrect == true)
+                    {
+                        correctTimes.Add(duration);
+                    }
+                    else if (item.IsCorrect == false)
+                    {
+                        wrongTimes.Add(duration);
+                    }
+                }
+
+                var avgTime = totalTimeSpent / rawData.Count;
+                var response = new CYOTTimeAnalytics
+                {
+                    TotalTimeSpent = ConvertSecondsToTimeFormat((int)Math.Floor(totalTimeSpent)),
+                    AvgTimePerQuestion = ConvertSecondsToTimeFormat((int)Math.Floor(avgTime)),
+
+                    TotalTimeSpentCorrect = ConvertSecondsToTimeFormat((int)Math.Floor(correctTimes.Sum())),
+                    AvgTimeSpentCorrect = ConvertSecondsToTimeFormat((int)Math.Floor(correctTimes.DefaultIfEmpty(0).Average())),
+
+                    TotalTimeSpentWrong = ConvertSecondsToTimeFormat((int)Math.Floor(wrongTimes.Sum())),
+                    AvgTimeSpentWrong = ConvertSecondsToTimeFormat((int)Math.Floor(wrongTimes.DefaultIfEmpty(0).Average())),
+
+                    TotalTimeSpentUnattempted = ConvertSecondsToTimeFormat((int)Math.Floor(unattemptedTimes.Sum())),
+                    AvgTimeSpentUnattempted = ConvertSecondsToTimeFormat((int)Math.Floor(unattemptedTimes.DefaultIfEmpty(0).Average()))
+                };
+
                 return new ServiceResponse<CYOTTimeAnalytics>(
-                    false,
-                    "No analytics data found",
-                    null,
-                    404
+                    true,
+                    "Subject-wise time analytics fetched successfully",
+                    response,
+                    200
                 );
             }
             catch (Exception ex)
