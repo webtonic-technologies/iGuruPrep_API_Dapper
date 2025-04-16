@@ -1581,19 +1581,47 @@ WHERE N.CYOTId = @CYOTId AND N.StudentId = @StudentId;";
                     }).ToList();
 
                 double totalTime = durations.Sum(d => d.Duration);
-                double avgTime = durations.Count > 0 ? durations.Average(d => d.Duration) : 0;
 
+                // Get total questions
+                var totalQuestions = await _connection.QueryFirstOrDefaultAsync<int>(
+                    @"SELECT COUNT(*) FROM tblCYOTStudentQuestionMapping 
+              WHERE StudentId = @StudentId AND CYOTId = @CYOTId",
+                    new { StudentId = studentId, CYOTId = cyotId });
+
+                double avgTime = totalQuestions > 0 ? totalTime / totalQuestions : 0;
+
+                // Correct
                 var correct = durations.Where(d => d.IsCorrect == true).ToList();
                 double totalCorrect = correct.Sum(d => d.Duration);
-                double avgCorrect = correct.Count > 0 ? correct.Average(d => d.Duration) : 0;
 
+                var totalCorrectQuestions = await _connection.QueryFirstOrDefaultAsync<int>(
+                    @"SELECT COUNT(*) FROM tblCYOTAnswers 
+              WHERE StudentId = @StudentId AND CYOTId = @CYOTId AND IsCorrect = 1",
+                    new { StudentId = studentId, CYOTId = cyotId });
+
+                double avgCorrect = totalCorrectQuestions > 0 ? totalCorrect / totalCorrectQuestions : 0;
+
+                // Wrong
                 var wrong = durations.Where(d => d.IsCorrect == false).ToList();
                 double totalWrong = wrong.Sum(d => d.Duration);
-                double avgWrong = wrong.Count > 0 ? wrong.Average(d => d.Duration) : 0;
 
+                var totalWrongQuestions = await _connection.QueryFirstOrDefaultAsync<int>(
+                    @"SELECT COUNT(*) FROM tblCYOTAnswers 
+              WHERE StudentId = @StudentId AND CYOTId = @CYOTId AND IsCorrect = 0",
+                    new { StudentId = studentId, CYOTId = cyotId });
+
+                double avgWrong = totalWrongQuestions > 0 ? totalWrong / totalWrongQuestions : 0;
+
+                // Unattempted
                 var unattempted = durations.Where(d => d.StatusId == 2 || d.StatusId == 4).ToList();
                 double totalUnattempted = unattempted.Sum(d => d.Duration);
-                double avgUnattempted = unattempted.Count > 0 ? unattempted.Average(d => d.Duration) : 0;
+
+                var totalUnattemptedQuestions = await _connection.QueryFirstOrDefaultAsync<int>(
+                    @"SELECT COUNT(*) FROM tblCYOTStudentQuestionMapping 
+              WHERE StudentId = @StudentId AND CYOTId = @CYOTId AND QuestionStatusId IN (2, 4)",
+                    new { StudentId = studentId, CYOTId = cyotId });
+
+                double avgUnattempted = totalUnattemptedQuestions > 0 ? totalUnattempted / totalUnattemptedQuestions : 0;
 
                 var response = new CYOTTimeAnalytics
                 {
@@ -1737,18 +1765,20 @@ SELECT
     A.IsCorrect,
     SQM.QuestionStatusId
 FROM tblCYOTQuestionNavigation AS N
-LEFT JOIN tblCYOTAnswers AS A ON N.QuestionId = A.QuestionID AND N.StudentId = A.StudentID AND N.CYOTId = A.CYOTID
-LEFT JOIN tblCYOTStudentQuestionMapping AS SQM ON N.QuestionId = SQM.QuestionId AND N.StudentId = SQM.StudentId AND N.CYOTId = SQM.CYOTId
+LEFT JOIN tblCYOTAnswers AS A 
+    ON N.QuestionId = A.QuestionID AND N.StudentId = A.StudentID AND N.CYOTId = A.CYOTID
+LEFT JOIN tblCYOTStudentQuestionMapping AS SQM 
+    ON N.QuestionId = SQM.QuestionId AND N.StudentId = SQM.StudentId AND N.CYOTId = SQM.CYOTId
 WHERE N.CYOTId = @CYOTId AND N.StudentId = @StudentId AND SQM.SubjectID = @SubjectId;";
 
-                var rawData = (await _connection.QueryAsync(query, new
+                var data = (await _connection.QueryAsync(query, new
                 {
                     CYOTId = cyotId,
                     StudentId = studentId,
                     SubjectId = subjectId
                 })).ToList();
 
-                if (!rawData.Any())
+                if (!data.Any())
                 {
                     return new ServiceResponse<CYOTTimeAnalytics>(
                         false,
@@ -1758,50 +1788,76 @@ WHERE N.CYOTId = @CYOTId AND N.StudentId = @StudentId AND SQM.SubjectID = @Subje
                     );
                 }
 
-                double totalTimeSpent = 0;
-                var correctTimes = new List<double>();
-                var wrongTimes = new List<double>();
-                var unattemptedTimes = new List<double>();
-
-                foreach (var item in rawData)
-                {
-                    if (item.StartTime == null || item.EndTime == null)
-                        continue;
-
-                    var start = (DateTime)item.StartTime;
-                    var end = (DateTime)item.EndTime;
-                    var duration = (end - start).TotalSeconds;
-
-                    totalTimeSpent += duration;
-
-                    if (item.QuestionStatusId == 2 || item.QuestionStatusId == 4)
+                var durations = data
+                    .Where(row => row.StartTime != null && row.EndTime != null)
+                    .Select(row =>
                     {
-                        unattemptedTimes.Add(duration);
-                    }
-                    else if (item.IsCorrect == true)
-                    {
-                        correctTimes.Add(duration);
-                    }
-                    else if (item.IsCorrect == false)
-                    {
-                        wrongTimes.Add(duration);
-                    }
-                }
+                        var duration = ((DateTime)row.EndTime - (DateTime)row.StartTime).TotalSeconds;
 
-                var avgTime = totalTimeSpent / rawData.Count;
+                        return new
+                        {
+                            Duration = duration,
+                            IsCorrect = (bool?)row.IsCorrect,
+                            StatusId = (int?)row.QuestionStatusId
+                        };
+                    }).ToList();
+
+                double totalTime = durations.Sum(d => d.Duration);
+
+                // Total questions for this subject
+                var totalQuestions = await _connection.QueryFirstOrDefaultAsync<int>(
+                    @"SELECT COUNT(*) FROM tblCYOTStudentQuestionMapping 
+              WHERE StudentId = @StudentId AND CYOTId = @CYOTId AND SubjectId = @SubjectId",
+                    new { StudentId = studentId, CYOTId = cyotId, SubjectId = subjectId });
+
+                double avgTime = totalQuestions > 0 ? totalTime / totalQuestions : 0;
+
+                // Correct
+                var correct = durations.Where(d => d.IsCorrect == true).ToList();
+                double totalCorrect = correct.Sum(d => d.Duration);
+
+                var totalCorrectQuestions = await _connection.QueryFirstOrDefaultAsync<int>(
+                    @"SELECT COUNT(*) FROM tblCYOTAnswers 
+              WHERE StudentId = @StudentId AND CYOTId = @CYOTId AND IsCorrect = 1 AND SubjectId = @SubjectId",
+                    new { StudentId = studentId, CYOTId = cyotId, SubjectId = subjectId });
+
+                double avgCorrect = totalCorrectQuestions > 0 ? totalCorrect / totalCorrectQuestions : 0;
+
+                // Wrong
+                var wrong = durations.Where(d => d.IsCorrect == false).ToList();
+                double totalWrong = wrong.Sum(d => d.Duration);
+
+                var totalWrongQuestions = await _connection.QueryFirstOrDefaultAsync<int>(
+                    @"SELECT COUNT(*) FROM tblCYOTAnswers 
+              WHERE StudentId = @StudentId AND CYOTId = @CYOTId AND IsCorrect = 0 AND SubjectId = @SubjectId",
+                    new { StudentId = studentId, CYOTId = cyotId, SubjectId = subjectId });
+
+                double avgWrong = totalWrongQuestions > 0 ? totalWrong / totalWrongQuestions : 0;
+
+                // Unattempted
+                var unattempted = durations.Where(d => d.StatusId == 2 || d.StatusId == 4).ToList();
+                double totalUnattempted = unattempted.Sum(d => d.Duration);
+
+                var totalUnattemptedQuestions = await _connection.QueryFirstOrDefaultAsync<int>(
+                    @"SELECT COUNT(*) FROM tblCYOTStudentQuestionMapping 
+              WHERE StudentId = @StudentId AND CYOTId = @CYOTId AND SubjectId = @SubjectId AND QuestionStatusId IN (2, 4)",
+                    new { StudentId = studentId, CYOTId = cyotId, SubjectId = subjectId });
+
+                double avgUnattempted = totalUnattemptedQuestions > 0 ? totalUnattempted / totalUnattemptedQuestions : 0;
+
                 var response = new CYOTTimeAnalytics
                 {
-                    TotalTimeSpent = ConvertSecondsToTimeFormat((int)Math.Floor(totalTimeSpent)),
-                    AvgTimePerQuestion = ConvertSecondsToTimeFormat((int)Math.Floor(avgTime)),
+                    TotalTimeSpent = ConvertSecondsToTimeFormat((int)totalTime),
+                    AvgTimePerQuestion = ConvertSecondsToTimeFormat((int)avgTime),
 
-                    TotalTimeSpentCorrect = ConvertSecondsToTimeFormat((int)Math.Floor(correctTimes.Sum())),
-                    AvgTimeSpentCorrect = ConvertSecondsToTimeFormat((int)Math.Floor(correctTimes.DefaultIfEmpty(0).Average())),
+                    TotalTimeSpentCorrect = ConvertSecondsToTimeFormat((int)totalCorrect),
+                    AvgTimeSpentCorrect = ConvertSecondsToTimeFormat((int)avgCorrect),
 
-                    TotalTimeSpentWrong = ConvertSecondsToTimeFormat((int)Math.Floor(wrongTimes.Sum())),
-                    AvgTimeSpentWrong = ConvertSecondsToTimeFormat((int)Math.Floor(wrongTimes.DefaultIfEmpty(0).Average())),
+                    TotalTimeSpentWrong = ConvertSecondsToTimeFormat((int)totalWrong),
+                    AvgTimeSpentWrong = ConvertSecondsToTimeFormat((int)avgWrong),
 
-                    TotalTimeSpentUnattempted = ConvertSecondsToTimeFormat((int)Math.Floor(unattemptedTimes.Sum())),
-                    AvgTimeSpentUnattempted = ConvertSecondsToTimeFormat((int)Math.Floor(unattemptedTimes.DefaultIfEmpty(0).Average()))
+                    TotalTimeSpentUnattempted = ConvertSecondsToTimeFormat((int)totalUnattempted),
+                    AvgTimeSpentUnattempted = ConvertSecondsToTimeFormat((int)avgUnattempted)
                 };
 
                 return new ServiceResponse<CYOTTimeAnalytics>(
