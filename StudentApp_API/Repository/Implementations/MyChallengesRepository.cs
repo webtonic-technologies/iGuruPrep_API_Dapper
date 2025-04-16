@@ -63,24 +63,27 @@ namespace StudentApp_API.Repository.Implementations
                     int totalPossibleMarks = cyot.TotalQuestions * cyot.MarksPerCorrectAnswer;
                     int percentage = totalPossibleMarks > 0 ? (int)((totalMarksObtained / totalPossibleMarks) * 100) : 0;
                     bool isChallengeApplicable = percentage >= 80;
-
+                    string status = _connection.QueryFirstOrDefault<string>(@"select CYOTStatus from [CYOTStatus] where CYOTStatusID = @CYOTStatusID", new
+                    {
+                        CYOTStatusID = cyot.CYOTStatusID
+                    });
                     // Determine status
                     string cyotStatus;
                     if (cyot.AttemptedQuestions == 0)
                     {
-                        cyotStatus = "Pending";
+                        cyotStatus = status;
                         ViewKey = false;
                         Analytics = false;
                     }
                     else if (isChallengeApplicable)
                     {
-                        cyotStatus = "Challenged";
+                        cyotStatus = status;
                         ViewKey = true;
                         Analytics = true;
                     }
                     else
                     {
-                        cyotStatus = "Complete";
+                        cyotStatus = status;
                         ViewKey = true;
                         Analytics = true;
                     }
