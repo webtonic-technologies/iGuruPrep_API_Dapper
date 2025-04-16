@@ -86,9 +86,11 @@
     }
     public class LeaderboardResponse
     {
+        public int StudentRank {  get; set; }
         public int StudentID { get; set; }
         public string FirstName { get; set; }
         public string LastName { get; set; }
+        public DateTime Date {  get; set; }
        // public int TotalScore { get; set; }
     }
     public class CorrectAnswersComparison
