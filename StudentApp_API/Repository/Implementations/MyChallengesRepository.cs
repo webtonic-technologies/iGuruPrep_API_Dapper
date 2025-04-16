@@ -317,6 +317,7 @@ namespace StudentApp_API.Repository.Implementations
                 string query = @"
 SELECT 
     N.StudentId,
+    N.QuestionId,
     N.StartTime,
     N.EndTime,
     A.IsCorrect,
@@ -326,7 +327,7 @@ LEFT JOIN tblCYOTAnswers A
     ON N.QuestionId = A.QuestionID AND N.StudentId = A.StudentID AND N.CYOTId = A.CYOTID
 LEFT JOIN tblCYOTStudentQuestionMapping SQM 
     ON N.QuestionId = SQM.QuestionId AND N.StudentId = SQM.StudentId AND N.CYOTId = SQM.CYOTId
-WHERE N.CYOTId = @CYOTId;";
+WHERE N.CYOTId = @CYOTId";
 
                 var data = (await _connection.QueryAsync(query, new { CYOTId = cyotId })).ToList();
 
@@ -334,20 +335,37 @@ WHERE N.CYOTId = @CYOTId;";
                     return new ServiceResponse<CYOTMyChallengesTimeAnalytics>(false, "No analytics data found", null, 404);
 
                 // Student specific analytics
-                var studentDurations = data
+                var studentQuestionGroups = data
                     .Where(x => x.StudentId == studentId && x.StartTime != null && x.EndTime != null)
-                    .Select(x =>
-                    {
-                        var duration = ((DateTime)x.EndTime - (DateTime)x.StartTime).TotalSeconds;
-                        return new
-                        {
-                            Duration = duration,
-                            IsCorrect = (bool?)x.IsCorrect,
-                            StatusId = (int?)x.QuestionStatusId
-                        };
-                    }).ToList();
+                    .GroupBy(x => x.QuestionId)
+                    .ToList();
 
-                double totalTime = studentDurations.Sum(d => d.Duration);
+                double totalTime = 0, totalCorrect = 0, totalWrong = 0, totalUnattempted = 0;
+                int totalCorrectQuestions = 0, totalWrongQuestions = 0, totalUnattemptedQuestions = 0;
+
+                foreach (var group in studentQuestionGroups)
+                {
+                    var totalDuration = group.Sum(x => ((DateTime)x.EndTime - (DateTime)x.StartTime).TotalSeconds);
+                    var first = group.FirstOrDefault();
+
+                    totalTime += totalDuration;
+
+                    if (first?.IsCorrect == true)
+                    {
+                        totalCorrect += totalDuration;
+                        totalCorrectQuestions++;
+                    }
+                    else if (first?.IsCorrect == false)
+                    {
+                        totalWrong += totalDuration;
+                        totalWrongQuestions++;
+                    }
+                    else if (first?.QuestionStatusId == 2 || first?.QuestionStatusId == 4 || first?.IsCorrect == null)
+                    {
+                        totalUnattempted += totalDuration;
+                        totalUnattemptedQuestions++;
+                    }
+                }
 
                 int totalQuestions = await _connection.QueryFirstOrDefaultAsync<int>(
                     @"SELECT COUNT(*) FROM tblCYOTStudentQuestionMapping 
@@ -355,73 +373,48 @@ WHERE N.CYOTId = @CYOTId;";
                     new { StudentId = studentId, CYOTId = cyotId });
 
                 double avgTime = totalQuestions > 0 ? totalTime / totalQuestions : 0;
-
-                // Correct
-                var correct = studentDurations.Where(d => d.IsCorrect == true).ToList();
-                double totalCorrect = correct.Sum(d => d.Duration);
-
-                int totalCorrectQuestions = await _connection.QueryFirstOrDefaultAsync<int>(
-                    @"SELECT COUNT(*) FROM tblCYOTAnswers 
-              WHERE StudentId = @StudentId AND CYOTId = @CYOTId AND IsCorrect = 1",
-                    new { StudentId = studentId, CYOTId = cyotId });
-
                 double avgCorrect = totalCorrectQuestions > 0 ? totalCorrect / totalCorrectQuestions : 0;
-
-                // Wrong
-                var wrong = studentDurations.Where(d => d.IsCorrect == false).ToList();
-                double totalWrong = wrong.Sum(d => d.Duration);
-
-                int totalWrongQuestions = await _connection.QueryFirstOrDefaultAsync<int>(
-                    @"SELECT COUNT(*) FROM tblCYOTAnswers 
-              WHERE StudentId = @StudentId AND CYOTId = @CYOTId AND IsCorrect = 0",
-                    new { StudentId = studentId, CYOTId = cyotId });
-
                 double avgWrong = totalWrongQuestions > 0 ? totalWrong / totalWrongQuestions : 0;
-
-                // Unattempted
-                var unattempted = studentDurations.Where(d => d.StatusId == 2 || d.StatusId == 4).ToList();
-                double totalUnattempted = unattempted.Sum(d => d.Duration);
-
-                int totalUnattemptedQuestions = await _connection.QueryFirstOrDefaultAsync<int>(
-                    @"SELECT COUNT(*) FROM tblCYOTStudentQuestionMapping 
-              WHERE StudentId = @StudentId AND CYOTId = @CYOTId AND QuestionStatusId IN (2, 4)",
-                    new { StudentId = studentId, CYOTId = cyotId });
-
                 double avgUnattempted = totalUnattemptedQuestions > 0 ? totalUnattempted / totalUnattemptedQuestions : 0;
 
-                // Others' average analytics
-                var othersGrouped = data.Where(x => x.StudentId != studentId)
-                    .GroupBy(x => x.StudentId)
-                    .Select(group =>
+                // Others' analytics
+                var othersGrouped = data
+                    .Where(x => x.StudentId != studentId && x.StartTime != null && x.EndTime != null)
+                    .GroupBy(x => new { x.StudentId, x.QuestionId })
+                    .GroupBy(g => g.Key.StudentId)
+                    .Select(g =>
                     {
-                        var durations = group
-                            .Where(x => x.StartTime != null && x.EndTime != null)
-                            .Select(x =>
+                        double tTotal = 0, tCorrect = 0, tWrong = 0, tUnattempted = 0;
+                        int tCorrectCount = 0, tWrongCount = 0, tUnattemptedCount = 0;
+
+                        foreach (var qGroup in g)
+                        {
+                            var totalDuration = qGroup.Sum(x => ((DateTime)x.EndTime - (DateTime)x.StartTime).TotalSeconds);
+                            var first = qGroup.FirstOrDefault();
+
+                            tTotal += totalDuration;
+
+                            if (first?.IsCorrect == true)
                             {
-                                var duration = ((DateTime)x.EndTime - (DateTime)x.StartTime).TotalSeconds;
-                                return new
-                                {
-                                    Duration = duration,
-                                    IsCorrect = (bool?)x.IsCorrect,
-                                    StatusId = (int?)x.QuestionStatusId
-                                };
-                            }).ToList();
+                                tCorrect += totalDuration;
+                                tCorrectCount++;
+                            }
+                            else if (first?.IsCorrect == false)
+                            {
+                                tWrong += totalDuration;
+                                tWrongCount++;
+                            }
+                            else if (first?.QuestionStatusId == 2 || first?.QuestionStatusId == 4 || first?.IsCorrect == null)
+                            {
+                                tUnattempted += totalDuration;
+                                tUnattemptedCount++;
+                            }
+                        }
 
-                        double tTotal = durations.Sum(d => d.Duration);
-                        int tCount = group.Count();
-
-                        double tAvg = tCount > 0 ? tTotal / tCount : 0;
-                        double tCorrect = durations.Where(d => d.IsCorrect == true).Sum(d => d.Duration);
-                        double tCorrectAvg = durations.Count(d => d.IsCorrect == true) > 0 ?
-                            tCorrect / durations.Count(d => d.IsCorrect == true) : 0;
-
-                        double tWrong = durations.Where(d => d.IsCorrect == false).Sum(d => d.Duration);
-                        double tWrongAvg = durations.Count(d => d.IsCorrect == false) > 0 ?
-                            tWrong / durations.Count(d => d.IsCorrect == false) : 0;
-
-                        double tUnattempted = durations.Where(d => d.StatusId == 2 || d.StatusId == 4).Sum(d => d.Duration);
-                        double tUnattemptedAvg = durations.Count(d => d.StatusId == 2 || d.StatusId == 4) > 0 ?
-                            tUnattempted / durations.Count(d => d.StatusId == 2 || d.StatusId == 4) : 0;
+                        double tAvg = g.Count() > 0 ? tTotal / g.Count() : 0;
+                        double tCorrectAvg = tCorrectCount > 0 ? tCorrect / tCorrectCount : 0;
+                        double tWrongAvg = tWrongCount > 0 ? tWrong / tWrongCount : 0;
+                        double tUnattemptedAvg = tUnattemptedCount > 0 ? tUnattempted / tUnattemptedCount : 0;
 
                         return new
                         {
