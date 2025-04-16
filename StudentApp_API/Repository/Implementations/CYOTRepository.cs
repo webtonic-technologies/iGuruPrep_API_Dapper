@@ -1160,63 +1160,93 @@ GROUP BY CYOT.MarksPerCorrectAnswer, CYOT.MarksPerIncorrectAnswer;";
         }
         public async Task<ServiceResponse<List<CYOTQuestionWithAnswersDTO>>> GetCYOTQuestionsWithOptionsAsync(GetCYOTQuestionsRequest request)
         {
-            var query = @"
-    SELECT 
-        cq.CYOTID,
-        cq.QuestionID,
-        q.QuestionCode,
-        q.QuestionDescription,
-        q.Explanation as Explanation, 
-        q.ExtraInformation as ExtraInformation,
-        q.QuestionTypeId,
-        mc.Answermultiplechoicecategoryid,
-        mc.Answer,
-        mc.IsCorrect,
-        qt.QuestionType as QuestionType,
-        sub.SubjectName as SubjectName,
-        sqm.QuestionStatusId,
-        COALESCE(a.AnswerId, '') AS StudentAnswerIdCsv,   -- Student's given answer IDs (CSV)
-        COALESCE(a.IsCorrect, 0) AS IsStudentAnswerCorrect
-    FROM 
-        tblCYOTQuestions cq
-    JOIN 
-        tblQuestion q ON cq.QuestionID = q.QuestionId
-    JOIN 
-        tblAnswerMaster am ON q.QuestionId = am.Questionid
-    JOIN 
-        tblAnswerMultipleChoiceCategory mc ON am.Answerid = mc.Answerid
-    JOIN 
-        tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
-    JOIN 
-        tblSubject sub ON q.subjectID = sub.SubjectId
-    LEFT JOIN 
-        [tblCYOTStudentQuestionMapping] sqm ON cq.QuestionID = sqm.QuestionID AND sqm.StudentID = @StudentID AND sqm.CYOTID = @CYOTID
-    LEFT JOIN 
-        tblCYOTAnswers a ON cq.QuestionID = a.QuestionID AND a.StudentID = @StudentID AND a.CYOTID = @CYOTID
-    WHERE 
-        cq.CYOTID = @CYOTID
-    ORDER BY 
-        cq.DisplayOrder";
-
+            //        var query = @"
+            //SELECT 
+            //    cq.CYOTID,
+            //    cq.QuestionID,
+            //    q.QuestionCode,
+            //    q.QuestionDescription,
+            //    q.Explanation as Explanation, 
+            //    q.ExtraInformation as ExtraInformation,
+            //    q.QuestionTypeId,
+            //    mc.Answermultiplechoicecategoryid,
+            //    mc.Answer,
+            //    mc.IsCorrect,
+            //    qt.QuestionType as QuestionType,
+            //    sub.SubjectName as SubjectName,
+            //    sqm.QuestionStatusId,
+            //    COALESCE(a.AnswerId, '') AS StudentAnswerIdCsv,   -- Student's given answer IDs (CSV)
+            //    COALESCE(a.IsCorrect, 0) AS IsStudentAnswerCorrect
+            //FROM 
+            //    tblCYOTQuestions cq
+            //JOIN 
+            //    tblQuestion q ON cq.QuestionID = q.QuestionId
+            //JOIN 
+            //    tblAnswerMaster am ON q.QuestionId = am.Questionid
+            //JOIN 
+            //    tblAnswerMultipleChoiceCategory mc ON am.Answerid = mc.Answerid
+            //JOIN 
+            //    tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
+            //JOIN 
+            //    tblSubject sub ON q.subjectID = sub.SubjectId
+            //LEFT JOIN 
+            //    [tblCYOTStudentQuestionMapping] sqm ON cq.QuestionID = sqm.QuestionID AND sqm.StudentID = @StudentID AND sqm.CYOTID = @CYOTID
+            //LEFT JOIN 
+            //    tblCYOTAnswers a ON cq.QuestionID = a.QuestionID AND a.StudentID = @StudentID AND a.CYOTID = @CYOTID
+            //WHERE 
+            //    cq.CYOTID = @CYOTID
+            //ORDER BY 
+            //    cq.DisplayOrder";
+            var query = @"SELECT 
+    sqm.CYOTID,
+    sqm.QuestionID,
+    q.QuestionCode,
+    q.QuestionDescription,
+    q.Explanation, 
+    q.ExtraInformation,
+    q.QuestionTypeId,
+    qt.QuestionType,
+    sub.SubjectName,
+    sqm.QuestionStatusId,
+    COALESCE(a.AnswerId, '') AS StudentAnswerIdCsv,
+    COALESCE(a.IsCorrect, 0) AS IsStudentAnswerCorrect,
+    mc.Answermultiplechoicecategoryid,
+    mc.Answer,
+    mc.IsCorrect AS IsOptionCorrect
+FROM 
+    tblCYOTStudentQuestionMapping sqm
+JOIN 
+    tblQuestion q ON sqm.QuestionID = q.QuestionId
+LEFT JOIN 
+    tblAnswerMaster am ON q.QuestionId = am.Questionid
+LEFT JOIN 
+    tblAnswerMultipleChoiceCategory mc ON am.Answerid = mc.Answerid
+JOIN 
+    tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
+JOIN 
+    tblSubject sub ON q.subjectID = sub.SubjectId
+LEFT JOIN 
+    tblCYOTAnswers a ON sqm.QuestionID = a.QuestionID AND a.StudentID = @StudentID AND a.CYOTID = @CYOTID
+WHERE 
+    sqm.StudentID = @StudentID AND sqm.CYOTID = @CYOTID;";
             var rawData = await _connection.QueryAsync<dynamic>(query, new
             {
                 CYOTID = request.cyotId,
                 StudentID = request.registrationId
             });
-
             var groupedData = rawData.GroupBy(
                 item => new
                 {
-                    CYOTID = (int)item.CYOTID,
-                    QuestionID = (int)item.QuestionID,
-                    QuestionCode = (string)item.QuestionCode,
-                    QuestionDescription = (string)item.QuestionDescription,
-                    QuestionStatusId = (int)item.QuestionStatusId,
-                    QuestionTypeId = (int)item.QuestionTypeId,
-                    Explanation = (string)item.Explanation,
-                    ExtraInformation = (string)item.ExtraInformation,
-                    SubjectName = (string)item.SubjectName,
-                    QuestionType = (string)item.QuestionType
+                    CYOTID = item.CYOTID != null ? (int)item.CYOTID : 0,
+                    QuestionID = item.QuestionID != null ? (int)item.QuestionID : 0,
+                    QuestionCode = (string?)item.QuestionCode ?? string.Empty,
+                    QuestionDescription = (string?)item.QuestionDescription ?? string.Empty,
+                    QuestionStatusId = item.QuestionStatusId != null ? (int)item.QuestionStatusId : 0,
+                    QuestionTypeId = item.QuestionTypeId != null ? (int)item.QuestionTypeId : 0,
+                    Explanation = (string?)item.Explanation ?? string.Empty,
+                    ExtraInformation = (string?)item.ExtraInformation ?? string.Empty,
+                    SubjectName = (string?)item.SubjectName ?? string.Empty,
+                    QuestionType = (string?)item.QuestionType ?? string.Empty
                 },
                 (key, answers) => new CYOTQuestionWithAnswersDTO
                 {
@@ -1232,22 +1262,22 @@ GROUP BY CYOT.MarksPerCorrectAnswer, CYOT.MarksPerIncorrectAnswer;";
                     QuestionType = key.QuestionType,
                     Answers = answers.Select(answer =>
                     {
-                        string studentAnswerCsv = (string)answer.StudentAnswerIdCsv ?? string.Empty;
+                        string studentAnswerCsv = (string?)answer.StudentAnswerIdCsv ?? string.Empty;
                         var selectedAnswerIds = studentAnswerCsv
                             .Split(',', StringSplitOptions.RemoveEmptyEntries)
                             .Select(id => int.TryParse(id, out int parsed) ? parsed : 0)
                             .Where(id => id != 0)
                             .ToList();
 
-                        int currentAnswerId = (int)answer.Answermultiplechoicecategoryid;
+                        int currentAnswerId = answer.Answermultiplechoicecategoryid != null ? (int)answer.Answermultiplechoicecategoryid : 0;
 
                         return new AnswerOptionDTO
                         {
                             AnswerMultipleChoiceCategoryID = currentAnswerId,
-                            Answer = (string)answer.Answer,
-                            IsCorrect = (bool)answer.IsCorrect,
+                            Answer = (string?)answer.Answer ?? string.Empty,
+                            IsCorrect = answer.IsCorrect != null ? (bool)answer.IsCorrect : false,
                             IsStudentAnswer = selectedAnswerIds.Contains(currentAnswerId),
-                            IsStudentAnswerCorrect = selectedAnswerIds.Contains(currentAnswerId) && (bool)answer.IsCorrect
+                            IsStudentAnswerCorrect = selectedAnswerIds.Contains(currentAnswerId) && (answer.IsCorrect != null && (bool)answer.IsCorrect)
                         };
                     }).ToList()
                 }).ToList();
@@ -1946,7 +1976,7 @@ WHERE N.CYOTId = @CYOTId AND N.StudentId = @StudentId  AND SQM.SubjectID = @Subj
                 LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
                 LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
                 LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
-                WHERE q.ParentQCode = @QuestionCode AND q.IsActive = 1 AND IsLive = 0 AND q.IsConfigure = 1";
+                WHERE q.ParentQCode = @QuestionCode AND q.IsActive = 0 AND IsLive = 1 AND q.IsConfigure = 1";
             var parameters = new { QuestionCode = QuestionCode };
             var item = _connection.Query<dynamic>(sql, parameters);
             var response = item.Select(m => new ParagraphQuestions
