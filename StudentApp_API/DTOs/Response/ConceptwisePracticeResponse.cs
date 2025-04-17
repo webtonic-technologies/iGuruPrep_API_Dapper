@@ -205,6 +205,7 @@
         public string TopicName { get; set; }
         public int ContentId { get; set; }
         public int IndexTypeId { get; set; }
+        public string Synopsis { get; set; }
         public int SubTopicCount { get; set; }
         public decimal Percentage { get; set; }
         public int Question { get; set; }
@@ -215,6 +216,7 @@
     {
         public int ContentId { get; set; }
         public string SubTopicName { get; set; }
+        public string Synopsis { get; set; }
         public decimal Percentage { get; set; }
         public int Question { get; set; }
     }
@@ -243,7 +245,7 @@
         public DateTime? CreatedOn { get; set; }
         public string PatternCode { get; set; }
         public DateTime? ModifiedOn { get; set; }
-        public int? ModifiedBy { get; set; }
+        public string? ModifiedBy { get; set; }
         public string? CreatedBy { get; set; }
         public int? EmployeeID { get; set; }
         public string EmpFirstName { get; set; }

@@ -109,7 +109,8 @@ namespace StudentApp_API.Repository.Implementations
                 c.ContentName_Chapter AS ContentName,
                 c.SubjectId,
                 s.SyllabusID,
-                c.IndexTypeId
+                c.IndexTypeId,
+                s.Synopsis as Synopsis
             FROM tblContentIndexChapters c
             INNER JOIN tblSyllabusDetails s ON c.ContentIndexId = s.ContentIndexId
             WHERE s.SyllabusID = @SyllabusId AND c.SubjectId = @SubjectId AND c.IndexTypeId = 1 AND c.IsActive = 1";
@@ -132,9 +133,10 @@ namespace StudentApp_API.Repository.Implementations
                 SELECT DISTINCT
                     t.ContInIdTopic AS ContentId,
                     t.ContentName_Topic AS TopicName,
-                    t.IndexTypeId
+                    t.IndexTypeId,
+                    s.Synopsis as Synopsis
                 FROM tblContentIndexTopics t
-                INNER JOIN tblSyllabusDetails s ON t.ContentIndexId = s.ContentIndexId
+                INNER JOIN tblSyllabusDetails s ON t.ContInIdTopic = s.ContentIndexId
                 WHERE t.ContentIndexId = @ContentIndexId AND t.IndexTypeId = 2 AND t.IsActive = 1 AND s.SyllabusID = @SyllabusId";
 
                     var topics = await _connection.QueryAsync<TopicResponse>(queryTopics, new
@@ -155,9 +157,10 @@ namespace StudentApp_API.Repository.Implementations
                         string querySubTopics = @"
                     SELECT
                         s.ContInIdSubTopic AS ContentId,
-                        s.ContentName_SubTopic AS SubTopicName
+                        s.ContentName_SubTopic AS SubTopicName,
+                        s.Synopsis as Synopsis
                     FROM tblContentIndexSubTopics s
-                    INNER JOIN tblSyllabusDetails d ON s.ContInIdTopic = d.ContentIndexId
+                    INNER JOIN tblSyllabusDetails d ON s.ContInIdSubTopic = d.ContentIndexId
                     WHERE s.ContInIdTopic = @ContentIndexId AND s.IndexTypeId = 3 AND s.IsActive = 1 AND d.SyllabusID = @SyllabusId";
 
                         var subTopics = await _connection.QueryAsync<SubTopicResponse>(querySubTopics, new
@@ -254,7 +257,7 @@ namespace StudentApp_API.Repository.Implementations
                 (
                     SELECT COUNT(*) 
                     FROM tblContentIndexSubTopics st
-                    INNER JOIN tblSyllabusDetails sd ON st.ContInIdTopic = sd.ContentIndexId
+                    INNER JOIN tblSyllabusDetails sd ON st.ContInIdSubTopic = sd.ContentIndexId
                     WHERE 
                         st.ContInIdTopic = t.ContInIdTopic AND 
                         sd.SyllabusID = s.SyllabusID AND 
@@ -274,14 +277,15 @@ namespace StudentApp_API.Repository.Implementations
             LEFT JOIN tblSyllabusDetails s ON t.ContInIdTopic = s.ContentIndexId
             WHERE 
                 t.ContentIndexId = @ContentIndexId AND 
-                s.IndexTypeId = 2 AND s.SyllabusID = @SyllabusID AND
+                s.IndexTypeId = 2 AND s.SyllabusID = @SyllabusID AND s.SubjectId = @SubjectId AND
                 t.IsActive = 1";
 
                     contentResponse = (await _connection.QueryAsync<ConceptwisePracticeContentResponse>(queryTopics, new
                     {
                         ContentIndexId = request.ContentIndexId,
                         RegistrationId = request.RegistrationId,
-                        SyllabusID = request.SyllabusId
+                        SyllabusID = request.SyllabusId,
+                        SubjectId = request.SubjectId
                     })).ToList();
                 }
                 // Fetch subtopics (children of topics)
@@ -554,6 +558,24 @@ AND (cpq.QuestionStatusId = 4 OR cpq.Iscorrect = 0)";
                     SyllabusId = request.SyllabusId
                 })).ToList();
 
+
+                // Step 4: All answered correctly in Set 1 → Create new Set
+                string currentSetQuery = @"
+                SELECT ISNULL(MAX(SetID), 1)
+                FROM tblConceptwisePracticeQuestions
+                WHERE StudentId = @StudentId
+                AND ContentID = @ContentId
+                AND IndexTypeID = @IndexTypeId
+                AND SyllabusID = @SyllabusId";
+
+                setId = await _connection.ExecuteScalarAsync<int>(currentSetQuery, new
+                {
+                    StudentId = request.StudentId,
+                    ContentId = request.contentId,
+                    IndexTypeId = request.indexTypeId,
+                    SyllabusId = request.SyllabusId
+                });
+
                 if (!questionsToReturn.Any())
                 {
                     // Step 4: All answered correctly in Set 1 → Create new Set
@@ -572,7 +594,6 @@ AND (cpq.QuestionStatusId = 4 OR cpq.Iscorrect = 0)";
                         IndexTypeId = request.indexTypeId,
                         SyllabusId = request.SyllabusId
                     });
-
                     foreach (var level in difficultyLevels)
                     {
                         string fetchQuestionsQuery = @"
@@ -772,7 +793,7 @@ AND (cpq.QuestionStatusId = 4 OR cpq.Iscorrect = 0)";
                     .Count(q => q.IsCorrect == 1 && q.QuestionStatusId == 1); // 1 = answered
 
                 int requiredCorrectAnswers = (int)Math.Ceiling(level.SuccessRate ?? 0);
-
+                allowedLevelId = level.LevelId;
                 if (correctAnswers < requiredCorrectAnswers)
                 {
                     canProceedToNextLevel = false;
@@ -1412,60 +1433,96 @@ WHERE cpq.StudentId = @StudentId
         }
         public async Task<ServiceResponse<ChapterTimeReportResponse>> GetChapterTimeReportAsync(ChapterAnalyticsRequest request)
         {
-            var latestSetId = await _connection.ExecuteScalarAsync<int>(
-                "SELECT TOP 1 SetID FROM tblConceptwisePracticeQuestions WHERE ContentID = @ChapterId AND IndexTypeID = 1 AND StudentId = @StudentId ORDER BY CPCID DESC",
-                new { request.ChapterId, request.StudentId });
-
-            var query = @"SELECT
-    -- Student Stats
-    SUM(CASE WHEN q.StudentId = @StudentId THEN DATEDIFF(SECOND, a.StaTime, a.EndTime) ELSE 0 END) AS TotalTimeSpentByMe,
-    COUNT(CASE WHEN q.StudentId = @StudentId THEN 1 ELSE NULL END) AS TotalAttemptedByMe,
-
-    SUM(CASE WHEN q.StudentId = @StudentId AND a.IsCorrect = 1 THEN DATEDIFF(SECOND, a.StaTime, a.EndTime) ELSE 0 END) AS TotalTimeCorrect,
-    COUNT(CASE WHEN q.StudentId = @StudentId AND a.IsCorrect = 1 THEN 1 ELSE NULL END) AS CountCorrect,
-
-    SUM(CASE WHEN q.StudentId = @StudentId AND a.IsCorrect = 0 THEN DATEDIFF(SECOND, a.StaTime, a.EndTime) ELSE 0 END) AS TotalTimeIncorrect,
-    COUNT(CASE WHEN q.StudentId = @StudentId AND a.IsCorrect = 0 THEN 1 ELSE NULL END) AS CountIncorrect,
-
-    SUM(CASE WHEN q.StudentId = @StudentId AND a.IsCorrect IS NULL AND q.QuestionStatusId = 2 THEN DATEDIFF(SECOND, a.StaTime, a.EndTime) ELSE 0 END) AS TotalTimeUnattempted,
-    COUNT(CASE WHEN q.StudentId = @StudentId AND a.IsCorrect IS NULL AND q.QuestionStatusId = 2 THEN 1 ELSE NULL END) AS CountUnattempted,
-
-    -- Classmate Stats
-    SUM(CASE WHEN q.StudentId != @StudentId THEN DATEDIFF(SECOND, a.StaTime, a.EndTime) ELSE 0 END) AS ClassmatesTotalTime,
-    COUNT(CASE WHEN q.StudentId != @StudentId THEN 1 ELSE NULL END) AS ClassmatesTotalAttempt
-FROM tblConceptwisePracticeAnswers a
-INNER JOIN tblConceptwisePracticeQuestions q ON a.QuestionId = q.QuestionID AND a.StudentId = q.StudentId
-WHERE q.ContentID = @ChapterId AND q.IndexTypeID = 1 AND q.SetID = @SetId;";
-
-            var result = await _connection.QueryFirstOrDefaultAsync<dynamic>(query, new
+            try
             {
-                request.ChapterId,
-                SetId = latestSetId,
-                request.StudentId
-            });
+                // Get latest SetID
+                var latestSetId = await _connection.ExecuteScalarAsync<int>(
+                    @"SELECT TOP 1 SetID 
+              FROM tblConceptwisePracticeQuestions 
+              WHERE ContentID = @ChapterId AND IndexTypeID = 1 AND StudentId = @StudentId 
+              ORDER BY CPCID DESC",
+                    new { request.ChapterId, request.StudentId });
 
-            if (result == null)
-                return new ServiceResponse<ChapterTimeReportResponse>(false, string.Empty, new ChapterTimeReportResponse(), 500);
+                // Fetch raw data for the set
+                var query = @"
+SELECT 
+    q.StudentId,
+    q.QuestionStatusId,
+    a.IsCorrect,
+    a.StaTime,
+    a.EndTime
+FROM tblConceptwisePracticeQuestions q
+LEFT JOIN tblConceptwisePracticeAnswers a 
+    ON q.QuestionID = a.QuestionId AND q.StudentId = a.StudentId
+WHERE q.ContentID = @ChapterId AND q.IndexTypeID = 1 AND q.SetID = @SetId";
 
-            var response = new ChapterTimeReportResponse
+                var data = (await _connection.QueryAsync(query, new
+                {
+                    ChapterId = request.ChapterId,
+                    SetId = latestSetId
+                })).ToList();
+
+                if (!data.Any())
+                    return new ServiceResponse<ChapterTimeReportResponse>(false, "No data found", new ChapterTimeReportResponse(), 404);
+
+                var durations = data
+                    .Where(row => row.StaTime != null && row.EndTime != null)
+                    .Select(row => new
+                    {
+                        Duration = ((DateTime)row.EndTime - (DateTime)row.StaTime).TotalSeconds,
+                        IsCorrect = (bool?)row.IsCorrect,
+                        StatusId = (int?)row.QuestionStatusId,
+                        IsCurrentStudent = (int)row.StudentId == request.StudentId
+                    }).ToList();
+
+                // My Stats
+                var myData = durations.Where(d => d.IsCurrentStudent).ToList();
+
+                double totalTimeSpentByMe = myData.Sum(d => d.Duration);
+                int totalAttemptedByMe = myData.Count;
+
+                var correct = myData.Where(d => d.IsCorrect == true).ToList();
+                double totalTimeCorrect = correct.Sum(d => d.Duration);
+                int countCorrect = correct.Count;
+
+                var incorrect = myData.Where(d => d.IsCorrect == false).ToList();
+                double totalTimeIncorrect = incorrect.Sum(d => d.Duration);
+                int countIncorrect = incorrect.Count;
+
+                var unattempted = myData.Where(d => d.IsCorrect == null && (d.StatusId == 2 || d.StatusId == 4)).ToList();
+                double totalTimeUnattempted = unattempted.Sum(d => d.Duration);
+                int countUnattempted = unattempted.Count;
+
+                // Classmates Stats
+                var classmates = durations.Where(d => !d.IsCurrentStudent).ToList();
+                double classmatesTotalTime = classmates.Sum(d => d.Duration);
+                int classmatesTotalAttempt = classmates.Count;
+
+                var response = new ChapterTimeReportResponse
+                {
+                    TotalTimeSpentByMe = ConvertSecondsToTimeFormat((int)totalTimeSpentByMe),
+                    AvgTimeSpentByMePerQuestion = ConvertSecondsToTimeFormat((int)SafeDivide1(totalTimeSpentByMe, totalAttemptedByMe)),
+
+                    TotalTimeCorrect = ConvertSecondsToTimeFormat((int)totalTimeCorrect),
+                    AvgTimeCorrect = ConvertSecondsToTimeFormat((int)SafeDivide1(totalTimeCorrect, countCorrect)),
+
+                    TotalTimeIncorrect = ConvertSecondsToTimeFormat((int)totalTimeIncorrect),
+                    AvgTimeIncorrect = ConvertSecondsToTimeFormat((int)SafeDivide1(totalTimeIncorrect, countIncorrect)),
+
+                    TotalTimeUnattempted = ConvertSecondsToTimeFormat((int)totalTimeUnattempted),
+                    AvgTimeUnattempted = ConvertSecondsToTimeFormat((int)SafeDivide1(totalTimeUnattempted, countUnattempted)),
+
+                    AvgTimeSpentByClassmates = ConvertSecondsToTimeFormat((int)classmatesTotalTime),
+                    AvgTimeSpentByClassmatesPerQuestion = ConvertSecondsToTimeFormat((int)SafeDivide1(classmatesTotalTime, classmatesTotalAttempt))
+                };
+
+
+                return new ServiceResponse<ChapterTimeReportResponse>(true, "Records found", response, 200);
+            }
+            catch (Exception ex)
             {
-                TotalTimeSpentByMe = ConvertSecondsToTimeFormat(result.TotalTimeSpentByMe),
-                AvgTimeSpentByMePerQuestion = ConvertSecondsToTimeFormat(SafeDivide(result.TotalTimeSpentByMe, result.TotalAttemptedByMe)),
-
-                TotalTimeCorrect = ConvertSecondsToTimeFormat(result.TotalTimeCorrect),
-                AvgTimeCorrect = ConvertSecondsToTimeFormat(SafeDivide(result.TotalTimeCorrect, result.CountCorrect)),
-
-                TotalTimeIncorrect = ConvertSecondsToTimeFormat(result.TotalTimeIncorrect),
-                AvgTimeIncorrect = ConvertSecondsToTimeFormat(SafeDivide(result.TotalTimeIncorrect, result.CountIncorrect)),
-
-                TotalTimeUnattempted = ConvertSecondsToTimeFormat(result.TotalTimeUnattempted),
-                AvgTimeUnattempted = ConvertSecondsToTimeFormat(SafeDivide(result.TotalTimeUnattempted, result.CountUnattempted)),
-
-                AvgTimeSpentByClassmates = ConvertSecondsToTimeFormat(result.ClassmatesTotalTime),
-                AvgTimeSpentByClassmatesPerQuestion = ConvertSecondsToTimeFormat(SafeDivide(result.ClassmatesTotalTime, result.ClassmatesTotalAttempt))
-            };
-
-            return new ServiceResponse<ChapterTimeReportResponse>(true, "Records found", response, 200);
+                return new ServiceResponse<ChapterTimeReportResponse>(false, ex.Message, new ChapterTimeReportResponse(), 500);
+            }
         }
         private string ConvertSecondsToTimeFormat(int seconds)
         {
@@ -1725,6 +1782,10 @@ FROM [tblAnswerMultipleChoiceCategory] WHERE [Answerid] = @Answerid";
         private int SafeAverage(List<int> values)
         {
             return (values?.Count ?? 0) > 0 ? (int)values.Average() : 0;
+        }
+        private double SafeDivide1(double numerator, int denominator)
+        {
+            return denominator > 0 ? numerator / denominator : 0;
         }
         private async Task<bool> GetIsAnalyticsAsync(int indexTypeId, int contentId, int subjectId, int syllabusId, int registrationId)
         {

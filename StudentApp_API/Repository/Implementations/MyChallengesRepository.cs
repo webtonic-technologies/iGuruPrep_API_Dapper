@@ -987,6 +987,13 @@ WHERE c.CYOTID = @CYOTID;";
                         ChallengeDate = result.ChallengeDate ?? DateTime.MinValue,
                         ChallengeName = result.ChallengeName ?? string.Empty
                     };
+
+                    return new ServiceResponse<IncorrectAnswersComparison>(
+                        true,
+                        "Correct answers comparison fetched successfully",
+                        response,
+                        200
+                    );
                 }
 
 
@@ -1012,60 +1019,46 @@ WHERE c.CYOTID = @CYOTID;";
             try
             {
                 var query = @"
+        WITH Leaderboard AS (
+            SELECT 
+                r.RegistrationID AS StudentID,
+                r.FirstName,
+                r.LastName,
+                COALESCE(SUM(ca.Marks), 0) AS TotalScore,
+                ROW_NUMBER() OVER (ORDER BY COALESCE(SUM(ca.Marks), 0) DESC) AS StudentRank
+            FROM tblRegistration r
+            JOIN tblCYOTAnswers ca ON r.RegistrationID = ca.StudentID AND ca.CYOTID = @CYOTID
+            GROUP BY r.RegistrationID, r.FirstName, r.LastName
+        )
         SELECT 
-            r.RegistrationID AS StudentID,
-            r.FirstName,
-            r.LastName,
-            COALESCE(SUM(ca.Marks), 0) AS TotalScore,
-            cy.ChallengeDate
-        FROM tblRegistration r
-        LEFT JOIN tblCYOTAnswers ca ON r.RegistrationID = ca.StudentID AND ca.CYOTID = @CYOTID
-        INNER JOIN tblCYOT cy ON cy.CYOTID = @CYOTID
-        GROUP BY r.RegistrationID, r.FirstName, r.LastName, cy.ChallengeDate
-        ORDER BY TotalScore DESC;";
+            lb.StudentID,
+            lb.FirstName,
+            lb.LastName,
+            lb.StudentRank,
+            c.ChallengeDate AS [Date]
+        FROM Leaderboard lb
+        CROSS APPLY (
+            SELECT ChallengeDate 
+            FROM tblCYOT 
+            WHERE CYOTID = @CYOTID
+        ) c
+        ORDER BY 
+            CASE 
+                WHEN lb.StudentID = @StudentID THEN 0 
+                ELSE 1 
+            END,
+            lb.StudentRank;
+        ";
 
-                var rawData = await _connection.QueryAsync(query, new { CYOTID = cyotId });
-
-                // Convert to in-memory list
-                var rawList = rawData.ToList();
-
-                // Rank calculation
-                int rank = 1;
-                decimal? lastScore = null;
-
-                var leaderboard = new List<LeaderboardResponse>();
-
-                for (int i = 0; i < rawList.Count; i++)
-                {
-                    var row = rawList[i];
-                    decimal score = row.TotalScore;
-
-                    if (lastScore != score)
-                    {
-                        rank = i + 1;
-                        lastScore = score;
-                    }
-
-                    leaderboard.Add(new LeaderboardResponse
-                    {
-                        StudentID = row.StudentID,
-                        FirstName = row.FirstName,
-                        LastName = row.LastName,
-                        Date = row.ChallengeDate,
-                        StudentRank = rank
-                    });
-                }
-
-                // Move requested student to top
-                leaderboard = leaderboard
-                    .OrderByDescending(x => x.StudentID == studentId)
-                    .ThenBy(x => x.StudentRank)
-                    .ToList();
+                var leaderboardData = await _connection.QueryAsync<LeaderboardResponse>(
+                    query,
+                    new { CYOTID = cyotId, StudentID = studentId }
+                );
 
                 return new ServiceResponse<List<LeaderboardResponse>>(
                     true,
                     "Leaderboard fetched successfully",
-                    leaderboard,
+                    leaderboardData.ToList(),
                     200
                 );
             }
@@ -1079,7 +1072,6 @@ WHERE c.CYOTID = @CYOTID;";
                 );
             }
         }
-
         private static string ConvertSecondsToTimeFormat(int seconds)
         {
             TimeSpan time = TimeSpan.FromSeconds(seconds);
