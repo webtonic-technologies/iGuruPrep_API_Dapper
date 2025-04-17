@@ -1570,7 +1570,7 @@ WHERE q.ContentID = @ChapterId AND q.IndexTypeID = 1 AND q.SetID = @SetId";
                 double totalTimeIncorrect = incorrect.Sum(d => d.Duration);
                 int countIncorrect = incorrect.Count;
 
-                var unattempted = myData.Where(d => d.IsCorrect == null && (d.StatusId == 2 || d.StatusId == 4)).ToList();
+                var unattempted = myData.Where(d => (d.IsCorrect == null || d.IsCorrect == false) && (d.StatusId == 2 || d.StatusId == 4)).ToList();
                 double totalTimeUnattempted = unattempted.Sum(d => d.Duration);
                 int countUnattempted = unattempted.Count;
 

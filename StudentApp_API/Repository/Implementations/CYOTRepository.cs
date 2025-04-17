@@ -482,9 +482,10 @@ new
                     if (item.QuestionTypeId == 11)
                     {
                         dto.Paragraph = item.Paragraph;
-                        dto.ComprehensiveChildQuestions = childQuestionsLookup.ContainsKey(item.QuestionCode)
-                            ? childQuestionsLookup[item.QuestionCode]
-                            : [];
+                        //dto.ComprehensiveChildQuestions = childQuestionsLookup.ContainsKey(item.QuestionCode)
+                        //    ? childQuestionsLookup[item.QuestionCode]
+                        //    : [];
+                        dto.ComprehensiveChildQuestions = GetChildQuestions(item.QuestionCode);
                     }
                     else
                     {
@@ -510,7 +511,7 @@ new
                 }
 
                 return questionsList.Any()
-                    ? new ServiceResponse<List<QuestionResponseDTO>>(true, "Operation Successful", response.ToList(), 200, questionsList.Count())
+                    ? new ServiceResponse<List<QuestionResponseDTO>>(true, "Operation Successful", response.ToList(), 200, response.Count())
                     : new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
                 // Continue with your existing logic to process the filtered questionsList
             }
