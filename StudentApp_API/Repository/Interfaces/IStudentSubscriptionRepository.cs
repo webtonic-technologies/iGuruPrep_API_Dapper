@@ -1,0 +1,11 @@
+﻿using StudentApp_API.DTOs.Requests;
+using StudentApp_API.DTOs.Response;
+using StudentApp_API.DTOs.ServiceResponse;
+namespace StudentApp_API.Repository.Interfaces
+{
+    public interface IStudentSubscriptionRepository
+    {
+        Task<ServiceResponse<List<SubscriptionResponseDTO>>> GetSubscriptionPackages(SubscriptionRequestDTO request);
+        Task<ServiceResponse<string>> InsertStudentSubscriptionAsync(StudentSubscriptionInsertRequest request);
+    }
+}

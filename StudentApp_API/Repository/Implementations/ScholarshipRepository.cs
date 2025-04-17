@@ -305,7 +305,7 @@ namespace StudentApp_API.Repository.Implementations
               FROM tblQIDCourse qc 
               WHERE qc.QuestionCode = q.QuestionCode 
                 AND qc.LevelId = @DifficultyLevelId AND qc.CourseID = @CourseID
-          ) AND q.IsLive = 1";
+          ) AND q.IsLive = 0";
                         var coureId = _connection.QueryFirstOrDefault<int>(@"select CourseId from tblScholarshipCourse where ScholarshipTestId = @ScholarshipTestId", new { ScholarshipTestId = request.scholarshipTestId });
                         var selectedQuestions = new List<QuestionResponseDTO>();
                         foreach (var difficultyLimit in difficultyLimits)
@@ -1900,7 +1900,6 @@ namespace StudentApp_API.Repository.Implementations
 
             return new ServiceResponse<TimeSpentReport>(true, "Operation successful", formattedReport, 200);
         }
-
         public async Task<ServiceResponse<TimeSpentReport>> GetSubjectWiseTimeSpentReportAsync(int studentId, int scholarshipId, int subjectId)
 
         {

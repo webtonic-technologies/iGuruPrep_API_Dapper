@@ -158,7 +158,7 @@ namespace StudentApp_API.Repository.Implementations
                     SELECT
                         s.ContInIdSubTopic AS ContentId,
                         s.ContentName_SubTopic AS SubTopicName,
-                        s.Synopsis as Synopsis
+                        d.Synopsis as Synopsis
                     FROM tblContentIndexSubTopics s
                     INNER JOIN tblSyllabusDetails d ON s.ContInIdSubTopic = d.ContentIndexId
                     WHERE s.ContInIdTopic = @ContentIndexId AND s.IndexTypeId = 3 AND s.IsActive = 1 AND d.SyllabusID = @SyllabusId";

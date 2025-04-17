@@ -45,6 +45,9 @@ builder.Services.AddTransient<IOnlineQuizooRepository, OnlineQuizooRepository>()
 builder.Services.AddTransient<IQuizooQuestionBoardServices, QuizooQuestionBoardServices>();
 builder.Services.AddTransient<IQuizooQuestionBoardRepository, QuizooQuestionBoardRepository>();
 
+builder.Services.AddTransient<IStudentSubscriptionServices, StudentSubscriptionServices>();
+builder.Services.AddTransient<IStudentSubscriptionRepository, StudentSubscriptionRepository>();
+
 builder.Services.AddTransient<ICYOTRepository, CYOTRepository>();
 builder.Services.AddTransient<ICYOTServices, CYOTServices>();
 
