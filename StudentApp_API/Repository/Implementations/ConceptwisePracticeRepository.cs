@@ -1566,7 +1566,7 @@ WHERE q.ContentID = @ChapterId AND q.IndexTypeID = 1 AND q.SetID = @SetId";
                 double totalTimeCorrect = correct.Sum(d => d.Duration);
                 int countCorrect = correct.Count;
 
-                var incorrect = myData.Where(d => d.IsCorrect == false).ToList();
+                var incorrect = myData.Where(d => d.IsCorrect == false && d.StatusId == 1).ToList();
                 double totalTimeIncorrect = incorrect.Sum(d => d.Duration);
                 int countIncorrect = incorrect.Count;
 
