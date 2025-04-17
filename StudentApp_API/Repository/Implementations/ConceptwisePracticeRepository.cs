@@ -1248,7 +1248,7 @@ FROM YourAccuracy YA, ClassmateAccuracy CA;";
                 if (_connection.State != ConnectionState.Open)
                     _connection.Open();
 
-                // 1. Latest SetID for the current student and chapter
+                // 1. Latest SetID for the current stud ent and chapter
                 string latestSetQuery = @"
 SELECT MAX(SetID)
 FROM tblConceptwisePracticeQuestions
@@ -1325,16 +1325,8 @@ WHERE SyllabusID = @SyllabusId
 
                 int totalStudents = await _connection.ExecuteScalarAsync<int>(totalStudentsQuery, request);
 
-                // 6. Total attempts of the chapter
-                string totalAttemptsQuery = @"
-SELECT SetID
-FROM tblConceptwisePracticeQuestions
-WHERE SyllabusID = @SyllabusId
-  AND SubjectId = @SubjectId
-  AND ContentID = @ChapterId
-  AND IndexTypeID = 1";
-
-                int totalAttempts = await _connection.ExecuteScalarAsync<int>(totalAttemptsQuery, request);
+                // 6. Total completed attempts based on strict rule
+                int totalAttempts = await GetCompletedAttemptsForChapterAsync(request);
 
                 var response = new ChapterAccuracyReportResponse
                 {
@@ -1352,6 +1344,89 @@ WHERE SyllabusID = @SyllabusId
                 return new ServiceResponse<ChapterAccuracyReportResponse>(false, ex.Message, null, 500);
             }
         }
+
+        // Additional helper method
+        private async Task<int> GetCompletedAttemptsForChapterAsync(ChapterAnalyticsRequest request)
+        {
+            // Step 1: Fetch ChapterCode from ChapterId
+            string getChapterCodeQuery = @"
+SELECT ChapterCode
+FROM tblContentIndexChapters
+WHERE ContentIndexId = @ChapterId AND IsActive = 1";
+
+            string chapterCode = await _connection.ExecuteScalarAsync<string>(getChapterCodeQuery, new { ChapterId = request.ChapterId });
+
+            if (string.IsNullOrEmpty(chapterCode))
+                return 0;
+
+            // Step 2: Get all related ContentIDs (Chapter + Topics + SubTopics)
+            string contentIdsQuery = @"
+-- Chapter ContentID
+SELECT ContentIndexId FROM tblContentIndexChapters 
+WHERE ChapterCode = @ChapterCode AND IsActive = 1
+UNION
+-- Topic ContentIDs
+SELECT ContentIndexId FROM tblContentIndexTopics 
+WHERE ChapterCode = @ChapterCode AND IsActive = 1
+UNION
+-- SubTopic ContentIDs
+SELECT ST.ContInIdSubTopic AS ContentIndexId
+FROM tblContentIndexSubTopics ST
+JOIN tblContentIndexTopics T ON ST.TopicCode = T.TopicCode
+WHERE T.ChapterCode = @ChapterCode AND ST.IsActive = 1 AND T.IsActive = 1";
+
+            var contentIds = (await _connection.QueryAsync<int>(contentIdsQuery, new { ChapterCode = chapterCode })).ToList();
+
+            if (contentIds == null || !contentIds.Any())
+                return 0;
+
+            // Step 3: Get all distinct SetIDs attempted by student for this chapter’s content
+            string setIdsQuery = @"
+SELECT DISTINCT SetID
+FROM tblConceptwisePracticeQuestions
+WHERE StudentId = @StudentId
+  AND SyllabusID = @SyllabusId
+  AND SubjectId = @SubjectId
+  AND ContentID IN @ContentIds";
+
+            var setIds = (await _connection.QueryAsync<int>(setIdsQuery, new
+            {
+                request.StudentId,
+                request.SyllabusId,
+                request.SubjectId,
+                ContentIds = contentIds
+            })).ToList();
+
+            int completedAttempts = 0;
+
+            // Step 4: Loop each SetID and check if all questions are correct
+            foreach (var setId in setIds)
+            {
+                string correctnessQuery = @"
+SELECT IsCorrect
+FROM tblConceptwisePracticeQuestions
+WHERE StudentId = @StudentId
+  AND SetID = @SetId
+  AND SyllabusID = @SyllabusId
+  AND SubjectId = @SubjectId
+  AND ContentID IN @ContentIds";
+
+                var correctnessList = (await _connection.QueryAsync<int>(correctnessQuery, new
+                {
+                    request.StudentId,
+                    request.SyllabusId,
+                    request.SubjectId,
+                    SetId = setId,
+                    ContentIds = contentIds
+                })).ToList();
+
+                if (correctnessList.Count > 0 && correctnessList.All(c => c == 1))
+                    completedAttempts++;
+            }
+
+            return completedAttempts;
+        }
+
         public async Task<ServiceResponse<ChapterAnalyticsResponse>> GetChapterAnalyticsAsync(ChapterAnalyticsRequest request)
         {
             try
