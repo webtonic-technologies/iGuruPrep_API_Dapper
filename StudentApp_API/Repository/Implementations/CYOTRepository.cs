@@ -2031,7 +2031,7 @@ WHERE N.CYOTId = @CYOTId AND N.StudentId = @StudentId AND SQM.SubjectID = @Subje
                 LEFT JOIN tblContentIndexChapters ci ON q.ContentIndexId = ci.ContentIndexId AND q.IndexTypeId = 1
                 LEFT JOIN tblContentIndexTopics ct ON q.ContentIndexId = ct.ContInIdTopic AND q.IndexTypeId = 2
                 LEFT JOIN tblContentIndexSubTopics cst ON q.ContentIndexId = cst.ContInIdSubTopic AND q.IndexTypeId = 3
-                WHERE q.ParentQCode = @QuestionCode AND q.IsActive = 0 AND IsLive = 0 AND q.IsConfigure = 1";
+                WHERE q.ParentQCode = @QuestionCode AND q.IsActive = 1 AND IsLive = 0 AND q.IsConfigure = 1";
             var parameters = new { QuestionCode = QuestionCode };
             var item = _connection.Query<dynamic>(sql, parameters);
             var response = item.Select(m => new ParagraphQuestions

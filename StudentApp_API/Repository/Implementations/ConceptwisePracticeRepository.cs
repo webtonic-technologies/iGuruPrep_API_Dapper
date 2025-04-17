@@ -693,8 +693,7 @@ AND (cpq.QuestionStatusId = 4 OR cpq.Iscorrect = 0)";
                         QuestionCode = item.QuestionCode,
                         Explanation = item.Explanation,
                         ExtraInformation = item.ExtraInformation,
-                        IsActive = item.IsActive,
-                        ComprehensiveChildQuestions = GetChildQuestions(item.QuestionCode)
+                        IsActive = item.IsActive
                     };
                 }
                 else
@@ -728,10 +727,17 @@ AND (cpq.QuestionStatusId = 4 OR cpq.Iscorrect = 0)";
             }).ToList();
             foreach (var item in questionsToReturn)
             {
-                item.MatchPairs = item.QuestionTypeId == 6 || item.QuestionTypeId == 12 ? GetMatchPairs(item.QuestionCode, item.QuestionId) : null;
-                item.MatchThePairType2Answers = item.QuestionTypeId == 12 ? GetMatchThePairType2Answers(item.QuestionCode, item.QuestionId) : null;
-                item.Answersingleanswercategories = (item.QuestionTypeId != 6 && item.QuestionTypeId != 12) ? GetSingleAnswer(item.QuestionCode, item.QuestionId) : null;
-                item.AnswerMultipleChoiceCategories = (item.QuestionTypeId != 12) ? GetMultipleAnswers(item.QuestionCode) : null;
+                if (item.QuestionTypeId == 11)
+                {
+                    item.ComprehensiveChildQuestions = GetChildQuestions(item.QuestionCode);
+                }
+                else
+                {
+                    item.MatchPairs = item.QuestionTypeId == 6 || item.QuestionTypeId == 12 ? GetMatchPairs(item.QuestionCode, item.QuestionId) : null;
+                    item.MatchThePairType2Answers = item.QuestionTypeId == 12 ? GetMatchThePairType2Answers(item.QuestionCode, item.QuestionId) : null;
+                    item.Answersingleanswercategories = (item.QuestionTypeId != 6 && item.QuestionTypeId != 12) ? GetSingleAnswer(item.QuestionCode, item.QuestionId) : null;
+                    item.AnswerMultipleChoiceCategories = (item.QuestionTypeId != 12) ? GetMultipleAnswers(item.QuestionCode) : null;
+                }
             }
       
             if (request.QuestionStatus != null && request.QuestionStatus.Any(id => id != 0))
