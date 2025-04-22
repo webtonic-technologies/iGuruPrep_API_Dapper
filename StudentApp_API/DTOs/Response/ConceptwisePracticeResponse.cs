@@ -24,11 +24,12 @@
         public string Synopsis { get; set; } = string.Empty;
         public int RegistrationId { get; set; }
         public decimal Percentage { get; set; }
-        public int ConceptOrSubConceptCount {  get; set; }
-        public int AttemptCount {  get; set; }
-        public bool IsSynopsis {  get; set; }
-        public bool IsAnalytics {  get; set; }
-        public bool IsQuestionAnalytics {  get; set; }
+        public int ConceptOrSubConceptCount { get; set; }
+        public int AttemptCount { get; set; }
+        public bool IsSynopsis { get; set; }
+        public bool IsAnalytics { get; set; }
+        public bool IsQuestionAnalytics { get; set; }
+        public bool IsQuestions { get; set; }
     }
     public class ConceptwiseAnswerResponse
     {
@@ -198,6 +199,10 @@
         public int Question { get; set; }
         public int TopicCount { get; set; }
         public List<TopicResponse> Topics { get; set; }
+        public bool IsSynopsis { get; set; }
+        public bool IsAnalytics { get; set; }
+        public bool IsQuestionAnalytics { get; set; }
+        public bool IsQuestions { get; set; }
     }
 
     public class TopicResponse
@@ -210,6 +215,10 @@
         public decimal Percentage { get; set; }
         public int Question { get; set; }
         public List<SubTopicResponse> SubTopics { get; set; }
+        public bool IsSynopsis { get; set; }
+        public bool IsAnalytics { get; set; }
+        public bool IsQuestionAnalytics { get; set; }
+        public bool IsQuestions { get; set; }
     }
 
     public class SubTopicResponse
@@ -219,6 +228,10 @@
         public string Synopsis { get; set; }
         public decimal Percentage { get; set; }
         public int Question { get; set; }
+        public bool IsSynopsis { get; set; }
+        public bool IsAnalytics { get; set; }
+        public bool IsQuestionAnalytics { get; set; }
+        public bool IsQuestions { get; set; }
     }
     public class ConceptwisePracticeQuestion
     {

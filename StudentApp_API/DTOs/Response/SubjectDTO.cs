@@ -37,6 +37,7 @@
         public bool IsAnalytics { get; set; } = false;
         public bool IsChallengeApplicable { get; set; } = false;
         public DateTime? CreatedOn { get; set; }
+        public string ChallengedBy { get; set; }
     }
     public class CYOTMyChallengesAnalyticsResponse
     {

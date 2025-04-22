@@ -306,7 +306,7 @@ namespace StudentApp_API.Repository.Implementations
                 return new ServiceResponse<bool>(false, $"Error: {ex.Message}", false, 500);
             }
         }
-        public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetCYOTQuestions(GetCYOTQuestionsRequest request)
+        public async Task<ServiceResponse<QuestionResponseSubjectDTO>> GetCYOTQuestions(GetCYOTQuestionsRequest request)
         {
             // 1. Fetch Student Details
             var studentDetails = await _connection.QuerySingleOrDefaultAsync<StudentDetails>(
@@ -315,7 +315,7 @@ namespace StudentApp_API.Repository.Implementations
                 new { RegistrationID = request.registrationId });
 
             if (studentDetails == null)
-                return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
+                return new ServiceResponse<QuestionResponseSubjectDTO>(false, "No records found", null, 404);
 
             _connection.Open();
             // Step 2: Fetch CYOT Syllabus
@@ -324,7 +324,7 @@ namespace StudentApp_API.Repository.Implementations
                 new { CYOTID = request.cyotId });
 
             if (!cyotSyllabus.Any())
-                return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
+                return new ServiceResponse<QuestionResponseSubjectDTO>(false, "No records found", null, 404);
 
             // Step 8: Fetch CYOT details
             var cyotDetails = await _connection.QuerySingleOrDefaultAsync<dynamic>(
@@ -332,7 +332,7 @@ namespace StudentApp_API.Repository.Implementations
                 new { CYOTID = request.cyotId });
 
             if (cyotDetails == null)
-                return new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
+                return new ServiceResponse<QuestionResponseSubjectDTO>(false, "No records found", null, 404);
 
             int limit = cyotDetails.NoOfQuestions;
             // Split the string and parse the numeric part
@@ -341,7 +341,7 @@ namespace StudentApp_API.Repository.Implementations
             if (parts.Length > 0 && int.TryParse(parts[0], out int duration))
             {
                 durationPerQuestion = duration / limit;
-                Console.WriteLine($"Duration per question: {durationPerQuestion} minutes");
+               // Console.WriteLine($"Duration per question: {durationPerQuestion} minutes");
             }
             else
             {
@@ -509,10 +509,26 @@ new
 
                     response.Add(dto);
                 }
-
+                if (request.SubjectId != null && request.SubjectId != 0)
+                {
+                    response = response.Where(q => q.subjectID == request.SubjectId).ToList();
+                }
+                var subjectCounts = response
+    .GroupBy(q => new { q.subjectID, q.SubjectName })
+    .Select(g => new SubjectQuestionsCount
+    {
+        SubjectId = g.Key.subjectID ?? 0,
+        SubjectName = g.Key.SubjectName,
+        QuestionCount = g.Count()
+    }).ToList();
+                var responseData = new QuestionResponseSubjectDTO
+                {
+                    QuestionResponseDTOs = response,
+                    SubjectQuestionsCounts = subjectCounts
+                };
                 return questionsList.Any()
-                    ? new ServiceResponse<List<QuestionResponseDTO>>(true, "Operation Successful", response.ToList(), 200, response.Count())
-                    : new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
+                    ? new ServiceResponse<QuestionResponseSubjectDTO>(true, "Operation Successful", responseData, 200, response.Count())
+                    : new ServiceResponse<QuestionResponseSubjectDTO>(false, "No records found", null, 404);
                 // Continue with your existing logic to process the filtered questionsList
             }
             else
@@ -673,10 +689,23 @@ VALUES (@CYOTId, @StudentId, @QuestionId, @QuestionStatusId, @SubjectId)";
                         };
                     }
                 });
-
+                var subjectCounts = response
+.GroupBy(q => new { q.subjectID, q.SubjectName })
+.Select(g => new SubjectQuestionsCount
+{
+SubjectId = g.Key.subjectID ?? 0,
+SubjectName = g.Key.SubjectName,
+QuestionCount = g.Count()
+}).ToList();
+                var responseData = new QuestionResponseSubjectDTO
+                {
+                    QuestionResponseDTOs = response.ToList(),
+                    SubjectQuestionsCounts = subjectCounts
+                };
+       
                 return questionsResponse.Any()
-                    ? new ServiceResponse<List<QuestionResponseDTO>>(true, "Operation Successful", response.ToList(), 200, questionsResponse.Count())
-                    : new ServiceResponse<List<QuestionResponseDTO>>(false, "No records found", new List<QuestionResponseDTO>(), 404);
+                    ? new ServiceResponse<QuestionResponseSubjectDTO>(true, "Operation Successful", responseData, 200, response.Count())
+                    : new ServiceResponse<QuestionResponseSubjectDTO>(false, "No records found", null, 404);
             }
         }
         public async Task<ServiceResponse<string>> UpdateQuestionNavigationAsync(CYOTQuestionNavigationRequest request)
@@ -1161,43 +1190,7 @@ GROUP BY CYOT.MarksPerCorrectAnswer, CYOT.MarksPerIncorrectAnswer;";
         }
         public async Task<ServiceResponse<List<CYOTQuestionWithAnswersDTO>>> GetCYOTQuestionsWithOptionsAsync(GetCYOTQuestionsRequest request)
         {
-            //        var query = @"
-            //SELECT 
-            //    cq.CYOTID,
-            //    cq.QuestionID,
-            //    q.QuestionCode,
-            //    q.QuestionDescription,
-            //    q.Explanation as Explanation, 
-            //    q.ExtraInformation as ExtraInformation,
-            //    q.QuestionTypeId,
-            //    mc.Answermultiplechoicecategoryid,
-            //    mc.Answer,
-            //    mc.IsCorrect,
-            //    qt.QuestionType as QuestionType,
-            //    sub.SubjectName as SubjectName,
-            //    sqm.QuestionStatusId,
-            //    COALESCE(a.AnswerId, '') AS StudentAnswerIdCsv,   -- Student's given answer IDs (CSV)
-            //    COALESCE(a.IsCorrect, 0) AS IsStudentAnswerCorrect
-            //FROM 
-            //    tblCYOTQuestions cq
-            //JOIN 
-            //    tblQuestion q ON cq.QuestionID = q.QuestionId
-            //JOIN 
-            //    tblAnswerMaster am ON q.QuestionId = am.Questionid
-            //JOIN 
-            //    tblAnswerMultipleChoiceCategory mc ON am.Answerid = mc.Answerid
-            //JOIN 
-            //    tblQBQuestionType qt ON q.QuestionTypeId = qt.QuestionTypeID
-            //JOIN 
-            //    tblSubject sub ON q.subjectID = sub.SubjectId
-            //LEFT JOIN 
-            //    [tblCYOTStudentQuestionMapping] sqm ON cq.QuestionID = sqm.QuestionID AND sqm.StudentID = @StudentID AND sqm.CYOTID = @CYOTID
-            //LEFT JOIN 
-            //    tblCYOTAnswers a ON cq.QuestionID = a.QuestionID AND a.StudentID = @StudentID AND a.CYOTID = @CYOTID
-            //WHERE 
-            //    cq.CYOTID = @CYOTID
-            //ORDER BY 
-            //    cq.DisplayOrder";
+           
             var query = @"SELECT 
     sqm.CYOTID,
     sqm.QuestionID,
@@ -1276,7 +1269,8 @@ WHERE
                         {
                             AnswerMultipleChoiceCategoryID = currentAnswerId,
                             Answer = (string?)answer.Answer ?? string.Empty,
-                            IsCorrect = answer.IsCorrect != null ? (bool)answer.IsCorrect : false,
+                            IsCorrect = answer.IsOptionCorrect != null ? (bool)answer.IsOptionCorrect : false,
+                            //  IsCorrect = answer.IsCorrect != null ? (bool)answer.IsCorrect : false,
                             IsStudentAnswer = selectedAnswerIds.Contains(currentAnswerId),
                             IsStudentAnswerCorrect = selectedAnswerIds.Contains(currentAnswerId) && (answer.IsCorrect != null && (bool)answer.IsCorrect)
                         };

@@ -24,6 +24,7 @@ namespace StudentApp_API.DTOs.Requests
     {
         public int cyotId { get; set; }
         public int registrationId { get; set; }
+        public int? SubjectId {  get; set; }
         public List<int>? QuestionTypeId { get; set; }
         public List<int>? QuestionStatusId {  get; set; }
     }

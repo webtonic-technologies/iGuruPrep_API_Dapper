@@ -10,7 +10,7 @@ namespace StudentApp_API.Repository.Interfaces
         Task<ServiceResponse<int>> InsertOrUpdateCYOTAsync(CYOTDTO cyot);
         Task<ServiceResponse<CYOTDTO>> GetCYOTByIdAsync(int cyotId);
         Task<ServiceResponse<bool>> UpdateCYOTSyllabusAsync(int cyotId, List<CYOTSyllabusDTO> syllabusList);
-        Task<ServiceResponse<List<QuestionResponseDTO>>> GetCYOTQuestions(GetCYOTQuestionsRequest request);
+        Task<ServiceResponse<QuestionResponseSubjectDTO>> GetCYOTQuestions(GetCYOTQuestionsRequest request);
         Task<ServiceResponse<string>> UpdateQuestionNavigationAsync(CYOTQuestionNavigationRequest request);
         Task<ServiceResponse<List<CYOTQuestionWithAnswersDTO>>> GetCYOTQuestionsWithOptionsAsync(GetCYOTQuestionsRequest request);
         Task<ServiceResponse<string>> MarkQuestionAsSave(SaveQuestionCYOTRequest request);

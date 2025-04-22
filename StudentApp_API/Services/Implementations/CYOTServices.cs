@@ -39,7 +39,7 @@ namespace StudentApp_API.Services.Implementations
         {
             return await _cYOTRepository.GetCYOTQestionReportAsync(studentId, cyotId);
         }
-        public async Task<ServiceResponse<List<QuestionResponseDTO>>> GetCYOTQuestions(GetCYOTQuestionsRequest request)
+        public async Task<ServiceResponse<QuestionResponseSubjectDTO>> GetCYOTQuestions(GetCYOTQuestionsRequest request)
         {
             return await _cYOTRepository.GetCYOTQuestions(request);
         }

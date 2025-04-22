@@ -2,6 +2,11 @@
 
 namespace StudentApp_API.DTOs.Response
 {
+    public class QuestionResponseSubjectDTO
+    {
+        public List<QuestionResponseDTO> QuestionResponseDTOs {  get; set; }
+        public List<SubjectQuestionsCount> SubjectQuestionsCounts {  get; set; }
+    }
     public class QuestionsSetResponse
     {
         public int? NumberOfSet { get; set; }
@@ -45,6 +50,12 @@ namespace StudentApp_API.DTOs.Response
         public List<ParagraphQuestions>? ComprehensiveChildQuestions { get; set; }
         public int DurationperQuestion {  get; set; }
         public int QuestionStatusId {  get; set; }
+    }
+    public class SubjectQuestionsCount
+    {
+        public int SubjectId { get; set; }
+        public string SubjectName { get; set; }
+        public int QuestionCount {  get; set; }
     }
     public class ParagraphQuestions
     {

@@ -26,6 +26,7 @@ namespace StudentApp_API.Repository.Implementations
        C.CYOTStatusID, 
        CS.CYOTStatus, 
        C.CreatedOn,
+       R.FirstName as ChallengedBy,
        CASE WHEN P.CYOTStatusID = 2 THEN 1 ELSE 0 END AS IsViewKey,
        CASE WHEN P.CYOTStatusID = 2 THEN 1 ELSE 0 END AS IsAnalytics
 FROM tblCYOT C

@@ -5,6 +5,7 @@ using StudentApp_API.DTOs.ServiceResponse;
 using StudentApp_API.Repository.Interfaces;
 using System.Data;
 using System.Linq;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 namespace StudentApp_API.Repository.Implementations
 {
     public class ConceptwisePracticeRepository: IConceptwisePracticeRepository
@@ -173,13 +174,35 @@ namespace StudentApp_API.Repository.Implementations
                         {
                             subTopic.Percentage =  PercentageCalculation(3, subTopic.ContentId, request.RegistrationId, chapter.SubjectId, request.SyllabusId ?? 0);
                             subTopic.Question = await GetAttemptCountAsync(3, subTopic.ContentId, chapter.SubjectId, request.SyllabusId ?? 0, request.RegistrationId);
+
+
+                            subTopic.IsAnalytics = await GetIsAnalyticsAsync(3, subTopic.ContentId, request.SubjectId ?? 0, request.SyllabusId ?? 0, request.RegistrationId);
+                            subTopic.IsQuestionAnalytics = false;
+
+                            // Enable synopsis button only if synopsis is present
+                            subTopic.IsSynopsis = !string.IsNullOrWhiteSpace(subTopic.Synopsis);
+                            subTopic.IsQuestions = AreQuestionsAvailabel(3, subTopic.ContentId, request.SubjectId);
                         }
 
                         topic.SubTopics = subTopics.ToList();
                         topic.SubTopicCount = subTopics.Count();
+
+                        topic.IsAnalytics = await GetIsAnalyticsAsync(2, topic.ContentId, request.SubjectId ?? 0, request.SyllabusId ?? 0, request.RegistrationId);
+                        topic.IsQuestionAnalytics = false;
+
+                        // Enable synopsis button only if synopsis is present
+                        topic.IsSynopsis = !string.IsNullOrWhiteSpace(topic.Synopsis);
+                        topic.IsQuestions = AreQuestionsAvailabel(2, topic.ContentId, request.SubjectId);
                     }
 
                     chapter.Topics = topics.ToList();
+
+                    chapter.IsAnalytics = await GetIsAnalyticsAsync(1, chapter.ContentId, request.SubjectId ?? 0, request.SyllabusId ?? 0, request.RegistrationId);
+                    chapter.IsQuestionAnalytics = true;
+
+                    // Enable synopsis button only if synopsis is present
+                    chapter.IsSynopsis = !string.IsNullOrWhiteSpace(chapter.Synopsis);
+                    chapter.IsQuestions = AreQuestionsAvailabel(1, chapter.ContentId, request.SubjectId);
                 }
                 chapterList = chapters.ToList();
                 return new ServiceResponse<List<ChapterTreeResponse>>(true, "Success", chapterList, 200, chapterList.Count);
@@ -356,6 +379,7 @@ namespace StudentApp_API.Repository.Implementations
 
                     // Enable synopsis button only if synopsis is present
                     data.IsSynopsis = !string.IsNullOrWhiteSpace(data.Synopsis);
+                    data.IsQuestions = AreQuestionsAvailabel(data.IndexTypeId, data.ContentId, request.SubjectId);
                 }
                 var response = (contentResponse == null || !contentResponse.Any())
     ? new ServiceResponse<List<ConceptwisePracticeContentResponse>>(false, "No records found", [], 404, 0)
@@ -368,6 +392,21 @@ namespace StudentApp_API.Repository.Implementations
             {
                 return new ServiceResponse<List<ConceptwisePracticeContentResponse>>(false, ex.Message, null, 500);
             }
+        }
+        public bool AreQuestionsAvailabel(int IndexTypeId, int ContentId, int? SubjectId)
+        {
+
+            string query = @"SELECT COUNT(*) FROM tblQuestion WHERE ContentIndexId = @ContentID AND IndexTypeId = @IndexTypeID
+            AND subjectID = @subjectID AND IsLive = 1";
+
+            int liveQuestionCount = _connection.ExecuteScalar<int>(query, new
+            {
+                ContentID = ContentId,
+                IndexTypeID = IndexTypeId,
+                subjectID = SubjectId
+            });
+
+            return liveQuestionCount >= 20;
         }
         public async Task<ServiceResponse<QuestionsSetResponse>> GetQuestionsAsync(GetQuestionsList request)
         {
@@ -1348,39 +1387,47 @@ WHERE SyllabusID = @SyllabusId
         // Additional helper method
         private async Task<int> GetCompletedAttemptsForChapterAsync(ChapterAnalyticsRequest request)
         {
-            // Step 1: Fetch ChapterCode from ChapterId
+            // Step 1: Get ChapterCode
             string getChapterCodeQuery = @"
 SELECT ChapterCode
 FROM tblContentIndexChapters
 WHERE ContentIndexId = @ChapterId AND IsActive = 1";
 
             string chapterCode = await _connection.ExecuteScalarAsync<string>(getChapterCodeQuery, new { ChapterId = request.ChapterId });
-
             if (string.IsNullOrEmpty(chapterCode))
                 return 0;
 
-            // Step 2: Get all related ContentIDs (Chapter + Topics + SubTopics)
+            // Step 2: Get all ContentIndexIds (Chapter + Topics + SubTopics)
             string contentIdsQuery = @"
--- Chapter ContentID
 SELECT ContentIndexId FROM tblContentIndexChapters 
 WHERE ChapterCode = @ChapterCode AND IsActive = 1
 UNION
--- Topic ContentIDs
 SELECT ContentIndexId FROM tblContentIndexTopics 
 WHERE ChapterCode = @ChapterCode AND IsActive = 1
 UNION
--- SubTopic ContentIDs
 SELECT ST.ContInIdSubTopic AS ContentIndexId
 FROM tblContentIndexSubTopics ST
 JOIN tblContentIndexTopics T ON ST.TopicCode = T.TopicCode
 WHERE T.ChapterCode = @ChapterCode AND ST.IsActive = 1 AND T.IsActive = 1";
 
             var contentIds = (await _connection.QueryAsync<int>(contentIdsQuery, new { ChapterCode = chapterCode })).ToList();
+            if (!contentIds.Any()) return 0;
 
-            if (contentIds == null || !contentIds.Any())
-                return 0;
+            // Step 3: Get all QuestionIDs mapped to these content IDs
+            string allMappedQuestionsQuery = @"
+SELECT QuestionID
+FROM tblQuestion
+WHERE ContentIndexId IN @ContentIds AND SubjectId = @SubjectId AND IsLive = 1";
 
-            // Step 3: Get all distinct SetIDs attempted by student for this chapter’s content
+            var allMappedQuestionIds = (await _connection.QueryAsync<int>(allMappedQuestionsQuery, new
+            {
+                ContentIds = contentIds,
+                SubjectId = request.SubjectId
+            })).ToHashSet();
+
+            if (!allMappedQuestionIds.Any()) return 0;
+
+            // Step 4: Get all distinct SetIDs student has attempted for these content IDs
             string setIdsQuery = @"
 SELECT DISTINCT SetID
 FROM tblConceptwisePracticeQuestions
@@ -1399,11 +1446,11 @@ WHERE StudentId = @StudentId
 
             int completedAttempts = 0;
 
-            // Step 4: Loop each SetID and check if all questions are correct
+            // Step 5: Loop through each SetID and verify complete + correct answers
             foreach (var setId in setIds)
             {
-                string correctnessQuery = @"
-SELECT IsCorrect
+                string answeredQuery = @"
+SELECT QuestionID, IsCorrect
 FROM tblConceptwisePracticeQuestions
 WHERE StudentId = @StudentId
   AND SetID = @SetId
@@ -1411,7 +1458,7 @@ WHERE StudentId = @StudentId
   AND SubjectId = @SubjectId
   AND ContentID IN @ContentIds";
 
-                var correctnessList = (await _connection.QueryAsync<int>(correctnessQuery, new
+                var attempts = (await _connection.QueryAsync<(int QuestionId, int IsCorrect)>(answeredQuery, new
                 {
                     request.StudentId,
                     request.SyllabusId,
@@ -1420,12 +1467,115 @@ WHERE StudentId = @StudentId
                     ContentIds = contentIds
                 })).ToList();
 
-                if (correctnessList.Count > 0 && correctnessList.All(c => c == 1))
+                var attemptedQuestionIds = attempts.Select(x => x.QuestionId).ToHashSet();
+
+                // ✅ Check if all mapped questions are attempted AND correct
+                bool isComplete = allMappedQuestionIds.All(qid =>
+                    attemptedQuestionIds.Contains(qid) &&
+                    attempts.Any(a => a.QuestionId == qid && a.IsCorrect == 1));
+
+                if (isComplete)
                     completedAttempts++;
             }
 
             return completedAttempts;
         }
+
+        //        private async Task<int> GetCompletedAttemptsForChapterAsync(ChapterAnalyticsRequest request)
+        //        {
+        //            // Step 1: Get ChapterCode
+        //            string getChapterCodeQuery = @"
+        //SELECT ChapterCode
+        //FROM tblContentIndexChapters
+        //WHERE ContentIndexId = @ChapterId AND IsActive = 1";
+
+        //            string chapterCode = await _connection.ExecuteScalarAsync<string>(getChapterCodeQuery, new { ChapterId = request.ChapterId });
+        //            if (string.IsNullOrEmpty(chapterCode))
+        //                return 0;
+
+        //            // Step 2: Get all ContentIndexIds (Chapter + Topics + SubTopics)
+        //            string contentIdsQuery = @"
+        //SELECT ContentIndexId FROM tblContentIndexChapters 
+        //WHERE ChapterCode = @ChapterCode AND IsActive = 1
+        //UNION
+        //SELECT ContentIndexId FROM tblContentIndexTopics 
+        //WHERE ChapterCode = @ChapterCode AND IsActive = 1
+        //UNION
+        //SELECT ST.ContInIdSubTopic AS ContentIndexId
+        //FROM tblContentIndexSubTopics ST
+        //JOIN tblContentIndexTopics T ON ST.TopicCode = T.TopicCode
+        //WHERE T.ChapterCode = @ChapterCode AND ST.IsActive = 1 AND T.IsActive = 1";
+
+        //            var contentIds = (await _connection.QueryAsync<int>(contentIdsQuery, new { ChapterCode = chapterCode })).ToList();
+        //            if (!contentIds.Any()) return 0;
+
+        //            // Step 3: Get all QuestionIDs mapped to these content IDs
+        //            string allMappedQuestionsQuery = @"
+        //SELECT QuestionID
+        //FROM tblQuestion
+        //WHERE ContentIndexId IN @ContentIds AND SubjectId = @SubjectId AND IsLive = 1";
+
+        //            var allMappedQuestionIds = (await _connection.QueryAsync<int>(allMappedQuestionsQuery, new
+        //            {
+        //                ContentIds = contentIds,
+        //                SubjectId = request.SubjectId
+        //            })).ToHashSet();
+
+        //            if (!allMappedQuestionIds.Any()) return 0;
+
+        //            // Step 4: Get all distinct SetIDs student has attempted for these content IDs
+        //            string setIdsQuery = @"
+        //SELECT DISTINCT SetID
+        //FROM tblConceptwisePracticeQuestions
+        //WHERE StudentId = @StudentId
+        //  AND SyllabusID = @SyllabusId
+        //  AND SubjectId = @SubjectId
+        //  AND ContentID IN @ContentIds";
+
+        //            var setIds = (await _connection.QueryAsync<int>(setIdsQuery, new
+        //            {
+        //                request.StudentId,
+        //                request.SyllabusId,
+        //                request.SubjectId,
+        //                ContentIds = contentIds
+        //            })).ToList();
+
+        //            int completedAttempts = 0;
+
+        //            // Step 5: Loop through each SetID and verify complete + correct answers
+        //            foreach (var setId in setIds)
+        //            {
+        //                string answeredQuery = @"
+        //SELECT QuestionID, IsCorrect
+        //FROM tblConceptwisePracticeQuestions
+        //WHERE StudentId = @StudentId
+        //  AND SetID = @SetId
+        //  AND SyllabusID = @SyllabusId
+        //  AND SubjectId = @SubjectId
+        //  AND ContentID IN @ContentIds";
+
+        //                var attempts = (await _connection.QueryAsync<(int QuestionId, int IsCorrect)>(answeredQuery, new
+        //                {
+        //                    request.StudentId,
+        //                    request.SyllabusId,
+        //                    request.SubjectId,
+        //                    SetId = setId,
+        //                    ContentIds = contentIds
+        //                })).ToList();
+
+        //                var attemptedQuestionIds = attempts.Select(x => x.QuestionId).ToHashSet();
+
+        //                // ✅ Check if all mapped questions are attempted AND correct
+        //                bool isComplete = allMappedQuestionIds.All(qid =>
+        //                    attemptedQuestionIds.Contains(qid) &&
+        //                    attempts.Any(a => a.QuestionId == qid && a.IsCorrect == 1));
+
+        //                if (isComplete)
+        //                    completedAttempts++;
+        //            }
+
+        //            return completedAttempts;
+        //        }
 
         public async Task<ServiceResponse<ChapterAnalyticsResponse>> GetChapterAnalyticsAsync(ChapterAnalyticsRequest request)
         {
