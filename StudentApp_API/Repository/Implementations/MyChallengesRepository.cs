@@ -1,12 +1,10 @@
-﻿using System.Data;
-using Dapper;
-using StudentApp_API.DTOs.ServiceResponse;
-using StudentApp_API.DTOs.Response;
+﻿using Dapper;
 using StudentApp_API.DTOs.Requests;
+using StudentApp_API.DTOs.Response;
 using StudentApp_API.DTOs.Responses;
+using StudentApp_API.DTOs.ServiceResponse;
 using StudentApp_API.Repository.Interfaces;
-using System.Linq;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+using System.Data;
 
 namespace StudentApp_API.Repository.Implementations
 {
@@ -249,24 +247,24 @@ namespace StudentApp_API.Repository.Implementations
                 var allScoresQuery = @"
         SELECT 
             R.RegistrationID,
-            R.CountryID,
+            R.CountryID, R.StateId,
             SUM(CASE WHEN A.IsCorrect = 1 THEN CYOT.MarksPerCorrectAnswer ELSE 0 END) 
             - SUM(CASE WHEN A.IsCorrect = 0 THEN CYOT.MarksPerIncorrectAnswer ELSE 0 END) AS FinalMarks
         FROM tblCYOTAnswers AS A
         JOIN tblCYOT AS CYOT ON A.CYOTID = CYOT.CYOTID
         JOIN tblRegistration AS R ON A.StudentID = R.RegistrationID
         WHERE A.CYOTID = @CYOTID
-        GROUP BY R.RegistrationID, R.CountryID
+        GROUP BY R.RegistrationID, R.CountryID, R.StateId
         ORDER BY FinalMarks DESC;";
 
                 var allScores = (await _connection.QueryAsync<dynamic>(allScoresQuery, new { CYOTID = cyotId })).ToList();
                 int totalStudents = allScores.Count;
                 int rank = allScores.FindIndex(x => x.RegistrationID == studentId) + 1;
                 int studentsAbove = rank > 0 ? rank - 1 : 0;
-                decimal percentile = Math.Round(((totalStudents - rank) / (decimal)totalStudents) * 100, 2);
+                //  decimal percentile = Math.Round(((totalStudents - rank) / (decimal)totalStudents) * 100, 2);
 
                 // Step 3: Fetch Country Rank
-                var studentCountryId = allScores.FirstOrDefault(x => x.StudentID == studentId)?.CountryID;
+                var studentCountryId = allScores.FirstOrDefault(x => x.RegistrationID == studentId)?.CountryID;
                 //        var countryRankQuery = @"
                 //SELECT COUNT(*) + 1 
                 //FROM tblCYOTAnswers AS A
@@ -286,8 +284,24 @@ namespace StudentApp_API.Repository.Implementations
                 //    - SUM(CASE WHEN A.IsCorrect = 0 THEN CYOT.MarksPerIncorrectAnswer ELSE 0 END)) > @FinalMarks;";
 
                 //        var nationalRank = await _connection.ExecuteScalarAsync<int>(nationalRankQuery, new { CYOTID = cyotId, FinalMarks = finalMarks });
+                int nationalRank = allScores.FindIndex(x => x.RegistrationID == studentId) + 1;
+                // Get the current student's state ID
+                int studentStateId = (int)(await _connection.QueryFirstOrDefaultAsync<int>(
+                    "SELECT StateId FROM tblRegistration WHERE RegistrationID = @StudentID",
+                    new { StudentID = studentId }));
+
+                // Group all scores by state
+                var stateWiseScores = allScores
+                    .Where(x => x.StateId == studentStateId) // Note: Replace `CountryID` with `StateId` if you store it separately
+                    .OrderByDescending(x => (decimal)x.FinalMarks)
+                    .ToList();
+
+                // Statewise rank
+                int stateRank = stateWiseScores.FindIndex(x => x.RegistrationID == studentId) + 1;
 
                 // Step 5: Prepare Response
+                decimal percentile = CalculatePercentile(allScores, studentId);
+
                 var response = new CYOTMyChallengesAnalyticsResponse
                 {
                     AchievedMarks = achievedMarks,
@@ -297,8 +311,8 @@ namespace StudentApp_API.Repository.Implementations
                     Percentile = percentile,
                     StudentsAboveMe = studentsAbove,
                     TotalStudentsAttempted = totalStudents,
-                    CountryRank = 0,
-                    NationalRank = 0
+                    StateRank = stateRank,
+                    NationalRank = nationalRank
                 };
 
                 return new ServiceResponse<CYOTMyChallengesAnalyticsResponse>(
@@ -512,7 +526,7 @@ GROUP BY A.SubjectId;";
                 var allScoresQuery = @"
         SELECT 
             R.RegistrationID,
-            R.CountryID,
+            R.CountryID, R.StateId,
             SUM(CASE WHEN A.IsCorrect = 1 THEN CYOT.MarksPerCorrectAnswer ELSE 0 END) 
             - SUM(CASE WHEN A.IsCorrect = 0 THEN CYOT.MarksPerIncorrectAnswer ELSE 0 END) AS FinalMarks
         FROM tblCYOTAnswers AS A
@@ -520,14 +534,14 @@ GROUP BY A.SubjectId;";
         JOIN tblCYOTQuestions AS Q ON A.QuestionID = Q.QuestionID
         JOIN tblRegistration AS R ON A.StudentID = R.RegistrationID
         WHERE A.CYOTID = @CYOTID AND A.SubjectId = @SubjectID
-        GROUP BY R.RegistrationID, R.CountryID
+        GROUP BY R.RegistrationID, R.CountryID, R.StateId
         ORDER BY FinalMarks DESC;";
 
                 var allScores = (await _connection.QueryAsync<dynamic>(allScoresQuery, new { CYOTID = cyotId, SubjectID = subjectId })).ToList();
                 int totalStudents = allScores.Count;
                 int rank = allScores.FindIndex(x => x.StudentID == studentId) + 1;
                 int studentsAbove = rank > 0 ? rank - 1 : 0;
-                decimal percentile = Math.Round(((totalStudents - rank) / (decimal)totalStudents) * 100, 2);
+              //  decimal percentile = Math.Round(((totalStudents - rank) / (decimal)totalStudents) * 100, 2);
 
                 // Fetch country rank for this subject
                 var studentCountryId = allScores.FirstOrDefault(x => x.StudentID == studentId)?.CountryID;
@@ -552,10 +566,23 @@ GROUP BY A.SubjectId;";
                 //    - SUM(CASE WHEN A.IsCorrect = 0 THEN CYOT.MarksPerIncorrectAnswer ELSE 0 END)) > @FinalMarks;";
 
                 //        var nationalRank = await _connection.ExecuteScalarAsync<int>(nationalRankQuery, new { CYOTID = cyotId, SubjectID = subjectId, FinalMarks = finalMarks });
+                // Get the current student's state ID
+                int studentStateId = (int)(await _connection.QueryFirstOrDefaultAsync<int>(
+                    "SELECT StateId FROM tblRegistration WHERE RegistrationID = @StudentID",
+                    new { StudentID = studentId }));
 
+                // Group all scores by state
+                var stateWiseScores = allScores
+                    .Where(x => x.StateId == studentStateId) // Note: Replace `CountryID` with `StateId` if you store it separately
+                    .OrderByDescending(x => (decimal)x.FinalMarks)
+                    .ToList();
+
+                // Statewise rank
+                int stateRank = stateWiseScores.FindIndex(x => x.RegistrationID == studentId) + 1;
+                int nationalRank = allScores.FindIndex(x => x.RegistrationID == studentId) + 1;
+                decimal percentile = CalculatePercentile(allScores, studentId);
                 var response = new CYOTMyChallengesAnalyticsResponse
                 {
-                    //  SubjectID = subjectId,
                     AchievedMarks = achievedMarks,
                     NegativeMarks = negativeMarks,
                     FinalMarks = finalMarks,
@@ -563,8 +590,8 @@ GROUP BY A.SubjectId;";
                     Percentile = percentile,
                     StudentsAboveMe = studentsAbove,
                     TotalStudentsAttempted = totalStudents,
-                    CountryRank = 0,
-                    NationalRank = 0
+                    StateRank = stateRank,
+                    NationalRank = nationalRank
                 };
 
                 return new ServiceResponse<CYOTMyChallengesAnalyticsResponse>(
@@ -1082,6 +1109,30 @@ WHERE c.CYOTID = @CYOTID;";
             else
                 return $"{time.Seconds} seconds";
         }
-    }
+        private decimal CalculatePercentile(List<dynamic> allScores, int studentId)
+        {
+            var student = allScores.FirstOrDefault(x => x.RegistrationID == studentId);
+            if (student == null) return 0;
 
+            decimal studentScore = (decimal)student.FinalMarks;
+
+            // Total number of students
+            int totalStudents = allScores.Count;
+
+            // Count students who scored less than the student
+            int studentsWithLowerScore = allScores.Count(x => (decimal)x.FinalMarks < studentScore);
+
+            // Check if this student has the highest score (possibly tied)
+            decimal maxScore = allScores.Max(x => (decimal)x.FinalMarks);
+            if (studentScore == maxScore)
+                return 100;
+
+            // Apply the correct percentile formula
+            decimal percentile = totalStudents > 0
+                ? Math.Round((studentsWithLowerScore / (decimal)totalStudents) * 100, 2)
+                : 0;
+
+            return percentile;
+        }
+    }
 }

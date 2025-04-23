@@ -48,7 +48,7 @@
         public decimal Percentile { get; set; }
         public int StudentsAboveMe { get; set; }
         public int TotalStudentsAttempted { get; set; }
-        public int CountryRank { get; set; }
+        public int StateRank { get; set; }
         public int NationalRank { get; set; }
     }
     public class CYOTMyChallengesTimeAnalytics
