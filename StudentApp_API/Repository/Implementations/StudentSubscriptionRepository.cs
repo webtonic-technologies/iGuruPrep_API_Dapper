@@ -278,7 +278,7 @@ namespace StudentApp_API.Repository.Implementations
                     return new ServiceResponse<bool>(
                         false, "Invalid subscription or price not found", false, 400);
                 }
-            string mockOrderId = Guid.NewGuid().ToString("N").Substring(0, 40); // Razorpay format
+            string mockOrderId = (Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N")).Substring(0, 40);
             if (coins > 0)
                 {
                     string coinBalanceQuery = @"SELECT ISNULL(SUM(CASE WHEN JournalTypeID = 1 THEN Coins ELSE -Coins END), 0)
@@ -334,7 +334,7 @@ namespace StudentApp_API.Repository.Implementations
             try
             {
                 decimal amount = 0;
-                string mockOrderId = Guid.NewGuid().ToString("N").Substring(0, 40); // Razorpay format
+                string mockOrderId = (Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N")).Substring(0, 40);
 
                 if (request.PurchaseType.ToLower() == "subscription")
                 {
