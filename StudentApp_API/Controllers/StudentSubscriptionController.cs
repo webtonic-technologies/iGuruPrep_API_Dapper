@@ -27,7 +27,7 @@ namespace StudentApp_API.Controllers
 
             return BadRequest(response);
         }
-        [HttpPost("ShareQuestion")]
+        [HttpPost("InsertStudentSubscription")]
         public async Task<IActionResult> InsertStudentSubscriptionAsync(StudentSubscriptionInsertRequest request)
         {
             var response = await _studentSubscriptionServices.InsertStudentSubscriptionAsync(request);
@@ -36,6 +36,48 @@ namespace StudentApp_API.Controllers
                 return Ok(response);
             }
 
+            return BadRequest(response);
+        }
+        [HttpPost("InitiateTransaction")]
+        public async Task<IActionResult> InitiateTransactionAsync(InitiateTransactionRequest request)
+        {
+            var response = await _studentSubscriptionServices.InitiateTransactionAsync(request);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+
+            return BadRequest(response);
+        }
+        [HttpGet("GetTransactionDetailsByOrderId")]
+        public async Task<IActionResult> GetTransactionDetailsByOrderIdAsync(string orderId)
+        {
+            var response = await _studentSubscriptionServices.GetTransactionDetailsByOrderIdAsync(orderId);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+
+            return BadRequest(response);
+        }
+        [HttpGet("GetStudentCoinTransactions/{studentId}")]
+        public async Task<IActionResult> GetStudentCoinTransactionsAsync(int studentId)
+        {
+            var response = await _studentSubscriptionServices.GetStudentCoinTransactionsAsync(studentId);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
+            return BadRequest(response);
+        }
+        [HttpPost("CoinTransaction")]
+        public async Task<IActionResult> CoinTransactionAsync(CoinTransactionRequestDTO request)
+        {
+            var response = await _studentSubscriptionServices.CoinTransactionAsync(request);
+            if (response.Success)
+            {
+                return Ok(response);
+            }
             return BadRequest(response);
         }
     }

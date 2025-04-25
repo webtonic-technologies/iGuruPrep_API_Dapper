@@ -185,6 +185,8 @@
 
         public string TotalTimeOnUnansweredQuestions { get; set; }
         public string AverageTimePerUnansweredQuestion { get; set; }
+        public int TopperId {  get; set; }
+        public string TopperName { get; set; }
     }
     public class ChapterTreeResponse
     {

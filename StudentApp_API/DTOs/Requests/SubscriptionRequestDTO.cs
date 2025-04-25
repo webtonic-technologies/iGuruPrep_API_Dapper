@@ -21,8 +21,18 @@
         public int CoinCategoryTypeID { get; set; }  // e.g., 1 = Test Series, 2 = Rank, 3 = Subscription
         public int Coins { get; set; }               // Coins to credit or debit
         public int JournalTypeID { get; set; }       // 1 = Debit, 2 = Credit
-        public int ReferenceID { get; set; }         // Optional reference (e.g., Test ID)
+        public int ReferenceID { get; set; }
+        public int ItemId { get; set; }// Optional reference (e.g., Test ID)
+        public int? IndexTypeId {  get; set; }
+        public int? ContentId {  get; set; }
     }
-
+    public class InitiateTransactionRequest
+    {
+        public int StudentId { get; set; }
+        public int ItemId { get; set; }
+        public string PurchaseType { get; set; } // "subscription" or "coins"
+        public bool UseCoins { get; set; } = false;
+        public int CoinsToUse { get; set; } = 0; // Optional; applies only for subscription
+    }
 
 }

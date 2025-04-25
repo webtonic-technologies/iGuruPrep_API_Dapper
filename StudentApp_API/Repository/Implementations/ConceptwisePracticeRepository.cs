@@ -1272,6 +1272,10 @@ FROM YourAccuracy YA, ClassmateAccuracy CA;";
                     TotalTimeOnUnansweredQuestions = ConvertSecondsToTimeFormat(unansweredTimes.Sum()),
                     AverageTimePerUnansweredQuestion = ConvertSecondsToTimeFormat(SafeAverage(unansweredTimes))
                 };
+                var (topperId, topperName) = await GetTopperAsync(studentId, setId, indexTypeId, contentId);
+                dto.TopperId = topperId;
+                dto.TopperName = topperName;
+
 
                 return new ServiceResponse<StudentTimeAnalysisDto>(true, "Time analysis retrieved successfully", dto, 200);
             }
@@ -1385,6 +1389,69 @@ WHERE SyllabusID = @SyllabusId
         }
 
         // Additional helper method
+        private async Task<(int TopperId, string TopperName)> GetTopperAsync(int studentId, int setId, int indexTypeId, int contentId)
+        {
+            // Step 1: Get the student's class-group
+            var groupQuery = @"
+SELECT BoardId, ClassID, CourseID
+FROM tblStudentClassCourseMapping
+WHERE RegistrationID = @StudentId";
+
+            var studentGroup = await _connection.QueryFirstOrDefaultAsync<(int BoardId, int ClassId, int CourseId)>(groupQuery, new { StudentId = studentId });
+
+            if (studentGroup == default) return (0, string.Empty);
+
+            // Step 2: Get all classmates (excluding current student)
+            var classmatesQuery = @"
+SELECT RegistrationID
+FROM tblStudentClassCourseMapping
+WHERE BoardId = @BoardId AND ClassID = @ClassId AND CourseID = @CourseId AND RegistrationID <> @StudentId";
+
+            var classmates = (await _connection.QueryAsync<int>(classmatesQuery, new
+            {
+                StudentId = studentId,
+                studentGroup.BoardId,
+                studentGroup.ClassId,
+                studentGroup.CourseId
+            })).ToList();
+
+            if (!classmates.Any()) return (0, string.Empty);
+
+            // Step 3: Calculate accuracy of each classmate from the answers table
+            var accuracyQuery = @"
+SELECT A.StudentId, COUNT(*) AS Total, SUM(CASE WHEN A.IsCorrect = 1 THEN 1 ELSE 0 END) AS Correct
+FROM tblConceptwisePracticeAnswers A
+INNER JOIN tblConceptwisePracticeQuestions Q ON A.QuestionId = Q.QuestionID
+WHERE A.StudentId IN @Classmates
+  AND Q.SetID = @SetId
+  AND Q.IndexTypeID = @IndexTypeId
+  AND Q.ContentID = @ContentId
+GROUP BY A.StudentId";
+
+            var accuracyList = (await _connection.QueryAsync<(int StudentId, int Total, int Correct)>(accuracyQuery, new
+            {
+                Classmates = classmates,
+                SetId = setId,
+                IndexTypeId = indexTypeId,
+                ContentId = contentId
+            })).ToList();
+
+            if (!accuracyList.Any()) return (0, string.Empty);
+
+            // Step 4: Get the topper (highest accuracy %)
+            var topper = accuracyList
+                .Where(x => x.Total > 0)
+                .OrderByDescending(x => (decimal)x.Correct / x.Total)
+                .FirstOrDefault();
+
+            if (topper.StudentId == 0) return (0, string.Empty);
+
+            // Step 5: Get topper name
+            var nameQuery = @"SELECT FirstName FROM tblRegistration WHERE RegistrationID = @StudentId";
+            var topperName = await _connection.ExecuteScalarAsync<string>(nameQuery, new { StudentId = topper.StudentId });
+
+            return (topper.StudentId, topperName ?? string.Empty);
+        }
         private async Task<int> GetCompletedAttemptsForChapterAsync(ChapterAnalyticsRequest request)
         {
             // Step 1: Get ChapterCode
@@ -1480,103 +1547,6 @@ WHERE StudentId = @StudentId
 
             return completedAttempts;
         }
-
-        //        private async Task<int> GetCompletedAttemptsForChapterAsync(ChapterAnalyticsRequest request)
-        //        {
-        //            // Step 1: Get ChapterCode
-        //            string getChapterCodeQuery = @"
-        //SELECT ChapterCode
-        //FROM tblContentIndexChapters
-        //WHERE ContentIndexId = @ChapterId AND IsActive = 1";
-
-        //            string chapterCode = await _connection.ExecuteScalarAsync<string>(getChapterCodeQuery, new { ChapterId = request.ChapterId });
-        //            if (string.IsNullOrEmpty(chapterCode))
-        //                return 0;
-
-        //            // Step 2: Get all ContentIndexIds (Chapter + Topics + SubTopics)
-        //            string contentIdsQuery = @"
-        //SELECT ContentIndexId FROM tblContentIndexChapters 
-        //WHERE ChapterCode = @ChapterCode AND IsActive = 1
-        //UNION
-        //SELECT ContentIndexId FROM tblContentIndexTopics 
-        //WHERE ChapterCode = @ChapterCode AND IsActive = 1
-        //UNION
-        //SELECT ST.ContInIdSubTopic AS ContentIndexId
-        //FROM tblContentIndexSubTopics ST
-        //JOIN tblContentIndexTopics T ON ST.TopicCode = T.TopicCode
-        //WHERE T.ChapterCode = @ChapterCode AND ST.IsActive = 1 AND T.IsActive = 1";
-
-        //            var contentIds = (await _connection.QueryAsync<int>(contentIdsQuery, new { ChapterCode = chapterCode })).ToList();
-        //            if (!contentIds.Any()) return 0;
-
-        //            // Step 3: Get all QuestionIDs mapped to these content IDs
-        //            string allMappedQuestionsQuery = @"
-        //SELECT QuestionID
-        //FROM tblQuestion
-        //WHERE ContentIndexId IN @ContentIds AND SubjectId = @SubjectId AND IsLive = 1";
-
-        //            var allMappedQuestionIds = (await _connection.QueryAsync<int>(allMappedQuestionsQuery, new
-        //            {
-        //                ContentIds = contentIds,
-        //                SubjectId = request.SubjectId
-        //            })).ToHashSet();
-
-        //            if (!allMappedQuestionIds.Any()) return 0;
-
-        //            // Step 4: Get all distinct SetIDs student has attempted for these content IDs
-        //            string setIdsQuery = @"
-        //SELECT DISTINCT SetID
-        //FROM tblConceptwisePracticeQuestions
-        //WHERE StudentId = @StudentId
-        //  AND SyllabusID = @SyllabusId
-        //  AND SubjectId = @SubjectId
-        //  AND ContentID IN @ContentIds";
-
-        //            var setIds = (await _connection.QueryAsync<int>(setIdsQuery, new
-        //            {
-        //                request.StudentId,
-        //                request.SyllabusId,
-        //                request.SubjectId,
-        //                ContentIds = contentIds
-        //            })).ToList();
-
-        //            int completedAttempts = 0;
-
-        //            // Step 5: Loop through each SetID and verify complete + correct answers
-        //            foreach (var setId in setIds)
-        //            {
-        //                string answeredQuery = @"
-        //SELECT QuestionID, IsCorrect
-        //FROM tblConceptwisePracticeQuestions
-        //WHERE StudentId = @StudentId
-        //  AND SetID = @SetId
-        //  AND SyllabusID = @SyllabusId
-        //  AND SubjectId = @SubjectId
-        //  AND ContentID IN @ContentIds";
-
-        //                var attempts = (await _connection.QueryAsync<(int QuestionId, int IsCorrect)>(answeredQuery, new
-        //                {
-        //                    request.StudentId,
-        //                    request.SyllabusId,
-        //                    request.SubjectId,
-        //                    SetId = setId,
-        //                    ContentIds = contentIds
-        //                })).ToList();
-
-        //                var attemptedQuestionIds = attempts.Select(x => x.QuestionId).ToHashSet();
-
-        //                // ✅ Check if all mapped questions are attempted AND correct
-        //                bool isComplete = allMappedQuestionIds.All(qid =>
-        //                    attemptedQuestionIds.Contains(qid) &&
-        //                    attempts.Any(a => a.QuestionId == qid && a.IsCorrect == 1));
-
-        //                if (isComplete)
-        //                    completedAttempts++;
-        //            }
-
-        //            return completedAttempts;
-        //        }
-
         public async Task<ServiceResponse<ChapterAnalyticsResponse>> GetChapterAnalyticsAsync(ChapterAnalyticsRequest request)
         {
             try

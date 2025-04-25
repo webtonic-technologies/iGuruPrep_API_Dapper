@@ -39,5 +39,22 @@
         public bool IsSubscription { get; set; }
         public decimal DiscountOnFinalPrice { get; set; }
     }
+    public class CoinTransactionResponse
+    {
+        public int CTID { get; set; }
+        public int StudentID { get; set; }
+        public int CoinCategoryTypeID { get; set; }
+        public int Coins { get; set; }
+        public int JournalTypeID { get; set; }
+        public string ReferenceName { get; set; }  // Name from CYOT or Content Table
+        public string CoinCategoryType { get; set; } // Optional: Descriptive name
+        public DateTime TransactionTime { get; set; }
+    }
+
+    public class StudentCoinTransactionResult
+    {
+        public int TotalRemainingCoins { get; set; }
+        public List<CoinTransactionResponse> Transactions { get; set; }
+    }
 
 }
